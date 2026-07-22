@@ -1,0 +1,59 @@
+version: 1
+
+# RuntimeProfile aliases required by the workflows under src/. The concrete
+# resource IDs, providers, tenants, and credentials remain deployment-owned.
+models:
+  - name: asr
+    kind: asr
+    required_by:
+      - flowcraft/chat-assistant
+      - flowcraft/journey-guide
+      - flowcraft/murder-mystery
+  - name: chat
+    kind: llm
+    required_by:
+      - flowcraft/chat-assistant
+      - flowcraft/journey-guide
+      - flowcraft/murder-mystery
+  - name: extraction
+    kind: llm
+    required_by:
+      - flowcraft/chat-assistant
+      - flowcraft/journey-guide
+  - name: realtime
+    kind: realtime
+    required_by:
+      - doubao-realtime/conversation
+  - name: translation
+    kind: translation
+    required_by:
+      - ast-translate/zh-en-auto
+      - ast-translate/zh-es
+      - ast-translate/zh-ja
+      - ast-translate/zh-ko
+
+voices:
+  - name: assistant-voice
+    required_by:
+      - flowcraft/chat-assistant
+  - name: detective
+    required_by:
+      - flowcraft/murder-mystery
+  - name: doubao-assistant
+    required_by:
+      - doubao-realtime/conversation
+  - name: game-master
+    required_by:
+      - flowcraft/murder-mystery
+  - name: narrator
+    required_by:
+      - flowcraft/journey-guide
+  - name: police-officer
+    required_by:
+      - flowcraft/murder-mystery
+  - name: translator
+    required_by:
+      - ast-translate/zh-en-auto
+      - ast-translate/zh-es
+      - ast-translate/zh-ja
+      - ast-translate/zh-ko
