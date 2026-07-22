@@ -1,18 +1,25 @@
 # GizClaw Raids
 
-Open source workflow configurations for [GizClaw](https://github.com/GizClaw/gizclaw).
+Public source resources for [GizClaw](https://github.com/GizClaw/gizclaw) Raids.
 
 ## Layout
 
-Workflow resources are grouped by their `spec.driver` value:
+Resources are grouped by kind. Credential, Tenant, and Model resources are
+flat because their `metadata.name` already provides the stable identity. Voice
+catalogs and Workflows keep one grouping level for navigability:
 
 ```text
-src/<driver>/<raid-name>.yaml
+credentials/<credential-name>.yaml
+tenants/<tenant-name>.yaml
+models/<model-name>.yaml
+voices/<tenant-name>/<voice-id>.yaml
+workflows/<driver>/<raid-name>.yaml
+runtime-profile.example.yaml
 ```
 
-The shorter file name is repository-local. Each YAML document keeps its stable
-`metadata.name` so existing RuntimeProfile bindings continue to resolve the same
-Workflow resource.
+File names are repository-local. Each resource keeps its stable `metadata.name`
+so references continue to resolve after consumers select and assemble the
+resources they need.
 
 Current drivers:
 
@@ -20,9 +27,10 @@ Current drivers:
 - `doubao-realtime`
 - `flowcraft`
 
-[`runtime-requirement.yaml`](runtime-requirement.yaml) is a standard
-`kind: RuntimeProfile` resource containing the Workflow, Model, and Voice
-bindings required by the bundled Raids.
+[`runtime-profile.example.yaml`](runtime-profile.example.yaml) is a valid
+`kind: RuntimeProfile` example containing only the Model and Voice aliases
+required by these Workflows. Product owners define their own Workflow
+collections and the rest of their RuntimeProfile policy.
 
 ## Download
 
@@ -65,6 +73,25 @@ successfully installed package and RuntimeProfile usable.
 
 ## Scope
 
-This repository contains public `kind: Workflow` resources and their baseline
-RuntimeProfile requirement. Credential, ProviderTenant, Model, Voice,
-Workspace, registration tokens, and secrets remain outside this repository.
+This repository contains public Credential, Tenant, Model, Voice, and Workflow
+source resources. It does not prescribe how downstream Desktop or deployment
+tooling selects, orders, or packages them.
+
+Credential resources define stable names, providers, and body shapes, while
+their values remain `${ENVIRONMENT_VARIABLE}` examples. The repository never
+contains real credential values. Copy [`.env.example`](.env.example) to the
+environment configuration managed by the consuming product or deployment and
+fill only the credentials it selects.
+
+Voice files are snapshots of provider system catalogs. Purchased, cloned,
+generated, trained, and otherwise account-private voices are excluded. Server
+timestamps, account status, and raw provider responses are not source
+resources and are also excluded.
+
+Each Voice directory name matches its Tenant `metadata.name`, so catalogs with
+different providers, endpoints, or regions remain separate. For example,
+`voices/minimax-cn/`, `voices/minimax-global/`, and
+`voices/volc-cn-beijing/` correspond to those three Tenant resources.
+
+Workspace instances, registration tokens, secrets, and other user or runtime
+state remain outside this repository.
