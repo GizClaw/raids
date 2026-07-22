@@ -20,9 +20,9 @@ Current drivers:
 - `doubao-realtime`
 - `flowcraft`
 
-[`runtime-requirement.yaml`](runtime-requirement.yaml) lists the Model and
-Voice aliases these workflows require from a RuntimeProfile. It intentionally
-does not select concrete resources or providers.
+[`runtime-requirement.md`](runtime-requirement.md) documents the standard
+RuntimeProfile requirements for these workflows. It lists the required Model
+and Voice aliases without selecting concrete resources or providers.
 
 ## Scope
 
