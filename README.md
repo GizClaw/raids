@@ -1,6 +1,11 @@
 # GizClaw Raids
 
-Public source resources for [GizClaw](https://github.com/GizClaw/gizclaw) Raids.
+Reusable resource loadouts for [GizClaw](https://github.com/GizClaw/gizclaw)
+AI workflows.
+
+**Raids** stands for **Resources for AI Drivers & Scenarios**. Like a raid
+loadout in a game, each collection brings together the workflows, models,
+voices, credentials, and provider definitions needed for an AI scenario.
 
 ## Layout
 
