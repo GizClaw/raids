@@ -20,12 +20,12 @@ Current drivers:
 - `doubao-realtime`
 - `flowcraft`
 
-[`runtime-requirement.md`](runtime-requirement.md) documents the standard
-RuntimeProfile requirements for these workflows. It lists the required Model
-and Voice aliases without selecting concrete resources or providers.
+[`runtime-requirement.yaml`](runtime-requirement.yaml) is a standard
+`kind: RuntimeProfile` resource containing the Workflow, Model, and Voice
+bindings required by the bundled Raids.
 
 ## Scope
 
-This repository contains public `kind: Workflow` resources. RuntimeProfile,
-Credential, ProviderTenant, Model, Voice, Workspace, registration tokens, and
-secrets remain outside this repository.
+This repository contains public `kind: Workflow` resources and their baseline
+RuntimeProfile requirement. Credential, ProviderTenant, Model, Voice,
+Workspace, registration tokens, and secrets remain outside this repository.
