@@ -29,8 +29,10 @@ resources they need.
 Current drivers:
 
 - `ast-translate`
+- `chatroom`
 - `doubao-realtime`
 - `flowcraft`
+- `pet`
 
 [`runtime-profile.example.yaml`](runtime-profile.example.yaml) is a valid
 `kind: RuntimeProfile` example containing only the Model and Voice aliases
@@ -51,6 +53,9 @@ Versioned packages use the corresponding Git tag archive, for example:
 ```text
 https://github.com/GizClaw/raids/archive/refs/tags/v0.1.tar.gz
 ```
+
+Release `v0.2` includes the public `chatroom` and `pet-care` system Workflows
+for Desktop consumers.
 
 The archive contains one top-level directory. Consumers locate
 `runtime-requirement.yaml` and `src/` relative to that directory rather than
