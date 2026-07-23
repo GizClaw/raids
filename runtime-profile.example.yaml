@@ -1,7 +1,9 @@
 # Runtime Profile maintenance guide:
-# - Keep Model and Voice alias names exactly aligned with references in workflows/.
+# - Keep system Workflow IDs and Model, Voice, and PetDef aliases aligned with
+#   the resources published by this repository.
 # - Add, rename, or remove an alias whenever the corresponding Workflow reference changes.
-# - Set each Model resource_id to a Model metadata.name from models/.
+# - Set each Model and PetDef resource_id to a matching metadata.name from models/
+#   and petdefs/.
 # - Replace each Voice placeholder with a Voice metadata.name from voices/ when adapting
 #   this example for a product.
 # - Keep Workflow collections empty here; each consuming product owns its collections
@@ -13,6 +15,11 @@ metadata:
   name: raids
 spec:
   workflows:
+    # System Workflows are resolved by role and are not exposed as selectable aliases.
+    system:
+      friend_chatroom: chatroom
+      group_chatroom: chatroom
+      pet: pet-care
     # Workflow collections are defined by each consuming product.
     collections: {}
   resources:
@@ -32,6 +39,15 @@ spec:
       extraction:
         resource_id: deepseek-v4-flash
         i18n: {en: {display_name: Extraction}, zh-CN: {display_name: 信息提取}}
+      pet-chat:
+        resource_id: doubao-seed-2-0-lite
+        i18n: {en: {display_name: Pet Chat}, zh-CN: {display_name: 宠物对话}}
+      pet-extract:
+        resource_id: deepseek-v4-flash
+        i18n: {en: {display_name: Pet Memory Extraction}, zh-CN: {display_name: 宠物记忆提取}}
+      pet-asr:
+        resource_id: volc-bigasr-sauc
+        i18n: {en: {display_name: Pet Speech Recognition}, zh-CN: {display_name: 宠物语音识别}}
     voices:
       # Replace each placeholder with a Voice metadata.name selected by the consuming product.
 
@@ -49,6 +65,11 @@ spec:
       assistant-voice:
         resource_id: <voice-resource-id>
         i18n: {en: {display_name: General Assistant}, zh-CN: {display_name: 通用助手}}
+
+      # workflows/pet/pet-care.yaml
+      cute-pet:
+        resource_id: <voice-resource-id>
+        i18n: {en: {display_name: Cute Pet}, zh-CN: {display_name: 奶气萌宠}}
 
       # workflows/flowcraft/journey-guide.yaml
       journey-narrator:
@@ -83,3 +104,49 @@ spec:
       police-officer:
         resource_id: <voice-resource-id>
         i18n: {en: {display_name: Police Officer}, zh-CN: {display_name: 警察}}
+    pet_defs:
+      bsod:
+        resource_id: petdef-bsod
+        i18n:
+          en: {display_name: BSOD, description: A native Codex animated pet.}
+          zh-CN: {display_name: BSOD, description: Codex 原生动画宠物。}
+      codex:
+        resource_id: petdef-codex
+        i18n:
+          en: {display_name: Codex, description: A native Codex animated pet.}
+          zh-CN: {display_name: Codex, description: Codex 原生动画宠物。}
+      dewey:
+        resource_id: petdef-dewey
+        i18n:
+          en: {display_name: Dewey, description: A native Codex animated pet.}
+          zh-CN: {display_name: Dewey, description: Codex 原生动画宠物。}
+      fireball:
+        resource_id: petdef-fireball
+        i18n:
+          en: {display_name: Fireball, description: A native Codex animated pet.}
+          zh-CN: {display_name: Fireball, description: Codex 原生动画宠物。}
+      hoots:
+        resource_id: petdef-hoots
+        i18n:
+          en: {display_name: Hoots, description: A native Codex animated pet.}
+          zh-CN: {display_name: Hoots, description: Codex 原生动画宠物。}
+      null-signal:
+        resource_id: petdef-null-signal
+        i18n:
+          en: {display_name: Null Signal, description: A native Codex animated pet.}
+          zh-CN: {display_name: Null Signal, description: Codex 原生动画宠物。}
+      rocky:
+        resource_id: petdef-rocky
+        i18n:
+          en: {display_name: Rocky, description: A native Codex animated pet.}
+          zh-CN: {display_name: Rocky, description: Codex 原生动画宠物。}
+      seedy:
+        resource_id: petdef-seedy
+        i18n:
+          en: {display_name: Seedy, description: A native Codex animated pet.}
+          zh-CN: {display_name: Seedy, description: Codex 原生动画宠物。}
+      stacky:
+        resource_id: petdef-stacky
+        i18n:
+          en: {display_name: Stacky, description: A native Codex animated pet.}
+          zh-CN: {display_name: Stacky, description: Codex 原生动画宠物。}

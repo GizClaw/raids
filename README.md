@@ -9,14 +9,15 @@ voices, credentials, and provider definitions needed for an AI scenario.
 
 ## Layout
 
-Resources are grouped by kind. Credential, Tenant, and Model resources are
-flat because their `metadata.name` already provides the stable identity. Voice
-catalogs and Workflows keep one grouping level for navigability:
+Resources are grouped by kind. Credential, Tenant, Model, and PetDef resources
+are flat because their `metadata.name` already provides the stable identity.
+Voice catalogs and Workflows keep one grouping level for navigability:
 
 ```text
 credentials/<credential-name>.yaml
 tenants/<tenant-name>.yaml
 models/<model-name>.yaml
+petdefs/<petdef-name>.yaml
 voices/<tenant-name>/<voice-id>.yaml
 workflows/<driver>/<raid-name>.yaml
 runtime-profile.example.yaml
@@ -34,10 +35,19 @@ Current drivers:
 - `flowcraft`
 - `pet`
 
-[`runtime-profile.example.yaml`](runtime-profile.example.yaml) is a valid
-`kind: RuntimeProfile` example containing only the Model and Voice aliases
-required by these Workflows. Product owners define their own Workflow
-collections and the rest of their RuntimeProfile policy.
+[`runtime-profile.example.yaml`](runtime-profile.example.yaml) shows the
+`kind: RuntimeProfile` contract targeted by
+[`GizClaw/gizclaw#486`](https://github.com/GizClaw/gizclaw/issues/486),
+including the required system Workflow bindings and the Model, Voice, and
+PetDef aliases used by these resources. Product owners define their own
+selectable Workflow collections and the rest of their RuntimeProfile policy.
+
+The `pet-care` resource keeps Pet domain integration in its outer `pet` driver
+and declares a complete, replaceable Flowcraft Workflow beneath `spec.pet`.
+The `friend_chatroom` and `group_chatroom` system roles share the same
+`chatroom` Workflow; direct and group mode remains Workspace state.
+These definitions require a GizClaw build containing the #486 schema and
+runtime contract.
 
 ## Download
 
@@ -68,11 +78,12 @@ GizClaw Desktop keeps one local `RuntimeProfile/default`. It does not apply
 file is the package requirement used to select and compose the local runtime
 contract:
 
-1. Read the Workflow bindings under `spec.workflows.collections`.
+1. Read the system Workflow IDs under `spec.workflows.system` together with any
+   product-owned bindings under `spec.workflows.collections`.
 2. Load the referenced `kind: Workflow` resources from `src/` by their stable
    `metadata.name`.
-3. Require the Model and Voice aliases declared under `spec.resources` to be
-   resolvable by the local runtime resources.
+3. Require the Model, Voice, and PetDef aliases declared under `spec.resources`
+   to be resolvable by the local runtime resources.
 4. Apply the selected Workflows before updating the single local
    `RuntimeProfile/default`.
 
@@ -83,9 +94,9 @@ successfully installed package and RuntimeProfile usable.
 
 ## Scope
 
-This repository contains public Credential, Tenant, Model, Voice, and Workflow
-source resources. It does not prescribe how downstream Desktop or deployment
-tooling selects, orders, or packages them.
+This repository contains public Credential, Tenant, Model, PetDef, Voice, and
+Workflow source resources. It does not prescribe how downstream Desktop or
+deployment tooling selects, orders, or packages them.
 
 Credential resources define stable names, providers, and body shapes, while
 their values remain `${ENVIRONMENT_VARIABLE}` examples. The repository never
@@ -102,6 +113,11 @@ Each Voice directory name matches its Tenant `metadata.name`, so catalogs with
 different providers, endpoints, or regions remain separate. For example,
 `voices/minimax-cn/`, `voices/minimax-global/`, and
 `voices/volc-cn-beijing/` correspond to those three Tenant resources.
+
+PetDef resources contain only machine-readable character, voice, and visual
+configuration. Their localized display names and descriptions belong to the
+corresponding `spec.resources.pet_defs.<alias>.i18n` binding in the consuming
+RuntimeProfile.
 
 Workspace instances, registration tokens, secrets, and other user or runtime
 state remain outside this repository.
