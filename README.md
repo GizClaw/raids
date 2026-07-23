@@ -38,9 +38,11 @@ Current drivers:
 [`runtime-profile.example.yaml`](runtime-profile.example.yaml) shows the
 `kind: RuntimeProfile` contract targeted by
 [`GizClaw/gizclaw#486`](https://github.com/GizClaw/gizclaw/issues/486),
-including the required system Workflow bindings and the Model, Voice, and
-PetDef aliases used by these resources. Product owners define their own
-selectable Workflow collections and the rest of their RuntimeProfile policy.
+using one possible set of system Workflow IDs and Model, Voice, and PetDef
+aliases. It is documentation, not a RuntimeProfile published or applied by
+Raids. Consuming products own their actual RuntimeProfile, selectable Workflow
+collections, and every concrete resource binding; the Voice placeholders are
+intentionally left unresolved.
 
 The `pet-care` resource keeps Pet domain integration in its outer `pet` driver
 and declares a complete, replaceable Flowcraft Workflow beneath `spec.pet`.
