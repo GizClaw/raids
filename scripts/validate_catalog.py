@@ -33,6 +33,11 @@ RESOURCE_KINDS = {
     "badge_defs": "BadgeDef",
 }
 PLACEHOLDER_PATTERN = re.compile(r"<[^>]+>|\$\{[^}]+\}")
+GO_TRIM_SPACE_CHARACTERS = (
+    "\t\n\v\f\r \u0085\u00a0\u1680"
+    "\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a"
+    "\u2028\u2029\u202f\u205f\u3000"
+)
 PROHIBITED_DEFAULT_KEYS = {
     "cloud_region",
     "endpoint",
@@ -338,15 +343,25 @@ def validate_catalog(root: Path) -> None:
         if identity[0] == "RegistrationToken":
             spec = document.get("spec")
             token = spec.get("token") if isinstance(spec, Mapping) else None
-            if isinstance(token, str):
-                if token in token_values:
-                    other_name, other_path = token_values[token]
+            normalized_token = (
+                token.strip(GO_TRIM_SPACE_CHARACTERS)
+                if isinstance(token, str)
+                else None
+            )
+            if not normalized_token:
+                errors.append(
+                    f"{relative}: RegistrationToken/{identity[1]}.spec.token "
+                    "must be a non-empty string"
+                )
+            else:
+                if normalized_token in token_values:
+                    other_name, other_path = token_values[normalized_token]
                     errors.append(
                         f"{relative}: token value duplicates RegistrationToken/"
                         f"{other_name} from {other_path}"
                     )
                 else:
-                    token_values[token] = (identity[1], relative)
+                    token_values[normalized_token] = (identity[1], relative)
 
     profile_path = Path("runtime-profiles/default.yaml")
     token_path = Path("registration-tokens/default.yaml")

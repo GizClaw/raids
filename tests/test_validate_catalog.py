@@ -118,6 +118,38 @@ class CatalogValidationTest(unittest.TestCase):
         )
         self.assert_invalid("token value duplicates RegistrationToken/default-runtime")
 
+    def test_rejects_duplicate_normalized_token_value(self) -> None:
+        for case, token in {
+            "ascii": " default ",
+            "unicode": "\u00a0default\u00a0",
+        }.items():
+            with self.subTest(case=case):
+                self.write(
+                    "registration-tokens/other.yaml",
+                    TOKEN.replace("name: default-runtime", "name: other").replace(
+                        "token: default", f'token: "{token}"'
+                    ),
+                )
+                self.assert_invalid(
+                    "token value duplicates RegistrationToken/default-runtime"
+                )
+
+    def test_rejects_missing_empty_or_non_string_token(self) -> None:
+        cases = {
+            "missing": "",
+            "empty": '  token: "   "\n',
+            "non-string": "  token: 123\n",
+        }
+        for case, token_line in cases.items():
+            with self.subTest(case=case):
+                other = TOKEN.replace("name: default-runtime", "name: other").replace(
+                    "  token: default\n", token_line
+                )
+                self.write("registration-tokens/other.yaml", other)
+                self.assert_invalid(
+                    "RegistrationToken/other.spec.token must be a non-empty string"
+                )
+
     def test_rejects_registration_token_with_missing_profile(self) -> None:
         self.write(
             "registration-tokens/other.yaml",
