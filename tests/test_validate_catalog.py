@@ -118,6 +118,18 @@ class CatalogValidationTest(unittest.TestCase):
         )
         self.assert_invalid("token value duplicates RegistrationToken/default-runtime")
 
+    def test_rejects_registration_token_with_missing_profile(self) -> None:
+        self.write(
+            "registration-tokens/other.yaml",
+            TOKEN.replace("name: default-runtime", "name: other")
+            .replace("token: default", "token: other")
+            .replace("runtime_profile_name: default", "runtime_profile_name: missing"),
+        )
+        self.assert_invalid(
+            "RegistrationToken/other.spec.runtime_profile_name references "
+            "missing RuntimeProfile/missing"
+        )
+
     def test_rejects_placeholder_in_default_profile(self) -> None:
         self.write(
             "runtime-profiles/default.yaml",

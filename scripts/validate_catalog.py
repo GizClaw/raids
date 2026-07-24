@@ -394,6 +394,24 @@ def validate_catalog(root: Path) -> None:
                 "token=default and runtime_profile_name=default"
             )
 
+    for (kind, name), document in documents.items():
+        if kind != "RegistrationToken":
+            continue
+        spec = _require_mapping(
+            document.get("spec"), f"RegistrationToken/{name}.spec", errors
+        )
+        profile_name = spec.get("runtime_profile_name")
+        if not isinstance(profile_name, str) or not profile_name:
+            errors.append(
+                f"RegistrationToken/{name}.spec.runtime_profile_name must be "
+                "a non-empty string"
+            )
+        elif ("RuntimeProfile", profile_name) not in resources:
+            errors.append(
+                f"RegistrationToken/{name}.spec.runtime_profile_name references "
+                f"missing RuntimeProfile/{profile_name}"
+            )
+
     if errors:
         raise CatalogValidationError(errors)
     print(
