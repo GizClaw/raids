@@ -5,7 +5,11 @@ import tempfile
 import textwrap
 import unittest
 
-from scripts.validate_catalog import CatalogValidationError, validate_catalog
+from scripts.validate_catalog import (
+    PUBLIC_DEFAULT_TOKEN,
+    CatalogValidationError,
+    validate_catalog,
+)
 
 
 PROFILE = """
@@ -29,13 +33,13 @@ spec:
           zh-CN: {display_name: 语音识别}
 """
 
-TOKEN = """
+TOKEN = f"""
 apiVersion: gizclaw.admin/v1alpha1
 kind: RegistrationToken
 metadata:
   name: default-runtime
 spec:
-  token: default
+  token: {PUBLIC_DEFAULT_TOKEN}
   runtime_profile_name: default
 """
 
@@ -97,6 +101,12 @@ class CatalogValidationTest(unittest.TestCase):
     def test_accepts_complete_default_bootstrap_closure(self) -> None:
         validate_catalog(self.root)
 
+    def test_public_default_token_uuidv5_derivation_is_stable(self) -> None:
+        self.assertEqual(
+            PUBLIC_DEFAULT_TOKEN,
+            "28c4e4e9-a05f-5a7e-815e-9cf9afb6878f",
+        )
+
     def test_rejects_missing_resource_reference(self) -> None:
         self.write(
             "models/asr-model.yaml",
@@ -120,14 +130,14 @@ class CatalogValidationTest(unittest.TestCase):
 
     def test_rejects_duplicate_normalized_token_value(self) -> None:
         for case, token in {
-            "ascii": " default ",
-            "unicode": "\u00a0default\u00a0",
+            "ascii": f" {PUBLIC_DEFAULT_TOKEN} ",
+            "unicode": f"\u00a0{PUBLIC_DEFAULT_TOKEN}\u00a0",
         }.items():
             with self.subTest(case=case):
                 self.write(
                     "registration-tokens/other.yaml",
                     TOKEN.replace("name: default-runtime", "name: other").replace(
-                        "token: default", f'token: "{token}"'
+                        f"token: {PUBLIC_DEFAULT_TOKEN}", f'token: "{token}"'
                     ),
                 )
                 self.assert_invalid(
@@ -143,7 +153,7 @@ class CatalogValidationTest(unittest.TestCase):
         for case, token_line in cases.items():
             with self.subTest(case=case):
                 other = TOKEN.replace("name: default-runtime", "name: other").replace(
-                    "  token: default\n", token_line
+                    f"  token: {PUBLIC_DEFAULT_TOKEN}\n", token_line
                 )
                 self.write("registration-tokens/other.yaml", other)
                 self.assert_invalid(
@@ -154,7 +164,7 @@ class CatalogValidationTest(unittest.TestCase):
         self.write(
             "registration-tokens/other.yaml",
             TOKEN.replace("name: default-runtime", "name: other")
-            .replace("token: default", "token: other")
+            .replace(f"token: {PUBLIC_DEFAULT_TOKEN}", "token: other")
             .replace("runtime_profile_name: default", "runtime_profile_name: missing"),
         )
         self.assert_invalid(

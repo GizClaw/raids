@@ -42,7 +42,7 @@ canonical, applyable public `RuntimeProfile/default`. It selects every public
 Workflow in this repository and binds the Model, Voice, and PetDef aliases
 needed by that catalog. [`registration-tokens/default.yaml`](registration-tokens/default.yaml)
 publishes the matching `RegistrationToken/default-runtime`; its stable public
-client value is `default`.
+client value is `28c4e4e9-a05f-5a7e-815e-9cf9afb6878f`.
 
 [`runtime-profile.example.yaml`](runtime-profile.example.yaml) remains a
 documentation-only composition example with unresolved Voice placeholders. It
@@ -83,7 +83,22 @@ The public default bootstrap contract consists of two ordinary Admin resources:
 
 - `RuntimeProfile/default` defines the public product composition.
 - `RegistrationToken/default-runtime` exposes the stable client bootstrap value
-  `default` and targets that profile.
+  `28c4e4e9-a05f-5a7e-815e-9cf9afb6878f` and targets that profile.
+
+The public token is a deterministic UUIDv5. Its immutable derivation inputs
+are:
+
+```text
+namespace = UUIDv5(
+  NAMESPACE_URL,
+  "https://github.com/GizClaw/raids/registration-tokens",
+)
+name = "default-runtime/v1"
+token = UUIDv5(namespace, name)
+```
+
+The UUID is a stable public identifier, not a secret. The versioned name keeps
+future token contracts reproducible without changing the v1 value.
 
 Each Server owns its own independent copies of these resources. Reusing the
 public token string does not share Server data, credentials, identities,

@@ -9,11 +9,22 @@ from collections.abc import Iterable, Mapping
 from pathlib import Path
 import re
 from typing import Any
+import uuid
 
 import yaml
 
 
 API_VERSION = "gizclaw.admin/v1alpha1"
+PUBLIC_DEFAULT_TOKEN_NAMESPACE_URL = (
+    "https://github.com/GizClaw/raids/registration-tokens"
+)
+PUBLIC_DEFAULT_TOKEN_NAME = "default-runtime/v1"
+PUBLIC_DEFAULT_TOKEN_NAMESPACE = uuid.uuid5(
+    uuid.NAMESPACE_URL, PUBLIC_DEFAULT_TOKEN_NAMESPACE_URL
+)
+PUBLIC_DEFAULT_TOKEN = str(
+    uuid.uuid5(PUBLIC_DEFAULT_TOKEN_NAMESPACE, PUBLIC_DEFAULT_TOKEN_NAME)
+)
 CATALOG_DIRECTORIES = {
     "credentials",
     "models",
@@ -403,10 +414,13 @@ def validate_catalog(root: Path) -> None:
         spec = _require_mapping(
             token.get("spec"), "RegistrationToken/default-runtime.spec", errors
         )
-        if dict(spec) != {"token": "default", "runtime_profile_name": "default"}:
+        if dict(spec) != {
+            "token": PUBLIC_DEFAULT_TOKEN,
+            "runtime_profile_name": "default",
+        }:
             errors.append(
                 "RegistrationToken/default-runtime.spec must contain exactly "
-                "token=default and runtime_profile_name=default"
+                f"token={PUBLIC_DEFAULT_TOKEN} and runtime_profile_name=default"
             )
 
     for (kind, name), document in documents.items():
