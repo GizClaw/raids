@@ -20,6 +20,8 @@ models/<model-name>.yaml
 petdefs/<petdef-name>.yaml
 voices/<tenant-name>/<voice-id>.yaml
 workflows/<driver>/<raid-name>.yaml
+runtime-profiles/<profile-name>.yaml
+registration-tokens/<token-name>.yaml
 runtime-profile.example.yaml
 ```
 
@@ -35,14 +37,16 @@ Current drivers:
 - `flowcraft`
 - `pet`
 
-[`runtime-profile.example.yaml`](runtime-profile.example.yaml) shows the
-`kind: RuntimeProfile` contract targeted by
-[`GizClaw/gizclaw#486`](https://github.com/GizClaw/gizclaw/issues/486),
-using one possible set of system Workflow IDs and Model, Voice, and PetDef
-aliases. It is documentation, not a RuntimeProfile published or applied by
-Raids. Consuming products own their actual RuntimeProfile, selectable Workflow
-collections, and every concrete resource binding; the Voice placeholders are
-intentionally left unresolved.
+[`runtime-profiles/default.yaml`](runtime-profiles/default.yaml) is the
+canonical, applyable public `RuntimeProfile/default`. It selects every public
+Workflow in this repository and binds the Model, Voice, and PetDef aliases
+needed by that catalog. [`registration-tokens/default.yaml`](registration-tokens/default.yaml)
+publishes the matching `RegistrationToken/default-runtime`; its stable public
+client value is `default`.
+
+[`runtime-profile.example.yaml`](runtime-profile.example.yaml) remains a
+documentation-only composition example with unresolved Voice placeholders. It
+is not discovered or applied as a catalog resource.
 
 The `pet-care` resource keeps Pet domain integration in its outer `pet` driver
 and declares a complete, replaceable Flowcraft Workflow beneath `spec.pet`.
@@ -69,36 +73,41 @@ https://github.com/GizClaw/raids/archive/refs/tags/v0.1.tar.gz
 Release `v0.2` includes the public `chatroom` and `pet-care` system Workflows
 for Desktop consumers.
 
-The archive contains one top-level directory. Consumers locate
-`runtime-requirement.yaml` and `src/` relative to that directory rather than
-depending on the generated directory name.
+The archive contains one generated top-level directory. Consumers locate the
+kind directories relative to that root rather than depending on its generated
+name.
 
-## Desktop consumption
+## Default runtime bootstrap
 
-GizClaw Desktop keeps one local `RuntimeProfile/default`. It does not apply
-`runtime-requirement.yaml` as a second persisted RuntimeProfile. Instead, the
-file is the package requirement used to select and compose the local runtime
-contract:
+The public default bootstrap contract consists of two ordinary Admin resources:
 
-1. Read the system Workflow IDs under `spec.workflows.system` together with any
-   product-owned bindings under `spec.workflows.collections`.
-2. Load the referenced `kind: Workflow` resources from `src/` by their stable
-   `metadata.name`.
-3. Require the Model, Voice, and PetDef aliases declared under `spec.resources`
-   to be resolvable by the local runtime resources.
-4. Apply the selected Workflows before updating the single local
-   `RuntimeProfile/default`.
+- `RuntimeProfile/default` defines the public product composition.
+- `RegistrationToken/default-runtime` exposes the stable client bootstrap value
+  `default` and targets that profile.
 
-Credentials, provider tenants, concrete local resource provisioning, gameplay
-policy, Workspaces, registration tokens, and secrets remain owned by the local
-GizClaw installation. A download or validation failure must leave the last
-successfully installed package and RuntimeProfile usable.
+Each Server owns its own independent copies of these resources. Reusing the
+public token string does not share Server data, credentials, identities,
+Terraform state, or lifecycle between Desktop, dev, production, or other
+installations. The Server endpoint is selected separately by the client.
+
+Consumers apply the catalog in dependency order:
+
+1. Apply Credential and Tenant definitions with deployment-owned values.
+2. Apply Models, Voices, PetDefs, and Workflows.
+3. Apply `RuntimeProfile/default`.
+4. Apply `RegistrationToken/default-runtime`.
+
+Applying the RegistrationToken before the RuntimeProfile fails because the
+profile reference is unresolved. Reapplying identical resources is idempotent.
+Products may omit or override the public defaults and may install additional
+product- or hardware-specific profiles and tokens.
 
 ## Scope
 
-This repository contains public Credential, Tenant, Model, PetDef, Voice, and
-Workflow source resources. It does not prescribe how downstream Desktop or
-deployment tooling selects, orders, or packages them.
+This repository contains public Credential, Tenant, Model, PetDef, Voice,
+Workflow, RuntimeProfile, and RegistrationToken source resources. It publishes
+the default runtime bootstrap contract while leaving every applied resource
+instance under the ownership of its Server and deployment tooling.
 
 Credential resources define stable names, providers, and body shapes, while
 their values remain `${ENVIRONMENT_VARIABLE}` examples. The repository never
@@ -121,5 +130,6 @@ configuration. Their localized display names and descriptions belong to the
 corresponding `spec.resources.pet_defs.<alias>.i18n` binding in the consuming
 RuntimeProfile.
 
-Workspace instances, registration tokens, secrets, and other user or runtime
-state remain outside this repository.
+Workspace instances, real credential values, secrets, private Workflows,
+product- or hardware-specific RuntimeProfiles and RegistrationTokens, and other
+user or runtime state remain outside this repository.
