@@ -31,6 +31,12 @@ spec:
         i18n:
           en: {display_name: ASR}
           zh-CN: {display_name: 语音识别}
+    memories:
+      pet-care:
+        layout_id: pet-care
+        driver: flowcraft
+        connection:
+          type: flowcraft_bbh
 """
 
 TOKEN = f"""
@@ -63,7 +69,37 @@ metadata:
   name: pet-care
 spec:
   driver: pet
+  memory: pet-care
   pet: {}
+"""
+
+MEMORY_LAYOUT = """
+apiVersion: gizclaw.admin/v1alpha1
+kind: MemoryLayout
+metadata:
+  name: pet-care
+spec:
+  flowcraft:
+    extraction:
+      model: asr
+      mode: single_pass
+    bbh: {}
+    lanes:
+      - name: pet-care
+        kind: note
+        description: Durable pet facts.
+        extract: Extract durable pet facts.
+        recall: Use relevant pet facts.
+    write:
+      mode: sync
+      tier: general
+  mem0:
+    custom_instructions: Keep durable pet facts.
+    custom_categories:
+      pet-care: Durable pet facts.
+  volc_mem0:
+    strategies:
+      - {name: pet-care, type: semantic, custom_instructions: Keep durable pet facts.}
 """
 
 MODEL = """
@@ -83,6 +119,7 @@ class CatalogValidationTest(unittest.TestCase):
         self.write("registration-tokens/default.yaml", TOKEN)
         self.write("workflows/chatroom/social.yaml", CHATROOM)
         self.write("workflows/pet/pet-care.yaml", PET)
+        self.write("memory-layouts/pet-care.yaml", MEMORY_LAYOUT)
         self.write("models/asr-model.yaml", MODEL)
 
     def tearDown(self) -> None:
@@ -120,6 +157,167 @@ class CatalogValidationTest(unittest.TestCase):
             CHATROOM.replace("asr_model: asr", "asr_model: missing"),
         )
         self.assert_invalid("required models alias 'missing' is not bound")
+
+    def test_rejects_missing_memory_layout(self) -> None:
+        self.write(
+            "memory-layouts/pet-care.yaml",
+            MEMORY_LAYOUT.replace("name: pet-care", "name: another-layout"),
+        )
+        self.assert_invalid("MemoryLayout/pet-care does not exist")
+
+    def test_rejects_unbound_workflow_memory_alias(self) -> None:
+        self.write(
+            "workflows/pet/pet-care.yaml",
+            PET.replace("memory: pet-care", "memory: missing"),
+        )
+        self.assert_invalid(
+            "memory alias 'missing' is not bound by RuntimeProfile/default"
+        )
+
+    def test_rejects_memory_layout_id_that_does_not_match_alias(self) -> None:
+        self.write(
+            "runtime-profiles/default.yaml",
+            PROFILE.replace("layout_id: pet-care", "layout_id: another-layout"),
+        )
+        self.assert_invalid(
+            "layout_id must match its stable memory alias 'pet-care'"
+        )
+
+    def test_rejects_wrong_scenario_memory_alias(self) -> None:
+        self.write(
+            "workflows/pet/pet-care.yaml",
+            PET.replace("memory: pet-care", "memory: another-memory"),
+        )
+        self.write(
+            "runtime-profiles/default.yaml",
+            PROFILE.replace(
+                "pet-care:\n        layout_id: pet-care",
+                "another-memory:\n        layout_id: pet-care",
+            ),
+        )
+        self.assert_invalid("Workflow/pet-care.spec.memory must be 'pet-care'")
+
+    def test_rejects_incompatible_memory_driver_and_connection(self) -> None:
+        self.write(
+            "runtime-profiles/default.yaml",
+            PROFILE.replace("driver: flowcraft", "driver: mem0"),
+        )
+        self.assert_invalid(
+            "driver 'mem0' cannot use connection type 'flowcraft_bbh'"
+        )
+
+    def test_rejects_unbound_memory_layout_model_alias(self) -> None:
+        self.write(
+            "memory-layouts/pet-care.yaml",
+            MEMORY_LAYOUT.replace("model: asr", "model: missing"),
+        )
+        self.assert_invalid(
+            "MemoryLayout/pet-care: required models alias 'missing' is not bound"
+        )
+
+    def test_rejects_memory_layout_without_lane_guidance(self) -> None:
+        self.write(
+            "memory-layouts/pet-care.yaml",
+            MEMORY_LAYOUT.replace(
+                "        extract: Extract durable pet facts.",
+                "        extract: ''",
+            ),
+        )
+        self.assert_invalid(
+            "MemoryLayout/pet-care.spec.flowcraft.lanes.0.extract "
+            "must be a non-empty string"
+        )
+
+    def test_rejects_memory_layout_with_incomplete_mem0_categories(self) -> None:
+        self.write(
+            "memory-layouts/pet-care.yaml",
+            MEMORY_LAYOUT.replace(
+                "    custom_categories:\n      pet-care: Durable pet facts.",
+                "    custom_categories: {}",
+            ),
+        )
+        self.assert_invalid(
+            "Mem0 categories must exactly match Flowcraft lanes: missing pet-care"
+        )
+
+    def test_rejects_memory_layout_with_incomplete_volc_strategy(self) -> None:
+        self.write(
+            "memory-layouts/pet-care.yaml",
+            MEMORY_LAYOUT.replace(
+                "custom_instructions: Keep durable pet facts.}",
+                "custom_instructions: ''}",
+            ),
+        )
+        self.assert_invalid(
+            "MemoryLayout/pet-care.spec.volc_mem0.strategies.0"
+            ".custom_instructions must be a non-empty string"
+        )
+
+    def test_rejects_legacy_nested_flowcraft_memory(self) -> None:
+        self.write(
+            "workflows/pet/pet-care.yaml",
+            """
+            apiVersion: gizclaw.admin/v1alpha1
+            kind: Workflow
+            metadata:
+              name: pet-care
+            spec:
+              driver: pet
+              memory: pet-care
+              pet:
+                driver: flowcraft
+                flowcraft:
+                  agent:
+                    graph: {}
+                  memory: {}
+            """,
+        )
+        with self.assertRaises(CatalogValidationError) as raised:
+            validate_catalog(self.root)
+        errors = "\n".join(raised.exception.errors)
+        self.assertIn("spec.pet.flowcraft.agent is legacy", errors)
+        self.assertIn("spec.pet.flowcraft.memory is legacy", errors)
+
+    def test_rejects_memory_graph_without_outer_alias(self) -> None:
+        self.write(
+            "workflows/pet/pet-care.yaml",
+            """
+            apiVersion: gizclaw.admin/v1alpha1
+            kind: Workflow
+            metadata:
+              name: pet-care
+            spec:
+              driver: pet
+              pet:
+                driver: flowcraft
+                flowcraft:
+                  graph:
+                    name: pet
+                    entry: recall
+                    nodes:
+                      - id: recall
+                        type: memory_recall
+                        config:
+                          query: {text_from: input}
+                          output: memory
+                          top_k: 1
+                    edges:
+                      - {from: recall, to: __end__}
+            """,
+        )
+        self.assert_invalid(
+            "uses memory graph nodes and must declare outer spec.memory"
+        )
+
+    def test_rejects_external_fields_in_public_memory_connection(self) -> None:
+        self.write(
+            "runtime-profiles/default.yaml",
+            PROFILE.replace(
+                "type: flowcraft_bbh",
+                "type: flowcraft_bbh\n          directory: /tmp/memory",
+            ),
+        )
+        self.assert_invalid("connection has unsupported fields: directory")
 
     def test_rejects_duplicate_token_value(self) -> None:
         self.write(

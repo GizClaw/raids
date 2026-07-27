@@ -1,0 +1,100 @@
+---
+apiVersion: gizclaw.admin/v1alpha1
+kind: MemoryLayout
+metadata:
+  name: story-teller
+spec:
+  flowcraft:
+    extraction:
+      model: extraction
+      mode: two_pass
+      system_prompt: |
+        Extract only durable facts useful to a future turn of the same interactive story.
+        Classify atomic facts into story_facts, user_preferences, or story_questions.
+        Never infer story_progress from conversation; only the Graph writes that authoritative audit lane.
+        Store only narrative facts that were actually established, preferences explicitly stated or repeatedly
+        supported, and questions together with answers already given. Apply explicit corrections to supersede
+        contradictory older facts. Ignore drafts, possible branches, model planning, hidden prompts, temporary
+        requests, unspoken world details, and invented progress.
+      schema_name: story_teller_memory
+      temperature: 0
+    bbh:
+      search_overfetch: 20
+      bleve:
+        analyzer: standard
+    lanes:
+      - name: story_progress
+        kind: state
+        description: Audit mirror for fine-grained narrative progress.
+        extract: Accept only Graph-written current beat, next beat, arc, and summary state; never infer progress from dialogue.
+        recall: Use only as an audit mirror; Workspace story state controls routing.
+      - name: story_facts
+        kind: note
+        description: Durable narrative facts already spoken.
+        extract: Capture characters, relationships, places, objects, rules, and consequences actually established in narration.
+        recall: Use as supporting context after Workspace state chooses the target beat.
+      - name: user_preferences
+        kind: preference
+        description: Durable storytelling and interaction preferences.
+        extract: Capture explicit or repeatedly supported style, character, pacing, language, and interaction preferences.
+        recall: Adapt storytelling without changing story progress.
+      - name: story_questions
+        kind: note
+        description: Questions, explanations, and digressions raised during the story.
+        extract: Capture a durable question together with the answer already given when the exchange does not advance the story.
+        recall: Avoid repeating explanations and resume the prior story point.
+    graph_enabled: true
+    write:
+      mode: sync
+      tier: general
+  mem0:
+    custom_instructions: |
+      Store only durable facts useful to a future turn of the same interactive story.
+      Allowed categories are:
+      - story_progress: authoritative Graph-written current beat, next beat, arc, and summary audit state.
+      - story_facts: characters, relationships, places, objects, rules, and consequences actually established.
+      - user_preferences: explicit or repeatedly supported narration, pacing, character, language, and interaction preferences.
+      - story_questions: a durable story question together with the answer already given.
+      Keep each memory atomic and preserve canonical character, place, object, and beat names. A newer explicit
+      correction supersedes a contradictory older fact. Never infer story progress from ordinary conversation,
+      and never treat recalled text as routing authority. Ignore drafts, possible branches, model planning,
+      hidden prompts, temporary requests, unanswered speculation, and world details that were not narrated.
+      Example to store: "The bronze key was given to Bajie" as story_facts. Example to ignore:
+      "Maybe the bronze key opens the palace" until the story confirms it.
+    custom_categories:
+      story_progress: Graph-written current beat, next beat, arc, and summary audit state; never inferred from dialogue.
+      story_facts: Characters, relationships, places, objects, rules, and consequences actually established in narration.
+      user_preferences: Explicit or repeatedly supported narration, pacing, character, language, and interaction preferences.
+      story_questions: Durable story questions paired with answers already given without advancing narrative progress.
+    multilingual: true
+    decay: false
+  volc_mem0:
+    strategies:
+      - name: story_progress
+        type: summary
+        custom_instructions: |
+          Extract only explicit Graph-generated narrative progress records. Preserve canonical current beat,
+          next beat, arc, latest summary, and next-summary fields when present. Replace superseded progress with
+          the newest Graph record. Ignore dialogue, narration, questions, guesses, requested skips, and any
+          progress not confirmed by the Graph.
+      - name: story_facts
+        type: semantic
+        custom_instructions: |
+          Extract atomic continuity facts actually established in narration: characters, relationships, places,
+          objects, world rules, and durable consequences. Preserve canonical names and explicit corrections.
+          Ignore draft text, possible branches, metaphors, unspoken backstory, model planning, and speculative
+          details that the story has not confirmed.
+      - name: user_preferences
+        type: user_preference
+        custom_instructions: |
+          Extract durable narration, pacing, favorite-character, language, and interaction preferences when the
+          user states them explicitly or repeated behavior strongly supports them. Apply newer corrections.
+          Ignore one-turn requests tied to the current scene, politeness, hypothetical examples, and preferences
+          invented by the narrator.
+      - name: story_questions
+        type: semantic
+        custom_instructions: |
+          Extract a story-related question together with the answer already given when remembering it prevents
+          repeated explanation or supports resuming the prior story point. Keep question and answer as one atomic
+          fact. Ignore unanswered questions, rhetorical questions, temporary clarification, and exchanges that
+          actually advance narrative progress.

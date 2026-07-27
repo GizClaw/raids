@@ -27,6 +27,7 @@ PUBLIC_DEFAULT_TOKEN = str(
 )
 CATALOG_DIRECTORIES = {
     "credentials",
+    "memory-layouts",
     "models",
     "petdefs",
     "registration-tokens",
@@ -42,6 +43,39 @@ RESOURCE_KINDS = {
     "pet_defs": "PetDef",
     "game_defs": "GameDef",
     "badge_defs": "BadgeDef",
+}
+MEMORY_CONNECTIONS = {
+    "flowcraft_bbh": {
+        "driver": "flowcraft",
+        "required": {"type"},
+        "optional": set(),
+    },
+    "flowcraft_object_store": {
+        "driver": "flowcraft",
+        "required": {"type", "directory"},
+        "optional": set(),
+    },
+    "flowcraft_postgresql": {
+        "driver": "flowcraft",
+        "required": {"type", "dsn"},
+        "optional": set(),
+    },
+    "mem0": {
+        "driver": "mem0",
+        "required": {"type", "project_id", "endpoint", "api_key"},
+        "optional": {"poll_interval"},
+    },
+    "volc_mem0": {
+        "driver": "volc_mem0",
+        "required": {"type", "memory_project_id", "endpoint", "api_key"},
+        "optional": {"poll_interval"},
+    },
+}
+DEFAULT_WORKFLOW_MEMORY_ALIASES = {
+    "flowcraft-chat-assistant": "user-chat-with-assistant",
+    "flowcraft-journey-guide": "story-teller",
+    "flowcraft-murder-mystery": "adventure",
+    "pet-care": "pet-care",
 }
 PLACEHOLDER_PATTERN = re.compile(r"<[^>]+>|\$\{[^}]+\}")
 GO_TRIM_SPACE_CHARACTERS = (
@@ -242,6 +276,87 @@ def _profile_aliases(
     return aliases
 
 
+def _profile_memory_bindings(
+    profile: Mapping[str, Any],
+    resources: Mapping[tuple[str, str], Path],
+    errors: list[str],
+) -> dict[str, str]:
+    spec = _require_mapping(profile.get("spec"), "RuntimeProfile/default.spec", errors)
+    groups = _require_mapping(
+        spec.get("resources"), "RuntimeProfile/default.spec.resources", errors
+    )
+    memories = _require_mapping(
+        groups.get("memories"),
+        "RuntimeProfile/default.spec.resources.memories",
+        errors,
+    )
+    bindings: dict[str, str] = {}
+    for raw_alias, raw_binding in memories.items():
+        alias = str(raw_alias)
+        label = f"RuntimeProfile/default.spec.resources.memories.{alias}"
+        binding = _require_mapping(raw_binding, label, errors)
+        expected_binding_keys = {"layout_id", "driver", "connection"}
+        if set(binding) != expected_binding_keys:
+            errors.append(
+                f"{label} must contain exactly layout_id, driver, and connection"
+            )
+        layout_id = binding.get("layout_id")
+        if not isinstance(layout_id, str) or not layout_id:
+            errors.append(f"{label}.layout_id must be a non-empty string")
+        else:
+            bindings[alias] = layout_id
+            if layout_id != alias:
+                errors.append(
+                    f"{label}.layout_id must match its stable memory alias {alias!r}"
+                )
+            if ("MemoryLayout", layout_id) not in resources:
+                errors.append(
+                    f"{label}: MemoryLayout/{layout_id} does not exist"
+                )
+        driver = binding.get("driver")
+        if driver not in {"flowcraft", "mem0", "volc_mem0"}:
+            errors.append(
+                f"{label}.driver must be flowcraft, mem0, or volc_mem0"
+            )
+        connection = _require_mapping(
+            binding.get("connection"), f"{label}.connection", errors
+        )
+        connection_type = connection.get("type")
+        contract = MEMORY_CONNECTIONS.get(connection_type)
+        if contract is None:
+            errors.append(f"{label}.connection.type is not supported")
+            continue
+        if driver != contract["driver"]:
+            errors.append(
+                f"{label}: driver {driver!r} cannot use connection "
+                f"type {connection_type!r}"
+            )
+        allowed = contract["required"] | contract["optional"]
+        missing = contract["required"] - set(connection)
+        extra = set(connection) - allowed
+        if missing:
+            errors.append(
+                f"{label}.connection is missing required fields: "
+                + ", ".join(sorted(missing))
+            )
+        if extra:
+            errors.append(
+                f"{label}.connection has unsupported fields: "
+                + ", ".join(sorted(extra))
+            )
+        for key in allowed - {"type"}:
+            if key in connection and (
+                not isinstance(connection[key], str) or not connection[key]
+            ):
+                errors.append(f"{label}.connection.{key} must be a non-empty string")
+        if driver != "flowcraft" or dict(connection) != {"type": "flowcraft_bbh"}:
+            errors.append(
+                f"{label} must use the portable public flowcraft_bbh connection "
+                "without external connection fields"
+            )
+    return bindings
+
+
 def _string_values_for_keys(value: Any, keys: set[str]) -> set[str]:
     found: set[str] = set()
     if isinstance(value, Mapping):
@@ -267,6 +382,254 @@ def _workflow_aliases(workflow: Mapping[str, Any]) -> dict[str, set[str]]:
                 item for item in value.values() if isinstance(item, str) and item
             )
     return {"models": models, "voices": voices}
+
+
+def _validate_flowcraft_shape(
+    flowcraft: Any, label: str, errors: list[str]
+) -> bool:
+    flowcraft = _require_mapping(flowcraft, label, errors)
+    if "agent" in flowcraft:
+        errors.append(f"{label}.agent is legacy; graph must be flattened")
+    if "memory" in flowcraft:
+        errors.append(
+            f"{label}.memory is legacy; use outer Workflow spec.memory"
+        )
+    if not isinstance(flowcraft.get("graph"), Mapping):
+        errors.append(f"{label}.graph must be a mapping")
+        return False
+    return any(
+        isinstance(node, Mapping)
+        and node.get("type") in {"memory_recall", "memory_observe"}
+        for node in flowcraft["graph"].get("nodes", [])
+    )
+
+
+def _validate_workflow_shape(
+    workflow_name: str, workflow: Mapping[str, Any], errors: list[str]
+) -> None:
+    spec = _require_mapping(
+        workflow.get("spec"), f"Workflow/{workflow_name}.spec", errors
+    )
+    driver = spec.get("driver")
+    uses_memory = False
+    if driver == "flowcraft":
+        uses_memory = _validate_flowcraft_shape(
+            spec.get("flowcraft"), f"Workflow/{workflow_name}.spec.flowcraft", errors
+        )
+    if driver == "pet":
+        pet = _require_mapping(
+            spec.get("pet"), f"Workflow/{workflow_name}.spec.pet", errors
+        )
+        if "memory" in pet:
+            errors.append(
+                f"Workflow/{workflow_name}.spec.pet.memory is invalid; "
+                "the outer Workflow owns spec.memory"
+            )
+        if pet.get("driver") == "flowcraft":
+            uses_memory = _validate_flowcraft_shape(
+                pet.get("flowcraft"),
+                f"Workflow/{workflow_name}.spec.pet.flowcraft",
+                errors,
+            )
+    if uses_memory and (
+        not isinstance(spec.get("memory"), str) or not spec["memory"]
+    ):
+        errors.append(
+            f"Workflow/{workflow_name} uses memory graph nodes and must declare "
+            "outer spec.memory"
+        )
+
+
+def _memory_layout_model_aliases(layout: Mapping[str, Any]) -> set[str]:
+    spec = layout.get("spec")
+    if not isinstance(spec, Mapping):
+        return set()
+    flowcraft = spec.get("flowcraft")
+    if not isinstance(flowcraft, Mapping):
+        return set()
+    aliases: set[str] = set()
+    for policy_name in ("extraction", "embedding", "rerank"):
+        policy = flowcraft.get(policy_name)
+        if not isinstance(policy, Mapping):
+            continue
+        model = policy.get("model")
+        if isinstance(model, str) and model:
+            aliases.add(model)
+    return aliases
+
+
+def _validate_memory_layout_policy(
+    layout_name: str, layout: Mapping[str, Any], errors: list[str]
+) -> None:
+    label = f"MemoryLayout/{layout_name}.spec"
+    spec = _require_mapping(layout.get("spec"), label, errors)
+    flowcraft = _require_mapping(
+        spec.get("flowcraft"), f"{label}.flowcraft", errors
+    )
+    raw_lanes = flowcraft.get("lanes")
+    if not isinstance(raw_lanes, list) or not raw_lanes:
+        errors.append(f"{label}.flowcraft.lanes must be a non-empty list")
+        raw_lanes = []
+    lane_names: set[str] = set()
+    for index, raw_lane in enumerate(raw_lanes):
+        lane_label = f"{label}.flowcraft.lanes.{index}"
+        lane = _require_mapping(raw_lane, lane_label, errors)
+        lane_name = lane.get("name")
+        if not isinstance(lane_name, str) or not lane_name.strip():
+            errors.append(f"{lane_label}.name must be a non-empty string")
+        else:
+            normalized_lane_name = lane_name.strip()
+            if normalized_lane_name in lane_names:
+                errors.append(
+                    f"{label}.flowcraft.lanes contains duplicate "
+                    f"{normalized_lane_name!r}"
+                )
+            else:
+                lane_names.add(normalized_lane_name)
+        for field in ("description", "extract", "recall"):
+            value = lane.get(field)
+            if not isinstance(value, str) or not value.strip():
+                errors.append(f"{lane_label}.{field} must be a non-empty string")
+
+    mem0 = _require_mapping(spec.get("mem0"), f"{label}.mem0", errors)
+    instructions = mem0.get("custom_instructions")
+    if not isinstance(instructions, str) or not instructions.strip():
+        errors.append(f"{label}.mem0.custom_instructions must be a non-empty string")
+    categories = _require_mapping(
+        mem0.get("custom_categories"), f"{label}.mem0.custom_categories", errors
+    )
+    category_names: set[str] = set()
+    for raw_name, raw_description in categories.items():
+        category_name = str(raw_name).strip()
+        if category_name in category_names:
+            errors.append(
+                f"{label}.mem0.custom_categories contains duplicate "
+                f"{category_name!r}"
+            )
+        else:
+            category_names.add(category_name)
+        if not isinstance(raw_description, str) or not raw_description.strip():
+            errors.append(
+                f"{label}.mem0.custom_categories.{category_name} "
+                "must be a non-empty string"
+            )
+    if category_names != lane_names:
+        errors.append(
+            f"{label}: Mem0 categories must exactly match Flowcraft lanes"
+            + _set_difference_details(lane_names, category_names)
+        )
+
+    volc_mem0 = _require_mapping(
+        spec.get("volc_mem0"), f"{label}.volc_mem0", errors
+    )
+    raw_strategies = volc_mem0.get("strategies")
+    if not isinstance(raw_strategies, list) or not raw_strategies:
+        errors.append(f"{label}.volc_mem0.strategies must be a non-empty list")
+        raw_strategies = []
+    strategy_names: set[str] = set()
+    for index, raw_strategy in enumerate(raw_strategies):
+        strategy_label = f"{label}.volc_mem0.strategies.{index}"
+        strategy = _require_mapping(raw_strategy, strategy_label, errors)
+        strategy_name = strategy.get("name")
+        if not isinstance(strategy_name, str) or not strategy_name.strip():
+            errors.append(f"{strategy_label}.name must be a non-empty string")
+        else:
+            normalized_strategy_name = strategy_name.strip()
+            if normalized_strategy_name in strategy_names:
+                errors.append(
+                    f"{label}.volc_mem0.strategies contains duplicate "
+                    f"{normalized_strategy_name!r}"
+                )
+            else:
+                strategy_names.add(normalized_strategy_name)
+        strategy_instructions = strategy.get("custom_instructions")
+        if (
+            not isinstance(strategy_instructions, str)
+            or not strategy_instructions.strip()
+        ):
+            errors.append(
+                f"{strategy_label}.custom_instructions must be a non-empty string"
+            )
+    if strategy_names != lane_names:
+        errors.append(
+            f"{label}: Volc Mem0 strategies must exactly match Flowcraft lanes"
+            + _set_difference_details(lane_names, strategy_names)
+        )
+
+
+def _set_difference_details(expected: set[str], actual: set[str]) -> str:
+    details: list[str] = []
+    missing = expected - actual
+    extra = actual - expected
+    if missing:
+        details.append("missing " + ", ".join(sorted(missing)))
+    if extra:
+        details.append("extra " + ", ".join(sorted(extra)))
+    return ": " + "; ".join(details) if details else ""
+
+
+def _validate_memory_closure(
+    selected: set[str],
+    bindings: Mapping[str, str],
+    documents: Mapping[tuple[str, str], Mapping[str, Any]],
+    aliases: Mapping[str, set[str]],
+    errors: list[str],
+) -> None:
+    selected_memory_aliases: set[str] = set()
+    for workflow_name in sorted(selected):
+        workflow = documents.get(("Workflow", workflow_name))
+        if workflow is None:
+            continue
+        spec = workflow.get("spec")
+        if not isinstance(spec, Mapping) or "memory" not in spec:
+            continue
+        memory_alias = spec.get("memory")
+        if not isinstance(memory_alias, str) or not memory_alias:
+            errors.append(
+                f"Workflow/{workflow_name}.spec.memory must be a non-empty string"
+            )
+            continue
+        expected_alias = DEFAULT_WORKFLOW_MEMORY_ALIASES.get(workflow_name)
+        if expected_alias is not None and memory_alias != expected_alias:
+            errors.append(
+                f"Workflow/{workflow_name}.spec.memory must be {expected_alias!r}"
+            )
+        selected_memory_aliases.add(memory_alias)
+        if memory_alias not in bindings:
+            errors.append(
+                f"Workflow/{workflow_name}: memory alias {memory_alias!r} "
+                "is not bound by RuntimeProfile/default"
+            )
+
+    unused_bindings = set(bindings) - selected_memory_aliases
+    if unused_bindings:
+        errors.append(
+            "RuntimeProfile/default has memory bindings not selected by a Workflow: "
+            + ", ".join(sorted(unused_bindings))
+        )
+
+    published_layouts = {
+        name for kind, name in documents if kind == "MemoryLayout"
+    }
+    bound_layouts = set(bindings.values())
+    unbound_layouts = published_layouts - bound_layouts
+    if unbound_layouts:
+        errors.append(
+            "RuntimeProfile/default does not bind published MemoryLayouts: "
+            + ", ".join(sorted(unbound_layouts))
+        )
+
+    for layout_id in sorted(bound_layouts):
+        layout = documents.get(("MemoryLayout", layout_id))
+        if layout is None:
+            continue
+        for alias in sorted(
+            _memory_layout_model_aliases(layout) - aliases.get("models", set())
+        ):
+            errors.append(
+                f"MemoryLayout/{layout_id}: required models alias {alias!r} "
+                "is not bound by RuntimeProfile/default"
+            )
 
 
 def _validate_workflow_alias_closure(
@@ -399,8 +762,18 @@ def validate_catalog(root: Path) -> None:
                 + ", ".join(sorted(missing_from_profile))
             )
         aliases = _profile_aliases(profile, resources, errors)
+        memory_bindings = _profile_memory_bindings(profile, resources, errors)
         _validate_workflow_alias_closure(selected, documents, aliases, errors)
+        _validate_memory_closure(
+            selected, memory_bindings, documents, aliases, errors
+        )
         _validate_gameplay_aliases(profile, aliases, errors)
+
+    for (kind, name), document in documents.items():
+        if kind == "Workflow":
+            _validate_workflow_shape(name, document, errors)
+        if kind == "MemoryLayout":
+            _validate_memory_layout_policy(name, document, errors)
 
     if token is not None:
         if (token.get("kind"), token.get("metadata", {}).get("name")) != (

@@ -5,11 +5,10 @@ metadata:
   name: flowcraft-murder-mystery
 spec:
   driver: flowcraft
+  memory: adventure
   flowcraft:
-    agent:
-      description: A player-driven murder mystery host for the case "雨夜留声机".
-      graph:
-        edges:
+    graph:
+      edges:
         - condition: case_route == "solved_chat"
           from: load_case_state
           to: solved_chat
@@ -28,19 +27,21 @@ spec:
           to: prepare_game_master_messages
         - from: prepare_game_master_messages
           to: generate_game_master
-        - condition: case_status == "solved"
-          from: generate_game_master
-          to: write_case_audit
         - condition: case_status != "solved"
           from: generate_game_master
           to: write_case_audit
         - from: write_case_audit
-          to: __end__
+          to: observe_case_audit
         - from: solved_chat
+          to: write_case_audit
+        - from: observe_case_audit
           to: __end__
-        entry: load_case_state
-        name: murder-mystery
-        nodes:
+        - condition: case_status == "solved"
+          from: generate_game_master
+          to: write_case_audit
+      entry: load_case_state
+      name: murder-mystery
+      nodes:
         - config:
             source: |
               const defaultState = {
@@ -388,46 +389,20 @@ spec:
           id: solved_chat
           publish: true
           type: llm
-      id: murder-mystery-gm
-      max_iterations: 10
-      name: Murder Mystery GM
+        - config:
+            observations:
+              - turns_from: conversation
+              - facts:
+                  - {text_from: tmp_case_state_line, attributes: {lane: case_state, kind: state, predicate: status,
+                      subject: case_state}}
+                  - {text_from: tmp_progress_badges_line, attributes: {lane: progress_badges, kind: state,
+                      predicate: progress, subject: progress_badges}}
+            wait_for_completion: true
+          id: observe_case_audit
+          type: memory_observe
+    max_iterations: 10
     conversation:
       starts: agent
-    memory:
-      embedding:
-        enabled: false
-      enabled: true
-      extract:
-        enabled: false
-      layout:
-        lanes:
-        - description: Audit mirror for the deterministic workspace case state.
-          extract: Do not extract. Written only from tmp_case_state_line.
-          kind: state
-          name: case_state
-          recall: Audit only. Runtime routing uses workspace case_progress_state.
-        - description: Audit mirror for deterministic player progress badges.
-          extract: Do not extract. Written only from tmp_progress_badges_line.
-          kind: state
-          name: progress_badges
-          recall: Audit only. Runtime routing uses workspace case_progress_state.
-      recall:
-        enabled: false
-      write:
-        board_facts:
-        - board_var: tmp_case_state_line
-          kind: state
-          predicate: status
-          required_prefix: 'case_state: status='
-          subject: case_state
-        - board_var: tmp_progress_badges_line
-          kind: state
-          predicate: progress
-          required_prefix: 'progress_badges: progress:'
-          subject: progress_badges
-        mode: sync
-        save_conversation: true
-        tier: general
     voice_adapter:
       asr_model: asr
       default_voice: game-master
