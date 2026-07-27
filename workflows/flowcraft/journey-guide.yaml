@@ -5,11 +5,20 @@ metadata:
   name: flowcraft-journey-guide
 spec:
   driver: flowcraft
+  memory: story-teller
   flowcraft:
-    agent:
-      description: A multi-node storyteller for Journey to the West.
-      graph:
-        edges:
+    graph:
+      edges:
+        - from: recall_story_progress
+          to: recall_story_memory
+        - from: recall_story_memory
+          to: recall_user_memory
+        - from: recall_user_memory
+          to: recall_question_memory
+        - from: recall_question_memory
+          to: recall_story_recent
+        - from: recall_story_recent
+          to: start
         - from: start
           to: prepare_match_route
         - from: prepare_match_route
@@ -91,12 +100,61 @@ spec:
         - from: prepare_story_progress
           to: write_story_progress
         - from: write_story_progress
+          to: observe_story_memory
+        - from: observe_story_memory
           to: reroute_state_after
         - from: reroute_state_after
           to: __end__
-        entry: start
-        name: journey-story
-        nodes:
+      entry: recall_story_progress
+      name: journey-story
+      nodes:
+        - config:
+            query:
+              text_from: input
+              kinds: [state]
+              lanes: [story_progress]
+            output: story_progress
+            render: {header: 'Story progress controller:', item_prefix: "- ", max_items: 4}
+            top_k: 4
+          id: recall_story_progress
+          type: memory_recall
+        - config:
+            query:
+              text_from: input
+              lanes: [story_facts]
+            output: story_memory
+            render: {header: 'Supporting story memory:', item_prefix: "- ", max_items: 6}
+            top_k: 6
+          id: recall_story_memory
+          type: memory_recall
+        - config:
+            query:
+              text_from: input
+              kinds: [preference]
+              lanes: [user_preferences]
+            output: user_memory
+            render: {header: 'Relevant user preferences:', item_prefix: "- ", max_items: 4}
+            top_k: 4
+          id: recall_user_memory
+          type: memory_recall
+        - config:
+            query:
+              text_from: input
+              kinds: [note]
+              lanes: [story_questions]
+            output: question_memory
+            render: {header: 'Relevant prior questions:', item_prefix: "- ", max_items: 4}
+            top_k: 4
+          id: recall_question_memory
+          type: memory_recall
+        - config:
+            query:
+              text_from: input
+            output: story_recent
+            render: {header: 'Recent story context:', item_prefix: "- ", max_items: 6}
+            top_k: 6
+          id: recall_story_recent
+          type: memory_recall
         - config:
             source: |
               board.setVar("tmp_selected_arc", "");
@@ -473,7 +531,7 @@ spec:
         - config:
             source: 'board.setVar("tmp_route_action", "accept");
 
-'
+              '
           id: accept_storytell
           type: script
         - config:
@@ -1698,159 +1756,23 @@ spec:
               board.setVar("last_arc", arc);
           id: reroute_state_after
           type: script
-      id: journey-storyteller
-      max_iterations: 16
-      name: Journey Storyteller
+        - config:
+            observations:
+              - turns_from: conversation
+              - facts:
+                  - text_from: tmp_story_progress_line
+                    attributes:
+                      lane: story_progress
+                      kind: state
+                      predicate: progress
+                      subject: story_progress
+            wait_for_completion: true
+          id: observe_story_memory
+          type: memory_observe
+    max_iterations: 16
     conversation:
       # Upstream #472 intentionally makes Journey wait for the peer's opening turn.
       starts: peer
-    memory:
-      embedding:
-        enabled: false
-      enabled: true
-      extract:
-        enabled: true
-        mode: two_pass
-        model: extraction
-        schema_name: journey_story_memory
-        system_prompt: |
-          Extract durable memory facts for an interactive Journey to the West storytelling agent.
-
-          Keep facts concise, durable, and queryable. Split narrative progress from ordinary story memory.
-          Do not extract story_progress facts from ordinary conversation turns. Claw writes the story_progress lane directly from memory.write.board_facts using the hidden tmp_story_progress_line board var.
-          story_progress_state in workspace state is the source of truth for narrative progress.
-          The story_progress memory lane is only a persisted audit mirror written from tmp_story_progress_line.
-          Extract story_facts, user_preferences, and story_questions from conversation turns.
-          Story progress facts use controlled beat ids, not free-form progress text.
-          For story_progress facts, always include these exact ASCII fields so the graph can route with string matching:
-          current_beat=<controlled beat id for the latest completed beat>;
-          next_beat=<controlled beat id for the immediate next beat>;
-          arc=<origin|heaven|pilgrimage|trials|kingdoms|arrival>;
-          last_summary=<one short Chinese sentence describing the latest real narrated beat>;
-          next_summary=<one short Chinese sentence describing exactly what should be narrated next>;
-          confidence=<high|medium|low>;
-          locked_before=<controlled beat id that must not be repeated, or none>.
-          The story_facts lane stores durable narrative details that are useful later, but it must not be used as the progress controller.
-          Use origin for 石猴出世、花果山、水帘洞、拜师学艺、龙宫取宝和勾销生死簿.
-          Use heaven for 弼马温、齐天大圣、蟠桃会、盗丹、大闹天宫和五行山.
-          Use pilgrimage for 唐僧出发、救悟空、紧箍、白龙马、猪八戒和沙悟净入队.
-          Use trials for 三打白骨精、真假难辨、师徒误会、悟空被逐和重新建立信任.
-          Use kingdoms for 女儿国、蝎子精、车迟国、比丘国、狮驼岭等国家、人心和强妖考验.
-          Use arrival for 火焰山、借芭蕉扇、接近灵山、取得真经、无字经、通天河落经和修成正果.
-        temperature: 0
-      layout:
-        lanes:
-        - description: Audit mirror for fine-grained progress inside the Journey to
-            the West narration.
-          extract: |
-            Do not extract this lane from ordinary conversation turns.
-            It is written by memory.write.board_facts from tmp_story_progress_line as a direct state fact.
-          kind: state
-          name: story_progress
-          recall: Use this lane only as an audit mirror. Runtime routing must use
-            workspace story_progress_state, not recalled text.
-        - description: Durable narrative facts already spoken in the Journey to the
-            West story.
-          extract: Capture concrete story facts, character relationships, named places,
-            objects, and consequences that were actually narrated. Do not store progress-controller
-            fields here.
-          kind: note
-          name: story_facts
-          recall: Use this lane only as supporting narrative context after story_progress_state
-            has decided the target beat.
-        - description: User storytelling preferences and durable interaction style.
-          extract: Capture preferred narration style, favorite characters, pacing
-            requests, language preferences, and corrections.
-          kind: preference
-          name: user_preferences
-          recall: Use this lane to adapt future storytelling without changing story
-            progress.
-        - description: Questions, explanations, and digressions raised during the
-            story.
-          extract: Capture user questions and the answer already given, especially
-            when the question should not advance the story.
-          kind: note
-          name: story_questions
-          recall: Use this lane to avoid repeating answered explanations and to resume
-            the previous story point after a question.
-      recall:
-        enabled: true
-        graph_enabled: true
-        include_retired: false
-        profiles:
-          question_memory:
-            output: question_memory
-            query:
-              kinds:
-              - note
-              lanes:
-              - story_questions
-              text: input
-            render:
-              header: 'Relevant prior questions:'
-              item_prefix: "- "
-              max_items: 4
-            top_k: 4
-          story_memory:
-            output: story_memory
-            query:
-              lanes:
-              - story_facts
-              text: "${input} Journey to the West narrative facts characters places
-                objects consequences"
-            render:
-              header: 'Supporting story memory:'
-              item_prefix: "- "
-              max_items: 6
-            top_k: 6
-          story_progress:
-            output: story_progress
-            query:
-              kinds:
-              - state
-              lanes:
-              - story_progress
-              text: story_progress progress current_beat next_beat arc last_summary
-                next_summary locked_before Journey to the West latest narrated beat
-                continue
-            render:
-              header: 'Story progress controller:'
-              item_prefix: "- "
-              max_items: 4
-            top_k: 4
-          story_recent:
-            output: story_recent
-            query:
-              text: 西游记 故事进度 水帘洞 美猴王 长生 求仙 出海 菩提祖师 初见祖师 拜师 学艺 Journey story latest
-                narrated beat
-            render:
-              header: 'Recent story context:'
-              item_prefix: "- "
-              max_items: 6
-            top_k: 6
-          user_memory:
-            output: user_memory
-            query:
-              kinds:
-              - preference
-              lanes:
-              - user_preferences
-              text: input
-            render:
-              header: 'Relevant user preferences:'
-              item_prefix: "- "
-              max_items: 4
-            top_k: 4
-      write:
-        board_facts:
-        - board_var: tmp_story_progress_line
-          kind: state
-          predicate: progress
-          required_prefix: 'story_progress: progress:'
-          subject: story_progress
-        mode: sync
-        save_conversation: true
-        tier: general
     voice_adapter:
       asr_model: asr
       default_voice: journey-narrator

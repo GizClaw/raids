@@ -1,0 +1,70 @@
+---
+apiVersion: gizclaw.admin/v1alpha1
+kind: MemoryLayout
+metadata:
+  name: story-teller
+spec:
+  flowcraft:
+    extraction:
+      model: extraction
+      mode: two_pass
+      system_prompt: |
+        Extract durable facts for an interactive storytelling agent.
+        Never infer story progress from ordinary conversation; the Graph writes that audit lane directly.
+        Keep narrated facts, user storytelling preferences, and answered questions separate.
+      schema_name: story_teller_memory
+      temperature: 0
+    bbh:
+      search_overfetch: 20
+      bleve:
+        analyzer: standard
+    lanes:
+      - name: story_progress
+        kind: state
+        description: Audit mirror for fine-grained narrative progress.
+        extract: Do not extract this lane from conversation; the Graph writes it directly.
+        recall: Use only as an audit mirror; Workspace story state controls routing.
+      - name: story_facts
+        kind: note
+        description: Durable narrative facts already spoken.
+        extract: Capture narrated characters, relationships, places, objects, and consequences.
+        recall: Use as supporting context after Workspace state chooses the target beat.
+      - name: user_preferences
+        kind: preference
+        description: Durable storytelling and interaction preferences.
+        extract: Capture narration style, favorite characters, pacing, language preferences, and corrections.
+        recall: Adapt storytelling without changing story progress.
+      - name: story_questions
+        kind: note
+        description: Questions, explanations, and digressions raised during the story.
+        extract: Capture a question and its answer when it should not advance the story.
+        recall: Avoid repeating explanations and resume the prior story point.
+    graph_enabled: true
+    write:
+      mode: sync
+      tier: general
+  mem0:
+    custom_instructions: |
+      Extract durable narrated facts, storytelling preferences, and answered questions.
+      Do not infer story progress; accept progress only when it is written directly by the Graph.
+    custom_categories:
+      story_progress: Graph-written narrative progress audit.
+      story_facts: Durable narrated facts and continuity.
+      user_preferences: Durable storytelling preferences.
+      story_questions: Answered story questions and explanations.
+    multilingual: true
+    decay: false
+  volc_mem0:
+    strategies:
+      - name: story_progress
+        type: summary
+        custom_instructions: Retain only Graph-written narrative progress audit facts.
+      - name: story_facts
+        type: semantic
+        custom_instructions: Retain concrete narrated characters, places, objects, and consequences.
+      - name: user_preferences
+        type: user_preference
+        custom_instructions: Retain durable storytelling and interaction preferences.
+      - name: story_questions
+        type: semantic
+        custom_instructions: Retain answered story questions and explanations.

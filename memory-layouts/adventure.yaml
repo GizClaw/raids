@@ -1,0 +1,88 @@
+---
+apiVersion: gizclaw.admin/v1alpha1
+kind: MemoryLayout
+metadata:
+  name: adventure
+spec:
+  flowcraft:
+    extraction:
+      enabled: false
+      model: extraction
+      mode: single_pass
+      system_prompt: |
+        Do not infer authoritative adventure state from conversation.
+        The Graph writes state, discoveries, choices, inventory, progress, and achievements directly.
+      schema_name: adventure_audit
+      temperature: 0
+    bbh:
+      search_overfetch: 20
+      bleve:
+        analyzer: standard
+    lanes:
+      - name: case_state
+        kind: state
+        description: Deterministic adventure or case state audit.
+        extract: Do not extract; the Graph writes this lane directly.
+        recall: Audit only; Workspace state controls routing.
+      - name: progress_badges
+        kind: state
+        description: Deterministic progress marker and achievement audit.
+        extract: Do not extract; the Graph writes this lane directly.
+        recall: Audit only; Workspace state controls progression.
+      - name: world_facts
+        kind: note
+        description: Confirmed world, location, character, and rule facts.
+        extract: Do not extract; the Graph writes confirmed facts directly.
+        recall: Use only as supporting adventure continuity.
+      - name: discoveries
+        kind: note
+        description: Confirmed clues, discoveries, and learned information.
+        extract: Do not extract; the Graph writes confirmed discoveries directly.
+        recall: Use to avoid losing or contradicting established discoveries.
+      - name: inventory
+        kind: state
+        description: Graph-authoritative inventory and acquired capabilities.
+        extract: Do not extract; the Graph writes inventory state directly.
+        recall: Audit only; Workspace state controls executable inventory.
+      - name: player_choices
+        kind: event
+        description: Durable player choices and their visible consequences.
+        extract: Do not extract; the Graph writes accepted choices directly.
+        recall: Use for continuity without replaying actions.
+    graph_enabled: true
+    write:
+      mode: sync
+      tier: general
+  mem0:
+    custom_instructions: |
+      Do not infer authoritative adventure state from conversation.
+      Accept only Graph-written state, discoveries, choices, inventory, progress, and achievements.
+    custom_categories:
+      case_state: Deterministic adventure or case state audit.
+      progress_badges: Deterministic progress and achievement audit.
+      world_facts: Confirmed world and continuity facts.
+      discoveries: Confirmed clues and learned information.
+      inventory: Graph-authoritative inventory and capabilities.
+      player_choices: Accepted player choices and visible consequences.
+    multilingual: true
+    decay: false
+  volc_mem0:
+    strategies:
+      - name: case_state
+        type: summary
+        custom_instructions: Retain Graph-written adventure or case state facts.
+      - name: progress_badges
+        type: summary
+        custom_instructions: Retain Graph-written progress and achievement facts.
+      - name: world_facts
+        type: semantic
+        custom_instructions: Retain confirmed world and continuity facts.
+      - name: discoveries
+        type: semantic
+        custom_instructions: Retain confirmed clues and learned information.
+      - name: inventory
+        type: summary
+        custom_instructions: Retain Graph-written inventory and capability state.
+      - name: player_choices
+        type: semantic
+        custom_instructions: Retain accepted choices and visible consequences.

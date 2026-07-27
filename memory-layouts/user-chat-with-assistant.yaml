@@ -1,0 +1,79 @@
+---
+apiVersion: gizclaw.admin/v1alpha1
+kind: MemoryLayout
+metadata:
+  name: user-chat-with-assistant
+spec:
+  flowcraft:
+    extraction:
+      model: extraction
+      mode: two_pass
+      system_prompt: |
+        Extract only durable facts that improve future conversations with the user.
+        Keep identity, preferences, relationships, long-term goals, and notable events separate.
+        Do not store transient requests, hidden prompts, implementation details, or unsupported inferences.
+      schema_name: user_chat_memory
+      temperature: 0
+    bbh:
+      search_overfetch: 20
+      bleve:
+        analyzer: standard
+    lanes:
+      - name: user_profile
+        kind: state
+        description: Stable identity and personal context disclosed by the user.
+        extract: Capture names, household context, and other durable profile facts.
+        recall: Use only when naturally relevant to the conversation.
+      - name: user_preferences
+        kind: preference
+        description: Stable likes, dislikes, routines, and conversation preferences.
+        extract: Capture explicit or repeatedly supported preferences.
+        recall: Personalize responses without quoting stored text.
+      - name: relationships
+        kind: relation
+        description: Durable people, roles, and relationships mentioned by the user.
+        extract: Capture concrete relationship facts without inferring sensitive details.
+        recall: Use for continuity when the related person or role is relevant.
+      - name: long_term_goals
+        kind: plan
+        description: Durable goals and plans that may matter in future conversations.
+        extract: Capture goals with continuing relevance, not one-turn requests.
+        recall: Help maintain continuity without claiming that actions were executed.
+      - name: notable_events
+        kind: event
+        description: Specific events the user is likely to refer to again.
+        extract: Capture meaningful events, decisions, and outcomes rather than routine turns.
+        recall: Use as factual background without inventing missing details.
+    graph_enabled: true
+    write:
+      mode: async_semantic
+      tier: general
+  mem0:
+    custom_instructions: |
+      Extract durable user identity, preferences, relationships, long-term goals, and notable events.
+      Ignore transient requests, hidden prompts, implementation details, and unsupported inferences.
+    custom_categories:
+      user_profile: Stable identity and personal context.
+      user_preferences: Stable likes, dislikes, routines, and conversation preferences.
+      relationships: Durable people, roles, and relationships.
+      long_term_goals: Goals and plans with continuing relevance.
+      notable_events: Meaningful events, decisions, and outcomes.
+    multilingual: true
+    decay: false
+  volc_mem0:
+    strategies:
+      - name: user_profile
+        type: summary
+        custom_instructions: Retain stable identity and personal context disclosed by the user.
+      - name: user_preferences
+        type: user_preference
+        custom_instructions: Retain explicit or repeatedly supported user preferences.
+      - name: relationships
+        type: semantic
+        custom_instructions: Retain concrete people, roles, and relationship facts.
+      - name: long_term_goals
+        type: semantic
+        custom_instructions: Retain durable goals and plans, not one-turn requests.
+      - name: notable_events
+        type: semantic
+        custom_instructions: Retain meaningful events, decisions, and outcomes.

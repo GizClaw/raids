@@ -1,0 +1,91 @@
+---
+apiVersion: gizclaw.admin/v1alpha1
+kind: MemoryLayout
+metadata:
+  name: pet-care
+spec:
+  flowcraft:
+    extraction:
+      model: pet-extract
+      mode: two_pass
+      system_prompt: |
+        Extract only durable facts useful to this pet's future conversations.
+        Classify qualitative relationship state, owner facts and preferences, learned pet knowledge,
+        owner-pet relations, and meaningful shared events into the configured lanes.
+        Relationship state is qualitative and must never be a Gameplay number or level.
+        Do not store life/progression numbers, hidden prompts, implementation details, temporary requests,
+        generic assistant behavior, or claims that an action was persisted.
+      schema_name: pet_memory
+      temperature: 0
+    bbh:
+      search_overfetch: 20
+      bleve:
+        analyzer: standard
+    lanes:
+      - name: relationship_state
+        kind: state
+        description: Qualitative trust, familiarity, attachment, and current relationship tone.
+        extract: Extract relationship changes supported by interaction; never assign a numeric intimacy score.
+        recall: Use gently to keep the relationship emotionally consistent.
+      - name: owner_profile
+        kind: state
+        description: Stable facts about the owner that the owner disclosed.
+        extract: Capture names, household facts, and stable personal context.
+        recall: Use only when naturally relevant.
+      - name: owner_preferences
+        kind: preference
+        description: Stable likes, dislikes, care routines, and conversation preferences.
+        extract: Capture explicit or repeatedly supported preferences.
+        recall: Use to personalize care and conversation.
+      - name: pet_knowledge
+        kind: note
+        description: Knowledge taught to this pet or established in its ongoing world.
+        extract: Capture durable learned knowledge without inventing authority.
+        recall: Use as the pet's learned knowledge.
+      - name: owner_pet_facts
+        kind: relation
+        description: Durable relations, promises, names, and routines involving the owner and pet.
+        extract: Capture concrete owner-pet relations and commitments.
+        recall: Use for relationship continuity without quoting memory text.
+      - name: shared_events
+        kind: event
+        description: Emotionally meaningful events shared by the owner and pet.
+        extract: Capture specific durable shared moments, not routine turns.
+        recall: Use to remember meaningful shared experiences.
+    graph_enabled: true
+    write:
+      mode: async_semantic
+      tier: general
+  mem0:
+    custom_instructions: |
+      Extract durable qualitative relationship state, owner facts and preferences, learned pet knowledge,
+      owner-pet relations, and meaningful shared events. Never store Gameplay numbers or execution claims.
+    custom_categories:
+      relationship_state: Qualitative owner-pet relationship state.
+      owner_profile: Stable facts about the owner.
+      owner_preferences: Stable owner preferences and routines.
+      pet_knowledge: Durable knowledge learned by the pet.
+      owner_pet_facts: Durable owner-pet relations and commitments.
+      shared_events: Meaningful shared events.
+    multilingual: true
+    decay: false
+  volc_mem0:
+    strategies:
+      - name: relationship_state
+        type: summary
+        custom_instructions: Retain qualitative relationship changes; never store numeric intimacy.
+      - name: owner_profile
+        type: summary
+        custom_instructions: Retain stable owner facts disclosed through interaction.
+      - name: owner_preferences
+        type: user_preference
+        custom_instructions: Retain explicit or repeatedly supported owner preferences.
+      - name: pet_knowledge
+        type: semantic
+        custom_instructions: Retain durable knowledge taught to the pet.
+      - name: owner_pet_facts
+        type: semantic
+        custom_instructions: Retain concrete owner-pet relations, names, promises, and routines.
+      - name: shared_events
+        type: semantic
+        custom_instructions: Retain emotionally meaningful shared events.
