@@ -458,6 +458,116 @@ def _memory_layout_model_aliases(layout: Mapping[str, Any]) -> set[str]:
     return aliases
 
 
+def _validate_memory_layout_policy(
+    layout_name: str, layout: Mapping[str, Any], errors: list[str]
+) -> None:
+    label = f"MemoryLayout/{layout_name}.spec"
+    spec = _require_mapping(layout.get("spec"), label, errors)
+    flowcraft = _require_mapping(
+        spec.get("flowcraft"), f"{label}.flowcraft", errors
+    )
+    raw_lanes = flowcraft.get("lanes")
+    if not isinstance(raw_lanes, list) or not raw_lanes:
+        errors.append(f"{label}.flowcraft.lanes must be a non-empty list")
+        raw_lanes = []
+    lane_names: set[str] = set()
+    for index, raw_lane in enumerate(raw_lanes):
+        lane_label = f"{label}.flowcraft.lanes.{index}"
+        lane = _require_mapping(raw_lane, lane_label, errors)
+        lane_name = lane.get("name")
+        if not isinstance(lane_name, str) or not lane_name.strip():
+            errors.append(f"{lane_label}.name must be a non-empty string")
+        else:
+            normalized_lane_name = lane_name.strip()
+            if normalized_lane_name in lane_names:
+                errors.append(
+                    f"{label}.flowcraft.lanes contains duplicate "
+                    f"{normalized_lane_name!r}"
+                )
+            else:
+                lane_names.add(normalized_lane_name)
+        for field in ("description", "extract", "recall"):
+            value = lane.get(field)
+            if not isinstance(value, str) or not value.strip():
+                errors.append(f"{lane_label}.{field} must be a non-empty string")
+
+    mem0 = _require_mapping(spec.get("mem0"), f"{label}.mem0", errors)
+    instructions = mem0.get("custom_instructions")
+    if not isinstance(instructions, str) or not instructions.strip():
+        errors.append(f"{label}.mem0.custom_instructions must be a non-empty string")
+    categories = _require_mapping(
+        mem0.get("custom_categories"), f"{label}.mem0.custom_categories", errors
+    )
+    category_names: set[str] = set()
+    for raw_name, raw_description in categories.items():
+        category_name = str(raw_name).strip()
+        if category_name in category_names:
+            errors.append(
+                f"{label}.mem0.custom_categories contains duplicate "
+                f"{category_name!r}"
+            )
+        else:
+            category_names.add(category_name)
+        if not isinstance(raw_description, str) or not raw_description.strip():
+            errors.append(
+                f"{label}.mem0.custom_categories.{category_name} "
+                "must be a non-empty string"
+            )
+    if category_names != lane_names:
+        errors.append(
+            f"{label}: Mem0 categories must exactly match Flowcraft lanes"
+            + _set_difference_details(lane_names, category_names)
+        )
+
+    volc_mem0 = _require_mapping(
+        spec.get("volc_mem0"), f"{label}.volc_mem0", errors
+    )
+    raw_strategies = volc_mem0.get("strategies")
+    if not isinstance(raw_strategies, list) or not raw_strategies:
+        errors.append(f"{label}.volc_mem0.strategies must be a non-empty list")
+        raw_strategies = []
+    strategy_names: set[str] = set()
+    for index, raw_strategy in enumerate(raw_strategies):
+        strategy_label = f"{label}.volc_mem0.strategies.{index}"
+        strategy = _require_mapping(raw_strategy, strategy_label, errors)
+        strategy_name = strategy.get("name")
+        if not isinstance(strategy_name, str) or not strategy_name.strip():
+            errors.append(f"{strategy_label}.name must be a non-empty string")
+        else:
+            normalized_strategy_name = strategy_name.strip()
+            if normalized_strategy_name in strategy_names:
+                errors.append(
+                    f"{label}.volc_mem0.strategies contains duplicate "
+                    f"{normalized_strategy_name!r}"
+                )
+            else:
+                strategy_names.add(normalized_strategy_name)
+        strategy_instructions = strategy.get("custom_instructions")
+        if (
+            not isinstance(strategy_instructions, str)
+            or not strategy_instructions.strip()
+        ):
+            errors.append(
+                f"{strategy_label}.custom_instructions must be a non-empty string"
+            )
+    if strategy_names != lane_names:
+        errors.append(
+            f"{label}: Volc Mem0 strategies must exactly match Flowcraft lanes"
+            + _set_difference_details(lane_names, strategy_names)
+        )
+
+
+def _set_difference_details(expected: set[str], actual: set[str]) -> str:
+    details: list[str] = []
+    missing = expected - actual
+    extra = actual - expected
+    if missing:
+        details.append("missing " + ", ".join(sorted(missing)))
+    if extra:
+        details.append("extra " + ", ".join(sorted(extra)))
+    return ": " + "; ".join(details) if details else ""
+
+
 def _validate_memory_closure(
     selected: set[str],
     bindings: Mapping[str, str],
@@ -662,6 +772,8 @@ def validate_catalog(root: Path) -> None:
     for (kind, name), document in documents.items():
         if kind == "Workflow":
             _validate_workflow_shape(name, document, errors)
+        if kind == "MemoryLayout":
+            _validate_memory_layout_policy(name, document, errors)
 
     if token is not None:
         if (token.get("kind"), token.get("metadata", {}).get("name")) != (

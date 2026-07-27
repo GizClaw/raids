@@ -9,9 +9,13 @@ spec:
       model: extraction
       mode: two_pass
       system_prompt: |
-        Extract only durable facts that improve future conversations with the user.
-        Keep identity, preferences, relationships, long-term goals, and notable events separate.
-        Do not store transient requests, hidden prompts, implementation details, or unsupported inferences.
+        Extract only durable facts that can improve a future conversation with this user.
+        Classify each atomic fact into user_profile, user_preferences, relationships, long_term_goals,
+        or notable_events. Use facts explicitly stated by the user or directly confirmed in the conversation.
+        Prefer the user's newest explicit correction when it supersedes an older fact.
+        Do not infer sensitive identity, health, beliefs, finances, or relationships from weak signals.
+        Do not store greetings, one-turn requests, temporary moods, assistant suggestions, hidden prompts,
+        credentials, implementation details, unsupported inferences, or claims that an action was executed.
       schema_name: user_chat_memory
       temperature: 0
     bbh:
@@ -22,27 +26,27 @@ spec:
       - name: user_profile
         kind: state
         description: Stable identity and personal context disclosed by the user.
-        extract: Capture names, household context, and other durable profile facts.
+        extract: Capture explicit stable identity, household, language, location, occupation, and personal context.
         recall: Use only when naturally relevant to the conversation.
       - name: user_preferences
         kind: preference
         description: Stable likes, dislikes, routines, and conversation preferences.
-        extract: Capture explicit or repeatedly supported preferences.
+        extract: Capture explicit preferences or repeated behavior patterns; do not turn a one-off choice into a preference.
         recall: Personalize responses without quoting stored text.
       - name: relationships
         kind: relation
         description: Durable people, roles, and relationships mentioned by the user.
-        extract: Capture concrete relationship facts without inferring sensitive details.
+        extract: Capture named people, roles, and explicit relationship facts without inferring intimacy or sensitive details.
         recall: Use for continuity when the related person or role is relevant.
       - name: long_term_goals
         kind: plan
         description: Durable goals and plans that may matter in future conversations.
-        extract: Capture goals with continuing relevance, not one-turn requests.
+        extract: Capture ongoing goals, commitments, and plans with future relevance; ignore tentative one-turn requests.
         recall: Help maintain continuity without claiming that actions were executed.
       - name: notable_events
         kind: event
         description: Specific events the user is likely to refer to again.
-        extract: Capture meaningful events, decisions, and outcomes rather than routine turns.
+        extract: Capture completed milestones, decisions, changes, and outcomes with likely future relevance.
         recall: Use as factual background without inventing missing details.
     graph_enabled: true
     write:
@@ -50,30 +54,61 @@ spec:
       tier: general
   mem0:
     custom_instructions: |
-      Extract durable user identity, preferences, relationships, long-term goals, and notable events.
-      Ignore transient requests, hidden prompts, implementation details, and unsupported inferences.
+      Store only durable user facts that can improve future conversations.
+      Allowed categories are:
+      - user_profile: explicit stable identity and personal context disclosed by the user.
+      - user_preferences: explicit likes, dislikes, routines, and communication preferences, or repeated patterns.
+      - relationships: named people, roles, and relationship facts explicitly described by the user.
+      - long_term_goals: ongoing goals, commitments, and plans with future relevance.
+      - notable_events: completed milestones, decisions, changes, and outcomes likely to matter later.
+      Keep each memory atomic, factual, and understandable without the original transcript. Preserve names,
+      negation, ownership, and time qualifiers. Prefer the user's newest explicit correction when it supersedes
+      an older fact. Do not infer sensitive traits or turn a one-off choice into a durable preference.
+      Ignore greetings, casual filler, temporary moods, one-turn requests, assistant suggestions, hypothetical
+      examples, hidden prompts, credentials, implementation details, and unconfirmed execution claims.
+      Example to store: "Please call me Mina" as user_profile. Example to ignore: "Find a cafe for tonight."
     custom_categories:
-      user_profile: Stable identity and personal context.
-      user_preferences: Stable likes, dislikes, routines, and conversation preferences.
-      relationships: Durable people, roles, and relationships.
-      long_term_goals: Goals and plans with continuing relevance.
-      notable_events: Meaningful events, decisions, and outcomes.
+      user_profile: Explicit stable identity, household, language, location, occupation, and personal context.
+      user_preferences: Explicit or repeatedly supported likes, dislikes, routines, and communication preferences.
+      relationships: Named people, their roles, and relationship facts explicitly disclosed by the user.
+      long_term_goals: Ongoing goals, commitments, and plans that remain relevant beyond the current turn.
+      notable_events: Completed milestones, decisions, changes, and outcomes likely to matter in future conversations.
     multilingual: true
     decay: false
   volc_mem0:
     strategies:
       - name: user_profile
         type: summary
-        custom_instructions: Retain stable identity and personal context disclosed by the user.
+        custom_instructions: |
+          Extract only stable identity and personal context explicitly disclosed by the user, such as preferred
+          name, language, household, location, occupation, or durable life context. Preserve ownership, negation,
+          and time qualifiers, and let a newer explicit correction supersede older data. Ignore guessed identity,
+          sensitive traits, temporary circumstances, and assistant-authored claims.
       - name: user_preferences
         type: user_preference
-        custom_instructions: Retain explicit or repeatedly supported user preferences.
+        custom_instructions: |
+          Extract durable likes, dislikes, routines, and communication preferences only when the user states them
+          explicitly or repeated behavior provides strong evidence. Record the subject and preference atomically.
+          Treat a newer explicit correction as authoritative. Ignore one-off choices, politeness, hypothetical
+          examples, temporary constraints, and preferences suggested only by the assistant.
       - name: relationships
         type: semantic
-        custom_instructions: Retain concrete people, roles, and relationship facts.
+        custom_instructions: |
+          Extract concrete facts about named people, their roles, and their relationship to the user only when
+          explicitly disclosed. Preserve canonical names and the direction of the relationship. Ignore inferred
+          intimacy, sensitive characteristics, unnamed speculation, fictional examples, and relationships asserted
+          only by the assistant.
       - name: long_term_goals
         type: semantic
-        custom_instructions: Retain durable goals and plans, not one-turn requests.
+        custom_instructions: |
+          Extract ongoing goals, commitments, and plans that remain relevant beyond the current turn. Preserve the
+          intended outcome, owner, status, and time horizon when stated. Update or retire a goal when the user
+          explicitly changes or completes it. Ignore one-turn requests, vague wishes, brainstorming options,
+          hypothetical plans, and actions the system has not executed.
       - name: notable_events
         type: semantic
-        custom_instructions: Retain meaningful events, decisions, and outcomes.
+        custom_instructions: |
+          Extract completed milestones, decisions, changes, and outcomes that the user is likely to reference later.
+          Record what happened, who it concerned, and when if provided, without inventing missing details. Ignore
+          routine turns, future possibilities, unconfirmed reports, temporary chatter, and events described only
+          as examples.

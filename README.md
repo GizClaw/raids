@@ -61,6 +61,16 @@ default profile selects Flowcraft with `connection.type: flowcraft_bbh`; it
 does not publish an endpoint, key, project ID, DSN, or directory. The consuming
 Server derives managed BBH storage from its own Workspace.
 
+Provider policy does not bypass runtime capability checks. In particular,
+Graph-authoritative `memory_observe.facts` writes require a Store with
+direct-fact support, which the public default Flowcraft binding provides. The
+current Mem0 and Volc Mem0 adapters accept conversation extraction but not
+direct structured facts, so Workflows that write authoritative facts must not
+be switched to those drivers until the adapters add that capability. Their
+Layout blocks remain the policy contract for configuring compatible
+environment-owned projects; their presence alone is not proof of runtime
+compatibility or successful extraction.
+
 [`runtime-profile.example.yaml`](runtime-profile.example.yaml) remains a
 documentation-only composition example with unresolved Voice placeholders. It
 is not discovered or applied as a catalog resource.

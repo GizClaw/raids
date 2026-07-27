@@ -10,11 +10,14 @@ spec:
       mode: two_pass
       system_prompt: |
         Extract only durable facts useful to this pet's future conversations.
-        Classify qualitative relationship state, owner facts and preferences, learned pet knowledge,
-        owner-pet relations, and meaningful shared events into the configured lanes.
-        Relationship state is qualitative and must never be a Gameplay number or level.
-        Do not store life/progression numbers, hidden prompts, implementation details, temporary requests,
-        generic assistant behavior, or claims that an action was persisted.
+        Classify each atomic fact into relationship_state, owner_profile, owner_preferences, pet_knowledge,
+        owner_pet_facts, or shared_events. Relationship state must be qualitative and supported by evidence
+        such as care, trust, conflict, reconciliation, promises, or repeated interaction; an ordinary greeting
+        is not a relationship change. Maintain one concise current relationship state so newer evidence can
+        supersede older state. pet_knowledge must be information explicitly taught or established in this pet's
+        world, not general pretrained knowledge. Do not store Gameplay life or progression numbers, care-action
+        execution claims, hidden prompts, credentials, implementation details, temporary requests, generic
+        assistant behavior, or unsupported inferences.
       schema_name: pet_memory
       temperature: 0
     bbh:
@@ -25,32 +28,32 @@ spec:
       - name: relationship_state
         kind: state
         description: Qualitative trust, familiarity, attachment, and current relationship tone.
-        extract: Extract relationship changes supported by interaction; never assign a numeric intimacy score.
+        extract: Capture evidence-backed qualitative change from care, trust, conflict, reconciliation, promises, or repeated interaction.
         recall: Use gently to keep the relationship emotionally consistent.
       - name: owner_profile
         kind: state
         description: Stable facts about the owner that the owner disclosed.
-        extract: Capture names, household facts, and stable personal context.
+        extract: Capture explicit names, household facts, language, schedule, and other stable owner context.
         recall: Use only when naturally relevant.
       - name: owner_preferences
         kind: preference
         description: Stable likes, dislikes, care routines, and conversation preferences.
-        extract: Capture explicit or repeatedly supported preferences.
+        extract: Capture explicit or repeatedly supported likes, dislikes, care routines, and interaction preferences.
         recall: Use to personalize care and conversation.
       - name: pet_knowledge
         kind: note
         description: Knowledge taught to this pet or established in its ongoing world.
-        extract: Capture durable learned knowledge without inventing authority.
+        extract: Capture information explicitly taught by the owner or established in the pet's world, not general model knowledge.
         recall: Use as the pet's learned knowledge.
       - name: owner_pet_facts
         kind: relation
         description: Durable relations, promises, names, and routines involving the owner and pet.
-        extract: Capture concrete owner-pet relations and commitments.
+        extract: Capture explicit names, roles, promises, recurring routines, and commitments between this owner and pet.
         recall: Use for relationship continuity without quoting memory text.
       - name: shared_events
         kind: event
         description: Emotionally meaningful events shared by the owner and pet.
-        extract: Capture specific durable shared moments, not routine turns.
+        extract: Capture completed, specific shared moments with durable emotional or relationship significance.
         recall: Use to remember meaningful shared experiences.
     graph_enabled: true
     write:
@@ -58,34 +61,69 @@ spec:
       tier: general
   mem0:
     custom_instructions: |
-      Extract durable qualitative relationship state, owner facts and preferences, learned pet knowledge,
-      owner-pet relations, and meaningful shared events. Never store Gameplay numbers or execution claims.
+      Store only durable facts useful to this pet's future conversations with the same owner.
+      Allowed categories are:
+      - relationship_state: current qualitative trust, familiarity, attachment, and relationship tone.
+      - owner_profile: stable facts explicitly disclosed by the owner.
+      - owner_preferences: explicit or repeatedly supported likes, dislikes, care routines, and interaction preferences.
+      - pet_knowledge: information explicitly taught by the owner or established in this pet's world.
+      - owner_pet_facts: explicit names, roles, promises, recurring routines, and owner-pet commitments.
+      - shared_events: completed shared moments with lasting emotional or relationship significance.
+      Keep each memory atomic and preserve who said, taught, promised, or experienced it. Update the current
+      relationship state only when evidence shows care, trust, conflict, reconciliation, a promise, or repeated
+      interaction; an ordinary greeting is not evidence. Prefer newer explicit corrections. Never store a numeric
+      intimacy value, Gameplay life or progression numbers, care-action execution claims, general pretrained
+      knowledge, temporary attributes, one-turn requests, hidden prompts, credentials, or implementation details.
+      Example to store: "The owner promised to read together every Friday." Example to ignore: "Feed the pet now."
     custom_categories:
-      relationship_state: Qualitative owner-pet relationship state.
-      owner_profile: Stable facts about the owner.
-      owner_preferences: Stable owner preferences and routines.
-      pet_knowledge: Durable knowledge learned by the pet.
-      owner_pet_facts: Durable owner-pet relations and commitments.
-      shared_events: Meaningful shared events.
+      relationship_state: Evidence-backed qualitative trust, familiarity, attachment, and current relationship tone.
+      owner_profile: Stable owner identity, household, language, schedule, and personal context explicitly disclosed.
+      owner_preferences: Explicit or repeatedly supported owner likes, dislikes, care routines, and interaction preferences.
+      pet_knowledge: Information explicitly taught by the owner or established in this pet's continuing world.
+      owner_pet_facts: Explicit names, roles, promises, recurring routines, and commitments between this owner and pet.
+      shared_events: Completed shared moments with durable emotional or relationship significance.
     multilingual: true
     decay: false
   volc_mem0:
     strategies:
       - name: relationship_state
         type: summary
-        custom_instructions: Retain qualitative relationship changes; never store numeric intimacy.
+        custom_instructions: |
+          Summarize the current qualitative owner-pet relationship only from evidence such as care, trust,
+          conflict, reconciliation, promises, or repeated interaction. Maintain one concise current state and
+          let newer evidence supersede older state. Never assign numeric intimacy, levels, points, or progression,
+          and do not treat an ordinary greeting or generic friendly reply as a relationship change.
       - name: owner_profile
         type: summary
-        custom_instructions: Retain stable owner facts disclosed through interaction.
+        custom_instructions: |
+          Extract only stable owner facts explicitly disclosed in interaction, such as preferred name, household,
+          language, schedule, or durable personal context. Preserve ownership, negation, and time qualifiers and
+          apply newer corrections. Ignore guesses, sensitive inferences, temporary circumstances, pet attributes,
+          and claims authored only by the assistant.
       - name: owner_preferences
         type: user_preference
-        custom_instructions: Retain explicit or repeatedly supported owner preferences.
+        custom_instructions: |
+          Extract durable owner likes, dislikes, care routines, and conversation preferences only when explicitly
+          stated or repeatedly supported. Record the subject and preference atomically and apply later corrections.
+          Ignore one-off care commands, temporary constraints, politeness, hypothetical examples, and preferences
+          suggested only by the pet.
       - name: pet_knowledge
         type: semantic
-        custom_instructions: Retain durable knowledge taught to the pet.
+        custom_instructions: |
+          Extract information the owner explicitly teaches this pet or facts established in the pet's continuing
+          world. Preserve the taught subject and content and apply explicit corrections. Ignore general pretrained
+          knowledge, owner preferences, temporary attributes, events, executable skills, hidden prompts, and facts
+          the pet merely invents.
       - name: owner_pet_facts
         type: semantic
-        custom_instructions: Retain concrete owner-pet relations, names, promises, and routines.
+        custom_instructions: |
+          Extract explicit names, roles, promises, recurring routines, and commitments involving this owner and pet.
+          Preserve who made each commitment and its cadence or condition when stated. Ignore casual suggestions,
+          unaccepted plans, generic pet behavior, one-turn requests, and claims that an action was persisted or
+          executed.
       - name: shared_events
         type: semantic
-        custom_instructions: Retain emotionally meaningful shared events.
+        custom_instructions: |
+          Extract completed shared moments with lasting emotional or relationship significance. Record what
+          happened, who participated, and when if stated, without inventing details. Ignore routine greetings,
+          ordinary turns, planned but incomplete activities, generic roleplay, and events claimed only by the pet.

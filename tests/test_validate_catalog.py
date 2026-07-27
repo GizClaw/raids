@@ -87,14 +87,19 @@ spec:
     lanes:
       - name: pet-care
         kind: note
+        description: Durable pet facts.
+        extract: Extract durable pet facts.
+        recall: Use relevant pet facts.
     write:
       mode: sync
       tier: general
   mem0:
     custom_instructions: Keep durable pet facts.
+    custom_categories:
+      pet-care: Durable pet facts.
   volc_mem0:
     strategies:
-      - {name: pet-care, type: semantic}
+      - {name: pet-care, type: semantic, custom_instructions: Keep durable pet facts.}
 """
 
 MODEL = """
@@ -208,6 +213,44 @@ class CatalogValidationTest(unittest.TestCase):
         )
         self.assert_invalid(
             "MemoryLayout/pet-care: required models alias 'missing' is not bound"
+        )
+
+    def test_rejects_memory_layout_without_lane_guidance(self) -> None:
+        self.write(
+            "memory-layouts/pet-care.yaml",
+            MEMORY_LAYOUT.replace(
+                "        extract: Extract durable pet facts.",
+                "        extract: ''",
+            ),
+        )
+        self.assert_invalid(
+            "MemoryLayout/pet-care.spec.flowcraft.lanes.0.extract "
+            "must be a non-empty string"
+        )
+
+    def test_rejects_memory_layout_with_incomplete_mem0_categories(self) -> None:
+        self.write(
+            "memory-layouts/pet-care.yaml",
+            MEMORY_LAYOUT.replace(
+                "    custom_categories:\n      pet-care: Durable pet facts.",
+                "    custom_categories: {}",
+            ),
+        )
+        self.assert_invalid(
+            "Mem0 categories must exactly match Flowcraft lanes: missing pet-care"
+        )
+
+    def test_rejects_memory_layout_with_incomplete_volc_strategy(self) -> None:
+        self.write(
+            "memory-layouts/pet-care.yaml",
+            MEMORY_LAYOUT.replace(
+                "custom_instructions: Keep durable pet facts.}",
+                "custom_instructions: ''}",
+            ),
+        )
+        self.assert_invalid(
+            "MemoryLayout/pet-care.spec.volc_mem0.strategies.0"
+            ".custom_instructions must be a non-empty string"
         )
 
     def test_rejects_legacy_nested_flowcraft_memory(self) -> None:
