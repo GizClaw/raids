@@ -1,4 +1,4 @@
-name: Validate YAML
+name: CI
 
 on:
   push:
@@ -8,8 +8,8 @@ permissions:
   contents: read
 
 jobs:
-  validate:
-    name: Validate YAML files
+  ci:
+    name: Repository checks
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -23,8 +23,5 @@ jobs:
       - name: Install PyYAML
         run: python -m pip install PyYAML==6.0.3
 
-      - name: Validate catalog
-        run: python scripts/validate_catalog.py
-
-      - name: Test catalog validator
-        run: python -m unittest discover -s tests -v
+      - name: Run repository checks
+        run: make ci
