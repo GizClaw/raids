@@ -1,5 +1,7 @@
 # GizClaw Raids
 
+[![CI](https://github.com/GizClaw/raids/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/GizClaw/raids/actions/workflows/ci.yml?query=branch%3Amain)
+
 Reusable resource loadouts for [GizClaw](https://github.com/GizClaw/gizclaw)
 AI workflows.
 
