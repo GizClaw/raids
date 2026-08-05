@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from pathlib import Path
 import tempfile
 import textwrap
 import unittest
+from pathlib import Path
 
 from scripts.validate_catalog import (
     PUBLIC_DEFAULT_TOKEN,
@@ -11,12 +11,11 @@ from scripts.validate_catalog import (
     validate_catalog,
 )
 
-
 PROFILE = """
 apiVersion: gizclaw.admin/v1alpha1
 kind: RuntimeProfile
 metadata:
-  name: default
+  id: default
 spec:
   workflows:
     system:
@@ -43,17 +42,17 @@ TOKEN = f"""
 apiVersion: gizclaw.admin/v1alpha1
 kind: RegistrationToken
 metadata:
-  name: default-runtime
+  id: default-runtime
 spec:
   token: {PUBLIC_DEFAULT_TOKEN}
-  runtime_profile_name: default
+  runtime_profile_id: default
 """
 
 CHATROOM = """
 apiVersion: gizclaw.admin/v1alpha1
 kind: Workflow
 metadata:
-  name: chatroom
+  id: chatroom
 spec:
   driver: chatroom
   chatroom:
@@ -66,7 +65,7 @@ PET = """
 apiVersion: gizclaw.admin/v1alpha1
 kind: Workflow
 metadata:
-  name: pet-care
+  id: pet-care
 spec:
   driver: pet
   memory: pet-care
@@ -77,7 +76,7 @@ MEMORY_LAYOUT = """
 apiVersion: gizclaw.admin/v1alpha1
 kind: MemoryLayout
 metadata:
-  name: pet-care
+  id: pet-care
 spec:
   flowcraft:
     extraction:
@@ -106,7 +105,58 @@ MODEL = """
 apiVersion: gizclaw.admin/v1alpha1
 kind: Model
 metadata:
-  name: asr-model
+  id: asr-model
+spec:
+  kind: asr
+  source: manual
+  provider:
+    kind: openai-tenant
+    id: openai
+  display_name: ASR Model
+  provider_data: {}
+"""
+
+CREDENTIAL = """
+apiVersion: gizclaw.admin/v1alpha1
+kind: Credential
+metadata:
+  id: credential
+spec:
+  provider: openai
+  body: {api_key: test}
+"""
+
+TENANT = """
+apiVersion: gizclaw.admin/v1alpha1
+kind: OpenAITenant
+metadata:
+  id: openai
+spec:
+  kind: compatible
+  credential_id: credential
+  base_url: https://example.com/v1
+  api_mode: chat_completions
+"""
+
+VOICE = """
+apiVersion: gizclaw.admin/v1alpha1
+kind: Voice
+metadata:
+  id: voice
+spec:
+  source: manual
+  provider:
+    kind: openai-tenant
+    id: openai
+  display_name: Test Voice
+  provider_data: {}
+"""
+
+EXAMPLE = """
+apiVersion: gizclaw.admin/v1alpha1
+kind: RuntimeProfile
+metadata:
+  id: raids
 spec: {}
 """
 
@@ -116,10 +166,13 @@ class CatalogValidationTest(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name)
         self.write("runtime-profiles/default.yaml", PROFILE)
+        self.write("runtime-profile.example.yaml", EXAMPLE)
         self.write("registration-tokens/default.yaml", TOKEN)
         self.write("workflows/chatroom/social.yaml", CHATROOM)
         self.write("workflows/pet/pet-care.yaml", PET)
         self.write("memory-layouts/pet-care.yaml", MEMORY_LAYOUT)
+        self.write("credentials/credential.yaml", CREDENTIAL)
+        self.write("tenants/openai.yaml", TENANT)
         self.write("models/asr-model.yaml", MODEL)
 
     def tearDown(self) -> None:
@@ -147,9 +200,143 @@ class CatalogValidationTest(unittest.TestCase):
     def test_rejects_missing_resource_reference(self) -> None:
         self.write(
             "models/asr-model.yaml",
-            MODEL.replace("name: asr-model", "name: another-model"),
+            MODEL.replace("id: asr-model", "id: another-model"),
         )
-        self.assert_invalid("Model/asr-model does not exist")
+        self.assert_invalid("references missing Model/asr-model")
+
+    def test_rejects_missing_metadata_id(self) -> None:
+        self.write(
+            "models/asr-model.yaml",
+            MODEL.replace("  id: asr-model\n", ""),
+        )
+        self.assert_invalid(
+            "models/asr-model.yaml: metadata.id must be a non-empty string"
+        )
+
+    def test_rejects_empty_metadata_id(self) -> None:
+        self.write(
+            "models/asr-model.yaml",
+            MODEL.replace("  id: asr-model", "  id: ''"),
+        )
+        self.assert_invalid(
+            "models/asr-model.yaml: metadata.id must be a non-empty string"
+        )
+
+    def test_rejects_metadata_id_with_surrounding_whitespace(self) -> None:
+        self.write(
+            "models/asr-model.yaml",
+            MODEL.replace("  id: asr-model", '  id: " asr-model "'),
+        )
+        self.assert_invalid("metadata.id must not have surrounding whitespace")
+
+    def test_rejects_legacy_metadata_name(self) -> None:
+        self.write(
+            "models/asr-model.yaml",
+            MODEL.replace("  id: asr-model", "  id: asr-model\n  name: legacy"),
+        )
+        self.assert_invalid("models/asr-model.yaml: metadata.name is legacy")
+
+    def test_rejects_environment_dependent_metadata_id(self) -> None:
+        self.write(
+            "models/asr-model.yaml",
+            MODEL.replace("  id: asr-model", "  id: ${MODEL_ID}"),
+        )
+        self.assert_invalid("models/asr-model.yaml: metadata.id must be concrete")
+
+    def test_rejects_environment_dependent_resource_reference(self) -> None:
+        self.write(
+            "tenants/openai.yaml",
+            TENANT.replace(
+                "credential_id: credential", "credential_id: ${CREDENTIAL_ID}"
+            ),
+        )
+        self.assert_invalid("credential_id must be a concrete Credential ID")
+
+    def test_rejects_resource_reference_with_surrounding_whitespace(self) -> None:
+        self.write(
+            "tenants/openai.yaml",
+            TENANT.replace(
+                "credential_id: credential", 'credential_id: " credential "'
+            ),
+        )
+        self.assert_invalid(
+            "credential_id must not have surrounding whitespace in the Credential ID"
+        )
+
+    def test_rejects_missing_documentation_example(self) -> None:
+        (self.root / "runtime-profile.example.yaml").unlink()
+        self.assert_invalid("required documentation example is missing")
+
+    def test_rejects_legacy_name_in_documentation_example(self) -> None:
+        self.write(
+            "runtime-profile.example.yaml",
+            """
+            apiVersion: gizclaw.admin/v1alpha1
+            kind: RuntimeProfile
+            metadata:
+              name: raids
+            spec: {}
+            """,
+        )
+        self.assert_invalid("runtime-profile.example.yaml: metadata.name is legacy")
+
+    def test_rejects_ambiguous_duplicate_resource(self) -> None:
+        self.write("models/duplicate.yaml", MODEL)
+        self.assert_invalid("ambiguous duplicate Model/asr-model")
+
+    def test_rejects_legacy_tenant_credential_name(self) -> None:
+        self.write(
+            "tenants/openai.yaml",
+            TENANT.replace("credential_id: credential", "credential_name: credential"),
+        )
+        self.assert_invalid("spec.credential_name is legacy")
+
+    def test_rejects_missing_tenant_credential_reference(self) -> None:
+        self.write(
+            "tenants/openai.yaml",
+            TENANT.replace("credential_id: credential", "credential_id: missing"),
+        )
+        self.assert_invalid("references missing Credential/missing")
+
+    def test_rejects_wrong_kind_tenant_credential_reference(self) -> None:
+        self.write(
+            "tenants/openai.yaml",
+            TENANT.replace("credential_id: credential", "credential_id: asr-model"),
+        )
+        self.assert_invalid(
+            "references Credential/asr-model, but asr-model is defined as Model"
+        )
+
+    def test_rejects_empty_tenant_credential_reference(self) -> None:
+        self.write(
+            "tenants/openai.yaml",
+            TENANT.replace("credential_id: credential", "credential_id: ''"),
+        )
+        self.assert_invalid("credential_id must be a non-empty Credential ID")
+
+    def test_rejects_legacy_model_provider_name(self) -> None:
+        self.write(
+            "models/asr-model.yaml",
+            MODEL.replace("    id: openai", "    name: openai"),
+        )
+        self.assert_invalid("spec.provider.name is legacy")
+
+    def test_rejects_legacy_model_display_name(self) -> None:
+        self.write(
+            "models/asr-model.yaml",
+            MODEL.replace("  display_name: ASR Model", "  name: ASR Model"),
+        )
+        self.assert_invalid("Model/asr-model.spec.name is legacy")
+
+    def test_rejects_legacy_voice_fields(self) -> None:
+        self.write(
+            "voices/openai/voice.yaml",
+            VOICE.replace("    id: openai", "    name: openai").replace(
+                "  display_name: Test Voice", "  name: Test Voice"
+            ),
+        )
+        self.assert_invalid("Voice/voice.spec.provider.name is legacy")
+        self.assert_invalid("Voice/voice.spec.name is legacy")
 
     def test_rejects_unbound_workflow_alias(self) -> None:
         self.write(
@@ -161,9 +348,11 @@ class CatalogValidationTest(unittest.TestCase):
     def test_rejects_missing_memory_layout(self) -> None:
         self.write(
             "memory-layouts/pet-care.yaml",
-            MEMORY_LAYOUT.replace("name: pet-care", "name: another-layout"),
+            MEMORY_LAYOUT.replace("id: pet-care", "id: another-layout"),
         )
-        self.assert_invalid("MemoryLayout/pet-care does not exist")
+        self.assert_invalid(
+            "references MemoryLayout/pet-care, but pet-care is defined as Workflow"
+        )
 
     def test_rejects_unbound_workflow_memory_alias(self) -> None:
         self.write(
@@ -179,9 +368,7 @@ class CatalogValidationTest(unittest.TestCase):
             "runtime-profiles/default.yaml",
             PROFILE.replace("layout_id: pet-care", "layout_id: another-layout"),
         )
-        self.assert_invalid(
-            "layout_id must match its stable memory alias 'pet-care'"
-        )
+        self.assert_invalid("layout_id must match its stable memory alias 'pet-care'")
 
     def test_rejects_wrong_scenario_memory_alias(self) -> None:
         self.write(
@@ -202,9 +389,7 @@ class CatalogValidationTest(unittest.TestCase):
             "runtime-profiles/default.yaml",
             PROFILE.replace("driver: flowcraft", "driver: mem0"),
         )
-        self.assert_invalid(
-            "driver 'mem0' cannot use connection type 'flowcraft_bbh'"
-        )
+        self.assert_invalid("driver 'mem0' cannot use connection type 'flowcraft_bbh'")
 
     def test_rejects_unbound_memory_layout_model_alias(self) -> None:
         self.write(
@@ -260,7 +445,7 @@ class CatalogValidationTest(unittest.TestCase):
             apiVersion: gizclaw.admin/v1alpha1
             kind: Workflow
             metadata:
-              name: pet-care
+              id: pet-care
             spec:
               driver: pet
               memory: pet-care
@@ -285,7 +470,7 @@ class CatalogValidationTest(unittest.TestCase):
             apiVersion: gizclaw.admin/v1alpha1
             kind: Workflow
             metadata:
-              name: pet-care
+              id: pet-care
             spec:
               driver: pet
               pet:
@@ -322,7 +507,7 @@ class CatalogValidationTest(unittest.TestCase):
     def test_rejects_duplicate_token_value(self) -> None:
         self.write(
             "registration-tokens/other.yaml",
-            TOKEN.replace("name: default-runtime", "name: other"),
+            TOKEN.replace("id: default-runtime", "id: other"),
         )
         self.assert_invalid("token value duplicates RegistrationToken/default-runtime")
 
@@ -334,7 +519,7 @@ class CatalogValidationTest(unittest.TestCase):
             with self.subTest(case=case):
                 self.write(
                     "registration-tokens/other.yaml",
-                    TOKEN.replace("name: default-runtime", "name: other").replace(
+                    TOKEN.replace("id: default-runtime", "id: other").replace(
                         f"token: {PUBLIC_DEFAULT_TOKEN}", f'token: "{token}"'
                     ),
                 )
@@ -350,7 +535,7 @@ class CatalogValidationTest(unittest.TestCase):
         }
         for case, token_line in cases.items():
             with self.subTest(case=case):
-                other = TOKEN.replace("name: default-runtime", "name: other").replace(
+                other = TOKEN.replace("id: default-runtime", "id: other").replace(
                     f"  token: {PUBLIC_DEFAULT_TOKEN}\n", token_line
                 )
                 self.write("registration-tokens/other.yaml", other)
@@ -361,14 +546,23 @@ class CatalogValidationTest(unittest.TestCase):
     def test_rejects_registration_token_with_missing_profile(self) -> None:
         self.write(
             "registration-tokens/other.yaml",
-            TOKEN.replace("name: default-runtime", "name: other")
+            TOKEN.replace("id: default-runtime", "id: other")
             .replace(f"token: {PUBLIC_DEFAULT_TOKEN}", "token: other")
-            .replace("runtime_profile_name: default", "runtime_profile_name: missing"),
+            .replace("runtime_profile_id: default", "runtime_profile_id: missing"),
         )
         self.assert_invalid(
-            "RegistrationToken/other.spec.runtime_profile_name references "
+            "RegistrationToken/other.spec.runtime_profile_id references "
             "missing RuntimeProfile/missing"
         )
+
+    def test_rejects_legacy_registration_token_profile_name(self) -> None:
+        self.write(
+            "registration-tokens/default.yaml",
+            TOKEN.replace(
+                "runtime_profile_id: default", "runtime_profile_name: default"
+            ),
+        )
+        self.assert_invalid("spec.runtime_profile_name is legacy")
 
     def test_rejects_placeholder_in_default_profile(self) -> None:
         self.write(

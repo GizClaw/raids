@@ -12,7 +12,7 @@ voices, credentials, and provider definitions needed for an AI scenario.
 ## Layout
 
 Resources are grouped by kind. Credential, Tenant, Model, MemoryLayout, and
-PetDef resources are flat because their `metadata.name` already provides the
+PetDef resources are flat because their `metadata.id` already provides the
 stable identity. Voice catalogs and Workflows keep one grouping level for
 navigability:
 
@@ -29,9 +29,14 @@ registration-tokens/<token-name>.yaml
 runtime-profile.example.yaml
 ```
 
-File names are repository-local. Each resource keeps its stable `metadata.name`
-so references continue to resolve after consumers select and assemble the
-resources they need.
+File names are repository-local. Each applyable catalog Resource declares its
+immutable, caller-defined Admin identity in `metadata.id`. Every ID-bearing
+reference in that catalog contains the exact target Resource ID, so consumers
+submit the selected graph without name lookup or reference rewriting.
+
+Generic Admin `metadata.name` is unsupported. RuntimeProfile map keys remain
+Peer-facing aliases scoped by that profile; each binding points to an Admin
+Resource ID and does not create an alternate Admin selector.
 
 Current drivers:
 
@@ -98,7 +103,7 @@ https://github.com/GizClaw/raids/archive/refs/heads/main.tar.gz
 Versioned packages use the corresponding Git tag archive, for example:
 
 ```text
-https://github.com/GizClaw/raids/archive/refs/tags/v0.1.tar.gz
+https://github.com/GizClaw/raids/archive/refs/tags/v0.4.0.tar.gz
 ```
 
 Release `v0.2` includes the public `chatroom` and `pet-care` system Workflows
@@ -107,6 +112,11 @@ for Desktop consumers.
 Release `v0.3.0` is the first catalog release using scenario MemoryLayouts,
 flattened Flowcraft payloads, explicit Graph memory nodes, and portable
 RuntimeProfile BBH bindings.
+
+Release `v0.4.0` is the first catalog release in which every Resource supplies
+its own Admin `metadata.id` and every cross-resource field already contains the
+target ID. It requires a GizClaw caller-defined Admin ID contract and is not
+compatible with the legacy `v0.3.0` name-resolution path.
 
 The archive contains one generated top-level directory. Consumers locate the
 kind directories relative to that root rather than depending on its generated
@@ -140,18 +150,33 @@ public token string does not share Server data, credentials, identities,
 Terraform state, or lifecycle between Desktop, dev, production, or other
 installations. The Server endpoint is selected separately by the client.
 
-Consumers apply the catalog in dependency order:
+Applyable catalog files carry the complete Admin identity graph before
+installation:
 
-1. Apply Credential and Tenant definitions with deployment-owned values.
-2. Apply Models, Voices, PetDefs, and MemoryLayouts.
-3. Apply Workflows.
-4. Apply `RuntimeProfile/default`.
-5. Apply `RegistrationToken/default-runtime`.
+- Tenants use `credential_id`.
+- Models and Voices use `provider.id` and `display_name`.
+- RuntimeProfile bindings use `resource_id` and `layout_id`.
+- RegistrationTokens use `runtime_profile_id`.
+
+Before creating anything, a consumer validates that each reference identifies
+exactly one Resource of the required kind. It expands only deployment-owned
+values such as Credential bodies, then submits the selected Resources in
+dependency order without changing identities or references:
+
+1. Apply Credential definitions with deployment-owned values.
+2. Apply Tenant definitions.
+3. Apply Models, Voices, PetDefs, and MemoryLayouts.
+4. Apply Workflows.
+5. Apply `RuntimeProfile/default`.
+6. Apply `RegistrationToken/default-runtime`.
 
 Applying the RegistrationToken before the RuntimeProfile fails because the
-profile reference is unresolved. Reapplying identical resources is idempotent.
-Products may omit or override the public defaults and may install additional
-product- or hardware-specific profiles and tokens.
+profile reference is unresolved. Applying the same desired `(kind, id)` again
+is idempotent; after an ambiguous transport failure, a consumer reads or
+reapplies that same ID instead of allocating a second logical Resource. An
+apply result may be checked against the submitted ID but is never used to edit
+another manifest. Products may omit or override the public defaults and may
+install additional product- or hardware-specific profiles and tokens.
 
 ## Scope
 
@@ -161,7 +186,7 @@ resources. It publishes the default runtime bootstrap contract while leaving
 every applied resource instance under the ownership of its Server and
 deployment tooling.
 
-Credential resources define stable names, providers, and body shapes, while
+Credential resources define stable IDs, providers, and body shapes, while
 their values remain `${ENVIRONMENT_VARIABLE}` examples. The repository never
 contains real credential values. Copy [`.env.example`](.env.example) to the
 environment configuration managed by the consuming product or deployment and
@@ -172,7 +197,7 @@ generated, trained, and otherwise account-private voices are excluded. Server
 timestamps, account status, and raw provider responses are not source
 resources and are also excluded.
 
-Each Voice directory name matches its Tenant `metadata.name`, so catalogs with
+Each Voice directory name matches its Tenant `metadata.id`, so catalogs with
 different providers, endpoints, or regions remain separate. For example,
 `voices/minimax-cn/`, `voices/minimax-global/`, and
 `voices/volc-cn-beijing/` correspond to those three Tenant resources.
