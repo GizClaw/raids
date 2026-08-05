@@ -14,6 +14,7 @@ from typing import Any
 import yaml
 
 API_VERSION = "gizclaw.admin/v1alpha1"
+MAX_RESOURCE_ID_CHARACTERS = 1024
 PUBLIC_DEFAULT_TOKEN_NAMESPACE_URL = (
     "https://github.com/GizClaw/raids/registration-tokens"
 )
@@ -155,6 +156,13 @@ def _resource_identity(
         errors.append(f"{relative}: metadata.id must be a non-empty string")
     elif resource_id != resource_id.strip():
         errors.append(f"{relative}: metadata.id must not have surrounding whitespace")
+    elif len(resource_id) > MAX_RESOURCE_ID_CHARACTERS:
+        errors.append(
+            f"{relative}: metadata.id exceeds the "
+            f"{MAX_RESOURCE_ID_CHARACTERS}-character limit"
+        )
+    elif resource_id in {".", ".."}:
+        errors.append(f"{relative}: metadata.id must not be a URI dot segment")
     elif PLACEHOLDER_PATTERN.search(resource_id):
         errors.append(f"{relative}: metadata.id must be concrete")
     if isinstance(metadata, Mapping) and "name" in metadata:
@@ -212,6 +220,15 @@ def _validate_catalog_reference(
         errors.append(
             f"{label} must not have surrounding whitespace in the {resource_kind} ID"
         )
+        return value
+    if len(value) > MAX_RESOURCE_ID_CHARACTERS:
+        errors.append(
+            f"{label} exceeds the {MAX_RESOURCE_ID_CHARACTERS}-character "
+            f"{resource_kind} ID limit"
+        )
+        return value
+    if value in {".", ".."}:
+        errors.append(f"{label} must not be a URI dot segment")
         return value
     if PLACEHOLDER_PATTERN.search(value):
         errors.append(f"{label} must be a concrete {resource_kind} ID")

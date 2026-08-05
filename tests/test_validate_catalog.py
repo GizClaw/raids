@@ -229,6 +229,22 @@ class CatalogValidationTest(unittest.TestCase):
         )
         self.assert_invalid("metadata.id must not have surrounding whitespace")
 
+    def test_rejects_metadata_id_over_character_limit(self) -> None:
+        self.write(
+            "models/asr-model.yaml",
+            MODEL.replace("  id: asr-model", f"  id: {'a' * 1025}"),
+        )
+        self.assert_invalid("metadata.id exceeds the 1024-character limit")
+
+    def test_rejects_metadata_id_uri_dot_segments(self) -> None:
+        for resource_id in (".", ".."):
+            with self.subTest(resource_id=resource_id):
+                self.write(
+                    "models/asr-model.yaml",
+                    MODEL.replace("  id: asr-model", f"  id: {resource_id}"),
+                )
+                self.assert_invalid("metadata.id must not be a URI dot segment")
+
     def test_rejects_legacy_metadata_name(self) -> None:
         self.write(
             "models/asr-model.yaml",
@@ -262,6 +278,24 @@ class CatalogValidationTest(unittest.TestCase):
         self.assert_invalid(
             "credential_id must not have surrounding whitespace in the Credential ID"
         )
+
+    def test_rejects_resource_reference_over_character_limit(self) -> None:
+        self.write(
+            "tenants/openai.yaml",
+            TENANT.replace("credential_id: credential", f"credential_id: {'a' * 1025}"),
+        )
+        self.assert_invalid("exceeds the 1024-character Credential ID limit")
+
+    def test_rejects_resource_reference_uri_dot_segments(self) -> None:
+        for resource_id in (".", ".."):
+            with self.subTest(resource_id=resource_id):
+                self.write(
+                    "tenants/openai.yaml",
+                    TENANT.replace(
+                        "credential_id: credential", f"credential_id: {resource_id}"
+                    ),
+                )
+                self.assert_invalid("credential_id must not be a URI dot segment")
 
     def test_rejects_missing_documentation_example(self) -> None:
         (self.root / "runtime-profile.example.yaml").unlink()

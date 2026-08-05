@@ -38,6 +38,10 @@ Generic Admin `metadata.name` is unsupported. RuntimeProfile map keys remain
 Peer-facing aliases scoped by that profile; each binding points to an Admin
 Resource ID and does not create an alternate Admin selector.
 
+Admin IDs are opaque and kind-qualified. They contain at most 1,024 Unicode
+characters, preserve internal characters exactly, and cannot have surrounding
+whitespace or be the standalone URI dot segments `.` and `..`.
+
 Current drivers:
 
 - `ast-translate`
