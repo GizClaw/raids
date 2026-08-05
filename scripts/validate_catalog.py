@@ -4,17 +4,17 @@
 from __future__ import annotations
 
 import argparse
+import re
+import uuid
 from collections import defaultdict
 from collections.abc import Iterable, Mapping
 from pathlib import Path
-import re
 from typing import Any
-import uuid
 
 import yaml
 
-
 API_VERSION = "gizclaw.admin/v1alpha1"
+MAX_RESOURCE_ID_CHARACTERS = 1024
 PUBLIC_DEFAULT_TOKEN_NAMESPACE_URL = (
     "https://github.com/GizClaw/raids/registration-tokens"
 )
@@ -43,6 +43,22 @@ RESOURCE_KINDS = {
     "pet_defs": "PetDef",
     "game_defs": "GameDef",
     "badge_defs": "BadgeDef",
+}
+TENANT_KINDS = {
+    "DashScopeTenant",
+    "DeepSeekTenant",
+    "GeminiTenant",
+    "MiniMaxTenant",
+    "OpenAITenant",
+    "VolcTenant",
+}
+PROVIDER_RESOURCE_KINDS = {
+    "dashscope-tenant": "DashScopeTenant",
+    "deepseek-tenant": "DeepSeekTenant",
+    "gemini-tenant": "GeminiTenant",
+    "minimax-tenant": "MiniMaxTenant",
+    "openai-tenant": "OpenAITenant",
+    "volc-tenant": "VolcTenant",
 }
 MEMORY_CONNECTIONS = {
     "flowcraft_bbh": {
@@ -133,14 +149,32 @@ def _resource_identity(
         errors.append(f"{relative}: apiVersion must be {API_VERSION}")
     kind = document.get("kind")
     metadata = document.get("metadata")
-    name = metadata.get("name") if isinstance(metadata, Mapping) else None
+    resource_id = metadata.get("id") if isinstance(metadata, Mapping) else None
     if not isinstance(kind, str) or not kind:
         errors.append(f"{relative}: kind must be a non-empty string")
-    if not isinstance(name, str) or not name:
-        errors.append(f"{relative}: metadata.name must be a non-empty string")
-    if not isinstance(kind, str) or not kind or not isinstance(name, str) or not name:
+    if not isinstance(resource_id, str) or not resource_id.strip():
+        errors.append(f"{relative}: metadata.id must be a non-empty string")
+    elif resource_id != resource_id.strip():
+        errors.append(f"{relative}: metadata.id must not have surrounding whitespace")
+    elif len(resource_id) > MAX_RESOURCE_ID_CHARACTERS:
+        errors.append(
+            f"{relative}: metadata.id exceeds the "
+            f"{MAX_RESOURCE_ID_CHARACTERS}-character limit"
+        )
+    elif resource_id in {".", ".."}:
+        errors.append(f"{relative}: metadata.id must not be a URI dot segment")
+    elif PLACEHOLDER_PATTERN.search(resource_id):
+        errors.append(f"{relative}: metadata.id must be concrete")
+    if isinstance(metadata, Mapping) and "name" in metadata:
+        errors.append(f"{relative}: metadata.name is legacy and must not be used")
+    if (
+        not isinstance(kind, str)
+        or not kind
+        or not isinstance(resource_id, str)
+        or not resource_id.strip()
+    ):
         return None
-    return kind, name
+    return kind, resource_id
 
 
 def _walk(
@@ -172,6 +206,116 @@ def _require_mapping(value: Any, label: str, errors: list[str]) -> Mapping[str, 
     return {}
 
 
+def _validate_catalog_reference(
+    value: Any,
+    label: str,
+    resource_kind: str,
+    resources: Mapping[tuple[str, str], Path],
+    errors: list[str],
+) -> str | None:
+    if not isinstance(value, str) or not value.strip():
+        errors.append(f"{label} must be a non-empty {resource_kind} ID")
+        return None
+    if value != value.strip():
+        errors.append(
+            f"{label} must not have surrounding whitespace in the {resource_kind} ID"
+        )
+        return value
+    if len(value) > MAX_RESOURCE_ID_CHARACTERS:
+        errors.append(
+            f"{label} exceeds the {MAX_RESOURCE_ID_CHARACTERS}-character "
+            f"{resource_kind} ID limit"
+        )
+        return value
+    if value in {".", ".."}:
+        errors.append(f"{label} must not be a URI dot segment")
+        return value
+    if PLACEHOLDER_PATTERN.search(value):
+        errors.append(f"{label} must be a concrete {resource_kind} ID")
+        return value
+    if (resource_kind, value) in resources:
+        return value
+    other_kinds = sorted(
+        kind for kind, resource_id in resources if resource_id == value
+    )
+    if other_kinds:
+        errors.append(
+            f"{label} references {resource_kind}/{value}, but {value} is defined "
+            f"as {', '.join(other_kinds)}"
+        )
+    else:
+        errors.append(f"{label} references missing {resource_kind}/{value}")
+    return value
+
+
+def _reject_legacy_field(
+    object_: Mapping[str, Any], field: str, label: str, errors: list[str]
+) -> None:
+    if field in object_:
+        errors.append(f"{label}.{field} is legacy and must not be used")
+
+
+def _validate_current_resource_shape(
+    kind: str,
+    resource_id: str,
+    document: Mapping[str, Any],
+    relative: Path,
+    resources: Mapping[tuple[str, str], Path],
+    errors: list[str],
+) -> None:
+    spec = _require_mapping(
+        document.get("spec"), f"{relative}: {kind}/{resource_id}.spec", errors
+    )
+    label = f"{relative}: {kind}/{resource_id}.spec"
+
+    if kind in TENANT_KINDS:
+        _reject_legacy_field(spec, "credential_name", label, errors)
+        _validate_catalog_reference(
+            spec.get("credential_id"),
+            f"{label}.credential_id",
+            "Credential",
+            resources,
+            errors,
+        )
+        return
+
+    if kind in {"Model", "Voice"}:
+        provider = _require_mapping(spec.get("provider"), f"{label}.provider", errors)
+        _reject_legacy_field(provider, "name", f"{label}.provider", errors)
+        provider_kind = provider.get("kind")
+        if not isinstance(provider_kind, str) or not provider_kind:
+            errors.append(f"{label}.provider.kind must be a non-empty string")
+        else:
+            resource_kind = PROVIDER_RESOURCE_KINDS.get(provider_kind)
+            if resource_kind is None:
+                errors.append(
+                    f"{label}.provider.kind {provider_kind!r} is not supported"
+                )
+            else:
+                _validate_catalog_reference(
+                    provider.get("id"),
+                    f"{label}.provider.id",
+                    resource_kind,
+                    resources,
+                    errors,
+                )
+        _reject_legacy_field(spec, "name", label, errors)
+        display_name = spec.get("display_name")
+        if not isinstance(display_name, str) or not display_name.strip():
+            errors.append(f"{label}.display_name must be a non-empty string")
+        return
+
+    if kind == "RegistrationToken":
+        _reject_legacy_field(spec, "runtime_profile_name", label, errors)
+        _validate_catalog_reference(
+            spec.get("runtime_profile_id"),
+            f"{label}.runtime_profile_id",
+            "RuntimeProfile",
+            resources,
+            errors,
+        )
+
+
 def _validate_binding(
     binding: Any,
     label: str,
@@ -181,17 +325,19 @@ def _validate_binding(
 ) -> str | None:
     binding = _require_mapping(binding, label, errors)
     resource_id = binding.get("resource_id")
-    if not isinstance(resource_id, str) or not resource_id:
-        errors.append(f"{label}.resource_id must be a non-empty string")
-        return None
-    if (resource_kind, resource_id) not in resources:
-        errors.append(f"{label}: {resource_kind}/{resource_id} does not exist")
+    _validate_catalog_reference(
+        resource_id,
+        f"{label}.resource_id",
+        resource_kind,
+        resources,
+        errors,
+    )
     i18n = _require_mapping(binding.get("i18n"), f"{label}.i18n", errors)
     for locale in ("en", "zh-CN"):
         text = _require_mapping(i18n.get(locale), f"{label}.i18n.{locale}", errors)
         if not isinstance(text.get("display_name"), str) or not text["display_name"]:
             errors.append(f"{label}.i18n.{locale}.display_name must be non-empty")
-    return resource_id
+    return resource_id if isinstance(resource_id, str) and resource_id else None
 
 
 def _selected_workflows(
@@ -309,15 +455,16 @@ def _profile_memory_bindings(
                 errors.append(
                     f"{label}.layout_id must match its stable memory alias {alias!r}"
                 )
-            if ("MemoryLayout", layout_id) not in resources:
-                errors.append(
-                    f"{label}: MemoryLayout/{layout_id} does not exist"
-                )
+            _validate_catalog_reference(
+                layout_id,
+                f"{label}.layout_id",
+                "MemoryLayout",
+                resources,
+                errors,
+            )
         driver = binding.get("driver")
         if driver not in {"flowcraft", "mem0", "volc_mem0"}:
-            errors.append(
-                f"{label}.driver must be flowcraft, mem0, or volc_mem0"
-            )
+            errors.append(f"{label}.driver must be flowcraft, mem0, or volc_mem0")
         connection = _require_mapping(
             binding.get("connection"), f"{label}.connection", errors
         )
@@ -384,16 +531,12 @@ def _workflow_aliases(workflow: Mapping[str, Any]) -> dict[str, set[str]]:
     return {"models": models, "voices": voices}
 
 
-def _validate_flowcraft_shape(
-    flowcraft: Any, label: str, errors: list[str]
-) -> bool:
+def _validate_flowcraft_shape(flowcraft: Any, label: str, errors: list[str]) -> bool:
     flowcraft = _require_mapping(flowcraft, label, errors)
     if "agent" in flowcraft:
         errors.append(f"{label}.agent is legacy; graph must be flattened")
     if "memory" in flowcraft:
-        errors.append(
-            f"{label}.memory is legacy; use outer Workflow spec.memory"
-        )
+        errors.append(f"{label}.memory is legacy; use outer Workflow spec.memory")
     if not isinstance(flowcraft.get("graph"), Mapping):
         errors.append(f"{label}.graph must be a mapping")
         return False
@@ -405,37 +548,35 @@ def _validate_flowcraft_shape(
 
 
 def _validate_workflow_shape(
-    workflow_name: str, workflow: Mapping[str, Any], errors: list[str]
+    workflow_id: str, workflow: Mapping[str, Any], errors: list[str]
 ) -> None:
     spec = _require_mapping(
-        workflow.get("spec"), f"Workflow/{workflow_name}.spec", errors
+        workflow.get("spec"), f"Workflow/{workflow_id}.spec", errors
     )
     driver = spec.get("driver")
     uses_memory = False
     if driver == "flowcraft":
         uses_memory = _validate_flowcraft_shape(
-            spec.get("flowcraft"), f"Workflow/{workflow_name}.spec.flowcraft", errors
+            spec.get("flowcraft"), f"Workflow/{workflow_id}.spec.flowcraft", errors
         )
     if driver == "pet":
         pet = _require_mapping(
-            spec.get("pet"), f"Workflow/{workflow_name}.spec.pet", errors
+            spec.get("pet"), f"Workflow/{workflow_id}.spec.pet", errors
         )
         if "memory" in pet:
             errors.append(
-                f"Workflow/{workflow_name}.spec.pet.memory is invalid; "
+                f"Workflow/{workflow_id}.spec.pet.memory is invalid; "
                 "the outer Workflow owns spec.memory"
             )
         if pet.get("driver") == "flowcraft":
             uses_memory = _validate_flowcraft_shape(
                 pet.get("flowcraft"),
-                f"Workflow/{workflow_name}.spec.pet.flowcraft",
+                f"Workflow/{workflow_id}.spec.pet.flowcraft",
                 errors,
             )
-    if uses_memory and (
-        not isinstance(spec.get("memory"), str) or not spec["memory"]
-    ):
+    if uses_memory and (not isinstance(spec.get("memory"), str) or not spec["memory"]):
         errors.append(
-            f"Workflow/{workflow_name} uses memory graph nodes and must declare "
+            f"Workflow/{workflow_id} uses memory graph nodes and must declare "
             "outer spec.memory"
         )
 
@@ -459,13 +600,11 @@ def _memory_layout_model_aliases(layout: Mapping[str, Any]) -> set[str]:
 
 
 def _validate_memory_layout_policy(
-    layout_name: str, layout: Mapping[str, Any], errors: list[str]
+    layout_id: str, layout: Mapping[str, Any], errors: list[str]
 ) -> None:
-    label = f"MemoryLayout/{layout_name}.spec"
+    label = f"MemoryLayout/{layout_id}.spec"
     spec = _require_mapping(layout.get("spec"), label, errors)
-    flowcraft = _require_mapping(
-        spec.get("flowcraft"), f"{label}.flowcraft", errors
-    )
+    flowcraft = _require_mapping(spec.get("flowcraft"), f"{label}.flowcraft", errors)
     raw_lanes = flowcraft.get("lanes")
     if not isinstance(raw_lanes, list) or not raw_lanes:
         errors.append(f"{label}.flowcraft.lanes must be a non-empty list")
@@ -503,8 +642,7 @@ def _validate_memory_layout_policy(
         category_name = str(raw_name).strip()
         if category_name in category_names:
             errors.append(
-                f"{label}.mem0.custom_categories contains duplicate "
-                f"{category_name!r}"
+                f"{label}.mem0.custom_categories contains duplicate {category_name!r}"
             )
         else:
             category_names.add(category_name)
@@ -519,9 +657,7 @@ def _validate_memory_layout_policy(
             + _set_difference_details(lane_names, category_names)
         )
 
-    volc_mem0 = _require_mapping(
-        spec.get("volc_mem0"), f"{label}.volc_mem0", errors
-    )
+    volc_mem0 = _require_mapping(spec.get("volc_mem0"), f"{label}.volc_mem0", errors)
     raw_strategies = volc_mem0.get("strategies")
     if not isinstance(raw_strategies, list) or not raw_strategies:
         errors.append(f"{label}.volc_mem0.strategies must be a non-empty list")
@@ -609,7 +745,7 @@ def _validate_memory_closure(
         )
 
     published_layouts = {
-        name for kind, name in documents if kind == "MemoryLayout"
+        resource_id for kind, resource_id in documents if kind == "MemoryLayout"
     }
     bound_layouts = set(bindings.values())
     unbound_layouts = published_layouts - bound_layouts
@@ -690,11 +826,28 @@ def validate_catalog(root: Path) -> None:
     documents: dict[tuple[str, str], Mapping[str, Any]] = {}
     path_documents: dict[Path, Mapping[str, Any]] = {}
     token_values: dict[str, tuple[str, Path]] = {}
+    example_path = Path("runtime-profile.example.yaml")
+    example_found = False
 
     yaml_paths = _yaml_paths(root)
     for path in yaml_paths:
         relative = path.relative_to(root)
         loaded = _load_yaml(path, root, errors)
+        if relative == example_path:
+            example_found = True
+            nonempty = [document for document in loaded if document is not None]
+            if len(nonempty) != 1:
+                errors.append(
+                    f"{relative}: documentation example must contain exactly one document"
+                )
+            elif isinstance(nonempty[0], Mapping):
+                example = nonempty[0]
+                identity = _resource_identity(example, relative, errors)
+                if identity != ("RuntimeProfile", "raids"):
+                    errors.append(f"{relative}: identity must be RuntimeProfile/raids")
+            else:
+                errors.append(f"{relative}: documentation example must be a mapping")
+            continue
         if not relative.parts or relative.parts[0] not in CATALOG_DIRECTORIES:
             continue
         nonempty = [document for document in loaded if document is not None]
@@ -707,8 +860,8 @@ def validate_catalog(root: Path) -> None:
             continue
         if identity in resources:
             errors.append(
-                f"{relative}: duplicate {identity[0]}/{identity[1]} also defined "
-                f"by {resources[identity]}"
+                f"{relative}: ambiguous duplicate {identity[0]}/{identity[1]} "
+                f"also defined by {resources[identity]}"
             )
             continue
         resources[identity] = relative
@@ -729,16 +882,18 @@ def validate_catalog(root: Path) -> None:
                 )
             else:
                 if normalized_token in token_values:
-                    other_name, other_path = token_values[normalized_token]
+                    other_id, other_path = token_values[normalized_token]
                     errors.append(
                         f"{relative}: token value duplicates RegistrationToken/"
-                        f"{other_name} from {other_path}"
+                        f"{other_id} from {other_path}"
                     )
                 else:
                     token_values[normalized_token] = (identity[1], relative)
 
     profile_path = Path("runtime-profiles/default.yaml")
     token_path = Path("registration-tokens/default.yaml")
+    if not example_found:
+        errors.append(f"{example_path}: required documentation example is missing")
     profile = path_documents.get(profile_path)
     token = path_documents.get(token_path)
     if profile is None:
@@ -746,15 +901,27 @@ def validate_catalog(root: Path) -> None:
     if token is None:
         errors.append(f"{token_path}: required public default token is missing")
 
+    for (kind, resource_id), document in documents.items():
+        _validate_current_resource_shape(
+            kind,
+            resource_id,
+            document,
+            resources[(kind, resource_id)],
+            resources,
+            errors,
+        )
+
     if profile is not None:
-        if (profile.get("kind"), profile.get("metadata", {}).get("name")) != (
+        if (profile.get("kind"), profile.get("metadata", {}).get("id")) != (
             "RuntimeProfile",
             "default",
         ):
             errors.append(f"{profile_path}: identity must be RuntimeProfile/default")
         _validate_public_values(profile, profile_path, errors)
         selected = _selected_workflows(profile, resources, errors)
-        all_workflows = {name for kind, name in resources if kind == "Workflow"}
+        all_workflows = {
+            resource_id for kind, resource_id in resources if kind == "Workflow"
+        }
         missing_from_profile = all_workflows - selected
         if missing_from_profile:
             errors.append(
@@ -764,19 +931,17 @@ def validate_catalog(root: Path) -> None:
         aliases = _profile_aliases(profile, resources, errors)
         memory_bindings = _profile_memory_bindings(profile, resources, errors)
         _validate_workflow_alias_closure(selected, documents, aliases, errors)
-        _validate_memory_closure(
-            selected, memory_bindings, documents, aliases, errors
-        )
+        _validate_memory_closure(selected, memory_bindings, documents, aliases, errors)
         _validate_gameplay_aliases(profile, aliases, errors)
 
-    for (kind, name), document in documents.items():
+    for (kind, resource_id), document in documents.items():
         if kind == "Workflow":
-            _validate_workflow_shape(name, document, errors)
+            _validate_workflow_shape(resource_id, document, errors)
         if kind == "MemoryLayout":
-            _validate_memory_layout_policy(name, document, errors)
+            _validate_memory_layout_policy(resource_id, document, errors)
 
     if token is not None:
-        if (token.get("kind"), token.get("metadata", {}).get("name")) != (
+        if (token.get("kind"), token.get("metadata", {}).get("id")) != (
             "RegistrationToken",
             "default-runtime",
         ):
@@ -789,29 +954,11 @@ def validate_catalog(root: Path) -> None:
         )
         if dict(spec) != {
             "token": PUBLIC_DEFAULT_TOKEN,
-            "runtime_profile_name": "default",
+            "runtime_profile_id": "default",
         }:
             errors.append(
                 "RegistrationToken/default-runtime.spec must contain exactly "
-                f"token={PUBLIC_DEFAULT_TOKEN} and runtime_profile_name=default"
-            )
-
-    for (kind, name), document in documents.items():
-        if kind != "RegistrationToken":
-            continue
-        spec = _require_mapping(
-            document.get("spec"), f"RegistrationToken/{name}.spec", errors
-        )
-        profile_name = spec.get("runtime_profile_name")
-        if not isinstance(profile_name, str) or not profile_name:
-            errors.append(
-                f"RegistrationToken/{name}.spec.runtime_profile_name must be "
-                "a non-empty string"
-            )
-        elif ("RuntimeProfile", profile_name) not in resources:
-            errors.append(
-                f"RegistrationToken/{name}.spec.runtime_profile_name references "
-                f"missing RuntimeProfile/{profile_name}"
+                f"token={PUBLIC_DEFAULT_TOKEN} and runtime_profile_id=default"
             )
 
     if errors:
