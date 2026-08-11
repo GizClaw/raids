@@ -897,6 +897,7 @@ class PublicDefaultE2ERegressionTest(unittest.TestCase):
     def test_default_adoption_pool_preserves_external_pixa_contract(self) -> None:
         profile = self.load("runtime-profiles/default.yaml")
         pool = profile["spec"]["gameplay"]["adoption"]["pool"]
+        self.assertEqual(len(pool), 9)
         self.assertEqual(
             {entry["pet_def"] for entry in pool},
             {

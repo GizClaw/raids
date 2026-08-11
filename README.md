@@ -277,6 +277,13 @@ and uploads those assets to the Server for the declared PetDef IDs. A missing
 PIXA attachment is therefore a consumer resource-closure failure and must not
 be hidden by removing that PetDef from the Raids adoption pool.
 
+The versioned Desktop consumer contract is documented by the
+[GizClaw local Server bootstrap guide](https://github.com/GizClaw/gizclaw/blob/ecdb381ea05b629d3a8e5140510ae6e16643f55e/guides/en/developing/apps/wails.md),
+which pins the nine bundles from
+[`GizClaw/pixa@5fed581`](https://github.com/GizClaw/pixa/tree/5fed581ae87ac3cf4a5a05952d43edebbbed8d9f/assets/codex-pets).
+Other consumers must provide an equivalent immutable mapping and upload every
+selected PetDef attachment before treating the RuntimeProfile as ready.
+
 ## Scope
 
 This repository contains public Credential, Tenant, Model, MemoryLayout,
