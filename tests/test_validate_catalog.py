@@ -5,9 +5,12 @@ import textwrap
 import unittest
 from pathlib import Path
 
+import yaml
+
 from scripts.validate_catalog import (
     PUBLIC_DEFAULT_TOKEN,
     CatalogValidationError,
+    _validate_flowcraft_semantics,
     validate_catalog,
 )
 
@@ -239,6 +242,85 @@ class CatalogValidationTest(unittest.TestCase):
 
     def test_accepts_complete_default_bootstrap_closure(self) -> None:
         validate_catalog(self.root)
+
+    def test_rejects_flowcraft_iteration_budget_without_headroom(self) -> None:
+        errors: list[str] = []
+        _validate_flowcraft_semantics(
+            {
+                "graph": {
+                    "entry": "start",
+                    "nodes": [
+                        {"id": "start", "type": "script"},
+                        {"id": "answer", "type": "llm"},
+                    ],
+                    "edges": [
+                        {"from": "start", "to": "answer"},
+                        {"from": "answer", "to": "__end__"},
+                    ],
+                },
+                "max_iterations": 2,
+            },
+            "Workflow/test.spec.flowcraft",
+            errors,
+        )
+        self.assertIn(
+            "max_iterations 2 leaves headroom 0 for longest route 2; want 2..8",
+            "\n".join(errors),
+        )
+
+    def test_rejects_mixed_turn_and_direct_fact_observation(self) -> None:
+        errors: list[str] = []
+        _validate_flowcraft_semantics(
+            {
+                "graph": {
+                    "entry": "observe",
+                    "nodes": [
+                        {
+                            "id": "observe",
+                            "type": "memory_observe",
+                            "config": {
+                                "observations": [
+                                    {"turns_from": "conversation"},
+                                    {"facts": [{"text_from": "progress"}]},
+                                ]
+                            },
+                        }
+                    ],
+                    "edges": [{"from": "observe", "to": "__end__"}],
+                },
+                "max_iterations": 3,
+            },
+            "Workflow/test.spec.flowcraft",
+            errors,
+        )
+        self.assertIn(
+            "memory_observe node 'observe' must not combine turns_from with "
+            "direct facts",
+            "\n".join(errors),
+        )
+
+    def test_accepts_bounded_cycle_with_exit_route(self) -> None:
+        errors: list[str] = []
+        _validate_flowcraft_semantics(
+            {
+                "graph": {
+                    "entry": "start",
+                    "nodes": [
+                        {"id": "start", "type": "script"},
+                        {"id": "loop", "type": "script"},
+                    ],
+                    "edges": [
+                        {"from": "start", "to": "loop"},
+                        {"from": "loop", "to": "loop"},
+                        {"from": "loop", "to": "__end__"},
+                    ],
+                },
+                "max_iterations": 4,
+            },
+            "Workflow/test.spec.flowcraft",
+            errors,
+        )
+        self.assertEqual(errors, [])
 
     def test_rejects_wrong_workflow_model_namespace_even_when_bound(self) -> None:
         self.replace_pet_contract_alias("pet-care.model", "another-raid.model")
@@ -744,6 +826,92 @@ class CatalogValidationTest(unittest.TestCase):
             TOKEN + "  firmware_id: h106\n",
         )
         self.assert_invalid("prohibited default field spec.firmware_id")
+
+
+class PublicDefaultE2ERegressionTest(unittest.TestCase):
+    root = Path(__file__).resolve().parents[1]
+
+    def load(self, relative: str) -> dict[str, object]:
+        document = yaml.safe_load((self.root / relative).read_text(encoding="utf-8"))
+        self.assertIsInstance(document, dict)
+        return document
+
+    def test_murder_generation_and_direct_fact_audit(self) -> None:
+        workflow = self.load("workflows/flowcraft/murder-mystery.yaml")
+        flowcraft = workflow["spec"]["flowcraft"]
+        nodes = {node["id"]: node for node in flowcraft["graph"]["nodes"]}
+        self.assertEqual(nodes["generate_game_master"]["config"]["max_tokens"], 256)
+        self.assertEqual(nodes["solved_chat"]["config"]["max_tokens"], 256)
+        self.assertEqual(nodes["format_player_action"]["config"]["max_tokens"], 64)
+        observations = nodes["observe_case_audit"]["config"]["observations"]
+        self.assertFalse(any("turns_from" in item for item in observations))
+        self.assertEqual(sum(len(item.get("facts", [])) for item in observations), 2)
+
+    def test_journey_splits_memory_and_covers_every_route(self) -> None:
+        workflow = self.load("workflows/flowcraft/journey-guide.yaml")
+        flowcraft = workflow["spec"]["flowcraft"]
+        nodes = {node["id"]: node for node in flowcraft["graph"]["nodes"]}
+        next_node = {
+            edge["from"]: edge["to"]
+            for edge in flowcraft["graph"]["edges"]
+            if edge["from"]
+            in {
+                "write_story_progress",
+                "observe_story_progress",
+                "observe_story_conversation",
+            }
+        }
+        self.assertEqual(flowcraft["max_iterations"], 24)
+        self.assertEqual(
+            next_node,
+            {
+                "write_story_progress": "observe_story_progress",
+                "observe_story_progress": "observe_story_conversation",
+                "observe_story_conversation": "reroute_state_after",
+            },
+        )
+        self.assertEqual(
+            nodes["observe_story_conversation"]["config"]["observations"],
+            [{"turns_from": "conversation"}],
+        )
+        progress = nodes["observe_story_progress"]["config"]["observations"]
+        self.assertEqual(sum(len(item.get("facts", [])) for item in progress), 1)
+
+    def test_pet_graph_has_bounded_iteration_headroom(self) -> None:
+        workflow = self.load("workflows/pet/pet-care.yaml")
+        flowcraft = workflow["spec"]["pet"]["flowcraft"]
+        self.assertEqual(flowcraft["max_iterations"], 9)
+
+    def test_translation_targets_use_language_specific_voices(self) -> None:
+        profile = self.load("runtime-profiles/default.yaml")
+        voices = profile["spec"]["resources"]["voices"]
+        self.assertEqual(
+            voices["ast-translate-zh-ja.translator"]["resource_id"],
+            "minimax-tenant:minimax-cn:Japanese_CalmLady",
+        )
+        self.assertEqual(
+            voices["ast-translate-zh-ko.translator"]["resource_id"],
+            "minimax-tenant:minimax-cn:Korean_CalmLady",
+        )
+
+    def test_default_adoption_pool_preserves_external_pixa_contract(self) -> None:
+        profile = self.load("runtime-profiles/default.yaml")
+        pool = profile["spec"]["gameplay"]["adoption"]["pool"]
+        self.assertEqual(len(pool), 9)
+        self.assertEqual(
+            {entry["pet_def"] for entry in pool},
+            {
+                "bsod",
+                "codex",
+                "dewey",
+                "fireball",
+                "hoots",
+                "null-signal",
+                "rocky",
+                "seedy",
+                "stacky",
+            },
+        )
 
 
 if __name__ == "__main__":
