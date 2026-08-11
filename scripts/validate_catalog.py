@@ -60,6 +60,57 @@ PROVIDER_RESOURCE_KINDS = {
     "openai-tenant": "OpenAITenant",
     "volc-tenant": "VolcTenant",
 }
+RUNTIME_ALIAS_PATTERN = re.compile(
+    r"^[a-z0-9]+(?:-[a-z0-9]+)*(?:\.[a-z0-9]+(?:-[a-z0-9]+)*)*$"
+)
+MAX_RUNTIME_ALIAS_BYTES = 63
+WORKFLOW_MODEL_ALIASES = {
+    "ast-translate-ja-zh": {"ast-translate-ja-zh.model"},
+    "ast-translate-ko-zh": {"ast-translate-ko-zh.model"},
+    "ast-translate-zh-en-auto": {"ast-translate-zh-en-auto.model"},
+    "ast-translate-zh-es": {"ast-translate-zh-es.model"},
+    "ast-translate-zh-fr": {"ast-translate-zh-fr.model"},
+    "ast-translate-zh-ja": {"ast-translate-zh-ja.model"},
+    "ast-translate-zh-ko": {"ast-translate-zh-ko.model"},
+    "chatroom": {"asr"},
+    "doubao-realtime-conversation": {"doubao-realtime-conversation.model"},
+    "flowcraft-chat-assistant": {"asr", "flowcraft-chat-assistant.model"},
+    "flowcraft-journey-guide": {"asr", "flowcraft-journey-guide.model"},
+    "flowcraft-murder-mystery": {"asr", "flowcraft-murder-mystery.model"},
+    "pet-care": {"asr", "pet-care.model"},
+}
+WORKFLOW_VOICE_ALIASES = {
+    "ast-translate-ja-zh": {"ast-translate-ja-zh.translator"},
+    "ast-translate-ko-zh": {"ast-translate-ko-zh.translator"},
+    "ast-translate-zh-en-auto": {"ast-translate-zh-en-auto.translator"},
+    "ast-translate-zh-es": {"ast-translate-zh-es.translator"},
+    "ast-translate-zh-fr": {"ast-translate-zh-fr.translator"},
+    "ast-translate-zh-ja": {"ast-translate-zh-ja.translator"},
+    "ast-translate-zh-ko": {"ast-translate-zh-ko.translator"},
+    "chatroom": set(),
+    "doubao-realtime-conversation": {"doubao-realtime-conversation.assistant"},
+    "flowcraft-chat-assistant": {"flowcraft-chat-assistant.assistant"},
+    "flowcraft-journey-guide": {
+        "flowcraft-journey-guide.arrival-narrator",
+        "flowcraft-journey-guide.heaven-narrator",
+        "flowcraft-journey-guide.kingdoms-narrator",
+        "flowcraft-journey-guide.narrator",
+        "flowcraft-journey-guide.origin-narrator",
+        "flowcraft-journey-guide.pilgrimage-narrator",
+        "flowcraft-journey-guide.trials-narrator",
+    },
+    "flowcraft-murder-mystery": {
+        "flowcraft-murder-mystery.detective",
+        "flowcraft-murder-mystery.game-master",
+    },
+    "pet-care": {"pet-care.pet"},
+}
+MEMORY_LAYOUT_MODEL_ALIASES = {
+    "adventure": {"extract"},
+    "pet-care": {"extract"},
+    "story-teller": {"extract"},
+    "user-chat-with-assistant": {"extract"},
+}
 MEMORY_CONNECTIONS = {
     "flowcraft_bbh": {
         "driver": "flowcraft",
@@ -411,13 +462,49 @@ def _profile_aliases(
             bindings, f"RuntimeProfile/default.spec.resources.{group}", errors
         )
         for alias, binding in bindings.items():
-            aliases[group].add(str(alias))
+            alias = str(alias)
+            _validate_runtime_alias(
+                alias,
+                f"RuntimeProfile/default.spec.resources.{group} alias",
+                errors,
+            )
+            aliases[group].add(alias)
             _validate_binding(
                 binding,
                 f"RuntimeProfile/default.spec.resources.{group}.{alias}",
                 resource_kind,
                 resources,
                 errors,
+            )
+    return aliases
+
+
+def _validate_runtime_alias(alias: str, label: str, errors: list[str]) -> None:
+    if len(
+        alias.encode("utf-8")
+    ) > MAX_RUNTIME_ALIAS_BYTES or not RUNTIME_ALIAS_PATTERN.fullmatch(alias):
+        errors.append(
+            f"{label} {alias!r} must be 1-63 bytes of dot-separated "
+            "lowercase kebab-case segments"
+        )
+
+
+def _profile_alias_key_sets(
+    profile: Mapping[str, Any], label: str, errors: list[str]
+) -> dict[str, set[str]]:
+    spec = _require_mapping(profile.get("spec"), f"{label}.spec", errors)
+    resources = _require_mapping(
+        spec.get("resources"), f"{label}.spec.resources", errors
+    )
+    aliases: dict[str, set[str]] = {}
+    for group in ("models", "voices"):
+        bindings = _require_mapping(
+            resources.get(group), f"{label}.spec.resources.{group}", errors
+        )
+        aliases[group] = {str(alias) for alias in bindings}
+        for alias in sorted(aliases[group]):
+            _validate_runtime_alias(
+                alias, f"{label}.spec.resources.{group} alias", errors
             )
     return aliases
 
@@ -787,6 +874,83 @@ def _validate_workflow_alias_closure(
                 )
 
 
+def _validate_public_alias_contract(
+    selected: set[str],
+    documents: Mapping[tuple[str, str], Mapping[str, Any]],
+    aliases: Mapping[str, set[str]],
+    example: Mapping[str, Any] | None,
+    errors: list[str],
+) -> None:
+    expected_profile_aliases = {"models": set(), "voices": set()}
+    for workflow_id in sorted(selected):
+        workflow = documents.get(("Workflow", workflow_id))
+        if workflow is None:
+            continue
+        actual = _workflow_aliases(workflow)
+        expected = {
+            "models": WORKFLOW_MODEL_ALIASES.get(workflow_id),
+            "voices": WORKFLOW_VOICE_ALIASES.get(workflow_id),
+        }
+        for group in ("models", "voices"):
+            expected_aliases = expected[group]
+            if expected_aliases is None:
+                errors.append(
+                    f"Workflow/{workflow_id}: public {group} alias contract is missing"
+                )
+                continue
+            expected_profile_aliases[group].update(expected_aliases)
+            if actual[group] != expected_aliases:
+                errors.append(
+                    f"Workflow/{workflow_id}: {group} aliases must match its "
+                    "Workflow-owned contract"
+                    + _set_difference_details(expected_aliases, actual[group])
+                )
+
+    published_layouts = {
+        resource_id for kind, resource_id in documents if kind == "MemoryLayout"
+    }
+    for layout_id in sorted(published_layouts):
+        layout = documents[("MemoryLayout", layout_id)]
+        actual = _memory_layout_model_aliases(layout)
+        expected = MEMORY_LAYOUT_MODEL_ALIASES.get(layout_id)
+        if expected is None:
+            errors.append(
+                f"MemoryLayout/{layout_id}: public model alias contract is missing"
+            )
+            continue
+        expected_profile_aliases["models"].update(expected)
+        if actual != expected:
+            errors.append(
+                f"MemoryLayout/{layout_id}: model aliases must match the shared "
+                "extraction contract" + _set_difference_details(expected, actual)
+            )
+
+    for group in ("models", "voices"):
+        actual_aliases = aliases.get(group, set())
+        expected_aliases = expected_profile_aliases[group]
+        if actual_aliases != expected_aliases:
+            errors.append(
+                f"RuntimeProfile/default.spec.resources.{group} aliases must "
+                "exactly match first-party consumers"
+                + _set_difference_details(expected_aliases, actual_aliases)
+            )
+
+    if example is None:
+        return
+    example_aliases = _profile_alias_key_sets(
+        example, "RuntimeProfile/raids documentation example", errors
+    )
+    for group in ("models", "voices"):
+        if example_aliases[group] != expected_profile_aliases[group]:
+            errors.append(
+                f"RuntimeProfile/raids documentation example {group} aliases "
+                "must match RuntimeProfile/default"
+                + _set_difference_details(
+                    expected_profile_aliases[group], example_aliases[group]
+                )
+            )
+
+
 def _validate_gameplay_aliases(
     profile: Mapping[str, Any], aliases: Mapping[str, set[str]], errors: list[str]
 ) -> None:
@@ -828,6 +992,7 @@ def validate_catalog(root: Path) -> None:
     token_values: dict[str, tuple[str, Path]] = {}
     example_path = Path("runtime-profile.example.yaml")
     example_found = False
+    example: Mapping[str, Any] | None = None
 
     yaml_paths = _yaml_paths(root)
     for path in yaml_paths:
@@ -932,6 +1097,7 @@ def validate_catalog(root: Path) -> None:
         memory_bindings = _profile_memory_bindings(profile, resources, errors)
         _validate_workflow_alias_closure(selected, documents, aliases, errors)
         _validate_memory_closure(selected, memory_bindings, documents, aliases, errors)
+        _validate_public_alias_contract(selected, documents, aliases, example, errors)
         _validate_gameplay_aliases(profile, aliases, errors)
 
     for (kind, resource_id), document in documents.items():
