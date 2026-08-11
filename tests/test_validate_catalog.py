@@ -30,7 +30,7 @@ spec:
         i18n:
           en: {display_name: ASR}
           zh-CN: {display_name: 语音识别}
-      extract:
+      pet-care.extract:
         resource_id: extract-model
         i18n:
           en: {display_name: Extraction}
@@ -99,7 +99,7 @@ metadata:
 spec:
   flowcraft:
     extraction:
-      model: extract
+      model: pet-care.extract
       mode: single_pass
     bbh: {}
     lanes:
@@ -180,7 +180,7 @@ spec:
   resources:
     models:
       asr: {}
-      extract: {}
+      pet-care.extract: {}
       pet-care.model: {}
     voices:
       pet-care.pet: {}
@@ -232,6 +232,11 @@ class CatalogValidationTest(unittest.TestCase):
         self.write("runtime-profile.example.yaml", EXAMPLE.replace(old, new))
         self.write("workflows/pet/pet-care.yaml", PET.replace(old, new))
 
+    def replace_pet_memory_model_alias(self, old: str, new: str) -> None:
+        self.write("runtime-profiles/default.yaml", PROFILE.replace(old, new))
+        self.write("runtime-profile.example.yaml", EXAMPLE.replace(old, new))
+        self.write("memory-layouts/pet-care.yaml", MEMORY_LAYOUT.replace(old, new))
+
     def test_accepts_complete_default_bootstrap_closure(self) -> None:
         validate_catalog(self.root)
 
@@ -251,6 +256,15 @@ class CatalogValidationTest(unittest.TestCase):
         self.replace_pet_contract_alias("pet-care.model", "pet-chat")
         self.assert_invalid(
             "Workflow/pet-care: models aliases must match its Workflow-owned contract"
+        )
+
+    def test_rejects_wrong_memory_layout_extraction_namespace_even_when_bound(
+        self,
+    ) -> None:
+        self.replace_pet_memory_model_alias("pet-care.extract", "story-teller.extract")
+        self.assert_invalid(
+            "MemoryLayout/pet-care: model aliases must match its "
+            "MemoryLayout-owned extraction contract"
         )
 
     def test_rejects_malformed_dotted_alias(self) -> None:
@@ -295,19 +309,19 @@ class CatalogValidationTest(unittest.TestCase):
     ) -> None:
         self.write(
             "memory-layouts/pet-care.yaml",
-            MEMORY_LAYOUT.replace("model: extract", "model: extraction"),
+            MEMORY_LAYOUT.replace("model: pet-care.extract", "model: extraction"),
         )
         self.write(
             "runtime-profiles/default.yaml",
-            PROFILE.replace("      extract:\n", "      extraction:\n"),
+            PROFILE.replace("      pet-care.extract:\n", "      extraction:\n"),
         )
         self.write(
             "runtime-profile.example.yaml",
-            EXAMPLE.replace("      extract: {}\n", "      extraction: {}\n"),
+            EXAMPLE.replace("      pet-care.extract: {}\n", "      extraction: {}\n"),
         )
         self.assert_invalid(
-            "MemoryLayout/pet-care: model aliases must match the shared "
-            "extraction contract"
+            "MemoryLayout/pet-care: model aliases must match its "
+            "MemoryLayout-owned extraction contract"
         )
 
     def test_public_default_token_uuidv5_derivation_is_stable(self) -> None:
@@ -547,7 +561,7 @@ class CatalogValidationTest(unittest.TestCase):
     def test_rejects_unbound_memory_layout_model_alias(self) -> None:
         self.write(
             "memory-layouts/pet-care.yaml",
-            MEMORY_LAYOUT.replace("model: extract", "model: missing"),
+            MEMORY_LAYOUT.replace("model: pet-care.extract", "model: missing"),
         )
         self.assert_invalid(
             "MemoryLayout/pet-care: required models alias 'missing' is not bound"

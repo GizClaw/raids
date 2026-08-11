@@ -69,10 +69,18 @@ prefix lookup. Workflow-owned slots use the canonical Workflow
 <Workflow metadata.id>.<role>
 ```
 
-`asr` and `extract` are the only shared Model aliases. Every ASR-capable
-Workflow uses `asr`, and every public MemoryLayout keeps its
-`spec.flowcraft.extraction` policy object while selecting `model: extract`.
-The schema field `extraction` is not a Model alias.
+`asr` is the only shared Model alias, and every ASR-capable Workflow uses it.
+Every public MemoryLayout keeps its `spec.flowcraft.extraction` policy object
+while selecting `<MemoryLayout metadata.id>.extract`. The schema field
+`extraction` is not a Model alias. Scoped extraction aliases may bind the same
+Model resource while remaining independently configurable.
+
+| MemoryLayout `metadata.id` | Extraction Model alias |
+| --- | --- |
+| `user-chat-with-assistant` | `user-chat-with-assistant.extract` |
+| `story-teller` | `story-teller.extract` |
+| `adventure` | `adventure.extract` |
+| `pet-care` | `pet-care.extract` |
 
 Each Raid can otherwise select its own Model independently, even when several
 slots currently bind the same Model resource:

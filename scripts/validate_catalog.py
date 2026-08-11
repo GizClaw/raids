@@ -106,10 +106,10 @@ WORKFLOW_VOICE_ALIASES = {
     "pet-care": {"pet-care.pet"},
 }
 MEMORY_LAYOUT_MODEL_ALIASES = {
-    "adventure": {"extract"},
-    "pet-care": {"extract"},
-    "story-teller": {"extract"},
-    "user-chat-with-assistant": {"extract"},
+    "adventure": {"adventure.extract"},
+    "pet-care": {"pet-care.extract"},
+    "story-teller": {"story-teller.extract"},
+    "user-chat-with-assistant": {"user-chat-with-assistant.extract"},
 }
 MEMORY_CONNECTIONS = {
     "flowcraft_bbh": {
@@ -921,8 +921,9 @@ def _validate_public_alias_contract(
         expected_profile_aliases["models"].update(expected)
         if actual != expected:
             errors.append(
-                f"MemoryLayout/{layout_id}: model aliases must match the shared "
-                "extraction contract" + _set_difference_details(expected, actual)
+                f"MemoryLayout/{layout_id}: model aliases must match its "
+                "MemoryLayout-owned extraction contract"
+                + _set_difference_details(expected, actual)
             )
 
     for group in ("models", "voices"):
