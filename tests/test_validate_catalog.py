@@ -914,5 +914,48 @@ class PublicDefaultE2ERegressionTest(unittest.TestCase):
         )
 
 
+class MiniMaxProviderContractRegressionTest(unittest.TestCase):
+    root = Path(__file__).resolve().parents[1]
+
+    def load(self, relative: str) -> dict[str, object]:
+        document = yaml.safe_load((self.root / relative).read_text(encoding="utf-8"))
+        self.assertIsInstance(document, dict)
+        return document
+
+    def test_tenants_do_not_require_app_ids(self) -> None:
+        expected_specs = {
+            "minimax-cn": {
+                "group_id": "${GIZCLAW_MINIMAX_CN_GROUP_ID}",
+                "credential_id": "minimax-cn-credential",
+                "base_url": "https://api.minimaxi.com",
+                "description": "MiniMax CN tenant",
+            },
+            "minimax-global": {
+                "group_id": "${GIZCLAW_MINIMAX_GLOBAL_GROUP_ID}",
+                "credential_id": "minimax-global-credential",
+                "base_url": "https://api.minimax.io",
+                "description": "MiniMax Global tenant",
+            },
+        }
+        for tenant_id, expected_spec in expected_specs.items():
+            with self.subTest(tenant_id=tenant_id):
+                tenant = self.load(f"tenants/{tenant_id}.yaml")
+                self.assertEqual(tenant["spec"], expected_spec)
+
+        environment = (self.root / ".env.example").read_text(encoding="utf-8")
+        for variable in (
+            "GIZCLAW_MINIMAX_CN_APP_ID",
+            "GIZCLAW_MINIMAX_GLOBAL_APP_ID",
+        ):
+            self.assertNotIn(variable, environment)
+        for variable in (
+            "GIZCLAW_MINIMAX_CN_API_KEY",
+            "GIZCLAW_MINIMAX_CN_GROUP_ID",
+            "GIZCLAW_MINIMAX_GLOBAL_API_KEY",
+            "GIZCLAW_MINIMAX_GLOBAL_GROUP_ID",
+        ):
+            self.assertIn(f"{variable}=", environment)
+
+
 if __name__ == "__main__":
     unittest.main()
