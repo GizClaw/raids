@@ -8,7 +8,7 @@ import re
 import uuid
 from collections import defaultdict
 from collections.abc import Iterable, Mapping
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 import yaml
@@ -64,6 +64,9 @@ RUNTIME_ALIAS_PATTERN = re.compile(
     r"^[a-z0-9]+(?:-[a-z0-9]+)*(?:\.[a-z0-9]+(?:-[a-z0-9]+)*)*$"
 )
 MAX_RUNTIME_ALIAS_BYTES = 63
+MIN_FLOWCRAFT_ITERATION_HEADROOM = 2
+MAX_FLOWCRAFT_ITERATION_HEADROOM = 8
+PETDEF_ASSET_PREFIX = "asset://codex/pets/"
 WORKFLOW_MODEL_ALIASES = {
     "ast-translate-ja-zh": {"ast-translate-ja-zh.model"},
     "ast-translate-ko-zh": {"ast-translate-ko-zh.model"},
@@ -618,6 +621,137 @@ def _workflow_aliases(workflow: Mapping[str, Any]) -> dict[str, set[str]]:
     return {"models": models, "voices": voices}
 
 
+def _longest_flowcraft_route(
+    graph: Mapping[str, Any], label: str, errors: list[str]
+) -> int | None:
+    raw_nodes = graph.get("nodes")
+    if not isinstance(raw_nodes, list) or not raw_nodes:
+        errors.append(f"{label}.graph.nodes must be a non-empty list")
+        return None
+
+    node_ids: set[str] = set()
+    for index, raw_node in enumerate(raw_nodes):
+        if not isinstance(raw_node, Mapping):
+            errors.append(f"{label}.graph.nodes.{index} must be a mapping")
+            continue
+        node_id = raw_node.get("id")
+        if not isinstance(node_id, str) or not node_id:
+            errors.append(f"{label}.graph.nodes.{index}.id must be a non-empty string")
+            continue
+        if node_id in node_ids:
+            errors.append(f"{label}.graph.nodes contains duplicate node {node_id!r}")
+            continue
+        node_ids.add(node_id)
+
+    entry = graph.get("entry")
+    if not isinstance(entry, str) or entry not in node_ids:
+        errors.append(f"{label}.graph.entry must reference a declared node")
+        return None
+
+    raw_edges = graph.get("edges")
+    if not isinstance(raw_edges, list) or not raw_edges:
+        errors.append(f"{label}.graph.edges must be a non-empty list")
+        return None
+
+    adjacency: dict[str, list[str]] = defaultdict(list)
+    for index, raw_edge in enumerate(raw_edges):
+        if not isinstance(raw_edge, Mapping):
+            errors.append(f"{label}.graph.edges.{index} must be a mapping")
+            continue
+        source = raw_edge.get("from")
+        target = raw_edge.get("to")
+        if not isinstance(source, str) or source not in node_ids:
+            errors.append(
+                f"{label}.graph.edges.{index}.from must reference a declared node"
+            )
+            continue
+        if not isinstance(target, str) or (
+            target != "__end__" and target not in node_ids
+        ):
+            errors.append(
+                f"{label}.graph.edges.{index}.to must reference a declared node "
+                "or __end__"
+            )
+            continue
+        adjacency[source].append(target)
+
+    def visit(node_id: str, path: frozenset[str]) -> int | None:
+        if node_id == "__end__":
+            return 0
+        if node_id in path:
+            return None
+        lengths = [
+            length
+            for target in adjacency.get(node_id, [])
+            if (length := visit(target, path | {node_id})) is not None
+        ]
+        if not lengths:
+            return None
+        return 1 + max(lengths)
+
+    longest = visit(entry, frozenset())
+    if longest is None:
+        errors.append(f"{label}.graph has no route from entry to __end__")
+    return longest
+
+
+def _validate_flowcraft_semantics(
+    flowcraft: Mapping[str, Any], label: str, errors: list[str]
+) -> None:
+    graph = flowcraft.get("graph")
+    if not isinstance(graph, Mapping):
+        return
+
+    longest_route = _longest_flowcraft_route(graph, label, errors)
+    max_iterations = flowcraft.get("max_iterations")
+    if isinstance(max_iterations, bool) or not isinstance(max_iterations, int):
+        errors.append(f"{label}.max_iterations must be an integer")
+    elif longest_route is not None:
+        headroom = max_iterations - longest_route
+        if not (
+            MIN_FLOWCRAFT_ITERATION_HEADROOM
+            <= headroom
+            <= MAX_FLOWCRAFT_ITERATION_HEADROOM
+        ):
+            errors.append(
+                f"{label}.max_iterations {max_iterations} leaves headroom "
+                f"{headroom} for longest route {longest_route}; want "
+                f"{MIN_FLOWCRAFT_ITERATION_HEADROOM}.."
+                f"{MAX_FLOWCRAFT_ITERATION_HEADROOM}"
+            )
+
+    for raw_node in graph.get("nodes", []):
+        if (
+            not isinstance(raw_node, Mapping)
+            or raw_node.get("type") != "memory_observe"
+        ):
+            continue
+        config = raw_node.get("config")
+        observations = (
+            config.get("observations") if isinstance(config, Mapping) else None
+        )
+        if not isinstance(observations, list):
+            continue
+        has_turns = any(
+            isinstance(observation, Mapping)
+            and isinstance(observation.get("turns_from"), str)
+            and bool(observation["turns_from"])
+            for observation in observations
+        )
+        has_facts = any(
+            isinstance(observation, Mapping)
+            and isinstance(observation.get("facts"), list)
+            and bool(observation["facts"])
+            for observation in observations
+        )
+        if has_turns and has_facts:
+            node_id = raw_node.get("id")
+            errors.append(
+                f"{label}.graph memory_observe node {node_id!r} must not combine "
+                "turns_from with direct facts"
+            )
+
+
 def _validate_flowcraft_shape(flowcraft: Any, label: str, errors: list[str]) -> bool:
     flowcraft = _require_mapping(flowcraft, label, errors)
     if "agent" in flowcraft:
@@ -627,6 +761,7 @@ def _validate_flowcraft_shape(flowcraft: Any, label: str, errors: list[str]) -> 
     if not isinstance(flowcraft.get("graph"), Mapping):
         errors.append(f"{label}.graph must be a mapping")
         return False
+    _validate_flowcraft_semantics(flowcraft, label, errors)
     return any(
         isinstance(node, Mapping)
         and node.get("type") in {"memory_recall", "memory_observe"}
@@ -953,7 +1088,11 @@ def _validate_public_alias_contract(
 
 
 def _validate_gameplay_aliases(
-    profile: Mapping[str, Any], aliases: Mapping[str, set[str]], errors: list[str]
+    root: Path,
+    profile: Mapping[str, Any],
+    aliases: Mapping[str, set[str]],
+    documents: Mapping[tuple[str, str], Mapping[str, Any]],
+    errors: list[str],
 ) -> None:
     spec = profile.get("spec")
     if not isinstance(spec, Mapping):
@@ -981,6 +1120,61 @@ def _validate_gameplay_aliases(
                     errors.append(
                         "RuntimeProfile/default.spec.gameplay.adoption.pool"
                         f".{index}: pet_defs alias {pet_def!r} is not bound"
+                    )
+                    continue
+                resources = spec.get("resources")
+                pet_defs = (
+                    resources.get("pet_defs")
+                    if isinstance(resources, Mapping)
+                    else None
+                )
+                binding = (
+                    pet_defs.get(pet_def) if isinstance(pet_defs, Mapping) else None
+                )
+                resource_id = (
+                    binding.get("resource_id") if isinstance(binding, Mapping) else None
+                )
+                pet_def_document = (
+                    documents.get(("PetDef", resource_id))
+                    if isinstance(resource_id, str)
+                    else None
+                )
+                pet_def_spec = (
+                    pet_def_document.get("spec")
+                    if isinstance(pet_def_document, Mapping)
+                    else None
+                )
+                visual = (
+                    pet_def_spec.get("visual")
+                    if isinstance(pet_def_spec, Mapping)
+                    else None
+                )
+                pixa = visual.get("pixa") if isinstance(visual, Mapping) else None
+                asset_ref = pixa.get("asset_ref") if isinstance(pixa, Mapping) else None
+                asset_name = (
+                    asset_ref.removeprefix(PETDEF_ASSET_PREFIX)
+                    if isinstance(asset_ref, str)
+                    and asset_ref.startswith(PETDEF_ASSET_PREFIX)
+                    else None
+                )
+                if (
+                    not asset_name
+                    or PurePosixPath(asset_name).name != asset_name
+                    or not asset_name.endswith(".pixa")
+                ):
+                    errors.append(
+                        "RuntimeProfile/default.spec.gameplay.adoption.pool"
+                        f".{index}: eligible PetDef alias {pet_def!r} must use a "
+                        f"safe {PETDEF_ASSET_PREFIX}<name>.pixa reference"
+                    )
+                    continue
+                relative_asset = Path("assets") / "pet-defs" / asset_name
+                asset_path = root / relative_asset
+                if asset_path.is_symlink() or not asset_path.is_file():
+                    errors.append(
+                        "RuntimeProfile/default.spec.gameplay.adoption.pool"
+                        f".{index}: eligible PetDef alias {pet_def!r} requires "
+                        f"regular archive asset {relative_asset.as_posix()}"
                     )
 
 
@@ -1099,7 +1293,7 @@ def validate_catalog(root: Path) -> None:
         _validate_workflow_alias_closure(selected, documents, aliases, errors)
         _validate_memory_closure(selected, memory_bindings, documents, aliases, errors)
         _validate_public_alias_contract(selected, documents, aliases, example, errors)
-        _validate_gameplay_aliases(profile, aliases, errors)
+        _validate_gameplay_aliases(root, profile, aliases, documents, errors)
 
     for (kind, resource_id), document in documents.items():
         if kind == "Workflow":

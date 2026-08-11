@@ -100,8 +100,10 @@ spec:
         - from: prepare_story_progress
           to: write_story_progress
         - from: write_story_progress
-          to: observe_story_memory
-        - from: observe_story_memory
+          to: observe_story_progress
+        - from: observe_story_progress
+          to: observe_story_conversation
+        - from: observe_story_conversation
           to: reroute_state_after
         - from: reroute_state_after
           to: __end__
@@ -1758,7 +1760,6 @@ spec:
           type: script
         - config:
             observations:
-              - turns_from: conversation
               - facts:
                   - text_from: tmp_story_progress_line
                     attributes:
@@ -1767,9 +1768,15 @@ spec:
                       predicate: progress
                       subject: story_progress
             wait_for_completion: true
-          id: observe_story_memory
+          id: observe_story_progress
           type: memory_observe
-    max_iterations: 16
+        - config:
+            observations:
+              - turns_from: conversation
+            wait_for_completion: true
+          id: observe_story_conversation
+          type: memory_observe
+    max_iterations: 24
     conversation:
       # Upstream #472 intentionally makes Journey wait for the peer's opening turn.
       starts: peer

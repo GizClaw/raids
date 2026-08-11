@@ -121,6 +121,15 @@ These dotted aliases require the RuntimeProfile grammar introduced by
 [GizClaw #828](https://github.com/GizClaw/gizclaw/issues/828). A GizClaw build
 without that contract rejects this catalog rather than rewriting its aliases.
 
+Translation Voice roles follow the output language rather than the input
+language or provider used by the translation Model. The default
+Chinese-to-Japanese and Chinese-to-Korean Workflows select the public MiniMax
+system Voices `Japanese_CalmLady` and `Korean_CalmLady`, which the
+[MiniMax system Voice catalog](https://platform.minimaxi.com/docs/faq/system-voice-id)
+classifies for those languages. These bindings add `MiniMaxTenant/minimax-cn`
+and its environment-owned Credential to the default dependency closure; Raids
+contains no credential value.
+
 The public MemoryLayout catalog is organized by reusable scenario:
 
 - `user-chat-with-assistant` stores durable user conversation context.
@@ -144,6 +153,14 @@ be switched to those drivers until the adapters add that capability. Their
 Layout blocks remain the policy contract for configuring compatible
 environment-owned projects; their presence alone is not proof of runtime
 compatibility or successful extraction.
+
+A Flowcraft `memory_observe` operation never combines conversation extraction
+with direct Facts. Workflows use separate ordered nodes when they need both, so
+model extraction and Graph-authoritative idempotent writes retain independent
+ownership. Every public top-level or nested Flowcraft graph also keeps two to
+eight iterations of headroom above its longest acyclic route. This covers
+terminal memory nodes without replacing `max_iterations` as the bounded loop
+guard.
 
 [`runtime-profile.example.yaml`](runtime-profile.example.yaml) remains a
 documentation-only composition example with unresolved Voice placeholders. It
@@ -184,6 +201,13 @@ Release `v0.4.0` is the first catalog release in which every Resource supplies
 its own Admin `metadata.id` and every cross-resource field already contains the
 target ID. It requires a GizClaw caller-defined Admin ID contract and is not
 compatible with the legacy `v0.3.0` name-resolution path.
+
+Release `v0.4.1` scopes Workflow Model and Voice aliases by their owning
+Workflow IDs. `v0.4.2` is the next patch release: its source contract fixes the
+Beijing E2E Workflow limits and memory observations, selects target-language
+Japanese and Korean Voices, and fails closed when the default adoption pool has
+no distributable PIXA closure. A merged source change is not a published
+release; consumers must pin the later canonical tag and validate its archive.
 
 The archive contains one generated top-level directory. Consumers locate the
 kind directories relative to that root rather than depending on its generated
@@ -245,6 +269,15 @@ apply result may be checked against the submitted ID but is never used to edit
 another manifest. Products may omit or override the public defaults and may
 install additional product- or hardware-specific profiles and tokens.
 
+The public PetDef manifests currently reference restricted Codex artwork that
+is not redistributed by this repository. The `v0.4.2` default adoption pool is
+therefore empty: the PetDefs remain available to products authorized to publish
+matching objects, but an ordinary Default connection cannot randomly adopt one
+and then receive a PIXA 404. Any future Default pool entry must resolve to a
+regular, non-symlink `assets/pet-defs/<safe-basename>.pixa` file in the same
+versioned Raids archive. Deployment tooling must be authorized to upload that
+exact object before applying the profile.
+
 ## Scope
 
 This repository contains public Credential, Tenant, Model, MemoryLayout,
@@ -272,7 +305,8 @@ different providers, endpoints, or regions remain separate. For example,
 PetDef resources contain only machine-readable character, voice, and visual
 configuration. Their localized display names and descriptions belong to the
 corresponding `spec.resources.pet_defs.<alias>.i18n` binding in the consuming
-RuntimeProfile.
+RuntimeProfile. A PetDef alias does not make the PetDef eligible for adoption;
+the RuntimeProfile pool and archive-owned asset closure do that explicitly.
 
 Workspace instances, real credential values, secrets, private Workflows,
 product- or hardware-specific RuntimeProfiles and RegistrationTokens, and other
