@@ -189,17 +189,6 @@ spec:
       pet-care.pet: {}
 """
 
-PET_DEF = """
-apiVersion: gizclaw.admin/v1alpha1
-kind: PetDef
-metadata:
-  id: petdef-test
-spec:
-  visual:
-    pixa:
-      asset_ref: asset://codex/pets/test.pixa
-"""
-
 
 class CatalogValidationTest(unittest.TestCase):
     def setUp(self) -> None:
@@ -250,26 +239,6 @@ class CatalogValidationTest(unittest.TestCase):
         self.write("runtime-profiles/default.yaml", PROFILE.replace(old, new))
         self.write("runtime-profile.example.yaml", EXAMPLE.replace(old, new))
         self.write("memory-layouts/pet-care.yaml", MEMORY_LAYOUT.replace(old, new))
-
-    def add_default_adoption(self) -> None:
-        profile = PROFILE.replace(
-            "    memories:\n",
-            """    pet_defs:
-      test-pet:
-        resource_id: petdef-test
-        i18n:
-          en: {display_name: Test Pet}
-          zh-CN: {display_name: 测试宠物}
-    memories:
-""",
-        )
-        profile += """  gameplay:
-    adoption:
-      pool:
-        - {pet_def: test-pet, weight: 100, rarity: common, adoption_cost: 10}
-"""
-        self.write("runtime-profiles/default.yaml", profile)
-        self.write("petdefs/petdef-test.yaml", PET_DEF)
 
     def test_accepts_complete_default_bootstrap_closure(self) -> None:
         validate_catalog(self.root)
@@ -352,32 +321,6 @@ class CatalogValidationTest(unittest.TestCase):
             errors,
         )
         self.assertEqual(errors, [])
-
-    def test_rejects_adoption_without_regular_archive_asset(self) -> None:
-        self.add_default_adoption()
-        self.assert_invalid(
-            "eligible PetDef alias 'test-pet' requires regular archive asset "
-            "assets/pet-defs/test.pixa"
-        )
-
-    def test_accepts_adoption_with_regular_archive_asset(self) -> None:
-        self.add_default_adoption()
-        asset = self.root / "assets/pet-defs/test.pixa"
-        asset.parent.mkdir(parents=True)
-        asset.write_bytes(b"distributable-pixa")
-        validate_catalog(self.root)
-
-    def test_rejects_symlinked_adoption_asset(self) -> None:
-        self.add_default_adoption()
-        asset = self.root / "assets/pet-defs/test.pixa"
-        asset.parent.mkdir(parents=True)
-        target = self.root / "test.pixa"
-        target.write_bytes(b"outside-archive-contract")
-        asset.symlink_to(target)
-        self.assert_invalid(
-            "eligible PetDef alias 'test-pet' requires regular archive asset "
-            "assets/pet-defs/test.pixa"
-        )
 
     def test_rejects_wrong_workflow_model_namespace_even_when_bound(self) -> None:
         self.replace_pet_contract_alias("pet-care.model", "another-raid.model")
@@ -951,10 +894,23 @@ class PublicDefaultE2ERegressionTest(unittest.TestCase):
             "minimax-tenant:minimax-cn:Korean_CalmLady",
         )
 
-    def test_default_adoption_pool_fails_closed(self) -> None:
+    def test_default_adoption_pool_preserves_external_pixa_contract(self) -> None:
         profile = self.load("runtime-profiles/default.yaml")
         pool = profile["spec"]["gameplay"]["adoption"]["pool"]
-        self.assertEqual(pool, [])
+        self.assertEqual(
+            {entry["pet_def"] for entry in pool},
+            {
+                "bsod",
+                "codex",
+                "dewey",
+                "fireball",
+                "hoots",
+                "null-signal",
+                "rocky",
+                "seedy",
+                "stacky",
+            },
+        )
 
 
 if __name__ == "__main__":

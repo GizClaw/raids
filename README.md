@@ -205,9 +205,9 @@ compatible with the legacy `v0.3.0` name-resolution path.
 Release `v0.4.1` scopes Workflow Model and Voice aliases by their owning
 Workflow IDs. `v0.4.2` is the next patch release: its source contract fixes the
 Beijing E2E Workflow limits and memory observations, selects target-language
-Japanese and Korean Voices, and fails closed when the default adoption pool has
-no distributable PIXA closure. A merged source change is not a published
-release; consumers must pin the later canonical tag and validate its archive.
+Japanese and Korean Voices, and preserves the existing default adoption pool.
+A merged source change is not a published release; consumers must pin the later
+canonical tag and validate its archive.
 
 The archive contains one generated top-level directory. Consumers locate the
 kind directories relative to that root rather than depending on its generated
@@ -269,14 +269,13 @@ apply result may be checked against the submitted ID but is never used to edit
 another manifest. Products may omit or override the public defaults and may
 install additional product- or hardware-specific profiles and tokens.
 
-The public PetDef manifests currently reference restricted Codex artwork that
-is not redistributed by this repository. The `v0.4.2` default adoption pool is
-therefore empty: the PetDefs remain available to products authorized to publish
-matching objects, but an ordinary Default connection cannot randomly adopt one
-and then receive a PIXA 404. Any future Default pool entry must resolve to a
-regular, non-symlink `assets/pet-defs/<safe-basename>.pixa` file in the same
-versioned Raids archive. Deployment tooling must be authorized to upload that
-exact object before applying the profile.
+Raids owns the public PetDef manifests and their stable
+`asset://codex/pets/<name>.pixa` references, but it does not distribute the PIXA
+bytes. The corresponding bundles are maintained by `GizClaw/pixa` under
+`assets/codex-pets/`; GizClaw bootstrap or the consuming deployment resolves
+and uploads those assets to the Server for the declared PetDef IDs. A missing
+PIXA attachment is therefore a consumer resource-closure failure and must not
+be hidden by removing that PetDef from the Raids adoption pool.
 
 ## Scope
 
@@ -306,7 +305,8 @@ PetDef resources contain only machine-readable character, voice, and visual
 configuration. Their localized display names and descriptions belong to the
 corresponding `spec.resources.pet_defs.<alias>.i18n` binding in the consuming
 RuntimeProfile. A PetDef alias does not make the PetDef eligible for adoption;
-the RuntimeProfile pool and archive-owned asset closure do that explicitly.
+the RuntimeProfile pool does that explicitly, while the consuming bootstrap or
+deployment owns PIXA attachment closure.
 
 Workspace instances, real credential values, secrets, private Workflows,
 product- or hardware-specific RuntimeProfiles and RegistrationTokens, and other

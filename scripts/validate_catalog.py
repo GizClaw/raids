@@ -8,7 +8,7 @@ import re
 import uuid
 from collections import defaultdict
 from collections.abc import Iterable, Mapping
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import Any
 
 import yaml
@@ -66,7 +66,6 @@ RUNTIME_ALIAS_PATTERN = re.compile(
 MAX_RUNTIME_ALIAS_BYTES = 63
 MIN_FLOWCRAFT_ITERATION_HEADROOM = 2
 MAX_FLOWCRAFT_ITERATION_HEADROOM = 8
-PETDEF_ASSET_PREFIX = "asset://codex/pets/"
 WORKFLOW_MODEL_ALIASES = {
     "ast-translate-ja-zh": {"ast-translate-ja-zh.model"},
     "ast-translate-ko-zh": {"ast-translate-ko-zh.model"},
@@ -1088,10 +1087,8 @@ def _validate_public_alias_contract(
 
 
 def _validate_gameplay_aliases(
-    root: Path,
     profile: Mapping[str, Any],
     aliases: Mapping[str, set[str]],
-    documents: Mapping[tuple[str, str], Mapping[str, Any]],
     errors: list[str],
 ) -> None:
     spec = profile.get("spec")
@@ -1120,61 +1117,6 @@ def _validate_gameplay_aliases(
                     errors.append(
                         "RuntimeProfile/default.spec.gameplay.adoption.pool"
                         f".{index}: pet_defs alias {pet_def!r} is not bound"
-                    )
-                    continue
-                resources = spec.get("resources")
-                pet_defs = (
-                    resources.get("pet_defs")
-                    if isinstance(resources, Mapping)
-                    else None
-                )
-                binding = (
-                    pet_defs.get(pet_def) if isinstance(pet_defs, Mapping) else None
-                )
-                resource_id = (
-                    binding.get("resource_id") if isinstance(binding, Mapping) else None
-                )
-                pet_def_document = (
-                    documents.get(("PetDef", resource_id))
-                    if isinstance(resource_id, str)
-                    else None
-                )
-                pet_def_spec = (
-                    pet_def_document.get("spec")
-                    if isinstance(pet_def_document, Mapping)
-                    else None
-                )
-                visual = (
-                    pet_def_spec.get("visual")
-                    if isinstance(pet_def_spec, Mapping)
-                    else None
-                )
-                pixa = visual.get("pixa") if isinstance(visual, Mapping) else None
-                asset_ref = pixa.get("asset_ref") if isinstance(pixa, Mapping) else None
-                asset_name = (
-                    asset_ref.removeprefix(PETDEF_ASSET_PREFIX)
-                    if isinstance(asset_ref, str)
-                    and asset_ref.startswith(PETDEF_ASSET_PREFIX)
-                    else None
-                )
-                if (
-                    not asset_name
-                    or PurePosixPath(asset_name).name != asset_name
-                    or not asset_name.endswith(".pixa")
-                ):
-                    errors.append(
-                        "RuntimeProfile/default.spec.gameplay.adoption.pool"
-                        f".{index}: eligible PetDef alias {pet_def!r} must use a "
-                        f"safe {PETDEF_ASSET_PREFIX}<name>.pixa reference"
-                    )
-                    continue
-                relative_asset = Path("assets") / "pet-defs" / asset_name
-                asset_path = root / relative_asset
-                if asset_path.is_symlink() or not asset_path.is_file():
-                    errors.append(
-                        "RuntimeProfile/default.spec.gameplay.adoption.pool"
-                        f".{index}: eligible PetDef alias {pet_def!r} requires "
-                        f"regular archive asset {relative_asset.as_posix()}"
                     )
 
 
@@ -1293,7 +1235,7 @@ def validate_catalog(root: Path) -> None:
         _validate_workflow_alias_closure(selected, documents, aliases, errors)
         _validate_memory_closure(selected, memory_bindings, documents, aliases, errors)
         _validate_public_alias_contract(selected, documents, aliases, example, errors)
-        _validate_gameplay_aliases(root, profile, aliases, documents, errors)
+        _validate_gameplay_aliases(profile, aliases, errors)
 
     for (kind, resource_id), document in documents.items():
         if kind == "Workflow":
