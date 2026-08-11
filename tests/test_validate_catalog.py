@@ -30,6 +30,22 @@ spec:
         i18n:
           en: {display_name: ASR}
           zh-CN: {display_name: 语音识别}
+      pet-care.extract:
+        resource_id: extract-model
+        i18n:
+          en: {display_name: Extraction}
+          zh-CN: {display_name: 信息提取}
+      pet-care.model:
+        resource_id: chat-model
+        i18n:
+          en: {display_name: Pet Care Model}
+          zh-CN: {display_name: 宠物模型}
+    voices:
+      pet-care.pet:
+        resource_id: voice
+        i18n:
+          en: {display_name: Pet}
+          zh-CN: {display_name: 宠物}
     memories:
       pet-care:
         layout_id: pet-care
@@ -69,7 +85,10 @@ metadata:
 spec:
   driver: pet
   memory: pet-care
-  pet: {}
+  pet:
+    asr_model: asr
+    model: pet-care.model
+    voice: pet-care.pet
 """
 
 MEMORY_LAYOUT = """
@@ -80,7 +99,7 @@ metadata:
 spec:
   flowcraft:
     extraction:
-      model: asr
+      model: pet-care.extract
       mode: single_pass
     bbh: {}
     lanes:
@@ -157,7 +176,14 @@ apiVersion: gizclaw.admin/v1alpha1
 kind: RuntimeProfile
 metadata:
   id: raids
-spec: {}
+spec:
+  resources:
+    models:
+      asr: {}
+      pet-care.extract: {}
+      pet-care.model: {}
+    voices:
+      pet-care.pet: {}
 """
 
 
@@ -174,6 +200,19 @@ class CatalogValidationTest(unittest.TestCase):
         self.write("credentials/credential.yaml", CREDENTIAL)
         self.write("tenants/openai.yaml", TENANT)
         self.write("models/asr-model.yaml", MODEL)
+        self.write(
+            "models/extract-model.yaml",
+            MODEL.replace("id: asr-model", "id: extract-model").replace(
+                "kind: asr", "kind: llm"
+            ),
+        )
+        self.write(
+            "models/chat-model.yaml",
+            MODEL.replace("id: asr-model", "id: chat-model").replace(
+                "kind: asr", "kind: llm"
+            ),
+        )
+        self.write("voices/openai/voice.yaml", VOICE)
 
     def tearDown(self) -> None:
         self.temp.cleanup()
@@ -188,8 +227,102 @@ class CatalogValidationTest(unittest.TestCase):
             validate_catalog(self.root)
         self.assertIn(expected, "\n".join(raised.exception.errors))
 
+    def replace_pet_contract_alias(self, old: str, new: str) -> None:
+        self.write("runtime-profiles/default.yaml", PROFILE.replace(old, new))
+        self.write("runtime-profile.example.yaml", EXAMPLE.replace(old, new))
+        self.write("workflows/pet/pet-care.yaml", PET.replace(old, new))
+
+    def replace_pet_memory_model_alias(self, old: str, new: str) -> None:
+        self.write("runtime-profiles/default.yaml", PROFILE.replace(old, new))
+        self.write("runtime-profile.example.yaml", EXAMPLE.replace(old, new))
+        self.write("memory-layouts/pet-care.yaml", MEMORY_LAYOUT.replace(old, new))
+
     def test_accepts_complete_default_bootstrap_closure(self) -> None:
         validate_catalog(self.root)
+
+    def test_rejects_wrong_workflow_model_namespace_even_when_bound(self) -> None:
+        self.replace_pet_contract_alias("pet-care.model", "another-raid.model")
+        self.assert_invalid(
+            "Workflow/pet-care: models aliases must match its Workflow-owned contract"
+        )
+
+    def test_rejects_unsupported_workflow_voice_role_even_when_bound(self) -> None:
+        self.replace_pet_contract_alias("pet-care.pet", "pet-care.narrator")
+        self.assert_invalid(
+            "Workflow/pet-care: voices aliases must match its Workflow-owned contract"
+        )
+
+    def test_rejects_legacy_pet_model_alias_even_when_bound(self) -> None:
+        self.replace_pet_contract_alias("pet-care.model", "pet-chat")
+        self.assert_invalid(
+            "Workflow/pet-care: models aliases must match its Workflow-owned contract"
+        )
+
+    def test_rejects_wrong_memory_layout_extraction_namespace_even_when_bound(
+        self,
+    ) -> None:
+        self.replace_pet_memory_model_alias("pet-care.extract", "story-teller.extract")
+        self.assert_invalid(
+            "MemoryLayout/pet-care: model aliases must match its "
+            "MemoryLayout-owned extraction contract"
+        )
+
+    def test_rejects_malformed_dotted_alias(self) -> None:
+        self.replace_pet_contract_alias("pet-care.model", "pet-care_model")
+        self.assert_invalid(
+            "must be 1-63 bytes of dot-separated lowercase kebab-case segments"
+        )
+
+    def test_rejects_unowned_model_binding(self) -> None:
+        extra_binding = """
+      unused.model:
+        resource_id: chat-model
+        i18n:
+          en: {display_name: Unused}
+          zh-CN: {display_name: 未使用}
+"""
+        self.write(
+            "runtime-profiles/default.yaml",
+            PROFILE.replace("    voices:\n", extra_binding + "    voices:\n"),
+        )
+        self.write(
+            "runtime-profile.example.yaml",
+            EXAMPLE.replace("    voices:\n", "      unused.model: {}\n    voices:\n"),
+        )
+        self.assert_invalid(
+            "RuntimeProfile/default.spec.resources.models aliases must exactly "
+            "match first-party consumers"
+        )
+
+    def test_rejects_documentation_example_alias_drift(self) -> None:
+        self.write(
+            "runtime-profile.example.yaml",
+            EXAMPLE.replace("      pet-care.model: {}\n", ""),
+        )
+        self.assert_invalid(
+            "RuntimeProfile/raids documentation example models aliases must "
+            "match RuntimeProfile/default"
+        )
+
+    def test_rejects_memory_layout_legacy_extraction_alias_even_when_bound(
+        self,
+    ) -> None:
+        self.write(
+            "memory-layouts/pet-care.yaml",
+            MEMORY_LAYOUT.replace("model: pet-care.extract", "model: extraction"),
+        )
+        self.write(
+            "runtime-profiles/default.yaml",
+            PROFILE.replace("      pet-care.extract:\n", "      extraction:\n"),
+        )
+        self.write(
+            "runtime-profile.example.yaml",
+            EXAMPLE.replace("      pet-care.extract: {}\n", "      extraction: {}\n"),
+        )
+        self.assert_invalid(
+            "MemoryLayout/pet-care: model aliases must match its "
+            "MemoryLayout-owned extraction contract"
+        )
 
     def test_public_default_token_uuidv5_derivation_is_stable(self) -> None:
         self.assertEqual(
@@ -428,7 +561,7 @@ class CatalogValidationTest(unittest.TestCase):
     def test_rejects_unbound_memory_layout_model_alias(self) -> None:
         self.write(
             "memory-layouts/pet-care.yaml",
-            MEMORY_LAYOUT.replace("model: asr", "model: missing"),
+            MEMORY_LAYOUT.replace("model: pet-care.extract", "model: missing"),
         )
         self.assert_invalid(
             "MemoryLayout/pet-care: required models alias 'missing' is not bound"

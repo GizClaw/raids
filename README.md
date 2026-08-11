@@ -58,6 +58,69 @@ PetDef aliases needed by that catalog.
 publishes the matching `RegistrationToken/default-runtime`; its stable public
 client value is `28c4e4e9-a05f-5a7e-815e-9cf9afb6878f`.
 
+### Runtime alias ownership
+
+RuntimeProfile Model and Voice aliases are opaque flat keys. Dots make
+ownership visible; they do not create nested maps, fallback, wildcard, or
+prefix lookup. Workflow-owned slots use the canonical Workflow
+`metadata.id` as their namespace:
+
+```text
+<Workflow metadata.id>.<role>
+```
+
+`asr` is the only shared Model alias, and every ASR-capable Workflow uses it.
+Every public MemoryLayout keeps its `spec.flowcraft.extraction` policy object
+while selecting `<MemoryLayout metadata.id>.extract`. The schema field
+`extraction` is not a Model alias. Scoped extraction aliases may bind the same
+Model resource while remaining independently configurable.
+
+| MemoryLayout `metadata.id` | Extraction Model alias |
+| --- | --- |
+| `user-chat-with-assistant` | `user-chat-with-assistant.extract` |
+| `story-teller` | `story-teller.extract` |
+| `adventure` | `adventure.extract` |
+| `pet-care` | `pet-care.extract` |
+
+Each Raid can otherwise select its own Model independently, even when several
+slots currently bind the same Model resource:
+
+| Workflow `metadata.id` | Model alias |
+| --- | --- |
+| `doubao-realtime-conversation` | `doubao-realtime-conversation.model` |
+| `flowcraft-chat-assistant` | `flowcraft-chat-assistant.model` |
+| `ast-translate-ja-zh` | `ast-translate-ja-zh.model` |
+| `ast-translate-ko-zh` | `ast-translate-ko-zh.model` |
+| `ast-translate-zh-en-auto` | `ast-translate-zh-en-auto.model` |
+| `ast-translate-zh-es` | `ast-translate-zh-es.model` |
+| `ast-translate-zh-fr` | `ast-translate-zh-fr.model` |
+| `ast-translate-zh-ja` | `ast-translate-zh-ja.model` |
+| `ast-translate-zh-ko` | `ast-translate-zh-ko.model` |
+| `flowcraft-murder-mystery` | `flowcraft-murder-mystery.model` |
+| `flowcraft-journey-guide` | `flowcraft-journey-guide.model` |
+| `pet-care` | `pet-care.model` |
+
+Voice roles use the same Workflow namespace:
+
+| Workflow `metadata.id` | Voice roles |
+| --- | --- |
+| `doubao-realtime-conversation` | `assistant` |
+| `flowcraft-chat-assistant` | `assistant` |
+| each `ast-translate-*` Workflow | `translator` |
+| `flowcraft-murder-mystery` | `game-master`, `detective` |
+| `flowcraft-journey-guide` | `narrator`, `origin-narrator`, `heaven-narrator`, `pilgrimage-narrator`, `trials-narrator`, `kingdoms-narrator`, `arrival-narrator` |
+| `pet-care` | `pet` |
+
+For example, Journey resolves `flowcraft-journey-guide.narrator` exactly, and
+Pet Care resolves `pet-care.pet` exactly. Different scoped aliases may bind the
+same canonical Voice without becoming interchangeable. Catalog resources that
+have no current Workflow or MemoryLayout role remain available but are not
+published as unowned RuntimeProfile aliases.
+
+These dotted aliases require the RuntimeProfile grammar introduced by
+[GizClaw #828](https://github.com/GizClaw/gizclaw/issues/828). A GizClaw build
+without that contract rejects this catalog rather than rewriting its aliases.
+
 The public MemoryLayout catalog is organized by reusable scenario:
 
 - `user-chat-with-assistant` stores durable user conversation context.
