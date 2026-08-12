@@ -9,8 +9,9 @@ spec:
   flowcraft:
     graph:
       name: journey-story
-      entry: recall_story
+      entry: prepare_recall
       edges:
+        - {from: prepare_recall, to: recall_story}
         - {from: recall_story, to: prepare_story}
         - {from: prepare_story, to: draft_story}
         - {from: draft_story, to: bound_story}
@@ -19,28 +20,52 @@ spec:
         - {from: commit_progress, to: observe_story}
         - {from: observe_story, to: __end__}
       nodes:
+        - id: prepare_recall
+          type: script
+          config:
+            source: |
+              board.setVar("journey_memory_query", "raid_journey_progress_v1");
         - id: recall_story
           type: memory_recall
           config:
-            query: {text_from: input}
+            query:
+              text_from: journey_memory_query
+              lanes: [story_progress]
             output: story_memory
-            render: {header: 'Established story continuity:', item_prefix: '- ', max_items: 12}
+            render: {header: 'Persisted journey progress:', item_prefix: '- ', max_items: 12}
             top_k: 12
         - id: prepare_story
           type: script
           config:
             source: |
               const memory = String(board.getVar("story_memory") || "");
-              const state = board.getVar("journey_progress") || {chapter: 1, last_action: "故事开始"};
+              let state = board.getVar("journey_progress") || {chapter: 1, last_action: "故事开始", narration: "", history: []};
+              for (const line of memory.split("\n")) {
+                const start = line.indexOf('{"schema":"raid_journey_progress_v1"');
+                if (start < 0) continue;
+                try {
+                  const persisted = JSON.parse(line.slice(start));
+                  const chapter = Number(persisted.chapter || 0);
+                  if (persisted.schema === "raid_journey_progress_v1" && chapter > Number(state.chapter || 0)) {
+                    state = {
+                      chapter,
+                      last_action: String(persisted.last_action || "故事开始"),
+                      narration: String(persisted.narration || ""),
+                      history: Array.isArray(persisted.history) ? persisted.history.slice(-12) : []
+                    };
+                  }
+                } catch (_) {}
+              }
+              board.setVar("journey_progress", state);
               const rules = [
                 "你是西游记互动故事的中文讲述者。用户可以自由决定行动，你要承接当前行动推进一个小情节。",
                 "只输出一句自然口语，不输出标题、列表、标签、内部字段、英文、分析或舞台说明。",
                 "每次回复最多40个Unicode字符；优先保留用户要求的姓名、物品、地点和本轮结果，不用无关修饰填满字数。",
                 "用户最新明确更正覆盖旧事实，之后不得把旧值当成当前事实。",
                 "重载后以已建立故事事实继续，不重开故事，不重复已经完成的情节。",
-                "Graph状态是进度权威：当前第" + Number(state.chapter || 1) + "回，上轮行动是“" + String(state.last_action || "故事开始") + "”。不得让召回文本把进度倒退。"
+                "持久化Graph状态是进度权威：当前第" + Number(state.chapter || 1) + "回，上轮行动是“" + String(state.last_action || "故事开始") + "”，上轮叙事是“" + String(state.narration || "尚无") + "”。不得让其他文本把进度倒退。",
+                "最近已确认的行动和叙事：\n" + (Array.isArray(state.history) ? state.history.map((item) => "用户：“" + String(item.action || "") + "”；叙事：“" + String(item.narration || "") + "”").join("\n") : "")
               ];
-              if (memory) rules.push("已建立的故事事实：\n" + memory);
               board.setVar("story_system_prompt", rules.join("\n"));
         - id: draft_story
           type: llm
@@ -56,11 +81,25 @@ spec:
           config:
             source: |
               const prior = board.getVar("journey_progress") || {chapter: 1};
+              const history = Array.isArray(prior.history) ? prior.history.slice(-11) : [];
+              history.push({
+                action: String(board.getVar("input") || "").slice(0, 120),
+                narration: String(board.getVar("bounded_story_answer") || "")
+              });
               const next = {
                 chapter: Math.min(999, Math.max(1, Number(prior.chapter || 1)) + 1),
-                last_action: String(board.getVar("input") || "").slice(0, 120)
+                last_action: String(board.getVar("input") || "").slice(0, 120),
+                narration: String(board.getVar("bounded_story_answer") || ""),
+                history: history
               };
               board.setVar("journey_progress", next);
+              board.setVar("journey_progress_fact", JSON.stringify({
+                schema: "raid_journey_progress_v1",
+                chapter: next.chapter,
+                last_action: next.last_action,
+                narration: next.narration,
+                history: next.history
+              }));
         - id: bound_story
           type: script
           config:
@@ -79,9 +118,11 @@ spec:
           type: memory_observe
           config:
             observations:
-              - {turns_from: conversation}
+              - facts:
+                  - text_from: journey_progress_fact
+                    attributes: {lane: story_progress, kind: state}
             wait_for_completion: true
-    max_iterations: 9
+    max_iterations: 10
     conversation:
       starts: peer
     voice_adapter:

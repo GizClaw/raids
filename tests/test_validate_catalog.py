@@ -871,13 +871,23 @@ class PublicDefaultE2ERegressionTest(unittest.TestCase):
         workflow = self.load("workflows/flowcraft/journey-guide.yaml")
         flowcraft = workflow["spec"]["flowcraft"]
         nodes = {node["id"]: node for node in flowcraft["graph"]["nodes"]}
-        self.assertEqual(flowcraft["max_iterations"], 9)
+        self.assertEqual(flowcraft["max_iterations"], 10)
         self.assertEqual(
             [node["id"] for node in flowcraft["graph"]["nodes"] if node["type"] == "memory_recall"],
             ["recall_story"],
         )
         self.assertFalse(nodes["draft_story"]["publish"])
         self.assertIn("journey_progress", nodes["commit_progress"]["config"]["source"])
+        self.assertIn("journey_progress_fact", nodes["commit_progress"]["config"]["source"])
+        self.assertIn("history", nodes["commit_progress"]["config"]["source"])
+        self.assertEqual(
+            nodes["recall_story"]["config"]["query"]["lanes"],
+            ["story_progress"],
+        )
+        self.assertEqual(
+            nodes["observe_story"]["config"]["observations"][0]["facts"][0]["text_from"],
+            "journey_progress_fact",
+        )
         self.assertIn(".slice(0, 40)", nodes["bound_story"]["config"]["source"])
         self.assertEqual(nodes["answer"]["type"], "script")
         self.assertTrue(nodes["observe_story"]["config"]["wait_for_completion"])

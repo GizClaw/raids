@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"testing"
+
+	"github.com/GizClaw/raids/tools/raidtest/internal/provision"
 )
 
 func TestParseFlagsAcceptsOnlySecretSources(t *testing.T) {
@@ -39,5 +41,16 @@ func TestDriverMatchesPublicWorkflowFamilies(t *testing.T) {
 	}
 	if driverMatches("flowcraft", "translate") {
 		t.Fatal("mismatched driver was accepted")
+	}
+}
+
+func TestRegistrationMismatchStillRecordsPeerForCleanup(t *testing.T) {
+	lifecycle := provision.New(nil, false)
+	err := recordPeerAndValidateProfile(lifecycle, "peer-public-key", "wrong-profile", "shadow-profile")
+	if err == nil {
+		t.Fatal("mismatched RuntimeProfile was accepted")
+	}
+	if len(lifecycle.Ledger) != 1 || lifecycle.Ledger[0].ResourceType != "Peer" || lifecycle.Ledger[0].ID != "peer-public-key" {
+		t.Fatalf("peer was not recorded before validation: %#v", lifecycle.Ledger)
 	}
 }

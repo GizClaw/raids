@@ -210,10 +210,9 @@ func run(ctx context.Context, c config.Config, stdin io.Reader) (result report.R
 	if err != nil {
 		return result, fmt.Errorf("register temporary peer: %w", err)
 	}
-	if registration.GetRuntimeProfileName() != closure.ProfileID {
-		return result, fmt.Errorf("temporary peer bound RuntimeProfile %q, want shadow profile %q", registration.GetRuntimeProfileName(), closure.ProfileID)
+	if err := recordPeerAndValidateProfile(lifecycle, peerKeys.Public.String(), registration.GetRuntimeProfileName(), closure.ProfileID); err != nil {
+		return result, err
 	}
-	lifecycle.RecordPeer(peerKeys.Public.String())
 	if workflow.Driver == "pet" {
 		petName := "raidtest-pet-" + runID
 		adopted, adoptErr := peerConn.Client.AdoptPet(ctx, "raidtest-adopt-"+runID, rpcapi.RuntimeAdoptRequest{Name: petName, DisplayName: "Raidtest Pet"})
@@ -288,6 +287,16 @@ func run(ctx context.Context, c config.Config, stdin io.Reader) (result report.R
 		}
 	}
 	return result, runErr
+}
+
+func recordPeerAndValidateProfile(lifecycle *provision.Lifecycle, publicKey, actualProfile, expectedProfile string) error {
+	// Register creates the peer even when the returned binding is wrong. Record it
+	// before validation so deferred cleanup owns every successful mutation.
+	lifecycle.RecordPeer(publicKey)
+	if actualProfile != expectedProfile {
+		return fmt.Errorf("temporary peer bound RuntimeProfile %q, want shadow profile %q", actualProfile, expectedProfile)
+	}
+	return nil
 }
 
 func randomID(bytes int) (string, error) {
