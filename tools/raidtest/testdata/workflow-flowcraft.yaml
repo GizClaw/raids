@@ -1,0 +1,19 @@
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata: {id: fixture-flowcraft}
+spec:
+  driver: flowcraft
+  flowcraft:
+    graph:
+      name: fixture
+      entry: answer
+      nodes:
+        - id: answer
+          type: script
+          publish: true
+          config:
+            source: 'board.setVar("answer", "hello"); host.emit("token", {content: "hello"});'
+      edges:
+        - {from: answer, to: __end__}
+    max_iterations: 3
+    conversation: {}

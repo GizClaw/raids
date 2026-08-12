@@ -836,51 +836,60 @@ class PublicDefaultE2ERegressionTest(unittest.TestCase):
         self.assertIsInstance(document, dict)
         return document
 
-    def test_murder_generation_and_direct_fact_audit(self) -> None:
+    def test_assistant_enforces_prefix_and_suffix_length_requests(self) -> None:
+        workflow = self.load("workflows/flowcraft/chat-assistant.yaml")
+        nodes = {
+            node["id"]: node
+            for node in workflow["spec"]["flowcraft"]["graph"]["nodes"]
+        }
+        source = nodes["bound_answer"]["config"]["source"]
+        self.assertIn("(?:不超过|最多)", source)
+        self.assertIn("以内/", source)
+        self.assertFalse(nodes["draft_answer"]["publish"])
+        self.assertTrue(nodes["observe_conversation"]["config"]["wait_for_completion"])
+
+    def test_murder_is_open_ended_bounded_and_durable(self) -> None:
         workflow = self.load("workflows/flowcraft/murder-mystery.yaml")
         flowcraft = workflow["spec"]["flowcraft"]
         nodes = {node["id"]: node for node in flowcraft["graph"]["nodes"]}
-        self.assertEqual(nodes["generate_game_master"]["config"]["max_tokens"], 256)
-        self.assertEqual(nodes["solved_chat"]["config"]["max_tokens"], 256)
-        self.assertEqual(nodes["format_player_action"]["config"]["max_tokens"], 64)
-        observations = nodes["observe_case_audit"]["config"]["observations"]
-        self.assertFalse(any("turns_from" in item for item in observations))
-        self.assertEqual(sum(len(item.get("facts", [])) for item in observations), 2)
+        self.assertEqual(nodes["draft_game_master"]["config"]["max_tokens"], 256)
+        self.assertFalse(nodes["draft_game_master"]["publish"])
+        self.assertEqual(nodes["answer"]["type"], "script")
+        self.assertTrue(nodes["answer"]["publish"])
+        self.assertIn('host.emit("token"', nodes["answer"]["config"]["source"])
+        self.assertIn(
+            ".slice(0, 180)", nodes["bound_game_master"]["config"]["source"]
+        )
+        self.assertTrue(
+            nodes["observe_case"]["config"]["wait_for_completion"]
+        )
+        prompt = nodes["prepare_game_master"]["config"]["source"]
+        self.assertIn("自由调查任何合理地点", prompt)
+        self.assertIn("最新明确更正覆盖旧值", prompt)
 
-    def test_journey_splits_memory_and_covers_every_route(self) -> None:
+    def test_journey_has_one_recall_and_hard_output_budget(self) -> None:
         workflow = self.load("workflows/flowcraft/journey-guide.yaml")
         flowcraft = workflow["spec"]["flowcraft"]
         nodes = {node["id"]: node for node in flowcraft["graph"]["nodes"]}
-        next_node = {
-            edge["from"]: edge["to"]
-            for edge in flowcraft["graph"]["edges"]
-            if edge["from"]
-            in {
-                "write_story_progress",
-                "observe_story_progress",
-                "observe_story_conversation",
-            }
-        }
-        self.assertEqual(flowcraft["max_iterations"], 24)
+        self.assertEqual(flowcraft["max_iterations"], 9)
         self.assertEqual(
-            next_node,
-            {
-                "write_story_progress": "observe_story_progress",
-                "observe_story_progress": "observe_story_conversation",
-                "observe_story_conversation": "reroute_state_after",
-            },
+            [node["id"] for node in flowcraft["graph"]["nodes"] if node["type"] == "memory_recall"],
+            ["recall_story"],
         )
-        self.assertEqual(
-            nodes["observe_story_conversation"]["config"]["observations"],
-            [{"turns_from": "conversation"}],
-        )
-        progress = nodes["observe_story_progress"]["config"]["observations"]
-        self.assertEqual(sum(len(item.get("facts", [])) for item in progress), 1)
+        self.assertFalse(nodes["draft_story"]["publish"])
+        self.assertIn("journey_progress", nodes["commit_progress"]["config"]["source"])
+        self.assertIn(".slice(0, 40)", nodes["bound_story"]["config"]["source"])
+        self.assertEqual(nodes["answer"]["type"], "script")
+        self.assertTrue(nodes["observe_story"]["config"]["wait_for_completion"])
 
     def test_pet_graph_has_bounded_iteration_headroom(self) -> None:
         workflow = self.load("workflows/pet/pet-care.yaml")
         flowcraft = workflow["spec"]["pet"]["flowcraft"]
-        self.assertEqual(flowcraft["max_iterations"], 9)
+        self.assertEqual(flowcraft["max_iterations"], 11)
+        nodes = {node["id"]: node for node in flowcraft["graph"]["nodes"]}
+        self.assertFalse(nodes["draft_answer"]["publish"])
+        self.assertEqual(nodes["answer"]["type"], "script")
+        self.assertTrue(nodes["observe_pet_memory"]["config"]["wait_for_completion"])
 
     def test_translation_targets_use_language_specific_voices(self) -> None:
         profile = self.load("runtime-profiles/default.yaml")
@@ -892,6 +901,14 @@ class PublicDefaultE2ERegressionTest(unittest.TestCase):
         self.assertEqual(
             voices["ast-translate-zh-ko.translator"]["resource_id"],
             "minimax-tenant:minimax-cn:Korean_CalmLady",
+        )
+        self.assertEqual(
+            voices["ast-translate-zh-es.translator"]["resource_id"],
+            "minimax-tenant:minimax-cn:Spanish_SereneElder",
+        )
+        self.assertEqual(
+            voices["ast-translate-zh-fr.translator"]["resource_id"],
+            "minimax-tenant:minimax-cn:French_MovieLeadFemale",
         )
 
     def test_default_adoption_pool_preserves_external_pixa_contract(self) -> None:

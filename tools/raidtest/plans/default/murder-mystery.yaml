@@ -1,0 +1,40 @@
+version: v1
+name: default-murder-mystery
+driver: flowcraft
+persona: 第一次玩的普通剧本杀玩家，会自由调查地点和询问人物，不知道隐藏命令。
+cases:
+  - id: open-investigation-correction-conclusion
+    workflow_id: flowcraft-murder-mystery
+    turns:
+      - id: opening
+        user: 开始吧，先简单介绍案情，不要替我选择行动。
+        max_runes: 180
+        judge: [naturalness, usefulness]
+      - id: inspect-balcony
+        user: 我想先去阳台，看看窗沿、地面和排水口有没有痕迹。
+        max_runes: 180
+        judge: [open-ended-action, continuity]
+      - id: interview-chef
+        user: 我去问厨师，停电前后他在哪里，听见或看见了什么。
+        max_runes: 180
+        judge: [open-ended-action, continuity]
+      - id: establish-clue
+        user: 我确认刚发现的鞋印是42码，请把它作为已确认线索。
+        required: [42]
+      - id: correct-clue
+        user: 更正鉴定结果：鞋印不是42码，而是39码。
+        required: [39]
+        forbidden: [42码]
+      - id: continue-after-reload
+        reload_before: true
+        user: 结合阳台调查、厨师证词和更正后的鞋印，指出目前最关键的矛盾。
+        required: [39]
+        forbidden: [42码]
+        max_runes: 180
+        judge: [history-continuity, correction-handling]
+      - id: conclude
+        user: 现在请根据我已经确认和更正后的线索给出结论，并说明证据链。
+        required: [39]
+        forbidden: [42码]
+        max_runes: 180
+        judge: [evidence-based-conclusion, continuity]
