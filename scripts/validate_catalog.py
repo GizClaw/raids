@@ -860,11 +860,21 @@ def _validate_default_behavior_contracts(
             errors.append(
                 f"Workflow/{workflow_id} must observe completed turns for durable recall"
             )
+        wait_for_memory = workflow_id in {
+            "flowcraft-journey-guide",
+            "flowcraft-murder-mystery",
+        }
         for node in observe_nodes:
             config = node.get("config")
-            if isinstance(config, Mapping) and config.get("wait_for_completion") is not True:
+            actual_wait = config.get("wait_for_completion") if isinstance(config, Mapping) else None
+            if actual_wait is not wait_for_memory:
+                requirement = (
+                    "complete before the turn ends"
+                    if wait_for_memory
+                    else "run asynchronously without blocking the turn"
+                )
                 errors.append(
-                    f"Workflow/{workflow_id} memory_observe must complete before the turn ends"
+                    f"Workflow/{workflow_id} memory_observe must {requirement}"
                 )
 
     spec = profile.get("spec")

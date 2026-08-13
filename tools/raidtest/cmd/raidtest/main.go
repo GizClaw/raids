@@ -293,9 +293,14 @@ func run(ctx context.Context, c config.Config, stdin io.Reader) (result report.R
 	}
 	var simulation *agent.Agent
 	if c.AgentModel != "" || c.JudgeModel != "" || c.InputTTSModel != "" {
-		key, keyErr := c.OpenAIKey.Read(stdin)
-		if keyErr != nil {
-			return result, keyErr
+		var key []byte
+		if c.OpenAIKey.Configured() {
+			key, err = c.OpenAIKey.Read(stdin)
+		} else {
+			key, err = server.Login(ctx, c.Server, peerKeys, info.AuthoritativePublicKey, nil)
+		}
+		if err != nil {
+			return result, err
 		}
 		client := openaiapi.Client{BaseURL: c.OpenAIBaseURL, APIKey: string(key)}
 		models, modelsErr := client.Models(ctx)

@@ -196,6 +196,12 @@ Static `make ci`, an isolated `raidtest` result, a released Raids archive, a
 deployed RuntimeProfile, and the complete Beijing Default E2E are separate
 evidence. Passing one does not imply the later stages occurred.
 
+Default Pet Care and General Assistant intentionally keep Memory extraction
+asynchronous. Same-Workspace turn continuity and reload recall come from the
+GizClaw Flowcraft History store; deployments must configure
+`services.agent_host.flowcraft.history_store`. Memory supplies longer-lived
+semantic recall and must not become a per-turn response barrier.
+
 Two Default gates require GizClaw runtime support beyond Raids configuration:
 Doubao realtime reload memory and deterministic text limits are tracked by
 [GizClaw #852](https://github.com/GizClaw/gizclaw/issues/852) and

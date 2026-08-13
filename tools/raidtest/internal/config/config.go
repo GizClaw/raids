@@ -18,6 +18,10 @@ type SecretSource struct {
 	Stdin bool
 }
 
+func (s SecretSource) Configured() bool {
+	return strings.TrimSpace(s.Env) != "" || strings.TrimSpace(s.File) != "" || s.Stdin
+}
+
 func (s SecretSource) Validate(required bool) error {
 	configured := 0
 	if strings.TrimSpace(s.Env) != "" {
@@ -125,8 +129,13 @@ func (c *Config) Validate() error {
 	if err := c.AdminKey.Validate(true); err != nil {
 		return fmt.Errorf("admin private key: %w", err)
 	}
-	if err := c.OpenAIKey.Validate(c.AgentModel != "" || c.JudgeModel != "" || c.InputTTSModel != ""); err != nil {
+	if err := c.OpenAIKey.Validate(false); err != nil {
 		return fmt.Errorf("OpenAI API key: %w", err)
+	}
+	needsOpenAI := c.AgentModel != "" || c.JudgeModel != "" || c.InputTTSModel != ""
+	defaultOpenAIBaseURL := "http://" + c.Server + "/openai/v1"
+	if needsOpenAI && !c.OpenAIKey.Configured() && c.OpenAIBaseURL != defaultOpenAIBaseURL {
+		return errors.New("OpenAI API key is required for a custom OpenAI base URL")
 	}
 	return nil
 }

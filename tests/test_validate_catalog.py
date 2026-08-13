@@ -846,7 +846,9 @@ class PublicDefaultE2ERegressionTest(unittest.TestCase):
         self.assertIn("(?:不超过|最多)", source)
         self.assertIn("以内/", source)
         self.assertFalse(nodes["draft_answer"]["publish"])
-        self.assertTrue(nodes["observe_conversation"]["config"]["wait_for_completion"])
+        self.assertFalse(nodes["observe_conversation"]["config"]["wait_for_completion"])
+        memory = self.load("memory-layouts/user-chat-with-assistant.yaml")
+        self.assertEqual(memory["spec"]["flowcraft"]["write"]["mode"], "async_semantic")
 
     def test_murder_is_open_ended_bounded_and_durable(self) -> None:
         workflow = self.load("workflows/flowcraft/murder-mystery.yaml")
@@ -904,7 +906,20 @@ class PublicDefaultE2ERegressionTest(unittest.TestCase):
         nodes = {node["id"]: node for node in flowcraft["graph"]["nodes"]}
         self.assertFalse(nodes["draft_answer"]["publish"])
         self.assertEqual(nodes["answer"]["type"], "script")
-        self.assertTrue(nodes["observe_pet_memory"]["config"]["wait_for_completion"])
+        self.assertFalse(nodes["observe_pet_memory"]["config"]["wait_for_completion"])
+        memory = self.load("memory-layouts/pet-care.yaml")
+        self.assertEqual(memory["spec"]["flowcraft"]["write"]["mode"], "async_semantic")
+
+    def test_history_backed_plans_enforce_non_blocking_turn_budgets(self) -> None:
+        for relative in (
+            "tools/raidtest/plans/default/assistant-general.yaml",
+            "tools/raidtest/plans/default/pet-care.yaml",
+        ):
+            plan = self.load(relative)
+            for case in plan["cases"]:
+                for turn in case["turns"]:
+                    self.assertEqual(turn["first_response"], "12s")
+                    self.assertEqual(turn["total_response"], "12s")
 
     def test_translation_targets_use_language_specific_voices(self) -> None:
         profile = self.load("runtime-profiles/default.yaml")

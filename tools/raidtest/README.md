@@ -53,9 +53,12 @@ seven AST Workflow files; the bidirectional auto Workflow executes both of its
 cases in one run.
 
 Add `--agent-model` to generate turns that provide only an `intent`, or
-`--judge-model` for semantic checks. Either option requires an OpenAI key
-source. The base URL defaults to `http://<server>/openai/v1`; model discovery
-uses `/models`, while an explicit model ID makes reports reproducible.
+`--judge-model` for semantic checks. The base URL defaults to
+`http://<server>/openai/v1`; for that same-Server endpoint, raidtest logs in its
+temporary registered Peer and uses the short-lived access token without
+serializing it. A custom `--openai-base-url` requires an explicit OpenAI key
+source. Model discovery uses `/models`, while an explicit model ID makes
+reports reproducible.
 
 Realtime and AST translation Workflows require spoken input. Pass an OpenAI
 speech model such as `--input-tts-model gpt-4o-mini-tts` (and optionally
