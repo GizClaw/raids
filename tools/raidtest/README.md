@@ -61,7 +61,10 @@ Realtime and AST translation Workflows require spoken input. Pass an OpenAI
 speech model such as `--input-tts-model gpt-4o-mini-tts` (and optionally
 `--input-tts-voice`) plus the same OpenAI key source. `raidtest` requests Ogg
 Opus, extracts the raw Opus packets, and sends them to the Peer in paced 20 ms
-frames; it never treats a text-only echo as translation evidence.
+frames. AST acceptance cases create their temporary Workspace in
+`push-to-talk` mode so each planned utterance is committed at audio EOS; the
+tool never treats a text-only echo or an interim realtime hypothesis as
+translation evidence.
 
 ## Lifecycle and reports
 

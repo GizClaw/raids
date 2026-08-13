@@ -29,6 +29,21 @@ func TestOpusFramesDropsOggHeaders(t *testing.T) {
 	}
 }
 
+func TestASTWorkspaceUsesPushToTalk(t *testing.T) {
+	parameters, err := workspaceParameters("ast-translate")
+	if err != nil {
+		t.Fatal(err)
+	}
+	typed, err := parameters.AsASTTranslateWorkspaceParameters()
+	if err != nil || typed.Input == nil || *typed.Input != "push-to-talk" {
+		t.Fatalf("parameters=%#v typed=%#v err=%v", parameters, typed, err)
+	}
+	other, err := workspaceParameters("flowcraft")
+	if err != nil || other != nil {
+		t.Fatalf("flowcraft parameters=%#v err=%v", other, err)
+	}
+}
+
 func TestParseFlagsAcceptsOnlySecretSources(t *testing.T) {
 	t.Setenv("RAIDTEST_ADMIN", "private")
 	var stderr bytes.Buffer

@@ -255,8 +255,12 @@ func run(ctx context.Context, c config.Config, stdin io.Reader) (result report.R
 		if closure.Collection == "" || closure.WorkflowAlias == "" {
 			return result, fmt.Errorf("Workflow %q is not bound to a RuntimeProfile collection", workflow.Source.Metadata.ID)
 		}
+		parameters, parametersErr := workspaceParameters(workflow.Driver)
+		if parametersErr != nil {
+			return result, parametersErr
+		}
 		created, createErr := peerConn.Client.CreateWorkspace(ctx, "raidtest-create-workspace-"+runID, rpcapi.WorkspaceCreateRequest{
-			Name: setup.WorkspaceName, Collection: closure.Collection, WorkflowName: closure.WorkflowAlias,
+			Name: setup.WorkspaceName, Collection: closure.Collection, WorkflowName: closure.WorkflowAlias, Parameters: parameters,
 		})
 		if createErr != nil {
 			return result, fmt.Errorf("create temporary Workspace: %w", createErr)
@@ -337,6 +341,21 @@ func run(ctx context.Context, c config.Config, stdin io.Reader) (result report.R
 		}
 	}
 	return result, runErr
+}
+
+func workspaceParameters(driver string) (*rpcapi.WorkspaceParameters, error) {
+	if driver != "ast-translate" {
+		return nil, nil
+	}
+	input := rpcapi.WorkspaceInputModePushToTalk
+	parameters := rpcapi.WorkspaceParameters{}
+	if err := parameters.FromASTTranslateWorkspaceParameters(rpcapi.ASTTranslateWorkspaceParameters{
+		AgentType: rpcapi.ASTTranslateWorkspaceParametersAgentTypeAstTranslate,
+		Input:     &input,
+	}); err != nil {
+		return nil, fmt.Errorf("encode AST push-to-talk Workspace parameters: %w", err)
+	}
+	return &parameters, nil
 }
 
 func opusFrames(encoded []byte) ([][]byte, error) {
