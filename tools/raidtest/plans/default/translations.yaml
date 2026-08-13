@@ -1,0 +1,37 @@
+version: v1
+name: default-translations
+driver: translate
+persona: 直接说出待翻译句子的普通用户，不要求解释。
+cases:
+  - id: ja-to-zh
+    workflow_id: ast-translate-ja-zh
+    turns:
+      - {id: translate, user: "Aliceさんは12個のリンゴを買いませんでした。", required_any: [["12", 十二], [Alice, 爱丽丝], [没, 未, 不]], scripts: [han], require_punctuation: true, max_runes: 90}
+  - id: ko-to-zh
+    workflow_id: ast-translate-ko-zh
+    turns:
+      - {id: translate, user: "Alice는 27번 버스를 타지 않았습니다.", required_any: [["27", 二十七], [Alice, 爱丽丝], [没, 未, 不]], scripts: [han], require_punctuation: true, max_runes: 90}
+  - id: zh-to-en-auto
+    workflow_id: ast-translate-zh-en-auto
+    turns:
+      - {id: translate, user: "Alice没有在8点取消Paris会议。", required: [Alice, Paris], required_any: [[not, "did not", "didn't"], ["8", eight]], scripts: [latin], require_punctuation: true, max_runes: 90}
+  - id: en-to-zh-auto
+    workflow_id: ast-translate-zh-en-auto
+    turns:
+      - {id: translate, user: "Alice did not cancel train G7331 at 9:30.", required: [G7331], required_any: [["9:30", 9点30分, 九点三十分], [Alice, 爱丽丝], [没, 未, 不]], scripts: [han], require_punctuation: true, max_runes: 90}
+  - id: zh-to-es
+    workflow_id: ast-translate-zh-es
+    turns:
+      - {id: translate, user: "Marta没有取消12月5日的Madrid会议。", required: [Marta, Madrid, no], required_any: [["5", cinco], ["12", diciembre]], scripts: [latin], require_punctuation: true, max_runes: 90}
+  - id: zh-to-fr
+    workflow_id: ast-translate-zh-fr
+    turns:
+      - {id: translate, user: "Claire没有取消7点在Paris的会议。", required: [Claire, Paris, pas], required_any: [["7", sept]], scripts: [latin], require_punctuation: true, max_runes: 90}
+  - id: zh-to-ja
+    workflow_id: ast-translate-zh-ja
+    turns:
+      - {id: translate, user: "Alice没有取消12点的Tokyo会议。", required: [キャンセル], required_any: [["12", 十二], [Alice, アリス], [Tokyo, 東京]], scripts: [japanese], require_punctuation: true, max_runes: 90}
+  - id: zh-to-ko
+    workflow_id: ast-translate-zh-ko
+    turns:
+      - {id: translate, user: "Alice没有取消下午3点的Seoul会议。", required: [취소], required_any: [["3", 세], [Alice, 앨리스], [Seoul, 서울]], scripts: [korean], require_punctuation: true, max_runes: 90}

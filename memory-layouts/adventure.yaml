@@ -6,119 +6,60 @@ metadata:
 spec:
   flowcraft:
     extraction:
-      enabled: false
+      enabled: true
       model: adventure.extract
       mode: single_pass
-      system_prompt: |
-        Automatic extraction is disabled for this layout.
-        Accept only explicit facts written by the authoritative adventure Graph.
-        Never infer state, progress, discoveries, inventory, capabilities, or accepted choices from dialogue.
-        A request, suggestion, hypothetical action, narrated possibility, or model claim is not an executed event.
-      schema_name: adventure_audit
+      schema_name: adventure_memory
       temperature: 0
+      system_prompt: |
+        Extract only durable investigation facts visible in the conversation: confirmed case state,
+        discoveries actually presented to the player, witness statements, accepted player actions, and
+        explicit player corrections. Keep names, numbers, negation, source, and uncertainty. A newest
+        explicit correction supersedes its older conflicting value. Do not store proposed actions,
+        hidden solution details, speculation, flavor text, or a clue the assistant did not actually reveal.
     bbh:
-      search_overfetch: 20
-      bleve:
-        analyzer: standard
+      search_overfetch: 24
+      bleve: {analyzer: standard}
     lanes:
       - name: case_state
         kind: state
-        description: Deterministic adventure or case state audit.
-        extract: Accept only the latest Graph-written phase, route, scene, and status; never infer them from dialogue.
-        recall: Audit only; Workspace state controls routing.
-      - name: progress_badges
-        kind: state
-        description: Deterministic progress marker and achievement audit.
-        extract: Accept only Graph-confirmed progress markers and awarded achievements; replace superseded state.
-        recall: Audit only; Workspace state controls progression.
-      - name: world_facts
-        kind: note
-        description: Confirmed world, location, character, and rule facts.
-        extract: Accept only Graph-confirmed world, location, character, object, and rule facts.
-        recall: Use only as supporting adventure continuity.
+        description: Current visible phase and established case state.
+        extract: Keep only the newest explicitly established visible state.
+        recall: Use as continuity context, never as a hidden command route.
       - name: discoveries
         kind: note
-        description: Confirmed clues, discoveries, and learned information.
-        extract: Accept only discoveries the Graph marks as found, learned, or revealed; ignore speculation.
-        recall: Use to avoid losing or contradicting established discoveries.
-      - name: inventory
-        kind: state
-        description: Graph-authoritative inventory and acquired capabilities.
-        extract: Accept only Graph-confirmed acquisition, loss, consumption, or replacement of an item or capability.
-        recall: Audit only; Workspace state controls executable inventory.
-      - name: player_choices
+        description: Clues and physical findings already revealed to the player.
+        extract: Store each revealed clue with its source and qualifiers; replace explicitly corrected values.
+        recall: Use only already-visible clues and honor the newest correction.
+      - name: interviews
         kind: event
-        description: Durable player choices and their visible consequences.
-        extract: Accept only choices the Graph accepted and consequences it confirmed; ignore proposed actions.
-        recall: Use for continuity without replaying actions.
+        description: Questions asked and witness statements already heard by the player.
+        extract: Store the witness, statement, and uncertainty without inventing testimony.
+        recall: Preserve interview continuity and expose contradictions rather than resolving them silently.
+      - name: player_corrections
+        kind: state
+        description: Explicit corrections and current authoritative values supplied by the player.
+        extract: Store the new value and what it supersedes; newest correction wins.
+        recall: Apply before any older discovery, interview, or narration.
     graph_enabled: true
     write:
       mode: sync
       tier: general
   mem0:
     custom_instructions: |
-      Store adventure memory only from explicit, authoritative Graph-written records.
-      Allowed categories are:
-      - case_state: the latest phase, route, scene, and status.
-      - progress_badges: confirmed progress markers and awarded achievements.
-      - world_facts: confirmed world, location, character, object, and rule facts.
-      - discoveries: clues or information explicitly marked found, learned, or revealed.
-      - inventory: confirmed acquisition, loss, consumption, replacement, or current capability state.
-      - player_choices: accepted player choices and consequences already confirmed by the Graph.
-      Keep each memory atomic and preserve canonical names and state values. Prefer a newer Graph record
-      when it supersedes an older state. Do not extract from player dialogue or assistant narration.
-      Ignore requests, proposed actions, hypotheticals, guesses, plans, flavor text, and claims that an
-      action succeeded without a Graph record. If no authoritative Graph-written fact is present, store nothing.
+      Store only investigation facts visible to the player. Preserve canonical names, numbers, negation,
+      sources, and uncertainty. New explicit corrections replace older conflicting values. Do not store
+      hidden solution facts, proposed actions, speculation, or assistant reasoning.
     custom_categories:
-      case_state: Latest Graph-confirmed phase, route, scene, and status; never inferred from dialogue.
-      progress_badges: Graph-confirmed progress markers and achievements that were actually awarded.
-      world_facts: Graph-confirmed world, location, character, object, and rule facts used for continuity.
-      discoveries: Clues and information explicitly marked found, learned, or revealed by the Graph.
-      inventory: Graph-confirmed item and capability state, including acquisition, loss, consumption, and replacement.
-      player_choices: Player choices accepted by the Graph and consequences the Graph has already confirmed.
+      case_state: Newest visible case phase and established state.
+      discoveries: Clues and physical findings actually revealed to the player.
+      interviews: Witness statements and their stated source or uncertainty.
+      player_corrections: Newest explicit correction and the older value it supersedes.
     multilingual: true
     decay: false
   volc_mem0:
     strategies:
-      - name: case_state
-        type: summary
-        custom_instructions: |
-          Extract only explicit Graph-generated case or adventure state records. Preserve the latest phase,
-          route, scene, status, and canonical identifiers. When a newer record supersedes an older state,
-          summarize the current state instead of keeping contradictory versions. Ignore dialogue, narration,
-          guesses, proposed actions, and any status not confirmed by the Graph.
-      - name: progress_badges
-        type: summary
-        custom_instructions: |
-          Extract only progress markers and achievements explicitly confirmed or awarded by the Graph.
-          Preserve canonical marker or badge names and the confirmed resulting state. Replace superseded
-          progress summaries. Ignore praise, predictions, attempted actions, and achievements merely discussed
-          by the player or assistant.
-      - name: world_facts
-        type: semantic
-        custom_instructions: |
-          Extract atomic world facts only when a Graph record confirms them: locations, characters,
-          relationships, objects, rules, and persistent world changes. Preserve canonical names and the
-          confirmed relation or property. Ignore atmosphere, metaphor, speculation, temporary descriptions,
-          and facts invented only in conversational narration.
-      - name: discoveries
-        type: semantic
-        custom_instructions: |
-          Extract one atomic memory for each clue or piece of information the Graph explicitly marks as found,
-          learned, or revealed. Preserve its canonical name, factual content, and confirmed consequence when
-          present. Ignore suspicions, theories, hints not yet discovered, repeated mentions, and unverified claims.
-      - name: inventory
-        type: summary
-        custom_instructions: |
-          Extract inventory only from explicit Graph-generated state records. Record canonical item or
-          capability names and whether each was acquired, currently held, consumed, lost, replaced, or revoked.
-          Update the current summary when later Graph records supersede earlier state. Ignore desired items,
-          shopping or crafting plans, hypothetical capabilities, attempted use, and assistant claims not
-          confirmed by the Graph.
-      - name: player_choices
-        type: semantic
-        custom_instructions: |
-          Extract only player choices the Graph accepted and consequences the Graph explicitly confirmed.
-          Store the chosen action and its durable visible outcome as one atomic event. Ignore options merely
-          offered, abandoned or invalid attempts, hypothetical branches, private reasoning, and consequences
-          that have not happened.
+      - {name: case_state, type: summary, custom_instructions: 'Keep only newest visible case state.'}
+      - {name: discoveries, type: semantic, custom_instructions: 'Store revealed clues; newest explicit correction replaces an older value.'}
+      - {name: interviews, type: semantic, custom_instructions: 'Store witness statements with source and uncertainty.'}
+      - {name: player_corrections, type: summary, custom_instructions: 'Keep explicit corrections as authoritative and retire superseded values.'}

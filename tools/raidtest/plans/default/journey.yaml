@@ -1,0 +1,20 @@
+version: v1
+name: default-journey
+driver: flowcraft
+persona: 自由参与西游故事的普通用户，连续推进十二个情节并自然纠正事实。
+cases:
+  - id: twelve-beats-budget
+    workflow_id: flowcraft-journey-guide
+    turns:
+      - {id: origin, user: 我从花果山出发，带着一枚青铜铃。简短继续故事。, required: [花果山, 青铜铃], max_runes: 40, first_response: 12s, total_response: 90s}
+      - {id: river, user: 我沿河寻找渡口，先观察水流。, max_runes: 40, first_response: 12s, total_response: 90s}
+      - {id: village, user: 我进村询问昨夜的怪声。, max_runes: 40, first_response: 12s, total_response: 90s}
+      - {id: temple, user: 我去破庙检查供桌后的脚印。, max_runes: 40, first_response: 12s, total_response: 90s}
+      - {id: establish, user: 我确认同行向导叫清禾，请记住。, required: [清禾], max_runes: 40, first_response: 12s, total_response: 90s}
+      - {id: correct, user: 更正，向导不叫清禾，叫明月。, required: [明月], forbidden: [清禾], max_runes: 40, first_response: 12s, total_response: 90s}
+      - {id: mountain, user: 我和明月翻过黑风岭。, required: [明月], forbidden: [清禾], max_runes: 40, first_response: 12s, total_response: 90s}
+      - {id: cave, user: 我们进入山洞，寻找失踪的商队。, max_runes: 40, first_response: 12s, total_response: 90s}
+      - {id: reload, reload_before: true, user: 重整行装后继续，说出向导姓名和我带的物品。, required: [明月, 青铜铃], forbidden: [清禾], max_runes: 40, first_response: 12s, total_response: 90s}
+      - {id: waterfall, user: 我走近瀑布，寻找藏在水幕后面的入口。, max_runes: 40, first_response: 12s, total_response: 90s}
+      - {id: rescue, user: 我用青铜铃引开守卫，救出商队。, required: [青铜铃], max_runes: 40, first_response: 12s, total_response: 90s}
+      - {id: return, user: 我与明月返回村庄，请用一句话收束这一回。, required: [明月], forbidden: [清禾], max_runes: 40, first_response: 12s, total_response: 90s}

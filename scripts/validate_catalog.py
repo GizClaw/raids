@@ -93,16 +93,9 @@ WORKFLOW_VOICE_ALIASES = {
     "doubao-realtime-conversation": {"doubao-realtime-conversation.assistant"},
     "flowcraft-chat-assistant": {"flowcraft-chat-assistant.assistant"},
     "flowcraft-journey-guide": {
-        "flowcraft-journey-guide.arrival-narrator",
-        "flowcraft-journey-guide.heaven-narrator",
-        "flowcraft-journey-guide.kingdoms-narrator",
         "flowcraft-journey-guide.narrator",
-        "flowcraft-journey-guide.origin-narrator",
-        "flowcraft-journey-guide.pilgrimage-narrator",
-        "flowcraft-journey-guide.trials-narrator",
     },
     "flowcraft-murder-mystery": {
-        "flowcraft-murder-mystery.detective",
         "flowcraft-murder-mystery.game-master",
     },
     "pet-care": {"pet-care.pet"},
@@ -802,6 +795,107 @@ def _validate_workflow_shape(
         )
 
 
+def _validate_default_behavior_contracts(
+    profile: Mapping[str, Any],
+    documents: Mapping[tuple[str, str], Mapping[str, Any]],
+    errors: list[str],
+) -> None:
+    for workflow_id in (
+        "flowcraft-chat-assistant",
+        "flowcraft-journey-guide",
+        "flowcraft-murder-mystery",
+        "pet-care",
+    ):
+        workflow = documents.get(("Workflow", workflow_id), {})
+        spec = workflow.get("spec") if isinstance(workflow, Mapping) else None
+        if not isinstance(spec, Mapping):
+            continue
+        if spec.get("driver") == "pet":
+            pet = spec.get("pet")
+            flowcraft = pet.get("flowcraft") if isinstance(pet, Mapping) else None
+        else:
+            flowcraft = spec.get("flowcraft")
+        graph = flowcraft.get("graph") if isinstance(flowcraft, Mapping) else None
+        nodes = graph.get("nodes") if isinstance(graph, Mapping) else None
+        if not isinstance(nodes, list):
+            continue
+        answer_nodes = [
+            node
+            for node in nodes
+            if isinstance(node, Mapping) and node.get("id") == "answer"
+        ]
+        if not answer_nodes or any(node.get("publish") is not True for node in answer_nodes):
+            errors.append(
+                f"Workflow/{workflow_id} must publish through its bounded answer script"
+            )
+        if any(
+            node.get("publish") is True
+            for node in nodes
+            if isinstance(node, Mapping) and node.get("type") == "llm"
+        ):
+            errors.append(
+                f"Workflow/{workflow_id} must not directly publish an unbounded LLM node"
+            )
+        scripts = "\n".join(
+            str(node.get("config", {}).get("source", ""))
+            for node in nodes
+            if isinstance(node, Mapping)
+            and node.get("type") == "script"
+            and isinstance(node.get("config"), Mapping)
+        )
+        if "Array.from" not in scripts or ".slice(0," not in scripts:
+            errors.append(
+                f"Workflow/{workflow_id} must apply a Unicode-rune output bound before publication"
+            )
+        if 'host.emit("token"' not in scripts:
+            errors.append(
+                f"Workflow/{workflow_id} must emit only the bounded answer through the v0.2.5 script API"
+            )
+        observe_nodes = [
+            node
+            for node in nodes
+            if isinstance(node, Mapping) and node.get("type") == "memory_observe"
+        ]
+        if not observe_nodes:
+            errors.append(
+                f"Workflow/{workflow_id} must observe completed turns for durable recall"
+            )
+        wait_for_memory = workflow_id in {
+            "flowcraft-journey-guide",
+            "flowcraft-murder-mystery",
+        }
+        for node in observe_nodes:
+            config = node.get("config")
+            actual_wait = config.get("wait_for_completion") if isinstance(config, Mapping) else None
+            if actual_wait is not wait_for_memory:
+                requirement = (
+                    "complete before the turn ends"
+                    if wait_for_memory
+                    else "run asynchronously without blocking the turn"
+                )
+                errors.append(
+                    f"Workflow/{workflow_id} memory_observe must {requirement}"
+                )
+
+    spec = profile.get("spec")
+    resources = spec.get("resources") if isinstance(spec, Mapping) else None
+    voices = resources.get("voices") if isinstance(resources, Mapping) else None
+    expected_voices = {
+        "ast-translate-zh-es.translator": "minimax-tenant:minimax-cn:Spanish_SereneElder",
+        "ast-translate-zh-fr.translator": "minimax-tenant:minimax-cn:French_MovieLeadFemale",
+    }
+    for alias, expected in expected_voices.items():
+        workflow_id = alias.removesuffix(".translator")
+        if ("Workflow", workflow_id) not in documents:
+            continue
+        binding = voices.get(alias) if isinstance(voices, Mapping) else None
+        actual = binding.get("resource_id") if isinstance(binding, Mapping) else None
+        if actual != expected:
+            errors.append(
+                f"RuntimeProfile/default voice {alias} must bind {expected}"
+            )
+
+
 def _memory_layout_model_aliases(layout: Mapping[str, Any]) -> set[str]:
     spec = layout.get("spec")
     if not isinstance(spec, Mapping):
@@ -1236,6 +1330,7 @@ def validate_catalog(root: Path) -> None:
         _validate_memory_closure(selected, memory_bindings, documents, aliases, errors)
         _validate_public_alias_contract(selected, documents, aliases, example, errors)
         _validate_gameplay_aliases(profile, aliases, errors)
+        _validate_default_behavior_contracts(profile, documents, errors)
 
     for (kind, resource_id), document in documents.items():
         if kind == "Workflow":

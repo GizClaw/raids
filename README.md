@@ -107,8 +107,8 @@ Voice roles use the same Workflow namespace:
 | `doubao-realtime-conversation` | `assistant` |
 | `flowcraft-chat-assistant` | `assistant` |
 | each `ast-translate-*` Workflow | `translator` |
-| `flowcraft-murder-mystery` | `game-master`, `detective` |
-| `flowcraft-journey-guide` | `narrator`, `origin-narrator`, `heaven-narrator`, `pilgrimage-narrator`, `trials-narrator`, `kingdoms-narrator`, `arrival-narrator` |
+| `flowcraft-murder-mystery` | `game-master` |
+| `flowcraft-journey-guide` | `narrator` |
 | `pet-care` | `pet` |
 
 For example, Journey resolves `flowcraft-journey-guide.narrator` exactly, and
@@ -122,9 +122,10 @@ These dotted aliases require the RuntimeProfile grammar introduced by
 without that contract rejects this catalog rather than rewriting its aliases.
 
 Translation Voice roles follow the output language rather than the input
-language or provider used by the translation Model. The default
-Chinese-to-Japanese and Chinese-to-Korean Workflows select the public MiniMax
-system Voices `Japanese_CalmLady` and `Korean_CalmLady`, which the
+language or provider used by the translation Model. The default Chinese-to-
+Japanese, Chinese-to-Korean, Chinese-to-Spanish, and Chinese-to-French
+Workflows select the public MiniMax system Voices `Japanese_CalmLady`,
+`Korean_CalmLady`, `Spanish_SereneElder`, and `French_MovieLeadFemale`, which the
 [MiniMax system Voice catalog](https://platform.minimaxi.com/docs/faq/system-voice-id)
 classifies for those languages. These bindings add `MiniMaxTenant/minimax-cn`
 and its environment-owned Credential to the default dependency closure; Raids
@@ -134,8 +135,8 @@ The public MemoryLayout catalog is organized by reusable scenario:
 
 - `user-chat-with-assistant` stores durable user conversation context.
 - `story-teller` separates Graph-written progress from narrated continuity.
-- `adventure` stores Graph-authoritative state, discoveries, choices, and
-  progress audit facts.
+- `adventure` stores player-visible investigation state, discoveries,
+  interviews, and explicit corrections.
 - `pet-care` stores qualitative relationship, owner, knowledge, and shared
   event memory without treating Gameplay numbers as long-term memory.
 
@@ -174,6 +175,40 @@ The `friend_chatroom` and `group_chatroom` system roles share the same
 `chatroom` Workflow; direct and group mode remains Workspace state.
 These definitions require a GizClaw build containing the MemoryLayout contract
 merged by [GizClaw #590](https://github.com/GizClaw/gizclaw/pull/590).
+
+## Live candidate validation
+
+[`tools/raidtest`](tools/raidtest/README.md) is the public Go runner for testing
+one locally edited Workflow before it is published. It creates a unique shadow
+Workflow, optional MemoryLayouts, a rewritten shadow RuntimeProfile, temporary
+RegistrationToken, peer, and Workspace on the selected Server. It then runs a
+declared multi-turn plan and deletes only the resources recorded by that run,
+in reverse dependency order.
+
+The runner never edits deployed source Resource IDs and never reads a
+Credential manifest. Admin and optional OpenAI-compatible secrets come from a
+caller-selected environment variable, file, or stdin source; argv and the JSON
+report contain only non-secret execution metadata. The committed plans under
+`tools/raidtest/plans/default` cover Pet Care, both assistants, Murder Mystery,
+Journey, and all Default translation directions.
+
+Static `make ci`, an isolated `raidtest` result, a released Raids archive, a
+deployed RuntimeProfile, and the complete Beijing Default E2E are separate
+evidence. Passing one does not imply the later stages occurred.
+
+Default Pet Care and General Assistant intentionally keep Memory extraction
+asynchronous. Same-Workspace turn continuity and reload recall come from the
+GizClaw Flowcraft History store; deployments must configure
+`services.agent_host.flowcraft.history_store`. Memory supplies longer-lived
+semantic recall and must not become a per-turn response barrier.
+
+Two Default gates require GizClaw runtime support beyond Raids configuration:
+Doubao realtime reload memory and deterministic text limits are tracked by
+[GizClaw #852](https://github.com/GizClaw/gizclaw/issues/852) and
+[GizClaw #853](https://github.com/GizClaw/gizclaw/issues/853); bidirectional
+AST target-language Voice selection is tracked by
+[GizClaw #854](https://github.com/GizClaw/gizclaw/issues/854). The committed
+plans keep those checks active instead of treating the dependencies as passes.
 
 ## Download
 

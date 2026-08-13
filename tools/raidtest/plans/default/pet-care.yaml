@@ -1,0 +1,46 @@
+version: v1
+name: default-pet-care
+driver: pet
+persona: 一个自然说话的宠物主人，不知道内部命令、memory 或 workflow。
+cases:
+  - id: established-facts-after-reload
+    workflow_id: pet-care
+    turns:
+      - id: establish
+        user: 我叫林然，我的小猫叫豆包，它对鱼过敏，最喜欢绿色毛线球。请记住。
+        first_response: 12s
+        total_response: 12s
+        judge: [naturalness, instruction-following]
+      - id: distract
+        user: 今天天气不错，我们聊点别的吧。
+        first_response: 12s
+        total_response: 12s
+        judge: [naturalness]
+      - id: recall
+        reload_before: true
+        user: 我叫什么，小猫叫什么，它不能吃什么，最喜欢什么？请全部回答。
+        required: [林然, 豆包, 鱼, 绿色毛线球]
+        forbidden: [可以吃鱼]
+        first_response: 12s
+        total_response: 12s
+        judge: [continuity, usefulness]
+  - id: corrected-fact-wins
+    workflow_id: pet-care
+    turns:
+      - id: establish
+        user: 豆包最喜欢红色铃铛。
+        first_response: 12s
+        total_response: 12s
+      - id: correct
+        user: 我说错了，不是红色铃铛，豆包最喜欢的是蓝色羽毛。
+        forbidden: [红色铃铛]
+        first_response: 12s
+        total_response: 12s
+      - id: recall
+        reload_before: true
+        user: 豆包最喜欢的玩具是什么？
+        required: [蓝色羽毛]
+        forbidden: [红色铃铛]
+        first_response: 12s
+        total_response: 12s
+        judge: [correction-handling]

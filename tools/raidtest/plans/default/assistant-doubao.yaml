@@ -1,0 +1,24 @@
+version: v1
+name: default-assistant-doubao
+driver: realtime
+persona: 使用实时语音助手的普通用户，要求自然纠错、简短回答和重载后事实保持。
+cases:
+  - id: correction-short-and-reload
+    workflow_id: doubao-realtime-conversation
+    turns:
+      - id: establish
+        user: 记住我周五下午三点去看牙医陈医生。
+      - id: correct
+        user: 更正，是下午四点，不是三点。
+        required: [四点]
+        forbidden: [三点]
+      - id: short
+        user: 10个字以内鼓励我。
+        max_runes: 10
+      - id: recall
+        reload_before: true
+        user: 20个字以内说出时间和医生。
+        required: [四点, 陈医生]
+        forbidden: [三点]
+        max_runes: 20
+        judge: [correction-handling, continuity]
