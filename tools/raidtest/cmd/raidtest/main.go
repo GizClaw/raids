@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -14,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/GizClaw/gizclaw-go/pkgs/audio/codec/ogg"
 	"github.com/GizClaw/gizclaw-go/pkgs/gizclaw/api/rpcapi"
 	"github.com/GizClaw/gizclaw-go/pkgs/giznet"
 	"github.com/GizClaw/raids/tools/raidtest/internal/agent"
@@ -64,7 +66,8 @@ func parseFlags(args []string, stderr io.Writer) (config.Config, error) {
 	var memories stringsFlag
 	fs := flag.NewFlagSet("raidtest run", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	fs.StringVar(&c.Server, "server", "", "GizClaw Server host:port")
+	fs.StringVar(&c.Server, "server", "", "GizClaw Admin Server host:port")
+	fs.StringVar(&c.PeerServer, "peer-server", "", "GizClaw Peer/Edge host:port (default: --server)")
 	fs.StringVar(&c.Workflow, "workflow", "", "local Workflow YAML")
 	fs.StringVar(&c.RuntimeProfile, "runtime-profile", "default", "deployed base RuntimeProfile ID")
 	fs.StringVar(&c.RuntimeProfileFile, "runtime-profile-file", "", "optional local RuntimeProfile YAML")
@@ -74,6 +77,8 @@ func parseFlags(args []string, stderr io.Writer) (config.Config, error) {
 	fs.StringVar(&c.OpenAIBaseURL, "openai-base-url", "", "GizClaw OpenAI-compatible base URL")
 	fs.StringVar(&c.AgentModel, "agent-model", "", "human-simulation model ID")
 	fs.StringVar(&c.JudgeModel, "judge-model", "", "semantic judge model ID")
+	fs.StringVar(&c.InputTTSModel, "input-tts-model", "", "OpenAI speech model for realtime/translation input")
+	fs.StringVar(&c.InputTTSVoice, "input-tts-voice", "alloy", "OpenAI speech voice")
 	fs.StringVar(&c.AdminKey.Env, "admin-private-key-env", "", "environment variable containing the Admin private key")
 	fs.StringVar(&c.AdminKey.File, "admin-private-key-file", "", "file containing the Admin private key")
 	fs.BoolVar(&c.AdminKey.Stdin, "admin-private-key-stdin", false, "read the Admin private key from stdin")
@@ -112,6 +117,9 @@ func run(ctx context.Context, c config.Config, stdin io.Reader) (result report.R
 	if !driverMatches(workflow.Driver, testPlan.Driver) {
 		return result, fmt.Errorf("Workflow driver %q does not match plan driver %q", workflow.Driver, testPlan.Driver)
 	}
+	if (workflow.Driver == "ast-translate" || workflow.Driver == "doubao-realtime") && c.InputTTSModel == "" {
+		return result, fmt.Errorf("Workflow driver %q requires --input-tts-model for audio input", workflow.Driver)
+	}
 	testPlan, err = testPlan.ForWorkflow(workflow.Source.Metadata.ID)
 	if err != nil {
 		return result, err
@@ -135,7 +143,7 @@ func run(ctx context.Context, c config.Config, stdin io.Reader) (result report.R
 		return result, reportError(err, adminSecret, nil)
 	}
 	defer adminConn.Close()
-	result.Server = report.Server{Endpoint: c.Server, PublicKey: info.AuthoritativePublicKey.String(), Version: info.Version}
+	result.Server = report.Server{Endpoint: c.Server, PeerEndpoint: c.PeerServer, PublicKey: info.AuthoritativePublicKey.String(), Version: info.Version}
 	api, err := adminConn.Client.ServerAdminClient()
 	if err != nil {
 		return result, err
@@ -201,7 +209,7 @@ func run(ctx context.Context, c config.Config, stdin io.Reader) (result report.R
 	if err != nil {
 		return result, err
 	}
-	peerConn, _, err := server.Dial(ctx, c.Server, peerKeys, "raidtest-peer-"+runID, nil)
+	peerConn, _, err := server.Dial(ctx, c.PeerServer, peerKeys, "raidtest-peer-"+runID, nil)
 	if err != nil {
 		return result, err
 	}
@@ -224,6 +232,8 @@ func run(ctx context.Context, c config.Config, stdin io.Reader) (result report.R
 		lifecycle.Record(report.Lifecycle{ResourceType: "Workspace", ID: setup.WorkspaceName, Action: "create", Status: "pass"})
 		defer func() {
 			if c.Keep {
+				lifecycle.Record(report.Lifecycle{ResourceType: "Workspace", ID: setup.WorkspaceName, Action: "retain", Status: "pass"})
+				lifecycle.Record(report.Lifecycle{ResourceType: "Pet", ID: petName, Action: "retain", Status: "pass"})
 				return
 			}
 			cleanupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -241,15 +251,44 @@ func run(ctx context.Context, c config.Config, stdin io.Reader) (result report.R
 			lifecycle.Record(report.Lifecycle{ResourceType: "Workspace", ID: setup.WorkspaceName, Action: "delete", Status: status, Error: detail})
 			lifecycle.Record(report.Lifecycle{ResourceType: "Pet", ID: petName, Action: "delete", Status: status, Error: detail})
 		}()
-	} else if err := lifecycle.CreateWorkspace(ctx, setup.WorkspaceID, setup.WorkspaceName, closure.WorkflowID); err != nil {
-		return result, err
+	} else {
+		if closure.Collection == "" || closure.WorkflowAlias == "" {
+			return result, fmt.Errorf("Workflow %q is not bound to a RuntimeProfile collection", workflow.Source.Metadata.ID)
+		}
+		created, createErr := peerConn.Client.CreateWorkspace(ctx, "raidtest-create-workspace-"+runID, rpcapi.WorkspaceCreateRequest{
+			Name: setup.WorkspaceName, Collection: closure.Collection, WorkflowName: closure.WorkflowAlias,
+		})
+		if createErr != nil {
+			return result, fmt.Errorf("create temporary Workspace: %w", createErr)
+		}
+		setup.WorkspaceName = created.Name
+		lifecycle.Record(report.Lifecycle{ResourceType: "Workspace", ID: setup.WorkspaceName, Action: "create", Status: "pass"})
+		defer func() {
+			if c.Keep {
+				lifecycle.Record(report.Lifecycle{ResourceType: "Workspace", ID: setup.WorkspaceName, Action: "retain", Status: "pass"})
+				return
+			}
+			cleanupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+			_, deleteErr := peerConn.Client.DeleteWorkspace(cleanupCtx, "raidtest-delete-workspace-"+runID, rpcapi.WorkspaceDeleteRequest{Name: setup.WorkspaceName})
+			status, detail := "pass", ""
+			if deleteErr != nil {
+				status, detail = "fail", deleteErr.Error()
+				if runErr == nil {
+					runErr = deleteErr
+				} else {
+					runErr = errors.Join(runErr, deleteErr)
+				}
+			}
+			lifecycle.Record(report.Lifecycle{ResourceType: "Workspace", ID: setup.WorkspaceName, Action: "delete", Status: status, Error: detail})
+		}()
 	}
 	target := &conversation.PeerTarget{Client: peerConn.Client, Timeout: c.Timeout, RequireAudio: workflow.Driver == "ast-translate"}
 	if err := target.Select(ctx, setup.WorkspaceName, closure.WorkflowID); err != nil {
 		return result, fmt.Errorf("select candidate Workspace: %w", err)
 	}
 	var simulation *agent.Agent
-	if c.AgentModel != "" || c.JudgeModel != "" {
+	if c.AgentModel != "" || c.JudgeModel != "" || c.InputTTSModel != "" {
 		key, keyErr := c.OpenAIKey.Read(stdin)
 		if keyErr != nil {
 			return result, keyErr
@@ -264,6 +303,17 @@ func run(ctx context.Context, c config.Config, stdin io.Reader) (result report.R
 		}
 		if c.JudgeModel != "" {
 			result.Models["judge"] = chooseModel(c.JudgeModel, models)
+		}
+		if c.InputTTSModel != "" {
+			result.Models["input_tts"] = chooseModel(c.InputTTSModel, models)
+			target.InputAudio = func(ctx context.Context, text string) (conversation.AudioInput, error) {
+				encoded, speechErr := client.Speech(ctx, result.Models["input_tts"], c.InputTTSVoice, text)
+				if speechErr != nil {
+					return conversation.AudioInput{}, speechErr
+				}
+				frames, decodeErr := opusFrames(encoded)
+				return conversation.AudioInput{MIMEType: "audio/opus", Frames: frames}, decodeErr
+			}
 		}
 		simulation = &agent.Agent{Client: client, Model: result.Models["agent"]}
 		defer func() { runErr = reportError(runErr, key) }()
@@ -287,6 +337,24 @@ func run(ctx context.Context, c config.Config, stdin io.Reader) (result report.R
 		}
 	}
 	return result, runErr
+}
+
+func opusFrames(encoded []byte) ([][]byte, error) {
+	packets, err := ogg.ReadAllPackets(bytes.NewReader(encoded))
+	if err != nil {
+		return nil, fmt.Errorf("decode OpenAI speech Ogg Opus: %w", err)
+	}
+	frames := make([][]byte, 0, len(packets))
+	for _, packet := range packets {
+		if bytes.HasPrefix(packet.Data, []byte("OpusHead")) || bytes.HasPrefix(packet.Data, []byte("OpusTags")) || len(packet.Data) == 0 {
+			continue
+		}
+		frames = append(frames, append([]byte(nil), packet.Data...))
+	}
+	if len(frames) == 0 {
+		return nil, errors.New("OpenAI speech Ogg contained no Opus audio packets")
+	}
+	return frames, nil
 }
 
 func recordPeerAndValidateProfile(lifecycle *provision.Lifecycle, publicKey, actualProfile, expectedProfile string) error {

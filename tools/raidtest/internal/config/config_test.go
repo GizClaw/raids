@@ -34,13 +34,38 @@ func TestConfigValidation(t *testing.T) {
 	if err := c.Validate(); err != nil {
 		t.Fatal(err)
 	}
-	if c.RuntimeProfile != "default" || c.OpenAIBaseURL != "http://edge.example:9821/openai/v1" {
+	if c.RuntimeProfile != "default" || c.PeerServer != c.Server || c.OpenAIBaseURL != "http://edge.example:9821/openai/v1" {
 		t.Fatalf("unexpected defaults: %#v", c)
 	}
 	if _, ok := c.Redacted()["admin_key"]; ok {
 		t.Fatal("redacted config contains secret field")
 	}
 	_ = os.Unsetenv("RAIDTEST_TEST_ADMIN")
+}
+
+func TestConfigAcceptsSeparatePeerServer(t *testing.T) {
+	c := Config{
+		Server: "admin.example:9820", PeerServer: "edge.example:9821",
+		Workflow: "workflow.yaml", Plan: "plan.yaml",
+		AdminKey: SecretSource{Env: "RAIDTEST_TEST_ADMIN"},
+	}
+	if err := c.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	if c.PeerServer != "edge.example:9821" {
+		t.Fatalf("PeerServer = %q", c.PeerServer)
+	}
+}
+
+func TestConfigRejectsInvalidPeerServer(t *testing.T) {
+	c := Config{
+		Server: "admin.example:9820", PeerServer: "https://edge.example:9821",
+		Workflow: "workflow.yaml", Plan: "plan.yaml",
+		AdminKey: SecretSource{Env: "RAIDTEST_TEST_ADMIN"},
+	}
+	if err := c.Validate(); err == nil {
+		t.Fatal("peer server with URL scheme was accepted")
+	}
 }
 
 func TestConfigRejectsServerWithoutExplicitPort(t *testing.T) {

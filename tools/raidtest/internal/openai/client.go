@@ -17,7 +17,12 @@ type Client struct {
 	HTTPClient      *http.Client
 }
 
-type Message struct{ Role, Content string }
+const maxResponseBytes = 4 << 20
+
+type Message struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
 
 func (c Client) Models(ctx context.Context) ([]string, error) {
 	var response struct {
@@ -44,7 +49,7 @@ func (c Client) Chat(ctx context.Context, model string, messages []Message) (str
 	if strings.TrimSpace(model) == "" {
 		return "", errors.New("model is required")
 	}
-	body := map[string]any{"model": model, "messages": messages, "temperature": 0.2}
+	body := map[string]any{"model": model, "messages": messages}
 	var response struct {
 		Choices []struct {
 			Message struct {
@@ -61,18 +66,44 @@ func (c Client) Chat(ctx context.Context, model string, messages []Message) (str
 	return strings.TrimSpace(response.Choices[0].Message.Content), nil
 }
 
+func (c Client) Speech(ctx context.Context, model, voice, input string) ([]byte, error) {
+	if strings.TrimSpace(model) == "" || strings.TrimSpace(voice) == "" || strings.TrimSpace(input) == "" {
+		return nil, errors.New("speech model, voice, and input are required")
+	}
+	body := map[string]any{"model": model, "voice": voice, "input": input, "response_format": "opus"}
+	data, err := c.doBytes(ctx, http.MethodPost, "/audio/speech", body)
+	if err != nil {
+		return nil, err
+	}
+	if len(data) == 0 {
+		return nil, errors.New("OpenAI-compatible speech returned empty Opus audio")
+	}
+	return data, nil
+}
+
 func (c Client) do(ctx context.Context, method, path string, body, output any) error {
+	data, err := c.doBytes(ctx, method, path, body)
+	if err != nil {
+		return err
+	}
+	if err := json.Unmarshal(data, output); err != nil {
+		return fmt.Errorf("decode OpenAI-compatible response: %w", err)
+	}
+	return nil
+}
+
+func (c Client) doBytes(ctx context.Context, method, path string, body any) ([]byte, error) {
 	var reader io.Reader
 	if body != nil {
 		encoded, err := json.Marshal(body)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		reader = bytes.NewReader(encoded)
 	}
 	req, err := http.NewRequestWithContext(ctx, method, strings.TrimRight(c.BaseURL, "/")+path, reader)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
@@ -86,23 +117,23 @@ func (c Client) do(ctx context.Context, method, path string, body, output any) e
 	safeClient.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 	resp, err := safeClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("OpenAI-compatible request: %w", err)
+		return nil, fmt.Errorf("OpenAI-compatible request: %w", err)
 	}
 	defer resp.Body.Close()
-	limited := io.LimitReader(resp.Body, 4<<20)
+	limited := io.LimitReader(resp.Body, maxResponseBytes+1)
 	data, err := io.ReadAll(limited)
 	if err != nil {
-		return err
+		return nil, err
+	}
+	if len(data) > maxResponseBytes {
+		return nil, fmt.Errorf("OpenAI-compatible response exceeds %d bytes", maxResponseBytes)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		detail := strings.ReplaceAll(strings.TrimSpace(string(data)), c.APIKey, "[REDACTED]")
 		if len(detail) > 500 {
 			detail = detail[:500]
 		}
-		return fmt.Errorf("OpenAI-compatible HTTP %d: %s", resp.StatusCode, detail)
+		return nil, fmt.Errorf("OpenAI-compatible HTTP %d: %s", resp.StatusCode, detail)
 	}
-	if err := json.Unmarshal(data, output); err != nil {
-		return fmt.Errorf("decode OpenAI-compatible response: %w", err)
-	}
-	return nil
+	return data, nil
 }

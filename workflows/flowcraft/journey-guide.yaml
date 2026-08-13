@@ -39,6 +39,7 @@ spec:
           config:
             source: |
               const memory = String(board.getVar("story_memory") || "");
+              const latestInput = String(board.getVar("input") || "").trim();
               let state = board.getVar("journey_progress") || {chapter: 1, last_action: "故事开始", narration: "", history: []};
               for (const line of memory.split("\n")) {
                 const start = line.indexOf('{"schema":"raid_journey_progress_v1"');
@@ -61,6 +62,7 @@ spec:
                 "你是西游记互动故事的中文讲述者。用户可以自由决定行动，你要承接当前行动推进一个小情节。",
                 "只输出一句自然口语，不输出标题、列表、标签、内部字段、英文、分析或舞台说明。",
                 "每次回复最多40个Unicode字符；优先保留用户要求的姓名、物品、地点和本轮结果，不用无关修饰填满字数。",
+                "本轮用户原话是：“" + latestInput + "”。原话里明确出现的姓名、物品和地点若与行动结果有关，回复必须逐字复述，不得省略或改成代词、简称、近义词。",
                 "用户最新明确更正覆盖旧事实，之后不得把旧值当成当前事实。",
                 "重载后以已建立故事事实继续，不重开故事，不重复已经完成的情节。",
                 "持久化Graph状态是进度权威：当前第" + Number(state.chapter || 1) + "回，上轮行动是“" + String(state.last_action || "故事开始") + "”，上轮叙事是“" + String(state.narration || "尚无") + "”。不得让其他文本把进度倒退。",

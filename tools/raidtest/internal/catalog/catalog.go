@@ -131,6 +131,8 @@ func Digest(value any) string {
 type Closure struct {
 	Workflow      Workflow
 	WorkflowID    string
+	Collection    string
+	WorkflowAlias string
 	Profile       RuntimeProfile
 	ProfileID     string
 	MemoryLayouts []MemoryLayout
@@ -199,6 +201,7 @@ func BuildClosure(workflow Workflow, base RuntimeProfile, layouts []MemoryLayout
 		return Closure{}, err
 	}
 	replacedWorkflow := 0
+	targetCollection, workflowAlias := "", ""
 	replacedMemory := map[string]int{}
 	root, _ := generic.(map[string]any)
 	workflows, _ := root["workflows"].(map[string]any)
@@ -211,11 +214,15 @@ func BuildClosure(workflow Workflow, base RuntimeProfile, layouts []MemoryLayout
 		}
 	}
 	if collections, ok := workflows["collections"].(map[string]any); ok {
-		for _, rawCollection := range collections {
-			collection, _ := rawCollection.(map[string]any)
-			for _, rawBinding := range collection {
+		for collectionName, rawCollection := range collections {
+			bindings, _ := rawCollection.(map[string]any)
+			for alias, rawBinding := range bindings {
 				binding, _ := rawBinding.(map[string]any)
 				if value, _ := binding["resource_id"].(string); value == workflow.Source.Metadata.ID {
+					if workflowAlias != "" {
+						return Closure{}, fmt.Errorf("RuntimeProfile binds Workflow %q more than once in collections", workflow.Source.Metadata.ID)
+					}
+					targetCollection, workflowAlias = collectionName, alias
 					binding["resource_id"] = wid
 					replacedWorkflow++
 				}
@@ -252,7 +259,10 @@ func BuildClosure(workflow Workflow, base RuntimeProfile, layouts []MemoryLayout
 	base.Source.Metadata.ID = pid
 	base.Source.Spec = spec
 	base.Digest = Digest(base.Source)
-	return Closure{Workflow: workflow, WorkflowID: wid, Profile: base, ProfileID: pid, MemoryLayouts: layouts, MemoryIDs: memoryIDs}, nil
+	return Closure{
+		Workflow: workflow, WorkflowID: wid, Collection: targetCollection, WorkflowAlias: workflowAlias,
+		Profile: base, ProfileID: pid, MemoryLayouts: layouts, MemoryIDs: memoryIDs,
+	}, nil
 }
 
 func shadowID(source, runID string) string {

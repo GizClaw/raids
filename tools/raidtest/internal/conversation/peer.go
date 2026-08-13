@@ -19,6 +19,12 @@ type PeerTarget struct {
 	Client       *gizcli.Client
 	Timeout      time.Duration
 	RequireAudio bool
+	InputAudio   func(context.Context, string) (AudioInput, error)
+}
+
+type AudioInput struct {
+	MIMEType string
+	Frames   [][]byte
 }
 
 func (p *PeerTarget) Select(ctx context.Context, workspaceName, workflowID string) error {
@@ -51,16 +57,10 @@ func (p *PeerTarget) waitRunning(ctx context.Context, workspaceName, workflowID 
 			return err
 		}
 		if state.RuntimeState == rpcapi.PeerRunStatusStateRunning {
-			if workspaceName != "" && state.WorkspaceName != workspaceName {
-				lastMismatch = fmt.Sprintf("running Workspace %q, want %q", state.WorkspaceName, workspaceName)
-			} else if workflowID != "" && (state.WorkflowName == nil || *state.WorkflowName != workflowID) {
-				actual := ""
-				if state.WorkflowName != nil {
-					actual = *state.WorkflowName
-				}
-				lastMismatch = fmt.Sprintf("running Workflow %q, want shadow Workflow %q", actual, workflowID)
-			} else {
+			if matches, mismatch := runningMatchesCandidate(*state, workspaceName, workflowID); matches {
 				return nil
+			} else {
+				lastMismatch = mismatch
 			}
 		}
 		if state.RuntimeState == rpcapi.PeerRunStatusStateError {
@@ -83,6 +83,19 @@ func (p *PeerTarget) waitRunning(ctx context.Context, workspaceName, workflowID 
 	}
 }
 
+func runningMatchesCandidate(state rpcapi.PeerRunWorkspaceState, workspaceName, workflowID string) (bool, string) {
+	if workspaceName != "" && state.WorkspaceName != workspaceName {
+		return false, fmt.Sprintf("running Workspace %q, want %q", state.WorkspaceName, workspaceName)
+	}
+	// v0.2.5 does not populate workflow_name in the run-state response. The
+	// owner-scoped Workspace creation already resolved the supplied alias through
+	// the shadow RuntimeProfile, so only enforce this field when the Server emits it.
+	if workflowID != "" && state.WorkflowName != nil && strings.TrimSpace(*state.WorkflowName) != "" && *state.WorkflowName != workflowID {
+		return false, fmt.Sprintf("running Workflow %q, want shadow Workflow %q", *state.WorkflowName, workflowID)
+	}
+	return true, ""
+}
+
 func (p *PeerTarget) Send(ctx context.Context, streamID, text string) (Response, error) {
 	if p.Client == nil {
 		return Response{}, fmt.Errorf("peer client is required")
@@ -98,32 +111,41 @@ func (p *PeerTarget) Send(ctx context.Context, streamID, text string) (Response,
 	turnCtx, cancel := context.WithTimeout(ctx, p.Timeout)
 	defer cancel()
 	label := "raidtest"
-	for _, chunk := range []*genx.MessageChunk{
-		{Role: genx.RoleUser, Ctrl: &genx.StreamCtrl{StreamID: streamID, Label: label, BeginOfStream: true}},
-		{Role: genx.RoleUser, Part: genx.Text(text), Ctrl: &genx.StreamCtrl{StreamID: streamID, Label: label}},
-		{Role: genx.RoleUser, Part: genx.Text(""), Ctrl: &genx.StreamCtrl{StreamID: streamID, Label: label, EndOfStream: true}},
-	} {
-		if err := stream.Push(turnCtx, chunk); err != nil {
+	inputEvidence := map[string]string{}
+	if p.InputAudio == nil {
+		for _, chunk := range textInputChunks(streamID, label, text) {
+			if err := stream.Push(turnCtx, chunk); err != nil {
+				return Response{}, err
+			}
+		}
+	} else {
+		audio, err := p.InputAudio(turnCtx, text)
+		if err != nil {
+			return Response{}, fmt.Errorf("synthesize input audio: %w", err)
+		}
+		if err := pushAudioInput(turnCtx, stream, streamID, label, audio); err != nil {
 			return Response{}, err
 		}
+		inputEvidence["input_audio_mime"] = audio.MIMEType
+		inputEvidence["input_audio_bytes"] = strconv.Itoa(audioBytes(audio.Frames))
 	}
 	started := time.Now()
 	capture := responseCapture{audioMIMEs: map[string]bool{}, expectAudio: p.RequireAudio}
 	for {
 		chunk, err := nextWithContext(turnCtx, stream)
 		if err != nil {
-			return capture.response(started), err
+			return responseWithStreamError(capture.response(started), inputEvidence), err
 		}
 		if chunk != nil && chunk.Ctrl != nil && chunk.Ctrl.Error != "" {
 			code := strings.TrimSpace(chunk.Ctrl.ErrorCode)
 			if code != "" {
-				return capture.response(started), fmt.Errorf("target stream error %s: %s", code, chunk.Ctrl.Error)
+				return responseWithStreamError(capture.response(started), inputEvidence), fmt.Errorf("target stream error %s: %s", code, chunk.Ctrl.Error)
 			}
-			return capture.response(started), fmt.Errorf("target stream error: %s", chunk.Ctrl.Error)
+			return responseWithStreamError(capture.response(started), inputEvidence), fmt.Errorf("target stream error: %s", chunk.Ctrl.Error)
 		}
 		capture.observe(chunk, time.Since(started))
 		if capture.textDone && (!p.RequireAudio || capture.audioDone) {
-			result := capture.response(started)
+			result := responseWithEvidence(capture.response(started), inputEvidence)
 			if result.Text == "" {
 				return result, ErrEmptyResponse
 			}
@@ -135,8 +157,74 @@ func (p *PeerTarget) Send(ctx context.Context, streamID, text string) (Response,
 	}
 }
 
+func responseWithStreamError(response Response, extra map[string]string) Response {
+	response = responseWithEvidence(response, extra)
+	if response.Text == "" {
+		response.Evidence["stream_status"] = "incomplete_before_text"
+	} else {
+		response.Evidence["stream_status"] = "incomplete_after_text"
+	}
+	return response
+}
+
+func responseWithEvidence(response Response, extra map[string]string) Response {
+	if response.Evidence == nil {
+		response.Evidence = map[string]string{}
+	}
+	for key, value := range extra {
+		response.Evidence[key] = value
+	}
+	return response
+}
+
+func textInputChunks(streamID, label, value string) []*genx.MessageChunk {
+	return []*genx.MessageChunk{
+		{Role: genx.RoleUser, Ctrl: &genx.StreamCtrl{StreamID: streamID, Label: label, BeginOfStream: true}},
+		{Role: genx.RoleUser, Part: genx.Text(value), Ctrl: &genx.StreamCtrl{StreamID: streamID, Label: label}},
+		{Role: genx.RoleUser, Part: genx.Text(""), Ctrl: &genx.StreamCtrl{StreamID: streamID, Label: label, EndOfStream: true}},
+	}
+}
+
+func pushAudioInput(ctx context.Context, stream *gizcli.PeerStream, streamID, label string, input AudioInput) error {
+	if strings.TrimSpace(input.MIMEType) == "" || len(input.Frames) == 0 || audioBytes(input.Frames) == 0 {
+		return errors.New("input audio must contain frames")
+	}
+	if err := stream.Push(ctx, &genx.MessageChunk{Role: genx.RoleUser, Part: &genx.Blob{MIMEType: input.MIMEType}, Ctrl: &genx.StreamCtrl{StreamID: streamID, Label: label, BeginOfStream: true}}); err != nil {
+		return err
+	}
+	timestamp := time.Now().UnixMilli()
+	for index, frame := range input.Frames {
+		if len(frame) == 0 {
+			continue
+		}
+		if err := stream.Push(ctx, &genx.MessageChunk{Role: genx.RoleUser, Part: &genx.Blob{MIMEType: input.MIMEType, Data: frame}, Ctrl: &genx.StreamCtrl{StreamID: streamID, Label: label, Timestamp: timestamp}}); err != nil {
+			return err
+		}
+		timestamp += 20
+		if index+1 < len(input.Frames) {
+			timer := time.NewTimer(20 * time.Millisecond)
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				return ctx.Err()
+			case <-timer.C:
+			}
+		}
+	}
+	return stream.Push(ctx, &genx.MessageChunk{Role: genx.RoleUser, Part: &genx.Blob{MIMEType: input.MIMEType}, Ctrl: &genx.StreamCtrl{StreamID: streamID, Label: label, EndOfStream: true}})
+}
+
+func audioBytes(frames [][]byte) int {
+	total := 0
+	for _, frame := range frames {
+		total += len(frame)
+	}
+	return total
+}
+
 type responseCapture struct {
 	answer      strings.Builder
+	transcript  strings.Builder
 	first       time.Duration
 	textDone    bool
 	audioDone   bool
@@ -149,7 +237,17 @@ func (c *responseCapture) observe(chunk *genx.MessageChunk, elapsed time.Duratio
 	if chunk == nil {
 		return
 	}
-	assistant := chunk.Role == genx.RoleModel || strings.EqualFold(chunk.Name, "assistant") || (chunk.Ctrl != nil && strings.EqualFold(chunk.Ctrl.Label, "assistant"))
+	label := ""
+	if chunk.Ctrl != nil {
+		label = strings.TrimSpace(chunk.Ctrl.Label)
+	}
+	if strings.EqualFold(label, "transcript") {
+		if value, ok := chunk.Part.(genx.Text); ok && value != "" {
+			c.transcript.WriteString(string(value))
+		}
+		return
+	}
+	assistant := strings.EqualFold(chunk.Name, "assistant") || strings.EqualFold(label, "assistant") || (label == "" && chunk.Name == "" && chunk.Role == genx.RoleModel)
 	if !assistant {
 		return
 	}
@@ -184,6 +282,9 @@ func (c *responseCapture) observe(chunk *genx.MessageChunk, elapsed time.Duratio
 
 func (c *responseCapture) response(started time.Time) Response {
 	evidence := map[string]string{}
+	if transcript := strings.TrimSpace(c.transcript.String()); transcript != "" {
+		evidence["input_transcript"] = transcript
+	}
 	if c.audioDone && c.audioBytes > 0 {
 		evidence["tts_status"] = "received"
 	} else if c.audioDone {

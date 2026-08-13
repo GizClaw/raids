@@ -26,9 +26,10 @@ type Report struct {
 }
 
 type Server struct {
-	Endpoint  string `json:"endpoint"`
-	PublicKey string `json:"public_key"`
-	Version   string `json:"version,omitempty"`
+	Endpoint     string `json:"endpoint"`
+	PeerEndpoint string `json:"peer_endpoint,omitempty"`
+	PublicKey    string `json:"public_key"`
+	Version      string `json:"version,omitempty"`
 }
 type ResourceRef struct {
 	SourceID     string `json:"source_id"`

@@ -26,7 +26,8 @@ The repository shortcuts are `make build-raidtest` and `make test-raidtest`.
 export RAIDTEST_ADMIN_PRIVATE_KEY='private key text supplied by the operator'
 
 ./raidtest run \
-  --server edge-bj-01.dev.gizclaw.com:9821 \
+  --server server-bj-01.dev.gizclaw.com:9820 \
+  --peer-server edge-bj-01.dev.gizclaw.com:9821 \
   --admin-private-key-env RAIDTEST_ADMIN_PRIVATE_KEY \
   --workflow ../../workflows/flowcraft/murder-mystery.yaml \
   --runtime-profile default \
@@ -42,6 +43,10 @@ raw private keys are intentionally not accepted as flag values. The deployed
 base profile defaults to `default`. A local profile file and repeatable local
 MemoryLayout files extend the candidate closure.
 
+`--server` is the authoritative Admin control-plane endpoint. When peers reach
+the Server through a separate Edge ingress, pass that address with
+`--peer-server`; it defaults to `--server` for single-endpoint deployments.
+
 The plan's `workflow_id` selects only cases owned by the supplied Workflow.
 For `plans/default/translations.yaml`, run the command once for each of the
 seven AST Workflow files; the bidirectional auto Workflow executes both of its
@@ -52,6 +57,12 @@ Add `--agent-model` to generate turns that provide only an `intent`, or
 source. The base URL defaults to `http://<server>/openai/v1`; model discovery
 uses `/models`, while an explicit model ID makes reports reproducible.
 
+Realtime and AST translation Workflows require spoken input. Pass an OpenAI
+speech model such as `--input-tts-model gpt-4o-mini-tts` (and optionally
+`--input-tts-voice`) plus the same OpenAI key source. `raidtest` requests Ogg
+Opus, extracts the raw Opus packets, and sends them to the Peer in paced 20 ms
+frames; it never treats a text-only echo as translation evidence.
+
 ## Lifecycle and reports
 
 The normal lifecycle is:
@@ -60,7 +71,8 @@ The normal lifecycle is:
 2. rewrite the source Workflow and supplied memory aliases in a shadow
    RuntimeProfile, then upload and read it back;
 3. create a random RegistrationToken bound to that shadow profile;
-4. register a random peer, create its candidate Workspace, and select it;
+4. register a random peer through `--peer-server`, create its owner-scoped
+   candidate Workspace through Peer RPC, and select it;
 5. run every independent case to a terminal status;
 6. delete Workspace, peer, token, profile, Workflow, and MemoryLayouts in
    reverse order, continuing after cleanup failures.

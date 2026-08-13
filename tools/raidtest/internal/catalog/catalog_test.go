@@ -75,6 +75,21 @@ func TestBuildClosureRewritesWorkflowAndMemory(t *testing.T) {
 			t.Fatalf("profile %s does not contain %s", encoded, want)
 		}
 	}
+	if closure.Collection != "assistants" || closure.WorkflowAlias != "general" {
+		t.Fatalf("workspace selection = %q/%q", closure.Collection, closure.WorkflowAlias)
+	}
+}
+
+func TestBuildClosureRejectsAmbiguousCollectionBinding(t *testing.T) {
+	var spec apitypes.RuntimeProfileSpec
+	if err := json.Unmarshal([]byte(`{"workflows":{"system":{"pet":"pet","friend_chatroom":"chat","group_chatroom":"chat"},"collections":{"assistants":{"first":{"resource_id":"workflow"},"second":{"resource_id":"workflow"}}}},"resources":{}}`), &spec); err != nil {
+		t.Fatal(err)
+	}
+	w := Workflow{Source: Resource[apitypes.WorkflowSpec]{Metadata: Metadata{ID: "workflow"}}}
+	p := RuntimeProfile{Source: Resource[apitypes.RuntimeProfileSpec]{Metadata: Metadata{ID: "default"}, Spec: spec}}
+	if _, err := BuildClosure(w, p, nil, "run"); err == nil {
+		t.Fatal("expected ambiguous collection binding error")
+	}
 }
 
 func TestBuildClosureRejectsUnboundWorkflow(t *testing.T) {

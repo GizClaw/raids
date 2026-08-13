@@ -67,6 +67,7 @@ func (s SecretSource) Read(stdin io.Reader) ([]byte, error) {
 
 type Config struct {
 	Server             string
+	PeerServer         string
 	Workflow           string
 	RuntimeProfile     string
 	RuntimeProfileFile string
@@ -76,6 +77,8 @@ type Config struct {
 	OpenAIBaseURL      string
 	AgentModel         string
 	JudgeModel         string
+	InputTTSModel      string
+	InputTTSVoice      string
 	AdminKey           SecretSource
 	OpenAIKey          SecretSource
 	Keep               bool
@@ -84,16 +87,15 @@ type Config struct {
 
 func (c *Config) Validate() error {
 	c.Server = strings.TrimSpace(c.Server)
-	if c.Server == "" || strings.Contains(c.Server, "://") {
-		return errors.New("server must be host:port without a URL scheme")
+	if err := validateServer("server", c.Server); err != nil {
+		return err
 	}
-	host, port, err := net.SplitHostPort(c.Server)
-	if err != nil || strings.TrimSpace(host) == "" {
-		return errors.New("server must be host:port without a URL scheme")
+	c.PeerServer = strings.TrimSpace(c.PeerServer)
+	if c.PeerServer == "" {
+		c.PeerServer = c.Server
 	}
-	portNumber, err := strconv.Atoi(port)
-	if err != nil || portNumber < 1 || portNumber > 65535 {
-		return errors.New("server port must be between 1 and 65535")
+	if err := validateServer("peer server", c.PeerServer); err != nil {
+		return err
 	}
 	if strings.TrimSpace(c.Workflow) == "" {
 		return errors.New("workflow is required")
@@ -113,6 +115,9 @@ func (c *Config) Validate() error {
 	if c.OpenAIBaseURL == "" {
 		c.OpenAIBaseURL = "http://" + c.Server + "/openai/v1"
 	}
+	if c.InputTTSModel != "" && strings.TrimSpace(c.InputTTSVoice) == "" {
+		c.InputTTSVoice = "alloy"
+	}
 	parsed, err := url.Parse(c.OpenAIBaseURL)
 	if err != nil || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
 		return errors.New("openai base URL must be an absolute http(s) URL")
@@ -120,17 +125,33 @@ func (c *Config) Validate() error {
 	if err := c.AdminKey.Validate(true); err != nil {
 		return fmt.Errorf("admin private key: %w", err)
 	}
-	if err := c.OpenAIKey.Validate(c.AgentModel != "" || c.JudgeModel != ""); err != nil {
+	if err := c.OpenAIKey.Validate(c.AgentModel != "" || c.JudgeModel != "" || c.InputTTSModel != ""); err != nil {
 		return fmt.Errorf("OpenAI API key: %w", err)
+	}
+	return nil
+}
+
+func validateServer(name, endpoint string) error {
+	if endpoint == "" || strings.Contains(endpoint, "://") {
+		return fmt.Errorf("%s must be host:port without a URL scheme", name)
+	}
+	host, port, err := net.SplitHostPort(endpoint)
+	if err != nil || strings.TrimSpace(host) == "" {
+		return fmt.Errorf("%s must be host:port without a URL scheme", name)
+	}
+	portNumber, err := strconv.Atoi(port)
+	if err != nil || portNumber < 1 || portNumber > 65535 {
+		return fmt.Errorf("%s port must be between 1 and 65535", name)
 	}
 	return nil
 }
 
 func (c Config) Redacted() map[string]any {
 	return map[string]any{
-		"server": c.Server, "workflow": c.Workflow, "runtime_profile": c.RuntimeProfile,
+		"server": c.Server, "peer_server": c.PeerServer, "workflow": c.Workflow, "runtime_profile": c.RuntimeProfile,
 		"runtime_profile_file": c.RuntimeProfileFile, "memory_layouts": c.MemoryLayouts,
 		"plan": c.Plan, "report": c.Report, "openai_base_url": c.OpenAIBaseURL,
-		"agent_model": c.AgentModel, "judge_model": c.JudgeModel, "keep": c.Keep,
+		"agent_model": c.AgentModel, "judge_model": c.JudgeModel,
+		"input_tts_model": c.InputTTSModel, "input_tts_voice": c.InputTTSVoice, "keep": c.Keep,
 	}
 }

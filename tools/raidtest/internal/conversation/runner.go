@@ -39,9 +39,9 @@ type Runner struct {
 
 func (r Runner) Run(ctx context.Context, p plan.Plan) []report.Case {
 	results := make([]report.Case, 0, len(p.Cases))
-	for _, plannedCase := range p.Cases {
+	for caseIndex, plannedCase := range p.Cases {
 		result := report.Case{ID: plannedCase.ID, Status: "pass"}
-		for _, turn := range plannedCase.Turns {
+		for turnIndex, turn := range plannedCase.Turns {
 			turnResult := report.Turn{ID: turn.ID, User: turn.User, Status: "pass"}
 			if turnResult.User == "" && r.Agent != nil {
 				generated, err := r.Agent.Generate(ctx, p.Persona, turn)
@@ -54,7 +54,10 @@ func (r Runner) Run(ctx context.Context, p plan.Plan) []report.Case {
 				turnResult.User = generated
 			}
 			turn.User = turnResult.User
-			if turn.ReloadBefore {
+			// Cases are independent acceptance scenarios. Restart the runtime before
+			// each subsequent case so realtime/translation driver state and pending
+			// audio cannot leak across case boundaries.
+			if turn.ReloadBefore || (caseIndex > 0 && turnIndex == 0) {
 				if err := r.Target.Reload(ctx); err != nil {
 					turnResult.Status, turnResult.Error = "fail", fmt.Sprintf("reload: %v", err)
 					result.Turns = append(result.Turns, turnResult)
@@ -76,10 +79,12 @@ func (r Runner) Run(ctx context.Context, p plan.Plan) []report.Case {
 				turnResult.Evidence["transcription_status"] = "not_requested"
 			}
 			turnResult.RuneCount = len([]rune(response.Text))
+			if response.Text != "" {
+				turnResult.Checks = DeterministicChecks(turn, response)
+			}
 			if err != nil {
 				turnResult.Status, turnResult.Error = "fail", err.Error()
 			} else {
-				turnResult.Checks = DeterministicChecks(turn, response)
 				if hasFailure(turnResult.Checks) {
 					turnResult.Status = "fail"
 				}
@@ -111,7 +116,7 @@ func DeterministicChecks(turn plan.Turn, response Response) []report.Check {
 	for _, alternatives := range turn.RequiredAny {
 		found := false
 		for _, fact := range alternatives {
-			if strings.Contains(strings.ToLower(response.Text), strings.ToLower(fact)) {
+			if strings.Contains(normalizeLiteral(response.Text), normalizeLiteral(fact)) {
 				found = true
 				break
 			}
@@ -160,13 +165,39 @@ func DeterministicChecks(turn plan.Turn, response Response) []report.Check {
 }
 
 func containsCheck(name, text, needle string, required bool) report.Check {
-	found := strings.Contains(strings.ToLower(text), strings.ToLower(needle))
+	found := strings.Contains(normalizeLiteral(text), normalizeLiteral(needle))
 	pass := found == required
 	status := "pass"
 	if !pass {
 		status = "fail"
 	}
 	return report.Check{Name: name, Status: status, Detail: fmt.Sprintf("found=%t", found)}
+}
+
+func normalizeLiteral(value string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.IsSpace(r) {
+			return -1
+		}
+		if normalized, ok := equivalentDigit(r); ok {
+			return normalized
+		}
+		return unicode.ToLower(r)
+	}, value)
+}
+
+func equivalentDigit(r rune) (rune, bool) {
+	const arabic = "0123456789"
+	for _, digits := range []string{"０１２３４５６７８９", "零一二三四五六七八九"} {
+		index := 0
+		for _, candidate := range digits {
+			if r == candidate {
+				return rune(arabic[index]), true
+			}
+			index++
+		}
+	}
+	return 0, false
 }
 func durationCheck(name string, got, max time.Duration) report.Check {
 	status := "pass"
@@ -222,7 +253,12 @@ func scriptCheck(text, name string) report.Check {
 	}
 	detail := fmt.Sprintf("matching=%d letters=%d ratio=%.2f", matching, total, ratio)
 	threshold := 0.6
-	if name == "latin" {
+	if name == "han" {
+		// Target-language output may legitimately preserve Latin proper names,
+		// train codes, and other source facts. Require Han to remain the majority
+		// rather than rejecting otherwise-Chinese output for preserving them.
+		threshold = 0.5
+	} else if name == "latin" {
 		threshold = 0.7
 	}
 	if total == 0 || ratio < threshold || ((name == "japanese" || name == "korean") && requiredMarker == 0) {
