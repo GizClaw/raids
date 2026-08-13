@@ -850,6 +850,7 @@ class PublicDefaultE2ERegressionTest(unittest.TestCase):
 
     def test_murder_is_open_ended_bounded_and_durable(self) -> None:
         workflow = self.load("workflows/flowcraft/murder-mystery.yaml")
+        memory = self.load("memory-layouts/adventure.yaml")
         flowcraft = workflow["spec"]["flowcraft"]
         nodes = {node["id"]: node for node in flowcraft["graph"]["nodes"]}
         self.assertEqual(nodes["draft_game_master"]["config"]["max_tokens"], 256)
@@ -866,6 +867,10 @@ class PublicDefaultE2ERegressionTest(unittest.TestCase):
         prompt = nodes["prepare_game_master"]["config"]["source"]
         self.assertIn("自由调查任何合理地点", prompt)
         self.assertIn("最新明确更正覆盖旧值", prompt)
+        self.assertEqual(
+            memory["spec"]["flowcraft"]["extraction"]["mode"],
+            "single_pass",
+        )
 
     def test_journey_has_one_recall_and_hard_output_budget(self) -> None:
         workflow = self.load("workflows/flowcraft/journey-guide.yaml")
