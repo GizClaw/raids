@@ -2,10 +2,6 @@ package server
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,7 +13,6 @@ import (
 	"time"
 
 	"github.com/GizClaw/gizclaw-go/pkgs/gizclaw/api/apitypes"
-	"github.com/GizClaw/gizclaw-go/pkgs/gizclaw/api/peerhttp"
 	"github.com/GizClaw/gizclaw-go/pkgs/giznet"
 	"github.com/GizClaw/gizclaw-go/pkgs/giznet/gizwebrtc"
 	"github.com/GizClaw/gizclaw-go/sdk/go/gizcli"
@@ -150,83 +145,6 @@ func KeyPairFromText(text []byte) (*giznet.KeyPair, error) {
 		return nil, errors.New("invalid admin private key")
 	}
 	return giznet.NewKeyPair(private)
-}
-
-// Login creates a short-lived primary HTTP session for a registered Peer.
-// The returned access token is suitable for the same Server's OpenAI-compatible
-// endpoint and must be treated as a secret by the caller.
-func Login(ctx context.Context, endpoint string, keyPair *giznet.KeyPair, serverPublicKey giznet.PublicKey, client *http.Client) ([]byte, error) {
-	if keyPair == nil {
-		return nil, errors.New("key pair is required")
-	}
-	if client == nil {
-		client = &http.Client{Timeout: 10 * time.Second}
-	}
-	assertion, err := newLoginAssertion(keyPair, serverPublicKey, time.Now(), time.Minute)
-	if err != nil {
-		return nil, fmt.Errorf("create login assertion: %w", err)
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "http://"+endpoint+"/login", nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("X-Public-Key", keyPair.Public.String())
-	req.Header.Set("Authorization", "Bearer "+assertion)
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("login registered peer: %w", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("login registered peer returned HTTP %d", resp.StatusCode)
-	}
-	var result peerhttp.LoginResult
-	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&result); err != nil {
-		return nil, fmt.Errorf("decode registered peer login: %w", err)
-	}
-	if strings.TrimSpace(result.AccessToken) == "" {
-		return nil, errors.New("registered peer login returned an empty access token")
-	}
-	return []byte(result.AccessToken), nil
-}
-
-type loginAssertionHeader struct {
-	Alg string `json:"alg"`
-	Typ string `json:"typ"`
-}
-
-type loginAssertionClaims struct {
-	Iss   string `json:"iss"`
-	Aud   string `json:"aud"`
-	Iat   int64  `json:"iat"`
-	Exp   int64  `json:"exp"`
-	Nonce string `json:"nonce"`
-}
-
-func newLoginAssertion(keyPair *giznet.KeyPair, serverPublicKey giznet.PublicKey, now time.Time, ttl time.Duration) (string, error) {
-	nonceBytes := make([]byte, 16)
-	if _, err := io.ReadFull(rand.Reader, nonceBytes); err != nil {
-		return "", err
-	}
-	headerJSON, err := json.Marshal(loginAssertionHeader{Alg: "X25519-HS256", Typ: "JWT"})
-	if err != nil {
-		return "", err
-	}
-	claimsJSON, err := json.Marshal(loginAssertionClaims{
-		Iss: keyPair.Public.String(), Aud: serverPublicKey.String(),
-		Iat: now.Unix(), Exp: now.Add(ttl).Unix(), Nonce: base64.RawURLEncoding.EncodeToString(nonceBytes),
-	})
-	if err != nil {
-		return "", err
-	}
-	shared, err := keyPair.DH(serverPublicKey)
-	if err != nil {
-		return "", err
-	}
-	signed := base64.RawURLEncoding.EncodeToString(headerJSON) + "." + base64.RawURLEncoding.EncodeToString(claimsJSON)
-	mac := hmac.New(sha256.New, shared[:])
-	_, _ = mac.Write([]byte(signed))
-	return signed + "." + base64.RawURLEncoding.EncodeToString(mac.Sum(nil)), nil
 }
 
 func parseKey(text string) (giznet.PublicKey, error) {

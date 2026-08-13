@@ -57,30 +57,6 @@ func TestConfigAcceptsSeparatePeerServer(t *testing.T) {
 	}
 }
 
-func TestConfigUsesRegisteredPeerForDefaultOpenAIEndpoint(t *testing.T) {
-	c := Config{
-		Server: "admin.example:9820", Workflow: "workflow.yaml", Plan: "plan.yaml",
-		JudgeModel: "judge", AdminKey: SecretSource{Env: "RAIDTEST_TEST_ADMIN"},
-	}
-	if err := c.Validate(); err != nil {
-		t.Fatal(err)
-	}
-	if c.OpenAIKey.Configured() {
-		t.Fatal("OpenAI key unexpectedly configured")
-	}
-}
-
-func TestConfigRequiresKeyForCustomOpenAIEndpoint(t *testing.T) {
-	c := Config{
-		Server: "admin.example:9820", Workflow: "workflow.yaml", Plan: "plan.yaml",
-		JudgeModel: "judge", OpenAIBaseURL: "https://models.example/v1",
-		AdminKey: SecretSource{Env: "RAIDTEST_TEST_ADMIN"},
-	}
-	if err := c.Validate(); err == nil || !strings.Contains(err.Error(), "custom OpenAI base URL") {
-		t.Fatalf("Validate() error = %v", err)
-	}
-}
-
 func TestConfigRejectsInvalidPeerServer(t *testing.T) {
 	c := Config{
 		Server: "admin.example:9820", PeerServer: "https://edge.example:9821",
