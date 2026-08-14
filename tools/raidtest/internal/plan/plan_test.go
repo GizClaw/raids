@@ -111,7 +111,7 @@ func TestDefaultMurderMysteryPlanKeepsLongFormRecoveryCoverage(t *testing.T) {
 	if turns[indexes["inspect-thread"]].MaxRunes != 480 {
 		t.Fatal("multi-part lock and fiber inspection must have enough room for every requested result")
 	}
-	if turns[indexes["inspect-rear-corridor"]].MinRunes != 25 || turns[indexes["inspect-will"]].MinRunes != 25 || turns[indexes["accuse-wrong-suspect"]].MinRunes != 30 || turns[indexes["mistaken-outage-theory"]].MinRunes != 20 || turns[indexes["delayed-correction-recall"]].MinRunes != 20 {
+	if turns[indexes["inspect-rear-corridor"]].MinRunes != 25 || turns[indexes["inspect-will"]].MinRunes != 25 || turns[indexes["accuse-wrong-suspect"]].MinRunes != 30 || turns[indexes["mistaken-outage-theory"]].MinRunes != 20 || turns[indexes["delayed-correction-recall"]].MinRunes != 20 || turns[indexes["irrelevant-garden-route"]].MinRunes != 10 || turns[indexes["revisit-phonograph"]].MinRunes != 40 {
 		t.Fatal("complete concise answers must not be rejected merely for avoiding padding")
 	}
 	if turns[indexes["inspect-balcony"]].MinRunes != 40 || turns[indexes["correct-shoe-size"]].MinRunes != 4 {
