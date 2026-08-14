@@ -114,7 +114,10 @@ provider connections. It reuses and verifies the `story-teller` and `adventure`
 bindings declared by the live stable testing Profile. The checked-in `default`
 and `testing` Profiles currently declare `driver: flowcraft` with
 `connection.type: flowcraft_bbh`; suite mode neither replaces that binding nor
-infers which vendor service may exist behind Flowcraft. Apply/readback digests
+infers which vendor service may exist behind Flowcraft. The checked-in
+MemoryLayouts remain deployment inputs: their asynchronous Flowcraft write mode
+keeps extraction off the response path, but this suite does not apply or claim
+live qualification of that setting. Apply/readback digests
 and pre-turn `candidate_changed` barriers stop a pair if a canonical resource
 drifts concurrently. It also rejects all external OpenAI
 agent, judge, TTS, and key flags: dialogue generation and semantic acceptance

@@ -1020,7 +1020,7 @@ class PublicDefaultE2ERegressionTest(unittest.TestCase):
         )
         self.assertEqual(
             memory["spec"]["flowcraft"]["write"]["mode"],
-            "sync",
+            "async_semantic",
         )
 
     def test_journey_has_one_recall_and_complete_scene_budget(self) -> None:
@@ -1065,7 +1065,7 @@ class PublicDefaultE2ERegressionTest(unittest.TestCase):
         self.assertEqual(nodes["answer"]["type"], "script")
         self.assertFalse(nodes["observe_story"]["config"]["wait_for_completion"])
         memory = self.load("memory-layouts/story-teller.yaml")
-        self.assertEqual(memory["spec"]["flowcraft"]["write"]["mode"], "sync")
+        self.assertEqual(memory["spec"]["flowcraft"]["write"]["mode"], "async_semantic")
 
     def test_paired_story_workflows_keep_distinct_prompts_and_equal_budgets(self) -> None:
         scenarios = {
