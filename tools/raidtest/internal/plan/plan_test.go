@@ -100,24 +100,23 @@ func TestDefaultMurderMysteryPlanKeepsLongFormRecoveryCoverage(t *testing.T) {
 	}
 	for _, id := range []string{"inspect-balcony", "interview-chef", "inspect-study", "inspect-thread", "analyze-contradictions"} {
 		turn := turns[indexes[id]]
-		if turn.MinRunes < 30 || turn.MaxRunes < 300 {
-			t.Fatalf("turn %q must exercise a complete spoken scene, got %d-%d runes", id, turn.MinRunes, turn.MaxRunes)
+		if turn.MinRunes != 0 || turn.MaxRunes < 300 {
+			t.Fatalf("turn %q must leave semantic completeness to the Tester while preserving spoken-scene headroom, got %d-%d runes", id, turn.MinRunes, turn.MaxRunes)
 		}
 	}
 	opening := turns[indexes["opening"]]
-	if opening.MinRunes != 40 || opening.MaxRunes != 100 || !containsAll(opening.Required, "22:00", "沈鹤年", "二楼书房", "雨夜", "自由调查") {
+	if opening.MinRunes != 0 || opening.MaxRunes != 100 || !containsAll(opening.Required, "22:00", "沈鹤年", "二楼书房", "雨夜", "自由调查") {
 		t.Fatalf("opening must enforce the concise whitelist without padding, got %#v", opening)
 	}
 	if turns[indexes["inspect-thread"]].MaxRunes != 480 {
 		t.Fatal("multi-part lock and fiber inspection must have enough room for every requested result")
 	}
-	if turns[indexes["inspect-rear-corridor"]].MinRunes != 25 || turns[indexes["inspect-will"]].MinRunes != 25 || turns[indexes["accuse-wrong-suspect"]].MinRunes != 30 || turns[indexes["mistaken-outage-theory"]].MinRunes != 20 || turns[indexes["delayed-correction-recall"]].MinRunes != 20 || turns[indexes["irrelevant-garden-route"]].MinRunes != 10 || turns[indexes["revisit-phonograph"]].MinRunes != 40 {
-		t.Fatal("complete concise answers must not be rejected merely for avoiding padding")
+	for _, turn := range turns {
+		if turn.MinRunes != 0 {
+			t.Fatalf("semantic completeness is Tester-owned; turn %s must not require padding", turn.ID)
+		}
 	}
-	if turns[indexes["inspect-balcony"]].MinRunes != 40 || turns[indexes["correct-shoe-size"]].MinRunes != 4 {
-		t.Fatal("explicitly complete balcony and correction replies must use evidence-backed minimums")
-	}
-	if turns[indexes["analyze-contradictions"]].MinRunes != 80 || turns[indexes["conclude"]].MinRunes != 50 || turns[indexes["conclude"]].MaxRunes != 130 {
+	if turns[indexes["conclude"]].MaxRunes != 130 {
 		t.Fatal("the explicit three-sentence conclusion request must keep its user-specified budget")
 	}
 	for _, id := range []string{

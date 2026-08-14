@@ -981,6 +981,8 @@ class PublicDefaultE2ERegressionTest(unittest.TestCase):
         self.assertIn('latest.includes("厨师")', prompt)
         self.assertIn("本轮是厨房证词核对，优先执行", prompt)
         self.assertIn("禁止写‘没有其他线索能印证或反驳’", prompt)
+        self.assertIn('latest.includes("故意指控")', prompt)
+        self.assertIn("本轮必须完成两个连续动作", prompt)
         self.assertIn("死者当晚活动物品没有固定检查结果", prompt)
         self.assertIn("不得声称没有其他能印证或反驳厨师证词的线索", prompt)
         self.assertIn("首次报告用确认，不得称为更正", prompt)
