@@ -161,12 +161,20 @@ The public MemoryLayout catalog is organized by reusable scenario:
 
 The public story catalog also includes paired Flowcraft and Eino text
 experiences for Aesop, Alice in Wonderland, Space Rescue, Monster Maze, and
-Castle Mystery. Each pair shares one scenario-specific prompt and Model
-resource while keeping independent Workflow-owned aliases. Prompts are not
-shared across scenarios: fable interpretation, dream logic, operational rescue,
-spatial navigation, and evidence-based deduction have separate behavior and
-safety contracts. Flowcraft entries provide the public spoken path; Eino entries
-remain text-only until the Eino Workflow contract exposes a Voice adapter.
+Castle Mystery. Each pair shares one player-visible scenario contract and Model
+resource while keeping independent Workflow-owned aliases and engine-native
+graph topology. Flowcraft uses Recall, a deterministic conditional router,
+phase-specific streaming model nodes, a correction-safe state reducer, and
+asynchronous Observe. Exactly one routed model publishes on each turn. Eino
+uses the same state boundaries through a non-empty
+`first_match` branch and separate opening, exploration, correction, challenge,
+and conclusion Prompt nodes. A normal turn selects exactly one streaming Model
+path; graph depth never creates an unconditional multi-model latency chain.
+Prompts are not shared across scenarios: fable interpretation, dream logic,
+operational rescue, spatial navigation, and evidence-based deduction have
+separate behavior and safety contracts. Flowcraft entries provide the public
+spoken path; Eino entries remain text-only until the Eino Workflow contract
+exposes a Voice adapter.
 
 Each Layout defines portable Flowcraft, Mem0, and Volc Mem0 policy. The public
 default profile selects Flowcraft with `connection.type: flowcraft_bbh`; it
@@ -220,6 +228,10 @@ Target and Tester Peers/Workspaces, and never mutates MemoryLayouts. Tester
 Workflows own natural dialogue and semantic decisions through the scoped
 `raidtest_acceptance_report` client Tool; external paired plans retain only
 checkpoint order, deterministic/reload/Recall gates, and target latency limits.
+The five story/adventure Tester pairs route each envelope through deterministic
+checkpoint parsing and one of six phase-specific judge Prompts. Exact facts and
+length remain external hard gates; the Model judges only current-checkpoint
+semantics such as continuity, grounding, non-repetition, and player agency.
 
 The runner accepts Flowcraft and Eino scripted Workflows. The three public Eino
 Journey Workflows under `workflows/eino` keep the same underlying model and a

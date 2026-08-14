@@ -137,8 +137,12 @@ check and external timing result into the case status.
 Five story/adventure pairs run 13 target responses per engine, the three Eino
 Journey variants run 10 target responses each, and Murder Mystery runs 26
 target responses with a durable `39码` recall barrier and reload before
-response 20. Murder Mystery repeats in five independently isolated
-peer/Workspace pairs. Reports retain complete target and Tester text, Tool
+response 20. Every story/adventure engine target repeats in three independently
+isolated peer/Workspace pairs; Murder Mystery repeats in five. Their Testers
+parse the active checkpoint deterministically, route to bootstrap, evidence,
+correction, challenge, conclusion, or Tool-retry judging, and carry two
+scenario-specific negative-control rules for stale facts and unsupported
+behavior. Reports retain complete target and Tester text, Tool
 checks and evidence, separate target/Tester timings, both Peer/Workspace IDs,
 resource digests, ownership attribution, credential-scan status, and lifecycle
 failures. The aggregate report and every `<report-base>.d/<case>.json` file use

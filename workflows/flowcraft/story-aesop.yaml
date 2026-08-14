@@ -1,56 +1,202 @@
----
 apiVersion: gizclaw.admin/v1alpha1
 kind: Workflow
 metadata:
   id: flowcraft-story-aesop
 spec:
   driver: flowcraft
-  toolkit: {tool_ids: []}
+  toolkit:
+    tool_ids: []
   flowcraft:
     graph:
       name: story-aesop
-      entry: draft
+      entry: recall-progress
       edges:
-        - {from: draft, to: answer}
-        - {from: answer, to: __end__}
+      - from: recall-progress
+        to: route-phase
+      - from: route-phase
+        to: narrate-opening
+        condition: scenario_phase == "opening"
+      - from: route-phase
+        to: narrate-correction
+        condition: scenario_phase == "correction"
+      - from: route-phase
+        to: narrate-challenge
+        condition: scenario_phase == "challenge"
+      - from: route-phase
+        to: narrate-conclusion
+        condition: scenario_phase == "conclusion"
+      - from: route-phase
+        to: narrate-explore
+      - from: narrate-opening
+        to: reduce-state
+      - from: narrate-explore
+        to: reduce-state
+      - from: narrate-correction
+        to: reduce-state
+      - from: narrate-challenge
+        to: reduce-state
+      - from: narrate-conclusion
+        to: reduce-state
+      - from: reduce-state
+        to: observe-progress
+      - from: observe-progress
+        to: __end__
       nodes:
-        - id: draft
-          type: llm
-          publish: false
-          config:
-            model: flowcraft-story-aesop.model
-            max_tokens: 2048
-            output_key: tmp_answer
-            system_prompt: |
-              你是儿童友好的互动寓言讲述者，用原创情节讲述伊索风格的动物寓言。
-              首次主动开场严格说：乌龟和小鸟同时发现了一颗种子，一个想马上吃掉，一个想把它种下，你支持谁？
-              故事分为四章：第一章“种子的选择”、第二章“等待与分歧”、第三章“合作照料”、第四章“双重启发”。事实确认、纠正、回忆、质疑和索要提示不推进章节；只有已发布叙事或用户明确要求进入下一阶段才推进。用户询问章节时，按当前已发生情节准确回答，不提前进入收束章。
-              后续每轮先承接孩子上一轮的选择；孩子选择某个动物及动作时，首句明确说出该动物和动作，再展示一个直接后果、观察或新的小选择；不得重开故事。
-              已经出现的幼芽、经过的天数和行动结果是后续时间线的权威，不得倒退到更早阶段或改写经过时间。用户要求揭晓直接后果时，必须给出当前选择带来的可见结果，不得用新角色或新选择拖延揭晓。
-              用户要求暂不揭晓某件事时，只写允许范围内的当前反应，不复述“最后、结局、答案”等被禁止的对象。
-              让孩子在后果揭晓前预测，允许两种以上合理理解，不把任何寓意说成唯一正确答案。
-              动物危险必须轻微、非血腥；不得照抄现代译文，不收集个人信息，不鼓励现实中的危险模仿。
-              如果孩子改变选择，要承认新选择并从当前情节继续，不得同时保留互相冲突的决定。
-              用户提议留下现有食物给乌龟、再一起照顾幼苗时，必须用2至3句纯中文分别写乌龟和小鸟的回应，明确两者接受合作方案；不重复分工、不切换英文、不连续追问，写完立即停止。
-              普通回复写2至4个完整中文句子、约60至180个Unicode字符；事实确认和单项回忆简短回答。
-              每次调用只生成当前一轮的一段回复，不得续写下一轮用户行动、第二段助手回复或章节完成报告。写完当前直接结果和至多一个问题后立即停止。
-              严禁输出英文单词、中英混写、语句残片或循环重复的问句。
-              用户要求用两句收束时，必须严格只写两句自然中文且不超过150个Unicode字符；直接表达两种不同启发，不得出现“唯一”、验收、规则、要求、章节已完成或“整个互动过程”等系统式总结。
-              每轮最多问一个清楚的问题。只输出适合直接朗读的中文正文，不输出Markdown、列表、菜单、emoji、舞台说明、分析或系统文字。
-              必须写完整句子，不得依赖程序截断，不得重复同义内容。
-        - id: answer
-          type: script
-          publish: true
-          config:
-            source: |
-              const answer = String(board.getVar("tmp_answer") || "").trim();
-              board.setVar("answer", answer);
-              host.emit("token", {content: answer});
-    max_iterations: 4
+      - id: recall-progress
+        type: memory_recall
+        config:
+          query:
+            text_from: input
+            lanes:
+            - story_progress
+            kinds:
+            - state
+            - note
+            - event
+          output: scenario_memory
+          render:
+            header: 'Confirmed scenario history:'
+            item_prefix: '- '
+            max_items: 12
+          top_k: 12
+      - id: route-phase
+        type: script
+        config:
+          source: |
+            const current = String(board.getVar("input") || "").trim();
+            const memory = String(board.getVar("scenario_memory") || "");
+            let combined = memory + "\n" + current;
+            const messages = board.channel(board.MAIN_CHANNEL) || [];
+            for (const message of messages) {
+              if (message && typeof message.content === "string") combined += "\n" + message.content;
+              const parts = message && Array.isArray(message.parts) ? message.parts : [];
+              const text = parts.map((part) => part && part.type === "text" && typeof part.text === "string" ? part.text : "").join("");
+              if (text) combined += "\n" + text;
+            }
+            const containsAnyText = (text, values) => values.some((value) => text.includes(value));
+            let phase = "explore";
+            if (!current || containsAnyText(current, ["开始寓言", "开始故事", "伊索"])) phase = "opening";
+            else if (containsAnyText(current, ["更正", "改成", "只确认", "有效选择", "生长时间", "回忆", "重连", "隔了几轮", "只说"])) phase = "correction";
+            else if (containsAnyText(current, ["两个启示", "总结", "结尾", "比较两种", "收束"])) phase = "conclusion";
+            else if (containsAnyText(current, ["一定", "绝对", "寓意", "预测", "安全吗", "合作", "不同理解"])) phase = "challenge";
+            let route = "";
+            if (containsAnyText(combined, ["两种都合理", "两种启发", "收束故事", "双重启发"])) route = "第四章‘双重启发’";
+            else if (containsAnyText(combined, ["一起照顾", "一起照料", "合作照料", "不必挨饿", "野果", "照料幼苗"])) route = "第三章‘合作照料’";
+            else if (containsAnyText(combined, ["幼芽", "小芽", "发芽", "等待", "分歧", "不一定是自私"])) route = "第二章‘等待与分歧’";
+            else route = "第一章‘种子的选择’";
+            const prior = board.getVar("scenario_state") || {schema: "raid_scenario_state_v2", revision: 0};
+            board.setVar("scenario_phase", phase);
+            board.setVar("scenario_route", route);
+            board.setVar("scenario_state_text", JSON.stringify(prior));
+            board.setVar("scenario_common_prompt", "你是儿童友好的互动寓言讲述者，用原创情节讲述伊索风格的动物寓言。\n首次主动开场严格说：乌龟和小鸟同时发现了一颗种子，一个想马上吃掉，一个想把它种下，你支持谁？\n故事分为四章：第一章“种子的选择”、第二章“等待与分歧”、第三章“合作照料”、第四章“双重启发”。事实确认、纠正、回忆、质疑和索要提示不推进章节；只有已发布叙事或用户明确要求进入下一阶段才推进。用户询问章节时，按当前已发生情节准确回答，不提前进入收束章。\n后续每轮先承接孩子上一轮的选择；孩子选择某个动物及动作时，首句明确说出该动物和动作，再展示一个直接后果、观察或新的小选择；不得重开故事。\n已经出现的幼芽、经过的天数和行动结果是后续时间线的权威，不得倒退到更早阶段或改写经过时间。用户要求揭晓直接后果时，必须给出当前选择带来的可见结果，不得用新角色或新选择拖延揭晓。\n用户要求暂不揭晓某件事时，只写允许范围内的当前反应，不复述“最后、结局、答案”等被禁止的对象。\n让孩子在后果揭晓前预测，允许两种以上合理理解，不把任何寓意说成唯一正确答案。\n动物危险必须轻微、非血腥；不得照抄现代译文，不收集个人信息，不鼓励现实中的危险模仿。\n如果孩子改变选择，要承认新选择并从当前情节继续，不得同时保留互相冲突的决定。\n用户提议留下现有食物给乌龟、再一起照顾幼苗时，必须用2至3句纯中文分别写乌龟和小鸟的回应，明确两者接受合作方案；不重复分工、不切换英文、不连续追问，写完立即停止。\n普通回复写2至4个完整中文句子、约60至180个Unicode字符；事实确认和单项回忆简短回答。\n每次调用只生成当前一轮的一段回复，不得续写下一轮用户行动、第二段助手回复或章节完成报告。写完当前直接结果和至多一个问题后立即停止。\n严禁输出英文单词、中英混写、语句残片或循环重复的问句。\n用户要求用两句收束时，必须严格只写两句自然中文且不超过150个Unicode字符；直接表达两种不同启发，不得出现“唯一”、验收、规则、要求、章节已完成或“整个互动过程”等系统式总结。\n每轮最多问一个清楚的问题。只输出适合直接朗读的中文正文，不输出Markdown、列表、菜单、emoji、舞台说明、分析或系统文字。\n必须写完整句子，不得依赖程序截断，不得重复同义内容。");
+      - id: narrate-opening
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-story-aesop.model
+          max_tokens: 2048
+          output_key: tmp_answer
+          system_prompt: |-
+            ${board.scenario_common_prompt}
+            本轮Graph路径：${board.scenario_route}。
+            本轮只建立寓言角色、困境和一个真实选择，不提前揭示结果或寓意。
+            可核对的长期进度：${board.scenario_memory}
+            Graph状态：${board.scenario_state_text}
+          track_steps: true
+      - id: narrate-explore
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-story-aesop.model
+          max_tokens: 2048
+          output_key: tmp_answer
+          system_prompt: |-
+            ${board.scenario_common_prompt}
+            本轮Graph路径：${board.scenario_route}。
+            本轮承接玩家当前选择，只推进一个因果节点；先让预测存在，再在后续明确请求时揭示后果。
+            可核对的长期进度：${board.scenario_memory}
+            Graph状态：${board.scenario_state_text}
+          track_steps: true
+      - id: narrate-correction
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-story-aesop.model
+          max_tokens: 2048
+          output_key: tmp_answer
+          system_prompt: |-
+            ${board.scenario_common_prompt}
+            本轮Graph路径：${board.scenario_route}。
+            本轮只确认最新选择或生长时间；旧值失效且不得再次输出，不倒退或跳过章节。
+            可核对的长期进度：${board.scenario_memory}
+            Graph状态：${board.scenario_state_text}
+          track_steps: true
+      - id: narrate-challenge
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-story-aesop.model
+          max_tokens: 2048
+          output_key: tmp_answer
+          system_prompt: |-
+            ${board.scenario_common_prompt}
+            本轮Graph路径：${board.scenario_route}。
+            本轮允许不同解释，拒绝绝对化道德结论，并把合作和儿童安全放在惩罚之前。
+            可核对的长期进度：${board.scenario_memory}
+            Graph状态：${board.scenario_state_text}
+          track_steps: true
+      - id: narrate-conclusion
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-story-aesop.model
+          max_tokens: 2048
+          output_key: tmp_answer
+          system_prompt: |-
+            ${board.scenario_common_prompt}
+            本轮Graph路径：${board.scenario_route}。
+            本轮给出两个彼此不同、都由已发生情节支持的启示，不重复同一句寓意。
+            可核对的长期进度：${board.scenario_memory}
+            Graph状态：${board.scenario_state_text}
+          track_steps: true
+      - id: reduce-state
+        type: script
+        config:
+          source: |
+            const input = String(board.getVar("input") || "").trim();
+            const phase = String(board.getVar("scenario_phase") || "explore");
+            const prior = board.getVar("scenario_state") || {schema: "raid_scenario_state_v2", revision: 0};
+            const next = Object.assign({}, prior);
+            let changed = false;
+            function set(name, value) {
+              if (value && next[name] !== value) { next[name] = value; changed = true; }
+            }
+            next.phase = phase;
+            next.route = String(board.getVar("scenario_route") || "");
+            if (input.includes("改变主意") || input.includes("一起照料幼苗")) set("choice", "乌龟先吃一点现有食物，再和小鸟一起照料幼苗");
+            if (changed) next.revision = Math.max(0, Number(prior.revision || 0)) + 1;
+            if (phase === "correction") {
+              delete next.last_input;
+              next.last_correction = JSON.stringify({choice: next.choice || ""});
+            } else {
+              next.last_input = input.slice(0, 160);
+            }
+            board.setVar("scenario_state", next);
+            board.setVar("scenario_state_fact", JSON.stringify(next));
+      - id: observe-progress
+        type: memory_observe
+        config:
+          observations:
+          - facts:
+            - text_from: scenario_state_fact
+              attributes:
+                lane: story_progress
+                kind: state
+          wait_for_completion: false
+    max_iterations: 10
     conversation:
       starts: agent
     voice_adapter:
       asr_model: asr
       default_voice: flowcraft-story-aesop.storyteller
-      node_voices:
-        answer: flowcraft-story-aesop.storyteller
+  memory: story-teller

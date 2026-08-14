@@ -1075,6 +1075,13 @@ class PublicDefaultE2ERegressionTest(unittest.TestCase):
             "adventure-monster-maze": ("迷宫门上有月亮、星星和太阳三个按钮", "第四区‘怪兽合作’"),
             "adventure-castle-mystery": ("城堡钟楼在午夜提前响了", "第三阶段‘竞争假设’"),
         }
+        corrected_facts = {
+            "story-aesop": "乌龟先吃一点现有食物再和小鸟一起照料幼苗",
+            "story-alice": "password=茶杯向右",
+            "adventure-space-rescue": "coordinate=B-21",
+            "adventure-monster-maze": "marker_color=蓝色",
+            "adventure-castle-mystery": "footprint_size=39码",
+        }
         prompts: set[str] = set()
         for scenario, (opening, durable_checkpoint) in scenarios.items():
             with self.subTest(scenario=scenario):
@@ -1088,24 +1095,49 @@ class PublicDefaultE2ERegressionTest(unittest.TestCase):
                     node["id"]: node
                     for node in eino["spec"]["eino"]["graph"]["nodes"]
                 }
-                flow_prompt = flow_nodes["draft"]["config"]["system_prompt"]
+                flow_route = flow_nodes["route-phase"]["config"]["source"]
+                flow_narrators = [
+                    node for node in flow_nodes.values() if node["type"] == "llm"
+                ]
+                flow_contract = flow_route + "\n" + "\n".join(
+                    node["config"]["system_prompt"] for node in flow_narrators
+                )
                 narrator_prompts = [
                     node
                     for node in eino_nodes.values()
                     if node["type"] == "prompt" and "route" in node.get("inputs", {})
                 ]
-                self.assertEqual(len(narrator_prompts), 1)
-                eino_prompt = narrator_prompts[0]["messages"][0]["template"]
-                self.assertIn(opening, flow_prompt)
-                self.assertIn(opening, eino_prompt)
+                self.assertEqual(len(narrator_prompts), 5)
+                eino_prompt = "\n".join(
+                    node["messages"][0]["template"] for node in narrator_prompts
+                )
+                route_nodes = [
+                    node
+                    for node in eino_nodes.values()
+                    if node["type"] == "script" and node["id"].startswith("route-")
+                ]
+                self.assertEqual(len(route_nodes), 1)
+                eino_contract = route_nodes[0]["source"] + "\n" + eino_prompt
+                self.assertIn(opening, flow_contract)
+                self.assertIn(opening, eino_contract)
+                for recall_marker in ("重连", "隔了几轮"):
+                    self.assertIn(recall_marker, flow_route)
+                    self.assertIn(recall_marker, route_nodes[0]["source"])
                 if scenario == "adventure-space-rescue":
                     self.assertIn(
                         "首句就必须逐字同时包含“备用电池”和“安全窗口”",
-                        eino_prompt,
+                        eino_contract,
                     )
-                self.assertNotIn(eino_prompt, prompts)
-                prompts.add(eino_prompt)
-                self.assertEqual(flow_nodes["draft"]["config"]["max_tokens"], 2048)
+                self.assertNotIn(eino_contract, prompts)
+                prompts.add(eino_contract)
+                self.assertEqual(len(flow_narrators), 5)
+                self.assertTrue(
+                    all(node["config"]["max_tokens"] == 2048 for node in flow_narrators)
+                )
+                self.assertTrue(all(node["publish"] for node in flow_narrators))
+                self.assertTrue(
+                    all(node["config"]["output_key"] == "tmp_answer" for node in flow_narrators)
+                )
                 model_nodes = [
                     node for node in eino_nodes.values() if node["type"] == "chat_model"
                 ]
@@ -1123,14 +1155,15 @@ class PublicDefaultE2ERegressionTest(unittest.TestCase):
                     {"script", "memory_recall", "prompt", "chat_model", "memory_observe"}
                     <= node_types
                 )
-                route_nodes = [
-                    node
-                    for node in eino_nodes.values()
-                    if node["type"] == "script" and node["id"].startswith("route-")
-                ]
-                self.assertEqual(len(route_nodes), 1)
                 self.assertIn(durable_checkpoint, route_nodes[0]["source"])
-                self.assertIn("route", narrator_prompts[0]["inputs"])
+                self.assertTrue(
+                    all("route" in node["inputs"] for node in narrator_prompts)
+                )
+                branches = eino["spec"]["eino"]["graph"]["branches"]
+                self.assertEqual(len(branches), 1)
+                self.assertEqual(branches[0]["mode"], "first_match")
+                self.assertEqual(len(branches[0]["routes"]), 4)
+                self.assertEqual(branches[0]["default"], "prompt-explore")
                 self.assertFalse(any(node_id.startswith("plan-") for node_id in eino_nodes))
                 self.assertGreaterEqual(
                     eino["spec"]["eino"]["graph"]["compile"]["max_run_steps"], 16
@@ -1150,6 +1183,10 @@ class PublicDefaultE2ERegressionTest(unittest.TestCase):
                 )
                 commit = eino_nodes["commit-progress"]
                 self.assertIn('"kind": "state"', commit["source"])
+                self.assertIn('input["phase"] == "correction"', commit["source"])
+                self.assertIn("correction_authority=latest_user_value", commit["source"])
+                self.assertIn(corrected_facts[scenario], commit["source"])
+                self.assertNotIn("latest_answer", commit["source"])
                 self.assertEqual(
                     eino["spec"]["eino"]["graph"]["outputs"][0]["node"],
                     "narrator-model",
@@ -1159,11 +1196,35 @@ class PublicDefaultE2ERegressionTest(unittest.TestCase):
                     "agent",
                 )
                 self.assertEqual(
+                    flowcraft["spec"]["memory"],
+                    "story-teller" if scenario.startswith("story-") else "adventure",
+                )
+                self.assertEqual(flowcraft["spec"]["flowcraft"]["max_iterations"], 10)
+                self.assertEqual(
+                    {node["type"] for node in flow_nodes.values()},
+                    {"memory_recall", "script", "llm", "memory_observe"},
+                )
+                self.assertNotIn("answer", flow_nodes)
+                for narrator in flow_narrators:
+                    self.assertIn(
+                        {"from": narrator["id"], "to": "reduce-state"},
+                        flowcraft["spec"]["flowcraft"]["graph"]["edges"],
+                    )
+                self.assertIn("Array.isArray(message.parts)", flow_route)
+                reducer = flow_nodes["reduce-state"]["config"]["source"]
+                self.assertIn('phase === "correction"', reducer)
+                self.assertIn("delete next.last_input", reducer)
+                self.assertIn("next.last_correction", reducer)
+                self.assertNotIn("next.turn", reducer)
+                self.assertNotIn("last_answer", reducer)
+                self.assertEqual(
                     eino["spec"]["eino"]["conversation"]["starts"], "peer"
                 )
                 self.assertIn("voice_adapter", flowcraft["spec"]["flowcraft"])
-                self.assertNotIn(".slice(0,", flow_nodes["answer"]["config"]["source"])
-                self.assertIn("不得依赖程序截断", flow_prompt)
+                self.assertIn(
+                    "default_voice", flowcraft["spec"]["flowcraft"]["voice_adapter"]
+                )
+                self.assertIn("不得依赖程序截断", flow_contract)
 
         for relative in (
             "tools/raidtest/plans/benchmarks/story-aesop-comparison.yaml",
@@ -1254,24 +1315,63 @@ class PublicDefaultE2ERegressionTest(unittest.TestCase):
                 )
                 self.assertEqual(model["model"], f"{target}-test.model")
                 self.assertGreaterEqual(model["max_tokens"], 1024)
-                prompt_node = next(
+                prompt_nodes = [
                     node for node in graph["nodes"] if node["type"] == "prompt"
-                )
-                self.assertEqual(
-                    prompt_node["inputs"], {"payload": {"from": "input.text"}}
-                )
-                self.assertEqual(
-                    prompt_node["messages"][1],
-                    {"role": "user", "template": "{payload}"},
-                )
-                prompt = prompt_node["messages"][0]["template"]
-                self.assertIn("raidtest-acceptance-report", prompt)
-                self.assertIn("next_message", prompt)
-                self.assertIn("evidence", prompt)
-                self.assertNotIn(prompt, prompts)
-                if target != "flowcraft-murder-mystery" and "journey" not in target:
-                    self.assertNotIn("12轮", prompt)
-                prompts.add(prompt)
+                ]
+                is_story_pair = "journey" not in target and target != "flowcraft-murder-mystery"
+                if is_story_pair:
+                    self.assertEqual(len(prompt_nodes), 6)
+                    router = next(
+                        node for node in graph["nodes"] if node["id"] == "route-checkpoint"
+                    )
+                    self.assertIn("raidtest-acceptance-report", router["source"])
+                    self.assertIn("next_message", router["source"])
+                    self.assertIn("evidence", router["source"])
+                    self.assertIn("负向控制", router["source"])
+                    self.assertGreaterEqual(router["source"].count("必须 fail"), 2)
+                    self.assertNotIn(router["source"], prompts)
+                    prompts.add(router["source"])
+                    self.assertEqual(len(graph["branches"]), 1)
+                    self.assertEqual(graph["branches"][0]["mode"], "first_match")
+                    self.assertEqual(graph["branches"][0]["default"], "prompt-evidence")
+                    self.assertEqual(len(graph["branches"][0]["routes"]), 5)
+                    self.assertEqual(
+                        {node["id"] for node in prompt_nodes},
+                        {
+                            "prompt-bootstrap",
+                            "prompt-evidence",
+                            "prompt-correction",
+                            "prompt-challenge",
+                            "prompt-conclusion",
+                            "prompt-retry",
+                        },
+                    )
+                    for prompt_node in prompt_nodes:
+                        self.assertEqual(
+                            prompt_node["messages"][1],
+                            {"role": "user", "template": "{payload}"},
+                        )
+                        self.assertEqual(
+                            set(prompt_node["inputs"]),
+                            {"payload", "rules", "checkpoint", "contract", "next_message"},
+                        )
+                    self.assertNotIn("12轮", router["source"])
+                else:
+                    self.assertEqual(len(prompt_nodes), 1)
+                    prompt_node = prompt_nodes[0]
+                    self.assertEqual(
+                        prompt_node["inputs"], {"payload": {"from": "input.text"}}
+                    )
+                    self.assertEqual(
+                        prompt_node["messages"][1],
+                        {"role": "user", "template": "{payload}"},
+                    )
+                    prompt = prompt_node["messages"][0]["template"]
+                    self.assertIn("raidtest-acceptance-report", prompt)
+                    self.assertIn("next_message", prompt)
+                    self.assertIn("evidence", prompt)
+                    self.assertNotIn(prompt, prompts)
+                    prompts.add(prompt)
 
         testing = self.load("runtime-profiles/testing.yaml")["spec"]
         target_bindings = testing["workflows"]["collections"]["raidtest-targets"]
@@ -1310,6 +1410,8 @@ class PublicDefaultE2ERegressionTest(unittest.TestCase):
         for pair in suite["pairs"]:
             target = self.load(pair["target_workflow_file"])
             self.assertEqual(target["spec"]["toolkit"]["tool_ids"], [])
+            if "journey" not in pair["target_workflow_id"] and pair["target_workflow_id"] != "flowcraft-murder-mystery":
+                self.assertEqual(pair["repeats"], 3)
         murder = next(
             pair
             for pair in suite["pairs"]
