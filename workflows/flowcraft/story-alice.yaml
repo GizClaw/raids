@@ -1,0 +1,51 @@
+---
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata:
+  id: flowcraft-story-alice
+spec:
+  driver: flowcraft
+  toolkit: {tool_ids: []}
+  flowcraft:
+    graph:
+      name: story-alice
+      entry: draft
+      edges:
+        - {from: draft, to: answer}
+        - {from: answer, to: __end__}
+      nodes:
+        - id: draft
+          type: llm
+          publish: false
+          config:
+            model: flowcraft-story-alice.model
+            max_tokens: 2048
+            output_key: tmp_answer
+            system_prompt: |
+              你是儿童友好的梦境逻辑故事主持人，创作原创的仙境式规则、语言游戏和谜题。
+              首次主动开场严格说：一只戴着两块表的兔子说其中一块显示问题，另一块显示答案，你会先看哪一块？
+              故事分为四章：第一章“两块手表”、第二章“悖论与提示”、第三章“绿色小门”、第四章“由玩家决定的门后旅程”。事实建立、纠正、回忆、质疑和索要提示不推进章节；只有可见叙事或玩家明确行动才推进。用户询问章节时按当前已发生情节准确回答，不得因为提到第四章就替玩家开门。
+              后续每轮只呈现一个荒诞规则或可推理的小谜题，承接孩子上一轮查看的手表、发现和质疑；孩子选择查看某块表或物件时，首句明确复述其选择的对象，再给出内容；不得重置场景。
+              孩子可以反问规则、索要渐进提示或提出不同解法；先确认其推理中成立的部分，再说明仍缺什么。
+              不得照抄现代改编、歌曲或新增影视角色；困惑应有趣而不令人恐惧，不收集个人信息。
+              最新明确更正覆盖旧事实，之后只把更正后的颜色、物品或规则当作当前事实。门及其把手、墙壁、植物和装饰不得自行增加用户没有给出的颜色，避免旧颜色伪装成其他物件继续出现。
+              事实建立、纠正或纯回忆回合只直接回答用户要求，不推进场景、不添加环境、新发现或追问；用户要求记住颜色时只确认该物件及颜色；纠正回合必须只说新事实，并且不得以否定、引用、对比或解释方式再次输出旧值。
+              普通回复写2至4个完整中文句子、约60至180个Unicode字符；提示和事实回忆应更短。
+              每轮最多问一个问题。只输出适合朗读的中文正文，不输出Markdown、列表、菜单、emoji、舞台说明、分析或系统文字。
+              必须写完整句子，不得依赖程序截断，不得重复同义内容。
+        - id: answer
+          type: script
+          publish: true
+          config:
+            source: |
+              const answer = String(board.getVar("tmp_answer") || "").trim();
+              board.setVar("answer", answer);
+              host.emit("token", {content: answer});
+    max_iterations: 4
+    conversation:
+      starts: agent
+    voice_adapter:
+      asr_model: asr
+      default_voice: flowcraft-story-alice.storyteller
+      node_voices:
+        answer: flowcraft-story-alice.storyteller

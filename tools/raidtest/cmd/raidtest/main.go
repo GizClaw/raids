@@ -53,6 +53,10 @@ func realMain(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "write report: %v\n", err)
 		return 1
 	}
+	if err := result.WriteCaseReports(cfg.Report); err != nil {
+		fmt.Fprintf(stderr, "write case reports: %v\n", err)
+		return 1
+	}
 	result.WriteTerminal(stdout)
 	if runErr != nil {
 		fmt.Fprintf(stderr, "raidtest: %v\n", runErr)
@@ -64,10 +68,14 @@ func realMain(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 func parseFlags(args []string, stderr io.Writer) (config.Config, error) {
 	var c config.Config
 	var memories stringsFlag
+	var astInputModes stringsFlag
+	var pairIDs stringsFlag
 	fs := flag.NewFlagSet("raidtest run", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	fs.StringVar(&c.Server, "server", "", "GizClaw Admin Server host:port")
 	fs.StringVar(&c.PeerServer, "peer-server", "", "GizClaw Peer/Edge host:port (default: --server)")
+	fs.StringVar(&c.Suite, "suite", "", "paired acceptance suite YAML")
+	fs.Var(&pairIDs, "pair", "paired suite target ID to run (repeatable; default: all)")
 	fs.StringVar(&c.Workflow, "workflow", "", "local Workflow YAML")
 	fs.StringVar(&c.RuntimeProfile, "runtime-profile", "default", "deployed base RuntimeProfile ID")
 	fs.StringVar(&c.RuntimeProfileFile, "runtime-profile-file", "", "optional local RuntimeProfile YAML")
@@ -79,6 +87,7 @@ func parseFlags(args []string, stderr io.Writer) (config.Config, error) {
 	fs.StringVar(&c.JudgeModel, "judge-model", "", "semantic judge model ID")
 	fs.StringVar(&c.InputTTSModel, "input-tts-model", "", "OpenAI speech model for realtime/translation input")
 	fs.StringVar(&c.InputTTSVoice, "input-tts-voice", "alloy", "OpenAI speech voice")
+	fs.Var(&astInputModes, "ast-input-mode", "AST Workspace input mode; repeat to override the default push-to-talk,realtime matrix")
 	fs.StringVar(&c.AdminKey.Env, "admin-private-key-env", "", "environment variable containing the Admin private key")
 	fs.StringVar(&c.AdminKey.File, "admin-private-key-file", "", "file containing the Admin private key")
 	fs.BoolVar(&c.AdminKey.Stdin, "admin-private-key-stdin", false, "read the Admin private key from stdin")
@@ -94,6 +103,8 @@ func parseFlags(args []string, stderr io.Writer) (config.Config, error) {
 		return c, fmt.Errorf("unexpected positional arguments: %s", strings.Join(fs.Args(), " "))
 	}
 	c.MemoryLayouts = memories
+	c.ASTInputModes = astInputModes
+	c.Pairs = pairIDs
 	if c.AdminKey.Stdin && c.OpenAIKey.Stdin {
 		return c, errors.New("admin and OpenAI keys cannot both use stdin")
 	}
@@ -101,6 +112,9 @@ func parseFlags(args []string, stderr io.Writer) (config.Config, error) {
 }
 
 func run(ctx context.Context, c config.Config, stdin io.Reader) (result report.Report, runErr error) {
+	if c.Suite != "" {
+		return runPaired(ctx, c, stdin)
+	}
 	runID, err := randomID(6)
 	if err != nil {
 		return report.New("unknown"), err
@@ -221,13 +235,23 @@ func run(ctx context.Context, c config.Config, stdin io.Reader) (result report.R
 	if err := recordPeerAndValidateProfile(lifecycle, peerKeys.Public.String(), registration.GetRuntimeProfileName(), closure.ProfileID); err != nil {
 		return result, err
 	}
+	type testWorkspace struct {
+		name      string
+		inputMode string
+		caseIndex int
+	}
+	var testWorkspaces []testWorkspace
 	if workflow.Driver == "pet" {
+		if len(testPlan.Cases) != 1 {
+			return result, errors.New("pet driver currently requires exactly one Case because each adopted pet owns one persistent Workspace")
+		}
 		petName := "raidtest-pet-" + runID
 		adopted, adoptErr := peerConn.Client.AdoptPet(ctx, "raidtest-adopt-"+runID, rpcapi.RuntimeAdoptRequest{Name: petName, DisplayName: "Raidtest Pet"})
 		if adoptErr != nil {
 			return result, fmt.Errorf("adopt temporary pet: %w", adoptErr)
 		}
 		setup.WorkspaceName = adopted.Pet.WorkspaceName
+		testWorkspaces = append(testWorkspaces, testWorkspace{name: setup.WorkspaceName, caseIndex: -1})
 		lifecycle.Record(report.Lifecycle{ResourceType: "Pet", ID: petName, Action: "create", Status: "pass"})
 		lifecycle.Record(report.Lifecycle{ResourceType: "Workspace", ID: setup.WorkspaceName, Action: "create", Status: "pass"})
 		defer func() {
@@ -255,72 +279,126 @@ func run(ctx context.Context, c config.Config, stdin io.Reader) (result report.R
 		if closure.Collection == "" || closure.WorkflowAlias == "" {
 			return result, fmt.Errorf("Workflow %q is not bound to a RuntimeProfile collection", workflow.Source.Metadata.ID)
 		}
-		parameters, parametersErr := workspaceParameters(workflow.Driver)
-		if parametersErr != nil {
-			return result, parametersErr
+		inputModes := []string{""}
+		if workflow.Driver == "ast-translate" {
+			inputModes = c.ASTInputModes
 		}
-		created, createErr := peerConn.Client.CreateWorkspace(ctx, "raidtest-create-workspace-"+runID, rpcapi.WorkspaceCreateRequest{
-			Name: setup.WorkspaceName, Collection: closure.Collection, WorkflowName: closure.WorkflowAlias, Parameters: parameters,
-		})
-		if createErr != nil {
-			return result, fmt.Errorf("create temporary Workspace: %w", createErr)
-		}
-		setup.WorkspaceName = created.Name
-		lifecycle.Record(report.Lifecycle{ResourceType: "Workspace", ID: setup.WorkspaceName, Action: "create", Status: "pass"})
 		defer func() {
-			if c.Keep {
-				lifecycle.Record(report.Lifecycle{ResourceType: "Workspace", ID: setup.WorkspaceName, Action: "retain", Status: "pass"})
-				return
-			}
-			cleanupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			defer cancel()
-			_, deleteErr := peerConn.Client.DeleteWorkspace(cleanupCtx, "raidtest-delete-workspace-"+runID, rpcapi.WorkspaceDeleteRequest{Name: setup.WorkspaceName})
-			status, detail := "pass", ""
-			if deleteErr != nil {
-				status, detail = "fail", deleteErr.Error()
-				if runErr == nil {
-					runErr = deleteErr
-				} else {
-					runErr = errors.Join(runErr, deleteErr)
+			for index := len(testWorkspaces) - 1; index >= 0; index-- {
+				workspace := testWorkspaces[index]
+				if c.Keep {
+					lifecycle.Record(report.Lifecycle{ResourceType: "Workspace", ID: workspace.name, Action: "retain", Status: "pass"})
+					continue
 				}
+				cleanupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+				requestID := fmt.Sprintf("raidtest-delete-workspace-%s-%s-case-%02d", runID, workspaceModeSuffix(workspace.inputMode), workspace.caseIndex+1)
+				_, deleteErr := peerConn.Client.DeleteWorkspace(cleanupCtx, requestID, rpcapi.WorkspaceDeleteRequest{Name: workspace.name})
+				cancel()
+				status, detail := "pass", ""
+				if deleteErr != nil {
+					status, detail = "fail", deleteErr.Error()
+					if runErr == nil {
+						runErr = deleteErr
+					} else {
+						runErr = errors.Join(runErr, deleteErr)
+					}
+				}
+				lifecycle.Record(report.Lifecycle{ResourceType: "Workspace", ID: workspace.name, Action: "delete", Status: status, Error: detail})
 			}
-			lifecycle.Record(report.Lifecycle{ResourceType: "Workspace", ID: setup.WorkspaceName, Action: "delete", Status: status, Error: detail})
 		}()
+		for _, inputMode := range inputModes {
+			parameters, parametersErr := workspaceParameters(workflow.Driver, inputMode, workflowStartsAgent(workflow))
+			if parametersErr != nil {
+				return result, parametersErr
+			}
+			for caseIndex, plannedCase := range testPlan.Cases {
+				caseSuffix := fmt.Sprintf("case-%02d", caseIndex+1)
+				workspaceName := setup.WorkspaceName + "-" + caseSuffix
+				if inputMode != "" {
+					workspaceName += "-" + workspaceModeSuffix(inputMode)
+				}
+				requestID := "raidtest-create-workspace-" + runID + "-" + workspaceModeSuffix(inputMode) + "-" + caseSuffix
+				created, createErr := peerConn.Client.CreateWorkspace(ctx, requestID, rpcapi.WorkspaceCreateRequest{
+					Name: workspaceName, Collection: closure.Collection, WorkflowName: closure.WorkflowAlias, Parameters: parameters,
+				})
+				if createErr != nil {
+					result.Cases = append(result.Cases, report.Case{ID: modeCaseID(inputMode, plannedCase.ID+"-workspace-setup"), InputMode: inputMode, Status: "fail", Error: fmt.Sprintf("create temporary Workspace: %v", createErr)})
+					continue
+				}
+				testWorkspaces = append(testWorkspaces, testWorkspace{name: created.Name, inputMode: inputMode, caseIndex: caseIndex})
+				lifecycle.Record(report.Lifecycle{ResourceType: "Workspace", ID: created.Name, Action: "create", Status: "pass"})
+			}
+		}
+		if len(testWorkspaces) == 0 {
+			return result, errors.New("no temporary Workspace could be created")
+		}
 	}
 	target := &conversation.PeerTarget{Client: peerConn.Client, Timeout: c.Timeout, RequireAudio: workflow.Driver == "ast-translate"}
-	if err := target.Select(ctx, setup.WorkspaceName, closure.WorkflowID); err != nil {
-		return result, fmt.Errorf("select candidate Workspace: %w", err)
-	}
+	defer func() {
+		if closeErr := target.Close(); closeErr != nil {
+			if runErr == nil {
+				runErr = closeErr
+			} else {
+				runErr = errors.Join(runErr, closeErr)
+			}
+		}
+	}()
 	var simulation *agent.Agent
 	if c.AgentModel != "" || c.JudgeModel != "" || c.InputTTSModel != "" {
-		key, keyErr := c.OpenAIKey.Read(stdin)
-		if keyErr != nil {
-			return result, keyErr
+		clusterSession := !c.OpenAIKey.Configured()
+		var key []byte
+		if clusterSession {
+			key, err = openaiapi.LoginPeer(ctx, c.OpenAIBaseURL, peerKeys, info.AuthoritativePublicKey, token)
+		} else {
+			key, err = c.OpenAIKey.Read(stdin)
 		}
+		if err != nil {
+			return result, err
+		}
+		// Install redaction before any authenticated request. Preflight failures
+		// can include provider response bodies and must not escape with this key.
+		defer func() { runErr = reportError(runErr, key) }()
 		client := openaiapi.Client{BaseURL: c.OpenAIBaseURL, APIKey: string(key)}
-		models, modelsErr := client.Models(ctx)
-		if modelsErr != nil {
-			return result, reportError(modelsErr, adminSecret, key)
+		if c.AgentModel != "" || c.JudgeModel != "" || (!clusterSession && c.InputTTSModel != "") {
+			models, modelsErr := client.Models(ctx)
+			if modelsErr != nil {
+				return result, fmt.Errorf("list models for OpenAI simulation: %w", modelsErr)
+			}
+			requested := []string{c.AgentModel, c.JudgeModel}
+			if !clusterSession {
+				requested = append(requested, c.InputTTSModel)
+			}
+			if modelErr := requireAvailable("model", models, requested...); modelErr != nil {
+				return result, modelErr
+			}
+		}
+		if clusterSession && c.InputTTSModel != "" {
+			voices, voicesErr := client.Voices(ctx)
+			if voicesErr != nil {
+				return result, fmt.Errorf("list voices for cluster input speech: %w", voicesErr)
+			}
+			if voiceErr := requireAvailable("voice", voices, c.InputTTSVoice); voiceErr != nil {
+				return result, voiceErr
+			}
 		}
 		if c.AgentModel != "" {
-			result.Models["agent"] = chooseModel(c.AgentModel, models)
+			result.Models["agent"] = c.AgentModel
 		}
 		if c.JudgeModel != "" {
-			result.Models["judge"] = chooseModel(c.JudgeModel, models)
+			result.Models["judge"] = c.JudgeModel
 		}
 		if c.InputTTSModel != "" {
-			result.Models["input_tts"] = chooseModel(c.InputTTSModel, models)
-			target.InputAudio = func(ctx context.Context, text string) (conversation.AudioInput, error) {
+			result.Models["input_tts"] = c.InputTTSModel
+			target.InputAudio = conversation.CacheAudioInput(func(ctx context.Context, text string) (conversation.AudioInput, error) {
 				encoded, speechErr := client.Speech(ctx, result.Models["input_tts"], c.InputTTSVoice, text)
 				if speechErr != nil {
 					return conversation.AudioInput{}, speechErr
 				}
 				frames, decodeErr := opusFrames(encoded)
 				return conversation.AudioInput{MIMEType: "audio/opus", Frames: frames}, decodeErr
-			}
+			})
 		}
 		simulation = &agent.Agent{Client: client, Model: result.Models["agent"]}
-		defer func() { runErr = reportError(runErr, key) }()
 	}
 	runner := conversation.Runner{Target: target}
 	if simulation != nil {
@@ -333,7 +411,44 @@ func run(ctx context.Context, c config.Config, stdin io.Reader) (result report.R
 			runner.Judge = judge
 		}
 	}
-	result.Cases = runner.Run(ctx, testPlan)
+	for _, workspace := range testWorkspaces {
+		target.InputMode = workspace.inputMode
+		opening, err := target.Select(ctx, workspace.name, closure.WorkflowID, workflowStartsAgent(workflow))
+		if err != nil {
+			result.Cases = append(result.Cases, report.Case{
+				ID: modeCaseID(workspace.inputMode, "workspace-select"), InputMode: workspace.inputMode, Status: "fail",
+				Error: fmt.Sprintf("select candidate Workspace: %v", err),
+			})
+			continue
+		}
+		workspacePlan := testPlan
+		if workspace.caseIndex >= 0 {
+			workspacePlan.Cases = []plan.Case{testPlan.Cases[workspace.caseIndex]}
+		}
+		cases := runner.Run(ctx, workspacePlan)
+		for index := range cases {
+			if opening.Text != "" {
+				openingTurn := report.Turn{
+					ID: "agent-opening", Assistant: opening.Text, FirstResponse: opening.FirstResponse,
+					TotalResponse: opening.TotalResponse, RuneCount: len([]rune(opening.Text)),
+					Evidence: opening.Evidence, Status: "pass",
+				}
+				if budget := firstResponseBudget(workspacePlan); budget > 0 {
+					status := "pass"
+					if opening.FirstResponse > budget {
+						status = "fail"
+						openingTurn.Status = "fail"
+						cases[index].Status = "fail"
+					}
+					openingTurn.Checks = []report.Check{{Name: "first_response", Status: status, Detail: fmt.Sprintf("got=%s max=%s", opening.FirstResponse, budget)}}
+				}
+				cases[index].Turns = append([]report.Turn{openingTurn}, cases[index].Turns...)
+			}
+			cases[index].InputMode = workspace.inputMode
+			cases[index].ID = modeCaseID(workspace.inputMode, cases[index].ID)
+		}
+		result.Cases = append(result.Cases, cases...)
+	}
 	for _, caseResult := range result.Cases {
 		if caseResult.Status != "pass" {
 			runErr = errors.New("one or more acceptance cases failed")
@@ -343,11 +458,45 @@ func run(ctx context.Context, c config.Config, stdin io.Reader) (result report.R
 	return result, runErr
 }
 
-func workspaceParameters(driver string) (*rpcapi.WorkspaceParameters, error) {
+func requireAvailable(kind string, available []string, requested ...string) error {
+	found := make(map[string]bool, len(available))
+	for _, resource := range available {
+		found[resource] = true
+	}
+	for _, resource := range requested {
+		if resource != "" && !found[resource] {
+			return fmt.Errorf("OpenAI simulation %s alias %q is unavailable; available aliases: %s", kind, resource, strings.Join(available, ", "))
+		}
+	}
+	return nil
+}
+
+func workspaceParameters(driver, inputMode string, agentStarts bool) (*rpcapi.WorkspaceParameters, error) {
+	if agentStarts && (driver == "flowcraft" || driver == "eino") {
+		initiative := rpcapi.FlowcraftConversationParametersInitiativeAgent
+		policy := rpcapi.FlowcraftConversationParametersAgentInitiativePolicyOnReload
+		conversation := &rpcapi.FlowcraftConversationParameters{Initiative: &initiative, AgentInitiativePolicy: &policy}
+		parameters := rpcapi.WorkspaceParameters{}
+		if driver == "flowcraft" {
+			if err := parameters.FromFlowcraftWorkspaceParameters(rpcapi.FlowcraftWorkspaceParameters{
+				AgentType: rpcapi.FlowcraftWorkspaceParametersAgentTypeFlowcraft, Conversation: conversation,
+			}); err != nil {
+				return nil, fmt.Errorf("encode Flowcraft agent-start Workspace parameters: %w", err)
+			}
+		} else if err := parameters.FromEinoWorkspaceParameters(rpcapi.EinoWorkspaceParameters{
+			AgentType: rpcapi.EinoWorkspaceParametersAgentTypeEino, Conversation: conversation,
+		}); err != nil {
+			return nil, fmt.Errorf("encode Eino agent-start Workspace parameters: %w", err)
+		}
+		return &parameters, nil
+	}
 	if driver != "ast-translate" {
 		return nil, nil
 	}
-	input := rpcapi.WorkspaceInputModePushToTalk
+	input := rpcapi.WorkspaceInputMode(inputMode)
+	if !input.Valid() {
+		return nil, fmt.Errorf("unsupported AST Workspace input mode %q", inputMode)
+	}
 	parameters := rpcapi.WorkspaceParameters{}
 	if err := parameters.FromASTTranslateWorkspaceParameters(rpcapi.ASTTranslateWorkspaceParameters{
 		AgentType: rpcapi.ASTTranslateWorkspaceParametersAgentTypeAstTranslate,
@@ -393,18 +542,48 @@ func randomID(bytes int) (string, error) {
 	}
 	return hex.EncodeToString(b), nil
 }
+func workspaceModeSuffix(mode string) string {
+	switch mode {
+	case "push-to-talk":
+		return "ptt"
+	case "realtime":
+		return "realtime"
+	default:
+		return "default"
+	}
+}
+func modeCaseID(mode, id string) string {
+	if mode == "" {
+		return id
+	}
+	return workspaceModeSuffix(mode) + ":" + id
+}
 func driverMatches(workflow, planned string) bool {
-	mapping := map[string]string{"flowcraft": "flowcraft", "doubao-realtime": "realtime", "ast-translate": "translate", "pet": "pet"}
+	if planned == "scripted-comparison" {
+		return workflow == "flowcraft" || workflow == "eino"
+	}
+	mapping := map[string]string{"flowcraft": "flowcraft", "eino": "eino", "doubao-realtime": "realtime", "ast-translate": "translate", "pet": "pet"}
 	return mapping[workflow] == planned
 }
-func chooseModel(explicit string, models []string) string {
-	if explicit != "" {
-		return explicit
+
+func workflowStartsAgent(workflow catalog.Workflow) bool {
+	switch workflow.Driver {
+	case "flowcraft":
+		return workflow.Source.Spec.Flowcraft != nil && workflow.Source.Spec.Flowcraft.Conversation != nil &&
+			workflow.Source.Spec.Flowcraft.Conversation.Starts != nil && string(*workflow.Source.Spec.Flowcraft.Conversation.Starts) == "agent"
+	case "eino":
+		return workflow.Source.Spec.Eino != nil && workflow.Source.Spec.Eino.Conversation != nil &&
+			workflow.Source.Spec.Eino.Conversation.Starts != nil && string(*workflow.Source.Spec.Eino.Conversation.Starts) == "agent"
+	default:
+		return false
 	}
-	if len(models) > 0 {
-		return models[0]
+}
+
+func firstResponseBudget(p plan.Plan) time.Duration {
+	if len(p.Cases) == 0 || len(p.Cases[0].Turns) == 0 {
+		return 0
 	}
-	return ""
+	return p.Cases[0].Turns[0].FirstResponse
 }
 func reportError(err error, secrets ...[]byte) error {
 	if err == nil {

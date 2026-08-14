@@ -10,6 +10,7 @@ import yaml
 from scripts.validate_catalog import (
     PUBLIC_DEFAULT_TOKEN,
     CatalogValidationError,
+    _validate_default_behavior_contracts,
     _validate_flowcraft_semantics,
     validate_catalog,
 )
@@ -836,57 +837,221 @@ class PublicDefaultE2ERegressionTest(unittest.TestCase):
         self.assertIsInstance(document, dict)
         return document
 
-    def test_assistant_enforces_prefix_and_suffix_length_requests(self) -> None:
+    def default_behavior_errors(self, *, max_tokens: int = 2048, answer_source: str = '') -> list[str]:
+        if not answer_source:
+            answer_source = (
+                'const answer = String(board.getVar("tmp_answer") || "").trim();\n'
+                'host.emit("token", {content: answer});'
+            )
+        workflow = {
+            "spec": {
+                "driver": "flowcraft",
+                "flowcraft": {
+                    "graph": {
+                        "nodes": [
+                            {
+                                "id": "prompt",
+                                "type": "script",
+                                "config": {"source": "never rely on programmatic truncation"},
+                            },
+                            {
+                                "id": "draft",
+                                "type": "llm",
+                                "publish": False,
+                                "config": {"max_tokens": max_tokens},
+                            },
+                            {
+                                "id": "answer",
+                                "type": "script",
+                                "publish": True,
+                                "config": {"source": answer_source},
+                            },
+                            {
+                                "id": "observe",
+                                "type": "memory_observe",
+                                "config": {"wait_for_completion": False},
+                            },
+                        ]
+                    }
+                },
+            }
+        }
+        errors: list[str] = []
+        _validate_default_behavior_contracts(
+            {}, {("Workflow", "flowcraft-chat-assistant"): workflow}, errors
+        )
+        return errors
+
+    def test_default_behavior_rejects_small_generation_budget(self) -> None:
+        errors = self.default_behavior_errors(max_tokens=512)
+        self.assertIn("must reserve at least 1024 max_tokens", "\n".join(errors))
+
+    def test_default_behavior_rejects_generated_reply_truncation(self) -> None:
+        errors = self.default_behavior_errors(
+            answer_source=(
+                'const raw = String(board.getVar("tmp_answer") || "");\n'
+                'const answer = Array.from(raw).slice(0, 80).join("");\n'
+                'host.emit("token", {content: answer});'
+            )
+        )
+        self.assertIn("must not truncate a generated reply", "\n".join(errors))
+
+    def test_assistant_prompts_for_complete_bounded_replies_without_truncation(self) -> None:
         workflow = self.load("workflows/flowcraft/chat-assistant.yaml")
         nodes = {
             node["id"]: node
             for node in workflow["spec"]["flowcraft"]["graph"]["nodes"]
         }
-        source = nodes["bound_answer"]["config"]["source"]
-        self.assertIn("(?:不超过|最多)", source)
-        self.assertIn("以内/", source)
+        self.assertEqual(nodes["draft_answer"]["config"]["max_tokens"], 2048)
+        self.assertNotIn("bound_answer", nodes)
         self.assertFalse(nodes["draft_answer"]["publish"])
         self.assertFalse(nodes["observe_conversation"]["config"]["wait_for_completion"])
+        prompt = nodes["style_prompt"]["config"]["source"]
+        self.assertIn("explicitly repeat every new or replacement value", prompt)
+        self.assertIn("without offering reminders, asking confirmation", prompt)
+        self.assertIn("never end with a question or Chinese question particles", prompt)
+        self.assertIn("Never format spoken facts as separate lines", prompt)
+        self.assertIn("never rely on programmatic truncation", prompt)
+        self.assertNotIn(".slice(0,", nodes["answer"]["config"]["source"])
         memory = self.load("memory-layouts/user-chat-with-assistant.yaml")
         self.assertEqual(memory["spec"]["flowcraft"]["write"]["mode"], "async_semantic")
 
-    def test_murder_is_open_ended_bounded_and_durable(self) -> None:
+    def test_murder_is_open_ended_complete_and_durable(self) -> None:
         workflow = self.load("workflows/flowcraft/murder-mystery.yaml")
+        tester = self.load("workflows/eino/tests/flowcraft-murder-mystery_test.yaml")
         memory = self.load("memory-layouts/adventure.yaml")
         flowcraft = workflow["spec"]["flowcraft"]
         nodes = {node["id"]: node for node in flowcraft["graph"]["nodes"]}
-        self.assertEqual(nodes["draft_game_master"]["config"]["max_tokens"], 256)
+        self.assertEqual(nodes["draft_game_master"]["config"]["max_tokens"], 2048)
         self.assertFalse(nodes["draft_game_master"]["publish"])
+        self.assertNotIn("bound_game_master", nodes)
         self.assertEqual(nodes["answer"]["type"], "script")
         self.assertTrue(nodes["answer"]["publish"])
         self.assertIn('host.emit("token"', nodes["answer"]["config"]["source"])
-        self.assertIn(
-            ".slice(0, 180)", nodes["bound_game_master"]["config"]["source"]
+        self.assertEqual(flowcraft["max_iterations"], 10)
+        self.assertNotIn("observe_case_turns", nodes)
+        self.assertFalse(nodes["observe_case_state"]["config"]["wait_for_completion"])
+        self.assertEqual(
+            nodes["observe_case_state"]["config"]["observations"][0]["facts"][0]["text_from"],
+            "case_visible_state_fact",
         )
-        self.assertTrue(
-            nodes["observe_case"]["config"]["wait_for_completion"]
+        self.assertIn("raid_case_visible_state_v1", nodes["prepare_case_state"]["config"]["source"])
+        self.assertIn("same_source_shoe_size", nodes["prepare_case_state"]["config"]["source"])
+        self.assertEqual(
+            [edge for edge in flowcraft["graph"]["edges"] if edge["from"] == "prepare_case_state"],
+            [{"from": "prepare_case_state", "to": "observe_case_state"}],
         )
         prompt = nodes["prepare_game_master"]["config"]["source"]
         self.assertIn("自由调查任何合理地点", prompt)
         self.assertIn("最新明确更正覆盖旧值", prompt)
+        self.assertIn("严禁临时发明", prompt)
+        self.assertIn("私密真相只供主持人维持一致", prompt)
+        self.assertIn("最关键的四至五项", prompt)
+        self.assertIn("花园水池和围墙只确认无关键痕迹", prompt)
+        self.assertIn("必须逐项回答", prompt)
+        self.assertIn("一律用第三人称转述", prompt)
+        self.assertIn("不得用‘我’冒充被采访者", prompt)
+        self.assertIn("对话第一轮无论玩家", prompt)
+        self.assertIn("21:10至21:12停电", prompt)
+        self.assertIn("20:50开始在后厨揉面", prompt)
+        self.assertIn("留声机只用于声音和时间误导", prompt)
+        self.assertIn("严禁声称唱盘拉线锁门", prompt)
+        self.assertIn("固定案情不可漂移", prompt)
+        self.assertIn("固定可见来源表不可混用", prompt)
+        self.assertIn("后门内锁且无撬动、木蜡或细线", prompt)
+        self.assertIn("周围灰尘无异常且附近无其他物品", prompt)
+        self.assertIn("只有玩家明确寻找线、纤维或拉扯痕迹时", prompt)
+        self.assertIn("区分证据关联和证词矛盾", prompt)
+        self.assertIn("不得虚构他否认木蜡", prompt)
+        self.assertIn("调查后廊前不得把鞋印称为后廊鞋印", prompt)
+        self.assertIn("后廊鞋印本身不得称为同源", prompt)
+        self.assertIn("不得补充感情好坏、公开矛盾", prompt)
+        self.assertIn("不得判断后廊是否连通阳台、厨房、卧室", prompt)
+        self.assertIn("不得声称没有连接其他区域的痕迹", prompt)
+        self.assertIn("必须先明确回答已确认连通书房与门厅", prompt)
+        self.assertIn("不得含糊改写成无法判断是否连通此前调查过的区域", prompt)
+        self.assertIn("任何理论评估、复盘或其他回复都不得提书房锁具细线纤维", prompt)
+        self.assertIn("严禁概括成所有、全部、其他物证或其他证词都与厨师证词一致", prompt)
+        self.assertIn("阳台地面没有固定检查结果", prompt)
+        self.assertIn("即使调查后也只能写特征一致，不得升级为匹配或同源", prompt)
+        self.assertIn("此时正值雨夜", prompt)
+        self.assertIn("不得补写没有其他异常、没有其他痕迹、异常痕迹", prompt)
+        self.assertIn("不得组合成‘主钥匙备用钥匙’", prompt)
+        self.assertIn("无关来源不得用来支持厨师证词", prompt)
+        self.assertIn("死者当晚活动物品没有固定检查结果", prompt)
+        self.assertIn("不得声称没有其他能印证或反驳厨师证词的线索", prompt)
+        self.assertIn("首次报告用确认，不得称为更正", prompt)
+        self.assertIn("不得在律师受访前声称律师已经证实", prompt)
+        self.assertIn("不得把窗框只有木蜡", prompt)
+        self.assertIn("管家不知道壁炉内另有备用钥匙", prompt)
+        self.assertIn("这些结果与厨师证词一致、没有矛盾", prompt)
+        self.assertIn("唱针停在磨损对应位置", prompt)
+        self.assertIn("不得编造比例或数额", prompt)
+        self.assertIn("细线不得声称同批、同源或匹配", prompt)
+        self.assertIn("后来明确调查锁具纤维时", prompt)
+        self.assertIn("严格只写三句且总共不超过130个字符", prompt)
+        self.assertIn("不得依赖程序截断", prompt)
+        self.assertIn("约80至320个Unicode字符", prompt)
+        self.assertIn("可以写到480个字符", prompt)
+        self.assertNotIn("每次回复不超过180个字符", prompt)
+        self.assertIn("不得用‘我查看了’‘我检查了’冒充玩家", prompt)
+        self.assertIn("不得在任何检查末尾追加", prompt)
+        self.assertIn("管家没有固定证词", prompt)
+        self.assertIn("不得添加侦探身份、受邀、报案、赶到现场、发现者、进入或开门方式", prompt)
+        self.assertIn("不得添加落叶、泥土、雨水、攀爬、翻越", prompt)
+        self.assertIn("都必须逐字且只输出以下三句", prompt)
+        self.assertIn("你可以自由调查任何感兴趣的地点、物品或相关人物", prompt)
+        self.assertIn("鞋柜有39码湿雨靴", prompt)
+        tester_prompt = next(
+            message["template"]
+            for node in tester["spec"]["eino"]["graph"]["nodes"]
+            if node["id"] == "prepare-judge"
+            for message in node["messages"]
+            if message["role"] == "system"
+        )
+        self.assertIn(
+            "请开始主持《雨夜留声机》，只给出初始案情和自由调查邀请。",
+            tester_prompt,
+        )
+        self.assertIn("不得把预期的主持人开场当成玩家台词", tester_prompt)
         self.assertEqual(
             memory["spec"]["flowcraft"]["extraction"]["mode"],
             "single_pass",
         )
+        self.assertEqual(
+            memory["spec"]["flowcraft"]["write"]["mode"],
+            "sync",
+        )
 
-    def test_journey_has_one_recall_and_hard_output_budget(self) -> None:
+    def test_journey_has_one_recall_and_complete_scene_budget(self) -> None:
         workflow = self.load("workflows/flowcraft/journey-guide.yaml")
         flowcraft = workflow["spec"]["flowcraft"]
         nodes = {node["id"]: node for node in flowcraft["graph"]["nodes"]}
+        self.assertEqual(nodes["draft_story"]["config"]["max_tokens"], 2048)
         self.assertEqual(flowcraft["max_iterations"], 10)
         self.assertEqual(
             [node["id"] for node in flowcraft["graph"]["nodes"] if node["type"] == "memory_recall"],
             ["recall_story"],
         )
         self.assertFalse(nodes["draft_story"]["publish"])
+        self.assertNotIn("bound_story", nodes)
         self.assertIn("journey_progress", nodes["commit_progress"]["config"]["source"])
         self.assertIn("journey_progress_fact", nodes["commit_progress"]["config"]["source"])
         self.assertIn("history", nodes["commit_progress"]["config"]["source"])
+        self.assertIn("始终用第二人称", nodes["prepare_story"]["config"]["source"])
+        self.assertIn("同样不得推进场景、替玩家调查", nodes["prepare_story"]["config"]["source"])
+        self.assertIn("不得把两个此前没有建立关系的事件倒填成确定因果", nodes["prepare_story"]["config"]["source"])
+        self.assertIn("完整的场景段落", nodes["prepare_story"]["config"]["source"])
+        self.assertIn("约100至260个Unicode字符", nodes["prepare_story"]["config"]["source"])
+        self.assertIn("复杂的连续动作可以写到360个字符", nodes["prepare_story"]["config"]["source"])
+        self.assertNotIn("每次回复最多40个Unicode字符", nodes["prepare_story"]["config"]["source"])
+        self.assertIn("不得出现‘不对’‘重新来’", nodes["prepare_story"]["config"]["source"])
+        self.assertIn("不能停在‘准备’‘将要’‘找到人’或‘快完成’", nodes["prepare_story"]["config"]["source"])
+        self.assertIn("不得越过用户明确要求的停止点", nodes["prepare_story"]["config"]["source"])
+        self.assertIn("后续相关行动必须保留姓名‘明月’", nodes["prepare_story"]["config"]["source"])
+        self.assertIn("不得因为这些规则举例提到‘明月’或‘清禾’就提前引入", nodes["prepare_story"]["config"]["source"])
+        self.assertIn("事实建立、纠正或纯回忆回合只直接回答用户要求", nodes["prepare_story"]["config"]["source"])
+        self.assertIn("先完整回答每项事实，再自然承接当前场景", nodes["prepare_story"]["config"]["source"])
         self.assertEqual(
             nodes["recall_story"]["config"]["query"]["lanes"],
             ["story_progress"],
@@ -895,18 +1060,337 @@ class PublicDefaultE2ERegressionTest(unittest.TestCase):
             nodes["observe_story"]["config"]["observations"][0]["facts"][0]["text_from"],
             "journey_progress_fact",
         )
-        self.assertIn(".slice(0, 40)", nodes["bound_story"]["config"]["source"])
+        self.assertIn("不得依赖程序截断", nodes["prepare_story"]["config"]["source"])
+        self.assertNotIn(".slice(0,", nodes["answer"]["config"]["source"])
         self.assertEqual(nodes["answer"]["type"], "script")
-        self.assertTrue(nodes["observe_story"]["config"]["wait_for_completion"])
+        self.assertFalse(nodes["observe_story"]["config"]["wait_for_completion"])
+        memory = self.load("memory-layouts/story-teller.yaml")
+        self.assertEqual(memory["spec"]["flowcraft"]["write"]["mode"], "sync")
+
+    def test_paired_story_workflows_keep_distinct_prompts_and_equal_budgets(self) -> None:
+        scenarios = {
+            "story-aesop": ("乌龟和小鸟同时发现了一颗种子", "第三章‘合作照料’"),
+            "story-alice": ("一只戴着两块表的兔子", "第三章‘绿色小门’"),
+            "adventure-space-rescue": ("一艘科研飞船失去动力", "第三阶段‘准备安全会合’"),
+            "adventure-monster-maze": ("迷宫门上有月亮、星星和太阳三个按钮", "第四区‘怪兽合作’"),
+            "adventure-castle-mystery": ("城堡钟楼在午夜提前响了", "第三阶段‘竞争假设’"),
+        }
+        prompts: set[str] = set()
+        for scenario, (opening, durable_checkpoint) in scenarios.items():
+            with self.subTest(scenario=scenario):
+                flowcraft = self.load(f"workflows/flowcraft/{scenario}.yaml")
+                eino = self.load(f"workflows/eino/{scenario}.yaml")
+                flow_nodes = {
+                    node["id"]: node
+                    for node in flowcraft["spec"]["flowcraft"]["graph"]["nodes"]
+                }
+                eino_nodes = {
+                    node["id"]: node
+                    for node in eino["spec"]["eino"]["graph"]["nodes"]
+                }
+                flow_prompt = flow_nodes["draft"]["config"]["system_prompt"]
+                narrator_prompts = [
+                    node
+                    for node in eino_nodes.values()
+                    if node["type"] == "prompt" and "route" in node.get("inputs", {})
+                ]
+                self.assertEqual(len(narrator_prompts), 1)
+                eino_prompt = narrator_prompts[0]["messages"][0]["template"]
+                self.assertIn(opening, flow_prompt)
+                self.assertIn(opening, eino_prompt)
+                if scenario == "adventure-space-rescue":
+                    self.assertIn(
+                        "首句就必须逐字同时包含“备用电池”和“安全窗口”",
+                        eino_prompt,
+                    )
+                self.assertNotIn(eino_prompt, prompts)
+                prompts.add(eino_prompt)
+                self.assertEqual(flow_nodes["draft"]["config"]["max_tokens"], 2048)
+                model_nodes = [
+                    node for node in eino_nodes.values() if node["type"] == "chat_model"
+                ]
+                # The deterministic route script owns chapter/stage planning;
+                # only the narrator calls the model so the graph is not a
+                # latency-heavy 2-pass chain.
+                self.assertEqual(len(model_nodes), 1)
+                self.assertTrue(all(node["max_tokens"] == 2048 for node in model_nodes))
+                self.assertEqual(
+                    eino["spec"]["memory"],
+                    "story-teller" if scenario.startswith("story-") else "adventure",
+                )
+                node_types = {node["type"] for node in eino_nodes.values()}
+                self.assertTrue(
+                    {"script", "memory_recall", "prompt", "chat_model", "memory_observe"}
+                    <= node_types
+                )
+                route_nodes = [
+                    node
+                    for node in eino_nodes.values()
+                    if node["type"] == "script" and node["id"].startswith("route-")
+                ]
+                self.assertEqual(len(route_nodes), 1)
+                self.assertIn(durable_checkpoint, route_nodes[0]["source"])
+                self.assertIn("route", narrator_prompts[0]["inputs"])
+                self.assertFalse(any(node_id.startswith("plan-") for node_id in eino_nodes))
+                self.assertGreaterEqual(
+                    eino["spec"]["eino"]["graph"]["compile"]["max_run_steps"], 16
+                )
+                observe = next(
+                    node
+                    for node in eino_nodes.values()
+                    if node["type"] == "memory_observe"
+                )
+                # Persist progress without delaying the completed voice reply. The
+                # following turn remains protected by injected history while the
+                # long-term memory provider finishes asynchronously.
+                self.assertFalse(observe["wait_for_completion"])
+                self.assertEqual(
+                    observe["facts"][0]["attributes"],
+                    {"lane": "progress-lane", "kind": "progress-kind"},
+                )
+                commit = eino_nodes["commit-progress"]
+                self.assertIn('"kind": "state"', commit["source"])
+                self.assertEqual(
+                    eino["spec"]["eino"]["graph"]["outputs"][0]["node"],
+                    "narrator-model",
+                )
+                self.assertEqual(
+                    flowcraft["spec"]["flowcraft"]["conversation"]["starts"],
+                    "agent",
+                )
+                self.assertEqual(
+                    eino["spec"]["eino"]["conversation"]["starts"], "peer"
+                )
+                self.assertIn("voice_adapter", flowcraft["spec"]["flowcraft"])
+                self.assertNotIn(".slice(0,", flow_nodes["answer"]["config"]["source"])
+                self.assertIn("不得依赖程序截断", flow_prompt)
+
+        for relative in (
+            "tools/raidtest/plans/benchmarks/story-aesop-comparison.yaml",
+            "tools/raidtest/plans/benchmarks/story-alice-comparison.yaml",
+            "tools/raidtest/plans/benchmarks/adventure-space-rescue-comparison.yaml",
+            "tools/raidtest/plans/benchmarks/adventure-monster-maze-comparison.yaml",
+            "tools/raidtest/plans/benchmarks/adventure-castle-mystery-comparison.yaml",
+        ):
+            plan = self.load(relative)
+            self.assertEqual(plan["driver"], "scripted-comparison")
+            self.assertTrue(plan["paired"])
+            self.assertNotIn("persona", plan)
+            turns = plan["cases"][0]["turns"]
+            # Agent-start workflows contribute a formal opening before the first
+            # simulated user message, so it is a separately judged checkpoint.
+            self.assertEqual(len(turns), 13)
+            self.assertTrue(all(turn["first_response"] == "6s" for turn in turns))
+            self.assertEqual(turns[0]["id"], "opening")
+            self.assertTrue(
+                all(
+                    key not in turn
+                    for turn in turns
+                    for key in ("user", "intent", "judge")
+                )
+            )
+            reloads = [turn for turn in turns if turn.get("reload_before")]
+            self.assertEqual(len(reloads), 1)
+
+        aesop_turns = self.load(
+            "tools/raidtest/plans/benchmarks/story-aesop-comparison.yaml"
+        )["cases"][0]["turns"]
+        growth = next(turn for turn in aesop_turns if turn["id"] == "recall-growth-time")
+        self.assertEqual(
+            growth["required_any"],
+            [["幼苗", "幼芽", "小芽", "种子", "发芽"], ["天", "日"]],
+        )
+        maze_turns = self.load(
+            "tools/raidtest/plans/benchmarks/adventure-monster-maze-comparison.yaml"
+        )["cases"][0]["turns"]
+        route = next(turn for turn in maze_turns if turn["id"] == "establish-route")
+        self.assertIn("左手边", route["required_any"][0])
+        theory = next(turn for turn in maze_turns if turn["id"] == "uncertain-theory")
+        self.assertNotIn("一定知道", theory["forbidden"])
+        rescue_turns = self.load(
+            "tools/raidtest/plans/benchmarks/adventure-space-rescue-comparison.yaml"
+        )["cases"][0]["turns"]
+        communications = next(
+            turn for turn in rescue_turns if turn["id"] == "restore-communications"
+        )
+        self.assertEqual(communications["required"], ["科研飞船"])
+        self.assertEqual(
+            communications["required_any"], [["通信", "天线", "收到", "传回"]]
+        )
+
+    def test_pr61_workflows_have_independent_eino_testers_and_testing_profile(self) -> None:
+        targets = {
+            "eino-adventure-castle-mystery",
+            "eino-adventure-monster-maze",
+            "eino-adventure-space-rescue",
+            "eino-journey-history",
+            "eino-journey-memory-async",
+            "eino-journey-memory-recall",
+            "eino-story-aesop",
+            "eino-story-alice",
+            "flowcraft-adventure-castle-mystery",
+            "flowcraft-adventure-monster-maze",
+            "flowcraft-adventure-space-rescue",
+            "flowcraft-story-aesop",
+            "flowcraft-story-alice",
+            "flowcraft-murder-mystery",
+        }
+        prompts: set[str] = set()
+        for target in targets:
+            with self.subTest(target=target):
+                tester = self.load(f"workflows/eino/tests/{target}_test.yaml")
+                self.assertEqual(tester["metadata"]["id"], f"{target}-test")
+                self.assertEqual(tester["spec"]["driver"], "eino")
+                self.assertEqual(
+                    tester["spec"]["toolkit"]["tool_ids"],
+                    ["raidtest-acceptance-report"],
+                )
+                graph = tester["spec"]["eino"]["graph"]
+                self.assertEqual(
+                    tester["spec"]["eino"]["conversation"]["starts"], "peer"
+                )
+                model = next(
+                    node for node in graph["nodes"] if node["type"] == "chat_model"
+                )
+                self.assertEqual(model["model"], f"{target}-test.model")
+                self.assertGreaterEqual(model["max_tokens"], 1024)
+                prompt_node = next(
+                    node for node in graph["nodes"] if node["type"] == "prompt"
+                )
+                self.assertEqual(
+                    prompt_node["inputs"], {"payload": {"from": "input.text"}}
+                )
+                self.assertEqual(
+                    prompt_node["messages"][1],
+                    {"role": "user", "template": "{payload}"},
+                )
+                prompt = prompt_node["messages"][0]["template"]
+                self.assertIn("raidtest-acceptance-report", prompt)
+                self.assertIn("next_message", prompt)
+                self.assertIn("evidence", prompt)
+                self.assertNotIn(prompt, prompts)
+                if target != "flowcraft-murder-mystery" and "journey" not in target:
+                    self.assertNotIn("12轮", prompt)
+                prompts.add(prompt)
+
+        testing = self.load("runtime-profiles/testing.yaml")["spec"]
+        target_bindings = testing["workflows"]["collections"]["raidtest-targets"]
+        tester_bindings = testing["workflows"]["collections"]["raidtest-testers"]
+        self.assertEqual(
+            {binding["resource_id"] for binding in target_bindings.values()}, targets
+        )
+        self.assertEqual(
+            {binding["resource_id"] for binding in tester_bindings.values()},
+            {f"{target}-test" for target in targets},
+        )
+        self.assertEqual(
+            testing["resources"]["tools"]["raidtest-acceptance-report"]["resource_id"],
+            "raidtest-acceptance-report",
+        )
+        self.assertIn("adventure.space-rescue", testing["workflows"]["collections"]["adventure"])
+        self.assertNotIn("adventure.space_rescue", testing["workflows"]["collections"]["adventure"])
+
+        default = self.load("runtime-profiles/default.yaml")["spec"]
+        self.assertIn("adventure.space_rescue", default["workflows"]["collections"]["adventure"])
+        token = self.load("registration-tokens/testing.yaml")
+        self.assertEqual(token["metadata"]["id"], "testing-runtime")
+        self.assertEqual(token["spec"]["runtime_profile_id"], "testing")
+        tool = self.load("tool-resources/raidtest-acceptance-report.yaml")
+        self.assertEqual(tool["spec"]["type"], "client_rpc")
+        self.assertEqual(tool["spec"]["invoke_name"], "raidtest_acceptance_report")
+        check_schema = tool["spec"]["input_schema"]["properties"]["checks"]["items"]
+        self.assertIn("evidence", check_schema["required"])
+
+        suite = self.load("tools/raidtest/suites/pr61-paired.yaml")
+        self.assertEqual(suite["schema_version"], "raidtest.suite/v1")
+        self.assertEqual(len(suite["pairs"]), 14)
+        self.assertEqual(
+            {pair["target_workflow_id"] for pair in suite["pairs"]}, targets
+        )
+        for pair in suite["pairs"]:
+            target = self.load(pair["target_workflow_file"])
+            self.assertEqual(target["spec"]["toolkit"]["tool_ids"], [])
+        murder = next(
+            pair
+            for pair in suite["pairs"]
+            if pair["target_workflow_id"] == "flowcraft-murder-mystery"
+        )
+        self.assertEqual(murder["expected_target_responses"], 26)
+        self.assertEqual(murder["repeats"], 5)
+        self.assertEqual(murder["reloads"][0]["before_response"], 20)
+
+
+    def test_new_story_bindings_match_their_issue_contracts(self) -> None:
+        profile = self.load("runtime-profiles/default.yaml")["spec"]["workflows"]["collections"]
+        expected = {
+            ("story-teller", "story.aesop"): (
+                "flowcraft-story-aesop",
+                "伊索寓言",
+                "Aesop's Fables",
+            ),
+            ("story-teller", "story.alice"): (
+                "flowcraft-story-alice",
+                "爱丽丝梦游仙境",
+                "Alice in Wonderland",
+            ),
+            ("adventure", "adventure.space_rescue"): (
+                "flowcraft-adventure-space-rescue",
+                "宇宙救援",
+                "Space Rescue",
+            ),
+            ("adventure", "adventure.monster_maze"): (
+                "flowcraft-adventure-monster-maze",
+                "怪兽迷宫",
+                "Monster Maze",
+            ),
+            ("adventure", "adventure.castle_mystery"): (
+                "flowcraft-adventure-castle-mystery",
+                "城堡谜案",
+                "Castle Mystery",
+            ),
+        }
+        for (collection, alias), (resource_id, zh_name, en_name) in expected.items():
+            with self.subTest(alias=alias):
+                binding = profile[collection][alias]
+                self.assertEqual(binding["resource_id"], resource_id)
+                self.assertEqual(binding["i18n"]["zh-CN"]["display_name"], zh_name)
+                self.assertEqual(binding["i18n"]["en"]["display_name"], en_name)
+                self.assertTrue(binding["i18n"]["zh-CN"]["description"])
+                self.assertTrue(binding["i18n"]["en"]["description"])
+
+        for alias, resource_id in (
+            ("adventure.space_rescue-eino", "eino-adventure-space-rescue"),
+            ("adventure.monster_maze-eino", "eino-adventure-monster-maze"),
+            ("adventure.castle_mystery-eino", "eino-adventure-castle-mystery"),
+        ):
+            with self.subTest(alias=alias):
+                self.assertEqual(profile["adventure"][alias]["resource_id"], resource_id)
 
     def test_pet_graph_has_bounded_iteration_headroom(self) -> None:
         workflow = self.load("workflows/pet/pet-care.yaml")
         flowcraft = workflow["spec"]["pet"]["flowcraft"]
-        self.assertEqual(flowcraft["max_iterations"], 11)
+        self.assertEqual(flowcraft["max_iterations"], 13)
         nodes = {node["id"]: node for node in flowcraft["graph"]["nodes"]}
         self.assertFalse(nodes["draft_answer"]["publish"])
+        self.assertEqual(nodes["draft_answer"]["config"]["max_tokens"], 2048)
+        self.assertNotIn("bound_answer", nodes)
         self.assertEqual(nodes["answer"]["type"], "script")
         self.assertFalse(nodes["observe_pet_memory"]["config"]["wait_for_completion"])
+        self.assertFalse(nodes["observe_pet_state"]["config"]["wait_for_completion"])
+        self.assertIn("raid_pet_durable_state_v1", nodes["prepare_pet_state"]["config"]["source"])
+        self.assertIn("pet_durable_state_fact", nodes["prepare_pet_state"]["config"]["source"])
+        self.assertEqual(
+            nodes["observe_pet_state"]["config"]["observations"][0]["facts"][0]["text_from"],
+            "pet_durable_state_fact",
+        )
+        pet_prompt = nodes["prepare_pet_context"]["config"]["source"]
+        self.assertIn("acknowledge every named person, pet, place, object, and time", pet_prompt)
+        self.assertIn("Do not invent touching, chasing, licking", pet_prompt)
+        self.assertIn("never describe a paw as a hand", pet_prompt)
+        self.assertIn("explicitly repeat its time and place", pet_prompt)
+        self.assertIn("never rely on programmatic truncation", pet_prompt)
+        self.assertIn("Never include a draft, self-correction, wrong intermediate value", pet_prompt)
+        self.assertNotIn(".slice(0,", nodes["answer"]["config"]["source"])
         memory = self.load("memory-layouts/pet-care.yaml")
         self.assertEqual(memory["spec"]["flowcraft"]["write"]["mode"], "async_semantic")
 
@@ -918,12 +1402,22 @@ class PublicDefaultE2ERegressionTest(unittest.TestCase):
             plan = self.load(relative)
             for case in plan["cases"]:
                 for turn in case["turns"]:
-                    self.assertEqual(turn["first_response"], "12s")
+                    self.assertEqual(turn["first_response"], "6s")
                     self.assertEqual(turn["total_response"], "12s")
+
+        journey = self.load("tools/raidtest/plans/default/journey.yaml")
+        for case in journey["cases"]:
+            for turn in case["turns"]:
+                self.assertEqual(turn["first_response"], "6s")
+                self.assertEqual(turn["total_response"], "90s")
 
     def test_translation_targets_use_language_specific_voices(self) -> None:
         profile = self.load("runtime-profiles/default.yaml")
         voices = profile["spec"]["resources"]["voices"]
+        self.assertEqual(
+            voices["ast-translate-zh-en-auto.translator"]["resource_id"],
+            "volc-tenant:volc-cn-beijing:zh_female_sophie_conversation_wvae_bigtts",
+        )
         self.assertEqual(
             voices["ast-translate-zh-ja.translator"]["resource_id"],
             "minimax-tenant:minimax-cn:Japanese_CalmLady",

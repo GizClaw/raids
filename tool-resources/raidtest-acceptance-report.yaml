@@ -1,0 +1,34 @@
+apiVersion: gizclaw.admin/v1alpha1
+kind: Tool
+metadata:
+  id: raidtest-acceptance-report
+spec:
+  type: client_rpc
+  invoke_name: raidtest_acceptance_report
+  enabled: true
+  description: Submit one target response judgment and, before the final round, the next user message for a paired raidtest run. Intermediate failed checks remain recorded with action continue so long-flow coverage completes; only the final round uses pass or fail.
+  input_schema:
+    type: object
+    additionalProperties: false
+    required: [case_id, target_workflow_id, response_id, turn_id, action, next_message, checks, summary]
+    properties:
+      case_id: {type: string, minLength: 1, maxLength: 128}
+      target_workflow_id: {type: string, minLength: 1, maxLength: 128}
+      response_id: {type: string, minLength: 1, maxLength: 128}
+      turn_id: {type: string, minLength: 1, maxLength: 128}
+      action: {type: string, enum: [continue, pass, fail]}
+      next_message: {type: string, maxLength: 4096}
+      checks:
+        type: array
+        minItems: 4
+        maxItems: 32
+        items:
+          type: object
+          additionalProperties: false
+          required: [name, status, detail, evidence]
+          properties:
+            name: {type: string, minLength: 1, maxLength: 64}
+            status: {type: string, enum: [pass, fail]}
+            detail: {type: string, minLength: 1, maxLength: 1024}
+            evidence: {type: string, minLength: 1, maxLength: 512}
+      summary: {type: string, minLength: 1, maxLength: 2048}

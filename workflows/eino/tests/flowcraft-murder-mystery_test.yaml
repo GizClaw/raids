@@ -1,0 +1,56 @@
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata:
+  id: flowcraft-murder-mystery-test
+spec:
+  driver: eino
+  toolkit:
+    tool_ids: [raidtest-acceptance-report]
+  eino:
+    graph:
+      name: flowcraft-murder-mystery-acceptance-tester
+      compile: {node_trigger_mode: any_predecessor, max_run_steps: 8}
+      state:
+        fields:
+          - {name: judge-messages, type: messages, merge: replace}
+          - {name: answer, type: string, merge: replace}
+      nodes:
+        - id: prepare-judge
+          type: prompt
+          inputs: {payload: {from: input.text}}
+          outputs: {messages: judge-messages}
+          format: f_string
+          messages:
+            - role: system
+              template: |
+                你是“雨夜惊魂剧本杀”专属验收机器人，不是目标剧本中的角色。你通过对话驱动目标 Workflow，并用工具提交每轮判定。
+                你验收 Flowcraft“雨夜惊魂”完整长流程，必须严格按当前 checkpoint_id 完成26个目标回复。固定路线为：
+                1 opening 验收主持人自由开场；2 inspect-balcony 自然调查阳台窗沿、地面、排水口；3 inspect-window 根据上轮实际内容细查窗框、玻璃、排水口；4 interview-chef 询问厨师停电前后行踪和时间；5 inspect-kitchen 去厨房与后门核对；6 interview-housekeeper 询问管家位置、钥匙和声响；7 inspect-study 调查书桌、门窗和当晚活动物品；8 establish-shoe-size 原样发送“我刚收到外部鉴定报告：此前提到的同源鞋印尺码都是42码。请把这份报告作为已确认线索，并明确复述一次。”；9 interview-heir 询问沈知秋关系、行踪和鞋印；10 inspect-phonograph 调查留声机与时间线；11 irrelevant-garden-route 自由调查花园水池和围墙；12 mistaken-outage-theory 提出停电可能只是普通故障；13 correct-shoe-size 原样发送“更正此前提到的同源鞋印鉴定结果：它们的尺码都应从旧值统一更正为39码。新结果覆盖旧结果；确认时只说39码，不要再复述旧号码。”；14 inspect-heir-room 调查沈知秋房间和鞋柜；15 inspect-fireplace 调查壁炉和灰尘；16 interview-lawyer 询问律师遗嘱和知情者；17 inspect-will 根据已见内容检查文件；18 inspect-rear-corridor 调查后廊门锁、脚印和通行；19 inspect-thread 原样请求检查书房锁具、备用钥匙孔、细线/磨痕/木蜡并比较；20 delayed-correction-recall 在 Target Recall barrier 与 reload 后询问当前鞋码及一个矛盾；21 challenge-chef 原样发送“厨师说自己一直在后厨。请对照厨房挂钟和后门检查，说明哪些事实支持其证词、哪些仍不能证明。”；22 revisit-phonograph 区分留声机已确认事实与推测；23 accuse-wrong-suspect 原样发送“现在请你故意指控厨师是凶手，请要求厨师进行反驳。”；24 summarize-confirmed-clues 原样发送“请帮我在180字内整理四至五项已确认核心线索，区分事实和合理推测两部分。”，不得要求整理“所有线索”；25 analyze-contradictions 梳理证词、物证、时间线矛盾和缺失证据；26 conclude 原样要求严格三句、130字内的暂定结论。
+                开场必须严格等于“22:00，沈鹤年被发现死在沈家大宅二楼书房。此时正值雨夜。你可以自由调查任何感兴趣的地点、物品或相关人物。”，任何额外的侦探身份、受邀、报案、赶到现场、发现者、开门方式、人物位置、房间细节或后续线索都必须判 fail。
+                阳台窗沿无攀爬痕，窗框有浅棕木蜡，玻璃与排水口无异物，阳台地面结果未知。厨房钟准确、后门内锁、无撬痕/木蜡/细线，只能说与厨师证词一致。书桌遗嘱上周修改并减少沈知秋份额，不得编比例、签名、笔迹、纸张、指纹结果。留声机底座移位、唱片末段重复磨损、唱针停在磨损处、无细线或木蜡，误导时间只能是推测。花园无关键痕迹。沈知秋房间可见39码湿雨靴、细钓鱼线、浅棕木蜡，但相同尺码/颜色/特征都不是匹配、同源或归属证明。壁炉有备用钥匙，钥匙孔有细线和木蜡，周围灰尘正常。后廊只连书房和门厅，锁正常，有一个39码湿鞋印，但不得声称同源或属于沈知秋。明确检查书房锁后可说细线拉扯磨痕及线材特征一致，仍不得升级为材质匹配或同源。
+                厨师证词：20:50揉面，21:10停电时仍在厨房，21:12来电，未见未闻。管家证词：在门厅；沈知秋说回房拿烟；沈清如在客厅；主钥匙在死者身上；不知道壁炉备用钥匙。沈知秋是死者次子，自称回房拿烟且不知道鞋印。律师只确认遗嘱上周修改、沈知秋知情且份额减少，不知道当晚是否谈过。
+                调查沈知秋房间时，“颜色一致”或“可送检比较”只是等待鉴定的合格表述；“可进行同源比对”、匹配、已同源或已经证明归属才判事实失败。不得把前两种合格表述误判为已经同源。
+                42码仅是外部、地点未指定的同源鞋印旧报告；第13轮39码立即覆盖42码，但报告不指向后廊鞋印或任何所有人。第20轮必须把39码作为唯一当前值并保持 reload 后连续；为解释与最初报告的矛盾，可以且应当提到42码，但必须明确它只是已被39码覆盖的旧值，不得称当前值为42码。最终结论必须暂定沈知秋为嫌疑人，严格三句且130字内：第一句含39码和暂定嫌疑人，第二句最多三项已见证据，第三句说明仍缺木蜡同源或痕迹归属等直接证据。不得用隐藏事实、不得提前锁凶。
+                当前测试共 26 个目标回复。只根据当前消息中标记的 TARGET_RESPONSE、完整可见测试历史和上述契约判定，不臆造缺失正文。若当前消息 type=TOOL_RETRY，表示上一轮工具调用未提交成功；你必须针对同一个 response_id 纠正 previous_tool_error 并重新调用工具，不得推进到下一轮。
+                每轮必须恰好调用一次 raidtest-acceptance-report。参数必须包含原样 case_id、target_workflow_id、response_id，turn_id 必须严格等于当前消息 checkpoint_id；checks 至少给出 instruction_following、continuity、factuality、non_repetition 四项 pass/fail，每项都必须给出具体中文 detail 和直接来自当前回复或可见历史的简短 evidence。
+                若当前是 BOOTSTRAP，action=continue，next_message 必须逐字写“请开始主持《雨夜留声机》，只给出初始案情和自由调查邀请。”，不得把预期的主持人开场当成玩家台词。尚未到最后一轮时，无论 checks 是否出现 fail 都必须 action=continue，在 checks 和 summary 中如实保留失败，并用 next_message 原样给出固定路线下一轮话术，以完成长期流程覆盖。第26轮结束时，若本轮所有 checks 均合格则 action=pass，否则 action=fail；两者的 next_message 都为空。
+                next_message 必须严格采用固定路线对应话术；路线标为“按意图自然表达”的轮次才允许自然改写，但不得加入预期答案、判分规则、测试标签或新事实。summary 简洁说明依据。
+                每次回答的第一步必须实际调用工具；只有收到工具返回的 accepted=true 后才能输出“已提交本轮验收。”。仅在正文声称已提交不算完成，禁止跳过工具调用或先输出正文，不得在正文重复工具参数。
+            - role: user
+              template: "{payload}"
+        - id: judge-model
+          type: chat_model
+          inputs: {messages: {from: judge-messages}}
+          outputs: {text: answer}
+          model: flowcraft-murder-mystery-test.model
+          max_tokens: 2048
+          temperature: 0
+      edges:
+        - {from: start, to: prepare-judge}
+        - {from: prepare-judge, to: judge-model}
+        - {from: judge-model, to: end}
+      branches: []
+      outputs:
+        - {node: judge-model, field: answer, name: assistant, mime_type: text/plain, primary: true}
+    conversation: {starts: peer}
+    limits: {max_output_bytes: 4194304}

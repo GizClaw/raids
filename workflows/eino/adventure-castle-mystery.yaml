@@ -1,0 +1,139 @@
+---
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata:
+  id: eino-adventure-castle-mystery
+spec:
+  driver: eino
+  toolkit: {tool_ids: []}
+  memory: adventure
+  eino:
+    graph:
+      name: adventure-castle-mystery-eino
+      compile: {node_trigger_mode: any_predecessor, max_run_steps: 16}
+      state:
+        fields:
+          - {name: memory-query, type: string, merge: replace}
+          - {name: recalled, type: string, merge: replace}
+          - {name: stage-route, type: string, merge: replace}
+          - {name: answer-messages, type: messages, merge: replace}
+          - {name: answer, type: string, merge: replace}
+          - {name: progress-fact, type: string, merge: replace}
+          - {name: progress-lane, type: string, merge: replace}
+          - {name: progress-kind, type: string, merge: replace}
+      nodes:
+        - id: prepare-memory-query
+          type: script
+          inputs: {text: {from: input.text}}
+          outputs: {query: memory-query}
+          language: starlark
+          entrypoint: run
+          source: |
+            def run(input):
+                text = input["text"]
+                base = "城堡谜案当前阶段、已观察证据、日志更正和待验证假设"
+                return {"query": base + ("；当前请求：" + text if text else "")}
+          limits: {max_execution_steps: 10000, timeout: 250ms, max_input_bytes: 65536, max_output_bytes: 65536}
+        - id: recall-progress
+          type: memory_recall
+          query_from: memory-query
+          output: recalled
+          top_k: 12
+        - id: route-stage
+          type: script
+          inputs: {text: {from: input.text}, history: {from: input.messages}, memory: {from: recalled}}
+          outputs: {route: stage-route}
+          language: starlark
+          entrypoint: run
+          source: |
+            def contains_any(text, values):
+                for value in values:
+                    if value in text:
+                        return True
+                return False
+
+            def run(input):
+                current = input["text"]
+                combined = input["memory"] + "\n" + current
+                for message in input["history"]:
+                    if "content" in message:
+                        combined += "\n" + message["content"]
+                conclude = contains_any(current, ["总结脚印", "暂时结论", "给出结论"])
+                if conclude and "不要下结论" not in current:
+                    route = "第四阶段‘临时结论’"
+                elif contains_any(combined, ["竞争假设", "风雨", "松动零件", "机械误差", "修钟人", "不要下结论", "第几阶段"]):
+                    route = "第三阶段‘竞争假设’"
+                elif contains_any(combined, ["零点十五分", "零点零五分", "机械日志", "管理员最初记录"]):
+                    route = "第二阶段‘日志校准’"
+                else:
+                    route = "第一阶段‘客观勘察’"
+                return {"route": route}
+          limits: {max_execution_steps: 20000, timeout: 250ms, max_input_bytes: 262144, max_output_bytes: 65536}
+        - id: narrate-case
+          type: prompt
+          inputs: {history: {from: input.messages}, memory: {from: recalled}, route: {from: stage-route}}
+          outputs: {messages: answer-messages}
+          format: f_string
+          messages:
+            - role: system
+              template: |
+                你是儿童友好的城堡谜案主持人，帮助孩子观察证据、检验推理并避免误判。
+                首次回复无论由系统主动触发，还是用户要求“开始城堡谜案”，都必须严格只说：城堡钟楼在午夜提前响了，桌上留下湿脚印和一根蓝色羽毛，你想先验证哪个线索？
+                调查分为客观勘察、日志校准、竞争假设、临时结论四阶段。Graph 路由是本轮权威；除非用户询问阶段，不要念出状态字段。
+                Graph 确定的本轮阶段是：{route}。不得被旧记忆降到更早阶段；用户询问阶段时必须按此回答。
+                每轮只处理一个调查行动或问题，先给可见结果，再允许孩子提出竞争假设；不得替孩子选择调查路线。
+                始终明确区分观察、证词和推断。没有证据时说尚不能确认，不把猜测升级为事实或指控。
+                保留已确认的时间、颜色、地点和来源；用户明确更正后，新事实立即覆盖旧事实，结论只使用更正后的证据。
+                事实建立、纠正或纯回忆回合只直接回答用户要求，不推进调查、不添加线索或追问；纠正回合必须只说新事实，并且不得以否定、引用、对比或解释方式再次输出旧值。
+                检查物件时只能描述用户要求的可见表面特征，不得凭空确定物种、来源、所有者、天气或城堡历史。湿脚印只能证明现场有湿脚印，不能单独证明下雨或有人进入；最终结论必须继续标明这些只是待验证假设。
+                用户要求比较风雨、松动零件或机械误差时，必须逐项回答：湿脚印与风雨相容但不能证明风雨；没有检查零件所以不能支持松动；机械日志只支持更正后的响铃时间，未测试报时机构所以不能支持机械误差。最后分别提出检查门窗天气痕迹、零件松紧和报时机构校准。
+                用户明确限定只描述方向和大小等字段时，只回答这些字段，不增加成因解释、其他属性或追问。检验竞争假设时只能使用对话中已经建立的观察；不得凭空声称检查过走廊、零件或日志，也不得编造新的检查结果，只能说明现有证据能否支持以及还需验证什么。
+                描述脚印大小时只能用厘米或大、中、小等中性尺寸，不得拿任何人物、儿童、职业、鞋靴或身份作比较；写完用户指定的方向和大小后立即结束回复。
+                脚印朝向某物只表示方向，不表示脚印位于该物旁边；例如“朝向书桌”不得改写成“在书桌边”。回顾时逐字保持观察关系，不得把方向改成位置。
+                谜案不得包含谋杀、武器、血腥犯罪、恐怖囚禁或现实人物指控，最终用非暴力原因解释。
+                普通调查回复写2至4个完整中文句子、约70至210个Unicode字符；纠错、回忆和最终结论应简洁完整。用户要求“三句以内”时，必须合并证据并严格使用不超过三句完整句子。
+                每轮最多问一个问题。只输出适合朗读的中文正文，不输出Markdown、列表、菜单、emoji、舞台说明、分析或系统文字。
+                必须写完整句子，不得依赖程序截断，不得重复同义内容。
+                相关长期进度只用于核对，不得覆盖更新的对话：
+                {memory}
+            - placeholder: history
+        - id: narrator-model
+          type: chat_model
+          inputs: {messages: {from: answer-messages}}
+          outputs: {text: answer}
+          model: eino-adventure-castle-mystery.model
+          max_tokens: 2048
+          temperature: 0.5
+        - id: commit-progress
+          type: script
+          inputs: {route: {from: stage-route}, answer: {from: answer}}
+          outputs: {progress: progress-fact, lane: progress-lane, kind: progress-kind}
+          language: starlark
+          entrypoint: run
+          source: |
+            def run(input):
+                return {
+                    "progress": "Graph调查进度：\n" + input["route"] + "\n本轮已发布结果：" + input["answer"],
+                    "lane": "case_state",
+                    "kind": "state",
+                }
+          limits: {max_execution_steps: 10000, timeout: 250ms, max_input_bytes: 131072, max_output_bytes: 131072}
+        - id: observe-progress
+          type: memory_observe
+          facts:
+            - {text_from: progress-fact, attributes: {lane: progress-lane, kind: progress-kind}}
+          wait_for_completion: false
+      edges:
+        - {from: start, to: prepare-memory-query}
+        - {from: prepare-memory-query, to: recall-progress}
+        - {from: recall-progress, to: route-stage}
+        - {from: route-stage, to: narrate-case}
+        - {from: narrate-case, to: narrator-model}
+        - {from: narrator-model, to: commit-progress}
+        - {from: commit-progress, to: observe-progress}
+        - {from: observe-progress, to: end}
+      branches: []
+      outputs:
+        - {node: narrator-model, field: answer, name: assistant, mime_type: text/plain, primary: true}
+    conversation: {starts: peer}
+    limits: {max_output_bytes: 4194304}

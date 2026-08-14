@@ -24,11 +24,15 @@ type Target interface {
 	Reload(context.Context) error
 }
 
+type RecallWaiter interface {
+	WaitForRecall(context.Context, []string, time.Duration) error
+}
+
 type UtteranceAgent interface {
-	Generate(context.Context, string, plan.Turn) (string, error)
+	Generate(context.Context, string, []report.Turn, plan.Turn) (string, error)
 }
 type Judge interface {
-	Judge(context.Context, string, plan.Turn, Response) ([]report.Check, error)
+	Judge(context.Context, string, []report.Turn, plan.Turn, Response) ([]report.Check, error)
 }
 
 type Runner struct {
@@ -44,7 +48,8 @@ func (r Runner) Run(ctx context.Context, p plan.Plan) []report.Case {
 		for turnIndex, turn := range plannedCase.Turns {
 			turnResult := report.Turn{ID: turn.ID, User: turn.User, Status: "pass"}
 			if turnResult.User == "" && r.Agent != nil {
-				generated, err := r.Agent.Generate(ctx, p.Persona, turn)
+				history := append([]report.Turn(nil), result.Turns...)
+				generated, err := r.Agent.Generate(ctx, p.Persona, history, turn)
 				if err != nil {
 					turnResult.Status, turnResult.Error = "fail", fmt.Sprintf("generate utterance: %v", err)
 					result.Turns = append(result.Turns, turnResult)
@@ -54,9 +59,24 @@ func (r Runner) Run(ctx context.Context, p plan.Plan) []report.Case {
 				turnResult.User = generated
 			}
 			turn.User = turnResult.User
-			// Cases are independent acceptance scenarios. Restart the runtime before
-			// each subsequent case so realtime/translation driver state and pending
-			// audio cannot leak across case boundaries.
+			// The command gives each Case its own Workspace. Reload remains useful to
+			// direct Runner callers and closes pending realtime/translation audio, but
+			// it must not be treated as clearing a persistent Workspace conversation.
+			if len(turn.PersistedBeforeReload) > 0 {
+				waiter, ok := r.Target.(RecallWaiter)
+				if !ok {
+					turnResult.Status, turnResult.Error = "fail", "persisted recall barrier is not supported by this target"
+					result.Turns = append(result.Turns, turnResult)
+					result.Status = "fail"
+					continue
+				}
+				if err := waiter.WaitForRecall(ctx, turn.PersistedBeforeReload, turn.PersistenceTimeout); err != nil {
+					turnResult.Status, turnResult.Error = "fail", fmt.Sprintf("wait for persisted recall before reload: %v", err)
+					result.Turns = append(result.Turns, turnResult)
+					result.Status = "fail"
+					continue
+				}
+			}
 			if turn.ReloadBefore || (caseIndex > 0 && turnIndex == 0) {
 				if err := r.Target.Reload(ctx); err != nil {
 					turnResult.Status, turnResult.Error = "fail", fmt.Sprintf("reload: %v", err)
@@ -84,12 +104,23 @@ func (r Runner) Run(ctx context.Context, p plan.Plan) []report.Case {
 			}
 			if err != nil {
 				turnResult.Status, turnResult.Error = "fail", err.Error()
+				// A timed-out graph may still be producing chunks after its Peer stream
+				// closes. Restart the selected Workspace before the next independent
+				// turn so a late response cannot be attributed to the following input.
+				if reloadErr := r.Target.Reload(ctx); reloadErr != nil {
+					turnResult.Error += fmt.Sprintf("; recover Workspace: %v", reloadErr)
+				}
 			} else {
 				if hasFailure(turnResult.Checks) {
 					turnResult.Status = "fail"
 				}
 				if r.Judge != nil && len(turn.Judge) > 0 {
-					checks, judgeErr := r.Judge.Judge(ctx, p.Persona, turn, response)
+					// Semantic continuity can only be evaluated against the turns that
+					// actually happened in this case. Keep failed prior turns in the
+					// transcript: their user facts and assistant contradictions remain
+					// relevant evidence for every later answer.
+					history := append([]report.Turn(nil), result.Turns...)
+					checks, judgeErr := r.Judge.Judge(ctx, p.Persona, history, turn, response)
 					turnResult.Checks = append(turnResult.Checks, checks...)
 					if judgeErr != nil {
 						turnResult.Status, turnResult.Error = "fail", fmt.Sprintf("judge: %v", judgeErr)
@@ -128,7 +159,20 @@ func DeterministicChecks(turn plan.Turn, response Response) []report.Check {
 		checks = append(checks, report.Check{Name: "required_any:" + strings.Join(alternatives, "|"), Status: status, Detail: fmt.Sprintf("found=%t", found)})
 	}
 	for _, fact := range turn.Forbidden {
-		checks = append(checks, containsCheck("forbidden:"+fact, response.Text, fact, false))
+		found := forbiddenContains(response.Text, fact)
+		status := "pass"
+		if found {
+			status = "fail"
+		}
+		checks = append(checks, report.Check{Name: "forbidden:" + fact, Status: status, Detail: fmt.Sprintf("found=%t", found)})
+	}
+	if turn.MinRunes > 0 {
+		count := len([]rune(response.Text))
+		status := "pass"
+		if count < turn.MinRunes {
+			status = "fail"
+		}
+		checks = append(checks, report.Check{Name: "min_runes", Status: status, Detail: fmt.Sprintf("got=%d min=%d", count, turn.MinRunes)})
 	}
 	if turn.MaxRunes > 0 {
 		count := len([]rune(response.Text))
@@ -164,6 +208,35 @@ func DeterministicChecks(turn plan.Turn, response Response) []report.Check {
 	return checks
 }
 
+func forbiddenContains(text, needle string) bool {
+	trimmed := strings.TrimSpace(needle)
+	if strings.HasSuffix(trimmed, ":") || strings.HasSuffix(trimmed, "：") {
+		return strings.Contains(normalizeLiteral(text), normalizeLiteral(trimmed))
+	}
+	normalizedNeedle := normalizeForbiddenLiteral(needle)
+	// Formatting sentinels can normalize to an empty or overly broad value.
+	// Match them literally so arbitrary prose cannot make every response fail.
+	if normalizedNeedle == "" || isFormattingSentinel(trimmed) {
+		return strings.Contains(text, trimmed)
+	}
+	return strings.Contains(normalizeForbiddenLiteral(text), normalizedNeedle)
+}
+
+func isFormattingSentinel(value string) bool {
+	if value == "```" || value == "###" || value == "-" {
+		return true
+	}
+	if len(value) < 2 || value[len(value)-1] != '.' {
+		return false
+	}
+	for _, r := range value[:len(value)-1] {
+		if !unicode.IsDigit(r) {
+			return false
+		}
+	}
+	return true
+}
+
 func containsCheck(name, text, needle string, required bool) report.Check {
 	found := strings.Contains(normalizeLiteral(text), normalizeLiteral(needle))
 	pass := found == required
@@ -177,6 +250,18 @@ func containsCheck(name, text, needle string, required bool) report.Check {
 func normalizeLiteral(value string) string {
 	return strings.Map(func(r rune) rune {
 		if unicode.IsSpace(r) {
+			return -1
+		}
+		if normalized, ok := equivalentDigit(r); ok {
+			return normalized
+		}
+		return unicode.ToLower(r)
+	}, value)
+}
+
+func normalizeForbiddenLiteral(value string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.IsSpace(r) || unicode.IsPunct(r) {
 			return -1
 		}
 		if normalized, ok := equivalentDigit(r); ok {

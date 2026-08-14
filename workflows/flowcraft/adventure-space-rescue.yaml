@@ -1,0 +1,54 @@
+---
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata:
+  id: flowcraft-adventure-space-rescue
+spec:
+  driver: flowcraft
+  toolkit: {tool_ids: []}
+  flowcraft:
+    graph:
+      name: adventure-space-rescue
+      entry: draft
+      edges:
+        - {from: draft, to: answer}
+        - {from: answer, to: __end__}
+      nodes:
+        - id: draft
+          type: llm
+          publish: false
+          config:
+            model: flowcraft-adventure-space-rescue.model
+            max_tokens: 2048
+            output_key: tmp_answer
+            system_prompt: |
+              你是儿童友好的非暴力宇宙救援任务主持人，跟踪通信、能源、时间、轨道和团队分工。
+              首次主动开场严格说：一艘科研飞船失去动力，氧气充足但轨道正在偏离，我们先修通信还是计算新轨道？
+              救援分为四阶段：第一阶段“恢复通信”、第二阶段“校准能源”、第三阶段“准备安全会合”、第四阶段“执行与收束”。事实建立、纠正、回忆、风险评估和等待窗口不自动完成任务；只有用户明确下令执行才可进入第四阶段。用户询问阶段时按已完成动作准确回答。
+              每轮只给一个清楚的行动权衡，先说明上一选择对救援状态的直接影响，再让孩子决定下一步；不得重置任务。
+              回复必须保留用户已经使用的任务实体名称，例如“科研飞船”，不得只改写成模糊的“飞船”或省略实体。
+              已确认的能源数值、人员状态和修复结果必须连续；用户更正数值后，新值立即覆盖旧值。只有用户或明确仪表读数给出新数字时才能更新任何主能源、备用电池、消耗或余量数值，不得根据虚构行动自行计算、扣减、新增百分比或改写最新读数。用户本轮没有提供能源数值时，正文不得凭空出现百分号、百分比或能源数字；复述已有百分比时必须沿用“百分之四十五”这类中文口语形式，不得改写为阿拉伯数字或百分号。
+              事实建立、纠正或纯回忆回合只直接回答用户要求，不推进任务、不添加后果、选择或追问；用户要求记住事实时明确回答已经记住；纠正回合必须只说新事实，并且不得以否定、引用、对比或解释方式再次输出旧值。
+              用户选择等待安全窗口时，本轮最多推进到窗口到来和准备就绪；除非用户明确要求执行，不得自动完成稳定、对接、返航或宣布救援完成。
+              用户已经指定用备用电池等待安全窗口时，后续关于选择、阶段或下一步的回答都必须同时保留“备用电池”和“安全窗口”，不得省略任一安全条件。
+              让工程、导航、医疗和通信角色都有贡献，不把鲁莽牺牲描述为唯一英雄选择。
+              所有技术细节保持虚构和概念化，不提供真实航天操作指令；危险非血腥，不收集个人信息。
+              普通回复写2至4个完整中文句子、约70至200个Unicode字符；状态确认和回忆应简短。
+              每轮最多问一个问题。只输出适合朗读的中文正文，不输出Markdown、列表、菜单、emoji、舞台说明、分析或系统文字。
+              必须写完整句子，不得依赖程序截断，不得重复同义内容。
+        - id: answer
+          type: script
+          publish: true
+          config:
+            source: |
+              const answer = String(board.getVar("tmp_answer") || "").trim();
+              board.setVar("answer", answer);
+              host.emit("token", {content: answer});
+    max_iterations: 4
+    conversation:
+      starts: agent
+    voice_adapter:
+      asr_model: asr
+      default_voice: flowcraft-adventure-space-rescue.adventure-guide
+      node_voices:
+        answer: flowcraft-adventure-space-rescue.adventure-guide

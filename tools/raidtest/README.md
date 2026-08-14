@@ -6,7 +6,9 @@ installer, deployment tool, or replacement for complete product E2E.
 
 ## Build
 
-The module pins `gizclaw-go v0.2.5`, the oldest supported target Server. Its
+The module pins `gizclaw-go v0.3.3`, which provides the generic Admin Resource
+API, Workspace Toolkit policy, and Peer `client_rpc` handlers used by paired
+acceptance. Its
 two WebRTC `replace` directives mirror that released SDK's public dependency
 contract because Go does not propagate replacements from dependency modules.
 The released SDK archive also contains native audio placeholders that are not
@@ -43,6 +45,102 @@ raw private keys are intentionally not accepted as flag values. The deployed
 base profile defaults to `default`. A local profile file and repeatable local
 MemoryLayout files extend the candidate closure.
 
+Flowcraft and Eino scripted Workflows use distinct plan drivers so a benchmark
+cannot accidentally run against the wrong engine. The public Eino Journey
+Workflows under `../../workflows/eino` use the same Default Model resource and
+`max_tokens: 2048`, but vary History and Memory work to isolate first-response
+latency. The Eino benchmark plan deliberately leaves `workflow_id` unset so
+the same turns and judge dimensions apply to all three Eino variants. The
+matching benchmark plans require the first non-empty assistant
+text token within six seconds. This metric is text TTFT; it is not first-audio
+latency. Eino's public Workflow schema currently has no Flowcraft-compatible
+`voice_adapter`, so these Workflows qualify the text path rather than claiming
+drop-in spoken Journey parity.
+
+Plans marked `paired: true` contain only checkpoint order, reload/Recall
+barriers, deterministic facts and rune limits, and latency gates. Natural
+player messages and semantic judgment live in each target's dedicated Eino
+Tester Workflow rather than being duplicated in an external plan. Committed
+paired plans cover Aesop, Alice in Wonderland, Space Rescue, Monster Maze, and
+Castle Mystery with thirteen target responses each, including the formal
+opening. Raidtest
+creates an isolated GizClaw Workspace for every Workflow case; one turn in each
+plan reloads that same Workspace and checks the durable chapter, stage, or area.
+The Eino variants use History and Memory Recall, an invocation-local
+deterministic route script, one narrator model, a progress extraction script,
+and asynchronous Memory observation. This keeps explicit graph progress and
+durable state without a redundant 2-pass model chain on the response path.
+
+## Paired Eino Tester suite
+
+Issue #62's suite runs each candidate Workflow against its own independent Eino
+Tester in the same GizClaw cluster:
+
+```sh
+export RAIDTEST_ADMIN_PRIVATE_KEY='private key text supplied by the operator'
+
+./raidtest run \
+  --server server-bj-01.dev.gizclaw.com:9820 \
+  --peer-server ap.dev.gizclaw.com:9821 \
+  --admin-private-key-env RAIDTEST_ADMIN_PRIVATE_KEY \
+  --suite suites/pr61-paired.yaml \
+  --report pr61-paired-report.json
+```
+
+Repeat `--pair <target-workflow-id>` for a smoke subset. Omitting it runs the
+entire suite; the release qualification uses the unfiltered command.
+
+Suite mode applies the stable `testing` RuntimeProfile,
+`testing-runtime` RegistrationToken, `raidtest-acceptance-report` Tool,
+the 14 canonical targets, and their 14 `<target>-test` Eino Workflows. Apply
+is an idempotent in-place Dev update; these stable resources are retained.
+Every repeat creates distinct target and Tester peers and Workspaces. Every
+target Workflow carries an explicit deny-all Toolkit policy (the v0.3.3 RPC
+readback may omit an empty Workspace override), while the Tester Workspace
+exposes only the scoped `raidtest-acceptance-report` binding. Admin resource
+digests and static policy validation reject any target widening or missing
+Tester allowlist; the v0.3.3 `GetWorkspace` response does not expose either
+Workspace policy reliably. Its
+`raidtest_acceptance_report` Peer handler validates correlation and records
+the Tester's ToolCall before relaying `next_message` to the target. Each Tester
+invocation receives the runner's explicit target transcript through the current
+payload and does not replay its own acknowledgement history; this preserves
+cross-turn evidence without degrading Tool selection in long episodes. A
+correlated ToolCall remains authoritative even when the Tester emits no trailing
+assistant prose.
+
+The paired path never creates, updates, shadows, or deletes MemoryLayouts or
+provider connections. It reuses and verifies the `story-teller` and `adventure`
+bindings declared by the live stable testing Profile. The checked-in `default`
+and `testing` Profiles currently declare `driver: flowcraft` with
+`connection.type: flowcraft_bbh`; suite mode neither replaces that binding nor
+infers which vendor service may exist behind Flowcraft. Apply/readback digests
+and pre-turn `candidate_changed` barriers stop a pair if a canonical resource
+drifts concurrently. It also rejects all external OpenAI
+agent, judge, TTS, and key flags: dialogue generation and semantic acceptance
+come from the cluster's configured Eino models. External mechanics still gate
+target text TTFT at six seconds and total response time at ninety seconds.
+Murder Mystery keeps its complete dialogue in the configured Flowcraft History
+store and observes only the explicit corrected shoe-size state into the reused
+Memory provider. This avoids a redundant whole-transcript extraction after the
+reply is already published while preserving the pre-reload Recall proof.
+Timing and intermediate semantic failures are retained per response while the
+Tester continues the declared route. This prevents one early violation from
+hiding later history, correction, reload, or conclusion failures. Only the
+final Tester response terminates the route with `pass` or `fail`; that action
+describes the final response, while the runner aggregates every retained Tool
+check and external timing result into the case status.
+
+Five story/adventure pairs run 13 target responses per engine, the three Eino
+Journey variants run 10 target responses each, and Murder Mystery runs 26
+target responses with a durable `39码` recall barrier and reload before
+response 20. Murder Mystery repeats in five independently isolated
+peer/Workspace pairs. Reports retain complete target and Tester text, Tool
+checks and evidence, separate target/Tester timings, both Peer/Workspace IDs,
+resource digests, ownership attribution, credential-scan status, and lifecycle
+failures. The aggregate report and every `<report-base>.d/<case>.json` file use
+mode `0600`; the companion directory uses mode `0700`.
+
 `--server` is the authoritative Admin control-plane endpoint. When peers reach
 the Server through a separate Edge ingress, pass that address with
 `--peer-server`; it defaults to `--server` for single-endpoint deployments.
@@ -50,35 +148,63 @@ the Server through a separate Edge ingress, pass that address with
 The plan's `workflow_id` selects only cases owned by the supplied Workflow.
 For `plans/default/translations.yaml`, run the command once for each of the
 seven AST Workflow files; the bidirectional auto Workflow executes both of its
-cases in one run.
+directional cases in one run.
 
 Add `--agent-model` to generate turns that provide only an `intent`, or
-`--judge-model` for semantic checks. Either option requires an OpenAI key
-source. The base URL defaults to `http://<server>/openai/v1`; model discovery
-uses `/models`, while an explicit model ID makes reports reproducible.
+`--judge-model` for semantic checks. The default base URL is the Peer/Edge
+`/openai/v1` surface; without an OpenAI key source, `raidtest` exchanges its
+temporary Peer identity for a short-lived cluster session bound to the candidate
+profile by the run-owned registration token. It verifies requested Model and
+Voice aliases before the first turn. External OpenAI-compatible endpoints still
+require an explicit key source. Explicit model IDs are recorded in the report.
+Semantic checks receive a bounded, chronological transcript of the completed
+turns in the current Case, including failed turns, so continuity and correction
+judgments can evaluate the current answer against what actually happened. The
+same bounded history grounds generated player utterances so the simulator cannot
+invent prior testimony or evidence while asking a follow-up question.
 
 Realtime and AST translation Workflows require spoken input. Pass an OpenAI
-speech model such as `--input-tts-model gpt-4o-mini-tts` (and optionally
-`--input-tts-voice`) plus the same OpenAI key source. `raidtest` requests Ogg
+speech model with `--input-tts-model` and a Voice with `--input-tts-voice`.
+For the cluster endpoint, the Voice is a RuntimeProfile alias; for an external
+endpoint, use that provider's model, Voice, and key. `raidtest` requests Ogg
 Opus, extracts the raw Opus packets, and sends them to the Peer in paced 20 ms
-frames. AST acceptance cases create their temporary Workspace in
-`push-to-talk` mode so each planned utterance is committed at audio EOS; the
-tool never treats a text-only echo or an interim realtime hypothesis as
-translation evidence.
+frames. Each utterance is synthesized once per run and reused across modes so
+PTT and realtime compare the same audio fixture. AST acceptance runs create
+separate `push-to-talk` and `realtime` Workspaces by default. Repeat
+`--ast-input-mode` to restrict that matrix, for
+example `--ast-input-mode realtime` or both explicit values. Push-to-talk must
+publish nothing before input EOS; realtime reads provider events concurrently
+with paced audio input and records whether its first response preceded input
+EOS. The tool never treats a text-only echo as translation evidence.
+Successive turns in one Case reuse the same Peer stream, matching a device's
+long-lived conversational connection; selecting or reloading a Workspace
+closes that stream and establishes a new one.
+Plans that require durable post-reload memory can declare
+`persisted_before_reload` and `persistence_timeout`. Before reloading, raidtest
+polls the Workspace Recall RPC until every declared fact is retrievable or the
+bounded checkpoint fails. This preserves asynchronous response-path writes
+without mistaking an arbitrary sleep or same-stream history for durable recall.
+The committed Default AST matrix runs ten utterances in each of eight language
+directions: 80 logical turns, or 160 mode-specific turns per environment. This
+qualifies sustained translation transport and output invariants; it does not
+claim to evaluate narrative direction or long-form conversational quality.
 
 ## Lifecycle and reports
 
-The normal lifecycle is:
+The legacy single-candidate lifecycle is:
 
 1. upload and read back the shadow Workflow and local MemoryLayouts;
 2. rewrite the source Workflow and supplied memory aliases in a shadow
    RuntimeProfile, then upload and read it back;
 3. create a random RegistrationToken bound to that shadow profile;
-4. register a random peer through `--peer-server`, create its owner-scoped
-   candidate Workspace through Peer RPC, and select it;
+4. register a random peer through `--peer-server`, create one owner-scoped
+   candidate Workspace per Case through Peer RPC, and select it; AST creates
+   one isolated Workspace per Case and requested input mode, so conversation
+   history cannot leak between independent scenarios;
 5. run every independent case to a terminal status;
-6. delete Workspace, peer, token, profile, Workflow, and MemoryLayouts in
-   reverse order, continuing after cleanup failures.
+6. delete Workspace, token, profile, Workflow, and MemoryLayouts in reverse
+   dependency order, then delete the peer last, continuing after cleanup
+   failures.
 
 `--keep` retains run-owned resources and identifies them in the report. It
 never enables in-place updates. JSON reports are mode `0600` and contain
@@ -88,10 +214,16 @@ ledger. Deterministic fact, correction, rune, script, and latency failures
 remain failures even if a semantic judge likes the answer.
 
 AST plans evaluate raw translated text and require the configured s2s route to
-finish with non-empty TTS audio. The report records source text, translated
-text, TTS status, MIME type, and byte count separately; optional round-trip
-transcription remains a separate status and never rewrites the raw translation
-result.
+finish with non-empty TTS audio. The committed Default plan is a route-level
+acceptance test: it uses simple spoken phrases to gate target-language output,
+bounded text, and completed target audio. The deployed provider model has known
+variability for names, places, numbers, times, and negation, so exact preservation
+of those facts is diagnostic evidence rather than a Raids release gate. The
+report records source text, provider source transcript when present, translated
+text, AST input mode, input-EOS timing, TTS status, MIME type, and byte count
+separately; optional round-trip transcription remains a separate status and
+never rewrites the raw translation result. PTT and realtime cases have distinct
+IDs and terminal statuses, so one mode cannot hide the other mode's failure.
 
 No credential is committed, expanded from Raids Credential YAML, serialized
 into a report, or deliberately printed. Treat reports as test artifacts

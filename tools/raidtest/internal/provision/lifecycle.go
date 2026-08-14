@@ -203,8 +203,23 @@ func (l *Lifecycle) Cleanup(ctx context.Context) error {
 		return nil
 	}
 	var failures []string
-	var remaining []Resource
+	failed := make(map[int]bool)
+	// Delete dependants in reverse creation order, but always delete Peer last.
+	// Some servers terminate the transport that carried the peer session as soon
+	// as the peer is removed. Deleting it first can therefore strand the token,
+	// profile, memory layout, and workflow created for the same isolated run.
+	order := make([]int, 0, len(l.created))
 	for i := len(l.created) - 1; i >= 0; i-- {
+		if l.created[i].Kind != "Peer" {
+			order = append(order, i)
+		}
+	}
+	for i := len(l.created) - 1; i >= 0; i-- {
+		if l.created[i].Kind == "Peer" {
+			order = append(order, i)
+		}
+	}
+	for _, i := range order {
 		resource := l.created[i]
 		var err error
 		switch resource.Kind {
@@ -227,12 +242,15 @@ func (l *Lifecycle) Cleanup(ctx context.Context) error {
 		if err != nil {
 			entry.Status, entry.Error = "fail", err.Error()
 			failures = append(failures, fmt.Sprintf("%s %s: %v", resource.Kind, resource.ID, err))
-			remaining = append(remaining, resource)
+			failed[i] = true
 		}
 		l.Ledger = append(l.Ledger, entry)
 	}
-	for left, right := 0, len(remaining)-1; left < right; left, right = left+1, right-1 {
-		remaining[left], remaining[right] = remaining[right], remaining[left]
+	remaining := make([]Resource, 0, len(failed))
+	for i, resource := range l.created {
+		if failed[i] {
+			remaining = append(remaining, resource)
+		}
 	}
 	l.created = remaining
 	l.finalized = len(remaining) == 0
@@ -244,6 +262,48 @@ func (l *Lifecycle) Cleanup(ctx context.Context) error {
 
 type AdminClient struct {
 	API *adminhttp.ClientWithResponses
+}
+
+func (a AdminClient) ApplyResource(ctx context.Context, resource catalog.GenericResource) error {
+	r, err := a.API.ApplyResourceWithResponse(ctx, resource.Source)
+	if err != nil {
+		return err
+	}
+	if err := statusError("apply "+resource.Kind, r.StatusCode(), r.Body); err != nil {
+		return err
+	}
+	if r.JSON200 == nil || r.JSON200.Id == nil || *r.JSON200.Id != resource.ID || string(r.JSON200.Kind) != resource.Kind {
+		return fmt.Errorf("apply %s %s returned mismatched identity", resource.Kind, resource.ID)
+	}
+	return nil
+}
+
+func (a AdminClient) GetResource(ctx context.Context, resource catalog.GenericResource) error {
+	_, err := a.ReadResourceDigest(ctx, resource)
+	return err
+}
+
+func (a AdminClient) VerifyProfileReferences(ctx context.Context, spec any) error {
+	lifecycle := Lifecycle{admin: a}
+	return lifecycle.verifyProfileReferences(ctx, spec)
+}
+
+func (a AdminClient) ReadResourceDigest(ctx context.Context, resource catalog.GenericResource) (string, error) {
+	kind := adminhttp.ResourceKind(resource.Kind)
+	if !kind.Valid() {
+		return "", fmt.Errorf("unsupported Resource kind %q", resource.Kind)
+	}
+	r, err := a.API.GetResourceWithResponse(ctx, kind, resource.ID)
+	if err != nil {
+		return "", err
+	}
+	if err := statusError("get "+resource.Kind, r.StatusCode(), r.Body); err != nil {
+		return "", err
+	}
+	if r.JSON200 == nil {
+		return "", fmt.Errorf("get %s %s returned HTTP 200 without a body", resource.Kind, resource.ID)
+	}
+	return catalog.Digest(*r.JSON200), nil
 }
 
 func absentStatus(action string, status int, body []byte) error {

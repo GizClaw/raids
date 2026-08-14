@@ -33,6 +33,7 @@ CATALOG_DIRECTORIES = {
     "registration-tokens",
     "runtime-profiles",
     "tenants",
+    "tool-resources",
     "voices",
     "workflows",
 }
@@ -67,6 +68,28 @@ MAX_RUNTIME_ALIAS_BYTES = 63
 MIN_FLOWCRAFT_ITERATION_HEADROOM = 2
 MAX_FLOWCRAFT_ITERATION_HEADROOM = 8
 WORKFLOW_MODEL_ALIASES = {
+    "eino-adventure-castle-mystery-test": {"eino-adventure-castle-mystery-test.model"},
+    "eino-adventure-monster-maze-test": {"eino-adventure-monster-maze-test.model"},
+    "eino-adventure-space-rescue-test": {"eino-adventure-space-rescue-test.model"},
+    "eino-journey-history-test": {"eino-journey-history-test.model"},
+    "eino-journey-memory-async-test": {"eino-journey-memory-async-test.model"},
+    "eino-journey-memory-recall-test": {"eino-journey-memory-recall-test.model"},
+    "eino-story-aesop-test": {"eino-story-aesop-test.model"},
+    "eino-story-alice-test": {"eino-story-alice-test.model"},
+    "flowcraft-adventure-castle-mystery-test": {"flowcraft-adventure-castle-mystery-test.model"},
+    "flowcraft-adventure-monster-maze-test": {"flowcraft-adventure-monster-maze-test.model"},
+    "flowcraft-adventure-space-rescue-test": {"flowcraft-adventure-space-rescue-test.model"},
+    "flowcraft-story-aesop-test": {"flowcraft-story-aesop-test.model"},
+    "flowcraft-story-alice-test": {"flowcraft-story-alice-test.model"},
+    "flowcraft-murder-mystery-test": {"flowcraft-murder-mystery-test.model"},
+    "eino-adventure-castle-mystery": {"eino-adventure-castle-mystery.model"},
+    "eino-adventure-monster-maze": {"eino-adventure-monster-maze.model"},
+    "eino-adventure-space-rescue": {"eino-adventure-space-rescue.model"},
+    "eino-journey-history": {"eino-journey-history.model"},
+    "eino-journey-memory-async": {"eino-journey-memory-async.model"},
+    "eino-journey-memory-recall": {"eino-journey-memory-recall.model"},
+    "eino-story-aesop": {"eino-story-aesop.model"},
+    "eino-story-alice": {"eino-story-alice.model"},
     "ast-translate-ja-zh": {"ast-translate-ja-zh.model"},
     "ast-translate-ko-zh": {"ast-translate-ko-zh.model"},
     "ast-translate-zh-en-auto": {"ast-translate-zh-en-auto.model"},
@@ -77,11 +100,38 @@ WORKFLOW_MODEL_ALIASES = {
     "chatroom": {"asr"},
     "doubao-realtime-conversation": {"doubao-realtime-conversation.model"},
     "flowcraft-chat-assistant": {"asr", "flowcraft-chat-assistant.model"},
+    "flowcraft-adventure-castle-mystery": {"asr", "flowcraft-adventure-castle-mystery.model"},
+    "flowcraft-adventure-monster-maze": {"asr", "flowcraft-adventure-monster-maze.model"},
+    "flowcraft-adventure-space-rescue": {"asr", "flowcraft-adventure-space-rescue.model"},
     "flowcraft-journey-guide": {"asr", "flowcraft-journey-guide.model"},
     "flowcraft-murder-mystery": {"asr", "flowcraft-murder-mystery.model"},
+    "flowcraft-story-aesop": {"asr", "flowcraft-story-aesop.model"},
+    "flowcraft-story-alice": {"asr", "flowcraft-story-alice.model"},
     "pet-care": {"asr", "pet-care.model"},
 }
 WORKFLOW_VOICE_ALIASES = {
+    "eino-adventure-castle-mystery-test": set(),
+    "eino-adventure-monster-maze-test": set(),
+    "eino-adventure-space-rescue-test": set(),
+    "eino-journey-history-test": set(),
+    "eino-journey-memory-async-test": set(),
+    "eino-journey-memory-recall-test": set(),
+    "eino-story-aesop-test": set(),
+    "eino-story-alice-test": set(),
+    "flowcraft-adventure-castle-mystery-test": set(),
+    "flowcraft-adventure-monster-maze-test": set(),
+    "flowcraft-adventure-space-rescue-test": set(),
+    "flowcraft-story-aesop-test": set(),
+    "flowcraft-story-alice-test": set(),
+    "flowcraft-murder-mystery-test": set(),
+    "eino-adventure-castle-mystery": set(),
+    "eino-adventure-monster-maze": set(),
+    "eino-adventure-space-rescue": set(),
+    "eino-journey-history": set(),
+    "eino-journey-memory-async": set(),
+    "eino-journey-memory-recall": set(),
+    "eino-story-aesop": set(),
+    "eino-story-alice": set(),
     "ast-translate-ja-zh": {"ast-translate-ja-zh.translator"},
     "ast-translate-ko-zh": {"ast-translate-ko-zh.translator"},
     "ast-translate-zh-en-auto": {"ast-translate-zh-en-auto.translator"},
@@ -92,12 +142,17 @@ WORKFLOW_VOICE_ALIASES = {
     "chatroom": set(),
     "doubao-realtime-conversation": {"doubao-realtime-conversation.assistant"},
     "flowcraft-chat-assistant": {"flowcraft-chat-assistant.assistant"},
+    "flowcraft-adventure-castle-mystery": {"flowcraft-adventure-castle-mystery.adventure-guide"},
+    "flowcraft-adventure-monster-maze": {"flowcraft-adventure-monster-maze.adventure-guide"},
+    "flowcraft-adventure-space-rescue": {"flowcraft-adventure-space-rescue.adventure-guide"},
     "flowcraft-journey-guide": {
         "flowcraft-journey-guide.narrator",
     },
     "flowcraft-murder-mystery": {
         "flowcraft-murder-mystery.game-master",
     },
+    "flowcraft-story-aesop": {"flowcraft-story-aesop.storyteller"},
+    "flowcraft-story-alice": {"flowcraft-story-alice.storyteller"},
     "pet-care": {"pet-care.pet"},
 }
 MEMORY_LAYOUT_MODEL_ALIASES = {
@@ -134,6 +189,8 @@ MEMORY_CONNECTIONS = {
     },
 }
 DEFAULT_WORKFLOW_MEMORY_ALIASES = {
+    "eino-journey-memory-async": "story-teller",
+    "eino-journey-memory-recall": "story-teller",
     "flowcraft-chat-assistant": "user-chat-with-assistant",
     "flowcraft-journey-guide": "story-teller",
     "flowcraft-murder-mystery": "adventure",
@@ -826,16 +883,24 @@ def _validate_default_behavior_contracts(
         ]
         if not answer_nodes or any(node.get("publish") is not True for node in answer_nodes):
             errors.append(
-                f"Workflow/{workflow_id} must publish through its bounded answer script"
+                f"Workflow/{workflow_id} must publish through its answer script"
             )
-        if any(
-            node.get("publish") is True
+        llm_nodes = [
+            node
             for node in nodes
             if isinstance(node, Mapping) and node.get("type") == "llm"
-        ):
+        ]
+        if any(node.get("publish") is True for node in llm_nodes):
             errors.append(
-                f"Workflow/{workflow_id} must not directly publish an unbounded LLM node"
+                f"Workflow/{workflow_id} must publish the completed LLM reply through its answer script"
             )
+        for node in llm_nodes:
+            config = node.get("config")
+            max_tokens = config.get("max_tokens") if isinstance(config, Mapping) else None
+            if not isinstance(max_tokens, int) or isinstance(max_tokens, bool) or max_tokens < 1024:
+                errors.append(
+                    f"Workflow/{workflow_id} LLM node {node.get('id')} must reserve at least 1024 max_tokens"
+                )
         scripts = "\n".join(
             str(node.get("config", {}).get("source", ""))
             for node in nodes
@@ -843,13 +908,20 @@ def _validate_default_behavior_contracts(
             and node.get("type") == "script"
             and isinstance(node.get("config"), Mapping)
         )
-        if "Array.from" not in scripts or ".slice(0," not in scripts:
+        if "Array.from(raw).slice" in scripts or "chars.slice(0," in scripts:
             errors.append(
-                f"Workflow/{workflow_id} must apply a Unicode-rune output bound before publication"
+                f"Workflow/{workflow_id} must not truncate a generated reply before publication"
+            )
+        if (
+            "never rely on programmatic truncation" not in scripts
+            and "不得依赖程序截断" not in scripts
+        ):
+            errors.append(
+                f"Workflow/{workflow_id} must constrain reply length in its prompt without truncation"
             )
         if 'host.emit("token"' not in scripts:
             errors.append(
-                f"Workflow/{workflow_id} must emit only the bounded answer through the v0.2.5 script API"
+                f"Workflow/{workflow_id} must emit the completed answer through the script API"
             )
         observe_nodes = [
             node
@@ -860,10 +932,11 @@ def _validate_default_behavior_contracts(
             errors.append(
                 f"Workflow/{workflow_id} must observe completed turns for durable recall"
             )
-        wait_for_memory = workflow_id in {
-            "flowcraft-journey-guide",
-            "flowcraft-murder-mystery",
-        }
+        # Same-stream history and Workspace Graph state remain authoritative
+        # during an interactive session. Durable extraction is only needed for
+        # later recovery, so it must stay off the response path for every
+        # history-backed workflow, including Journey's chaptered audit facts.
+        wait_for_memory = False
         for node in observe_nodes:
             config = node.get("config")
             actual_wait = config.get("wait_for_completion") if isinstance(config, Mapping) else None
@@ -881,6 +954,7 @@ def _validate_default_behavior_contracts(
     resources = spec.get("resources") if isinstance(spec, Mapping) else None
     voices = resources.get("voices") if isinstance(resources, Mapping) else None
     expected_voices = {
+        "ast-translate-zh-en-auto.translator": "volc-tenant:volc-cn-beijing:zh_female_sophie_conversation_wvae_bigtts",
         "ast-translate-zh-es.translator": "minimax-tenant:minimax-cn:Spanish_SereneElder",
         "ast-translate-zh-fr.translator": "minimax-tenant:minimax-cn:French_MovieLeadFemale",
     }

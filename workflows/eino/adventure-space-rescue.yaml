@@ -1,0 +1,137 @@
+---
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata:
+  id: eino-adventure-space-rescue
+spec:
+  driver: eino
+  toolkit: {tool_ids: []}
+  memory: adventure
+  eino:
+    graph:
+      name: adventure-space-rescue-eino
+      compile: {node_trigger_mode: any_predecessor, max_run_steps: 16}
+      state:
+        fields:
+          - {name: memory-query, type: string, merge: replace}
+          - {name: recalled, type: string, merge: replace}
+          - {name: stage-route, type: string, merge: replace}
+          - {name: answer-messages, type: messages, merge: replace}
+          - {name: answer, type: string, merge: replace}
+          - {name: progress-fact, type: string, merge: replace}
+          - {name: progress-lane, type: string, merge: replace}
+          - {name: progress-kind, type: string, merge: replace}
+      nodes:
+        - id: prepare-memory-query
+          type: script
+          inputs: {text: {from: input.text}}
+          outputs: {query: memory-query}
+          language: starlark
+          entrypoint: run
+          source: |
+            def run(input):
+                text = input["text"]
+                base = "宇宙救援当前阶段、系统状态、能源读数和安全窗口"
+                return {"query": base + ("；当前请求：" + text if text else "")}
+          limits: {max_execution_steps: 10000, timeout: 250ms, max_input_bytes: 65536, max_output_bytes: 65536}
+        - id: recall-progress
+          type: memory_recall
+          query_from: memory-query
+          output: recalled
+          top_k: 12
+        - id: route-stage
+          type: script
+          inputs: {text: {from: input.text}, history: {from: input.messages}, memory: {from: recalled}}
+          outputs: {route: stage-route}
+          language: starlark
+          entrypoint: run
+          source: |
+            def contains_any(text, values):
+                for value in values:
+                    if value in text:
+                        return True
+                return False
+
+            def run(input):
+                current = input["text"]
+                combined = input["memory"] + "\n" + current
+                for message in input["history"]:
+                    if "content" in message:
+                        combined += "\n" + message["content"]
+                execute = contains_any(current, ["现在执行会合", "开始执行会合", "开始对接", "完成救援"])
+                if execute and "不要" not in current and "不提前" not in current:
+                    route = "第四阶段‘执行与收束’"
+                elif contains_any(combined, ["安全窗口", "备用电池", "导航员", "工程员", "生命保障", "会合"]):
+                    route = "第三阶段‘准备安全会合’"
+                elif contains_any(combined, ["能源", "百分之六十", "百分之四十五", "校准"]):
+                    route = "第二阶段‘校准能源’"
+                else:
+                    route = "第一阶段‘恢复通信’"
+                return {"route": route}
+          limits: {max_execution_steps: 20000, timeout: 250ms, max_input_bytes: 262144, max_output_bytes: 65536}
+        - id: narrate-mission
+          type: prompt
+          inputs: {history: {from: input.messages}, memory: {from: recalled}, route: {from: stage-route}}
+          outputs: {messages: answer-messages}
+          format: f_string
+          messages:
+            - role: system
+              template: |
+                你是儿童友好的非暴力宇宙救援任务主持人，跟踪通信、能源、时间、轨道和团队分工。
+                首次回复无论由系统主动触发，还是用户要求“开始宇宙救援”，都必须严格只说：一艘科研飞船失去动力，氧气充足但轨道正在偏离，我们先修通信还是计算新轨道？输出问号后立即结束，不得添加船员人数、位置、风险解释、第二个问题或重复选项。
+                救援分为恢复通信、校准能源、准备安全会合、执行与收束四阶段。Graph 路由是本轮权威；除非用户询问阶段，不要念出状态字段。
+                Graph 确定的本轮阶段是：{route}。不得被旧记忆降到更早阶段；用户询问阶段时必须按此回答。
+                每轮只给一个清楚的行动权衡，先说明上一选择对救援状态的直接影响，再让孩子决定下一步；不得重置任务。
+                回复必须保留用户已经使用的任务实体名称，例如“科研飞船”，不得只改写成模糊的“飞船”或省略实体。
+                已确认的能源数值、人员状态和修复结果必须连续；用户更正数值后，新值立即覆盖旧值。只有用户或明确仪表读数给出新数字时才能更新任何主能源、备用电池、消耗或余量数值，不得根据虚构行动自行计算、扣减、新增百分比或改写最新读数。用户本轮没有提供能源数值时，正文不得凭空出现百分号、百分比或能源数字；复述已有百分比时必须沿用“百分之四十五”这类中文口语形式，不得改写为阿拉伯数字或百分号。
+                事实建立、纠正或纯回忆回合只直接回答用户要求，不推进任务、不添加后果、选择或追问；用户要求记住事实时明确回答已经记住；纠正回合必须只说新事实，并且不得以否定、引用、对比或解释方式再次输出旧值。
+                用户选择等待安全窗口时，本轮最多推进到窗口到来和准备就绪；除非用户明确要求执行，不得自动完成稳定、对接、返航或宣布救援完成。
+                用户已经指定用备用电池等待安全窗口时，后续关于选择、阶段或下一步的回答都必须同时保留“备用电池”和“安全窗口”，不得省略任一安全条件。只要当前用户消息出现“备用电池”或“安全窗口”，回复首句就必须逐字同时包含“备用电池”和“安全窗口”；不得用“系统功耗”、“电源”、“能源管理”等近义概括替代它们。
+                让工程、导航、医疗和通信角色都有贡献，不把鲁莽牺牲描述为唯一英雄选择。
+                所有技术细节保持虚构和概念化，不提供真实航天操作指令；危险非血腥，不收集个人信息。
+                普通回复写2至4个完整中文句子、约70至200个Unicode字符；状态确认和回忆应简短。
+                每轮最多问一个问题。只输出适合朗读的中文正文，不输出Markdown、列表、菜单、emoji、舞台说明、分析或系统文字。
+                必须写完整句子，不得依赖程序截断，不得重复同义内容。
+                相关长期进度只用于核对，不得覆盖更新的对话：
+                {memory}
+            - placeholder: history
+        - id: narrator-model
+          type: chat_model
+          inputs: {messages: {from: answer-messages}}
+          outputs: {text: answer}
+          model: eino-adventure-space-rescue.model
+          max_tokens: 2048
+          temperature: 0.5
+        - id: commit-progress
+          type: script
+          inputs: {route: {from: stage-route}, answer: {from: answer}}
+          outputs: {progress: progress-fact, lane: progress-lane, kind: progress-kind}
+          language: starlark
+          entrypoint: run
+          source: |
+            def run(input):
+                return {
+                    "progress": "Graph任务进度：\n" + input["route"] + "\n本轮已发布结果：" + input["answer"],
+                    "lane": "case_state",
+                    "kind": "state",
+                }
+          limits: {max_execution_steps: 10000, timeout: 250ms, max_input_bytes: 131072, max_output_bytes: 131072}
+        - id: observe-progress
+          type: memory_observe
+          facts:
+            - {text_from: progress-fact, attributes: {lane: progress-lane, kind: progress-kind}}
+          wait_for_completion: false
+      edges:
+        - {from: start, to: prepare-memory-query}
+        - {from: prepare-memory-query, to: recall-progress}
+        - {from: recall-progress, to: route-stage}
+        - {from: route-stage, to: narrate-mission}
+        - {from: narrate-mission, to: narrator-model}
+        - {from: narrator-model, to: commit-progress}
+        - {from: commit-progress, to: observe-progress}
+        - {from: observe-progress, to: end}
+      branches: []
+      outputs:
+        - {node: narrator-model, field: answer, name: assistant, mime_type: text/plain, primary: true}
+    conversation: {starts: peer}
+    limits: {max_output_bytes: 4194304}

@@ -1,0 +1,25 @@
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata: {id: fixture-eino}
+spec:
+  driver: eino
+  eino:
+    graph:
+      name: fixture-eino
+      compile: {node_trigger_mode: any_predecessor, max_run_steps: 4}
+      state:
+        fields:
+          - {name: answer, type: string, merge: replace}
+      nodes:
+        - id: answer
+          type: chat_model
+          inputs: {messages: {from: input.messages}}
+          outputs: {text: answer}
+          model: llm
+          max_tokens: 2048
+      edges:
+        - {from: start, to: answer}
+        - {from: answer, to: end}
+      branches: []
+      outputs:
+        - {node: answer, field: answer, name: assistant, mime_type: text/plain, primary: true}

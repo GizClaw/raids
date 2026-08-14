@@ -35,4 +35,18 @@ func TestKeyPairFromTextRedactsInvalidInput(t *testing.T) {
 	}
 }
 
+func TestKeyPairFromTextAcceptsRawIdentityFile(t *testing.T) {
+	raw := make([]byte, giznet.KeySize)
+	for index := range raw {
+		raw[index] = byte(index + 1)
+	}
+	pair, err := KeyPairFromText(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pair == nil || pair.Public.IsZero() {
+		t.Fatalf("pair=%#v", pair)
+	}
+}
+
 func serverURL(r *http.Request) string { return "http://" + r.Host }

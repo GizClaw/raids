@@ -1,0 +1,57 @@
+version: v1
+name: default-assistant-doubao-dev-v033-regression
+driver: realtime
+persona: 使用实时语音助手规划周末露营，连续建立、回忆并纠正事实，严格验证短答、去重复和当前事实优先。
+cases:
+  - id: dev-v033-e2e-regression
+    workflow_id: doubao-realtime-conversation
+    turns:
+      - id: establish-context
+        user: 请记住：暗号是紫色灯塔，称呼我松果队长，我在计划周末露营，原本更喜欢轮船。请简短确认。
+        required: [紫色灯塔]
+        min_runes: 4
+        max_runes: 80
+        judge: [instruction-following, continuity, non-repetition]
+      - id: recall-marker
+        user: 我刚才说的暗号是什么？只回答暗号。
+        required: [紫色灯塔]
+        min_runes: 4
+        max_runes: 12
+        judge: [instruction-following, continuity, non-repetition]
+      - id: continue-topic
+        user: 继续刚才的计划，我原本偏好的出行方式是什么？用一句话回答。
+        required: [轮船]
+        min_runes: 4
+        max_runes: 32
+        judge: [instruction-following, continuity, non-repetition]
+      - id: correct-fact
+        user: 更正一下，我现在改为更喜欢出租车，请记住这个变化。
+        required: [出租车]
+        min_runes: 4
+        max_runes: 64
+        judge: [instruction-following, correction-handling, non-repetition]
+      - id: use-correction
+        user: 那我现在更喜欢哪种方式？不要提已经更正的旧选择。
+        required: [出租车]
+        forbidden: [轮船]
+        min_runes: 4
+        max_runes: 32
+        judge: [instruction-following, correction-handling, non-repetition]
+      - id: short-answer
+        user: 用不超过十二个字概括我正在计划的主题。
+        required: [周末露营]
+        min_runes: 4
+        max_runes: 12
+        judge: [instruction-following, continuity, non-repetition]
+      - id: detailed-answer
+        user: 请为这个计划给出三个具体建议，每点说明理由，回答至少八十字。
+        min_runes: 80
+        max_runes: 360
+        judge: [instruction-following, usefulness, non-repetition]
+      - id: final-summary
+        user: 最后总结：我的称呼、暗号、计划主题和当前偏好分别是什么？不要提旧偏好。
+        required: [松果队长, 紫色灯塔, 周末露营, 出租车]
+        forbidden: [轮船]
+        min_runes: 20
+        max_runes: 180
+        judge: [continuity, correction-handling, response-completeness, non-repetition]

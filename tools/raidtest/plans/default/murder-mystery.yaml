@@ -1,40 +1,122 @@
 version: v1
 name: default-murder-mystery
 driver: flowcraft
-persona: 第一次玩的普通剧本杀玩家，会自由调查地点和询问人物，不知道隐藏命令。
+paired: true
 cases:
-  - id: open-investigation-correction-conclusion
+  - id: long-form-investigation-correction-conclusion
     workflow_id: flowcraft-murder-mystery
     turns:
       - id: opening
-        user: 开始吧，先简单介绍案情，不要替我选择行动。
-        max_runes: 180
-        judge: [naturalness, usefulness]
+        required: [22:00, 沈鹤年, 二楼书房, 雨夜, 自由调查]
+        forbidden: [留声机, 唱片, 遗嘱, 木蜡, 鞋印, 钥匙, 细线, 下起雨夜, 管家巡查, 撞开, 推开, 书房门, 壁灯, 烟草, 纸张, 开了门, 侦探, 受邀, 报案, 赶到现场]
+        min_runes: 40
+        max_runes: 100
       - id: inspect-balcony
-        user: 我想先去阳台，看看窗沿、地面和排水口有没有痕迹。
-        max_runes: 180
-        judge: [open-ended-action, continuity]
+        forbidden: [阳台地面没有发现异常, 地面没有异常, 地面没有发现痕迹, 地面没有痕迹]
+        min_runes: 40
+        max_runes: 420
+      - id: inspect-window
+        forbidden: [没有其他异常, 其他异常, 没有遗漏, 没有其他漏掉, 没有额外发现, 没有其他痕迹, 没有额外收获, 异常痕迹]
+        min_runes: 20
+        max_runes: 360
       - id: interview-chef
-        user: 我去问厨师，停电前后他在哪里，听见或看见了什么。
-        max_runes: 180
-        judge: [open-ended-action, continuity]
-      - id: establish-clue
-        user: 我确认刚发现的鞋印是42码，请把它作为已确认线索。
+        min_runes: 50
+        max_runes: 420
+      - id: inspect-kitchen
+        forbidden: [没有其他相关发现, 没有额外收获]
+        min_runes: 40
+        max_runes: 420
+      - id: interview-housekeeper
+        forbidden: [来电后没多久, 喊着众人, 一起开了门]
+        min_runes: 40
+        max_runes: 420
+      - id: inspect-study
+        forbidden: [你要看看, 要不要检查, 是否要检查, 建议检查, 没有其他异常, 其他异常, 没有发现死者额外, 没有发现额外的相关活动物品, 没有发现相关活动物品]
+        min_runes: 70
+        max_runes: 420
+      - id: establish-shoe-size
         required: [42]
-      - id: correct-clue
-        user: 更正鉴定结果：鞋印不是42码，而是39码。
+        forbidden: [后廊, 更正]
+        min_runes: 10
+        max_runes: 100
+      - id: interview-heir
+        forbidden: [公开的固定关系矛盾, 没说过和沈鹤年, 没有公开矛盾, 没有矛盾]
+        min_runes: 30
+        max_runes: 420
+      - id: inspect-phonograph
+        forbidden: [起到误导死亡时间的作用, 确认用于误导死亡时间, 就是用来误导死亡时间]
+        min_runes: 50
+        max_runes: 360
+      - id: irrelevant-garden-route
+        forbidden: [我查看, 我检查, 我调查, 落叶, 泥土, 攀爬, 翻越]
+        min_runes: 30
+        max_runes: 280
+      - id: mistaken-outage-theory
+        forbidden: [后廊, 湿鞋印, 书房锁具, 细线纤维, 拉扯磨痕, 操作密室, 所有证词都显示, 无人在书房附近, 死亡正好发生在, 死亡发生在21:10, 死于21:10]
+        min_runes: 30
+        max_runes: 360
+      - id: correct-shoe-size
         required: [39]
-        forbidden: [42码]
-      - id: continue-after-reload
+        forbidden: [42码, 后廊]
+        min_runes: 4
+        max_runes: 100
+      - id: inspect-heir-room
+        required: [39]
+        forbidden: [鞋印为42码, 鞋印是42码, 42码的鞋印, 本案纤维, 同批的细钓鱼线, 现场钓鱼线]
+        min_runes: 50
+        max_runes: 420
+      - id: inspect-fireplace
+        forbidden: [主钥匙备用钥匙]
+        min_runes: 40
+        max_runes: 360
+      - id: interview-lawyer
+        required: [不清楚]
+        min_runes: 40
+        max_runes: 420
+      - id: inspect-will
+        forbidden: [一半, 百分, 没有发现签名异常, 签名没有异常, 没有发现笔迹异常, 笔迹没有异常, 纸张没有异常, 落款没有异常, 指纹没有异常, 没有其他异常, 其他异常]
+        min_runes: 25
+        max_runes: 360
+      - id: inspect-rear-corridor
+        required: [门锁, 39]
+        forbidden: [其他区域不连接, 其他区域不连通, 无法判断它是否连通其他调查过的区域, 同源湿鞋印]
+        min_runes: 25
+        max_runes: 420
+      - id: inspect-thread
+        required: [书房, 锁具, 细线]
+        forbidden: [细线匹配, 钓鱼线匹配, 特征匹配, 细线同源, 钓鱼线同源]
+        min_runes: 60
+        max_runes: 480
+      - id: delayed-correction-recall
         reload_before: true
-        user: 结合阳台调查、厨师证词和更正后的鞋印，指出目前最关键的矛盾。
+        persisted_before_reload: [39码]
+        persistence_timeout: 60s
         required: [39]
-        forbidden: [鞋印为42码, 鞋印是42码, 42码的鞋印]
+        forbidden: [鞋印为42码, 鞋印是42码, 42码的鞋印, 同源后廊鞋印, 后廊同源鞋印, 同源湿鞋印, 不在他回房的路上, 不在他回房的常规路线上]
+        min_runes: 40
+        max_runes: 300
+      - id: challenge-chef
+        forbidden: [没有其他已发现的线索能印证或反驳, 没有其他线索能印证或反驳]
+        min_runes: 30
+        max_runes: 360
+      - id: revisit-phonograph
+        min_runes: 80
+        max_runes: 360
+      - id: accuse-wrong-suspect
+        forbidden: [证据显示厨师全程, 物证显示厨师全程, 其他物证和证词, 其他证据和证词, 其他物证都, 其他证词都, 其他能印证或反驳, 其他可以印证或反驳]
+        min_runes: 30
+        max_runes: 360
+      - id: summarize-confirmed-clues
+        required: [39]
+        forbidden: [鞋印为42码, 鞋印是42码, 42码的鞋印, 同源后廊鞋印, 后廊同源鞋印, 同源湿鞋印, 相同木蜡, 木蜡匹配, 同源木蜡, 细线匹配, 钓鱼线匹配, 特征匹配, 细线同源, 钓鱼线同源, 雨靴与鞋印同源, 鞋印与雨靴同源, 与沈知秋的雨靴匹配, 所有物证和厨师, 所有物证都和厨师, 全部物证和厨师, 其他物证和厨师, 确认鞋印属于沈知秋, 鞋印确定属于沈知秋, 鞋印是沈知秋的]
+        min_runes: 100
         max_runes: 180
-        judge: [history-continuity, correction-handling]
+      - id: analyze-contradictions
+        forbidden: [同源后廊鞋印, 后廊同源鞋印, 同源湿鞋印, 雨靴与鞋印同源, 鞋印与雨靴同源, 确认鞋印属于沈知秋, 鞋印确定属于沈知秋, 鞋印是沈知秋的, 不在他回房的路上, 不在他回房的常规路线上]
+        min_runes: 80
+        max_runes: 420
       - id: conclude
-        user: 现在请根据我已经确认和更正后的线索给出结论，并说明证据链。
         required: [39]
-        forbidden: [鞋印为42码, 鞋印是42码, 42码的鞋印]
-        max_runes: 180
-        judge: [evidence-based-conclusion, continuity]
+        forbidden: [鞋印为42码, 鞋印是42码, 42码的鞋印, 同源后廊鞋印, 后廊同源鞋印, 同源湿鞋印, 木蜡指向沈知秋, 木蜡证明沈知秋, 房间木蜡、钓鱼线和现场痕迹, 细线匹配, 钓鱼线匹配, 特征匹配, 细线同源, 钓鱼线同源, 雨靴与鞋印同源, 鞋印与雨靴同源, 与沈知秋的雨靴匹配, 确认鞋印属于沈知秋, 鞋印确定属于沈知秋, 鞋印是沈知秋的]
+        min_runes: 50
+        max_runes: 130

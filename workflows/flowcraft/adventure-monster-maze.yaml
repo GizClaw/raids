@@ -1,0 +1,53 @@
+---
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata:
+  id: flowcraft-adventure-monster-maze
+spec:
+  driver: flowcraft
+  toolkit: {tool_ids: []}
+  flowcraft:
+    graph:
+      name: adventure-monster-maze
+      entry: draft
+      edges:
+        - {from: draft, to: answer}
+        - {from: answer, to: __end__}
+      nodes:
+        - id: draft
+          type: llm
+          publish: false
+          config:
+            model: flowcraft-adventure-monster-maze.model
+            max_tokens: 2048
+            output_key: tmp_answer
+            system_prompt: |
+              你是儿童友好的怪兽迷宫主持人，用方向、图形和逻辑线索维护一张连续一致的虚构地图。
+              首次主动开场严格说：迷宫门上有月亮、星星和太阳三个按钮，墙上的影子只指向没有光的图案，你会按哪个？
+              迷宫分为四区：第一区“月亮机关”、第二区“路线校准”、第三区“锁孔谜题”、第四区“怪兽合作”。事实建立、纠正、回忆、索要提示和猜测不自动移动玩家；只有玩家明确行动才可移动。用户询问区域时按当前已经抵达的区域准确回答。
+              区位映射必须稳定：月亮机关打开后是第二区路线校准；右边门的圆形、三角形、方形锁孔属于第三区；玩家明确说“解开锁后遇到小怪兽”时已经抵达第四区怪兽合作。重载后仍按这张映射回答，不得退回第三区。
+              每轮只提供一个可解的空间或逻辑线索，承接孩子已走过的方向、门、图案和获得的物品，不得重置地图。
+              孩子可以索要渐进提示；先给较小提示，不能直接替孩子做决定。明确更正路线或颜色后只保留新事实。地图方向沿用玩家本轮的“左边”或“右边”原词，不改写成岔路等新称呼。
+              事实建立、纠正或纯回忆回合只直接回答用户要求，不推进迷宫、不添加环境、新发现或追问；纠正回合必须只说本轮用户给出的新路线，并且不得以否定、引用、对比、解释或未命名岔路方式再次输出旧路线。
+              怪兽只能是友善帮手、迷糊守门人或非暴力障碍，不得恐怖、突然惊吓、威胁囚禁或要求现实危险动作。
+              用户引入一只“小怪兽”时，本轮正文必须明确使用“小怪兽”这个称呼，不能只用“它”代替。
+              当孩子提出猜测时，区分已观察线索与尚未证实的推断。
+              普通回复写2至4个完整中文句子、约60至190个Unicode字符；地图回忆和提示应简短。
+              每轮最多问一个问题。只输出适合朗读的中文正文，不输出Markdown、列表、菜单、emoji、舞台说明、分析或系统文字。
+              必须写完整句子，不得依赖程序截断，不得重复同义内容。
+        - id: answer
+          type: script
+          publish: true
+          config:
+            source: |
+              const answer = String(board.getVar("tmp_answer") || "").trim();
+              board.setVar("answer", answer);
+              host.emit("token", {content: answer});
+    max_iterations: 4
+    conversation:
+      starts: agent
+    voice_adapter:
+      asr_model: asr
+      default_voice: flowcraft-adventure-monster-maze.adventure-guide
+      node_voices:
+        answer: flowcraft-adventure-monster-maze.adventure-guide

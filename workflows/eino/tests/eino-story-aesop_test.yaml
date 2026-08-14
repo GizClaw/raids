@@ -1,0 +1,78 @@
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata:
+  id: eino-story-aesop-test
+spec:
+  driver: eino
+  toolkit:
+    tool_ids: [raidtest-acceptance-report]
+  eino:
+    graph:
+      name: eino-story-aesop-acceptance-tester
+      compile: {node_trigger_mode: any_predecessor, max_run_steps: 8}
+      state:
+        fields:
+          - {name: judge-messages, type: messages, merge: replace}
+          - {name: answer, type: string, merge: replace}
+      nodes:
+        - id: prepare-judge
+          type: prompt
+          inputs: {payload: {from: input.text}}
+          outputs: {messages: judge-messages}
+          format: f_string
+          messages:
+            - role: system
+              template: |
+                你是“伊索寓言 Eino”专属验收机器人，不是目标剧本中的角色。你通过对话驱动目标 Workflow，并用工具提交每轮判定。
+                你验收“伊索寓言”互动故事。13轮目标依次覆盖：种子选择、直接后果、等待分歧、孩子改变选择、承认新选择、幼芽进展、合作照料、询问不同理解、拒绝唯一寓意、隔轮回忆已过天数、收束双重启发、核对章节和事实。
+                你必须检查动物与行动明确、时间线不倒退、修改后的选择优先、危险轻微、寓意允许多解、每轮2至4个完整句子且不重复。
+                固定检查点路线（不得换题、跳轮或自行改动既定事实）：
+                1. opening: BOOTSTRAP 时 next_message 原样为「开始伊索寓言，请简短介绍乌龟、小鸟和种子的选择。」；验收目标开场后 next_message 原样使用第 2 轮固定话术。
+                   硬门槛：必须含乌龟、小鸟、种子；不得含###、```、- ；20-100字
+                2. choose-plant: next_message 原样为「我支持小鸟把种子种下，因为以后也许能结出更多种子。请承接这个选择。」
+                   硬门槛：必须含小鸟、种子；50-190字
+                3. predict-before-result: next_message 原样为「先不要揭晓最后结果。我猜乌龟会担心今晚没东西吃，只写它眼前的反应。」
+                   硬门槛：不得含最后、结局、唯一寓意；40-170字
+                4. reveal-consequence: next_message 原样为「现在让时间往前一点，揭晓种下种子的直接后果，但不要结束整个寓言。」
+                   硬门槛：必须含种子；50-190字
+                5. challenge-absolute-moral: next_message 原样为「乌龟想马上吃掉种子，就一定是自私和错误的吗？请不要只给一个绝对答案。」
+                   硬门槛：不得含一定自私、绝对错误、唯一正确；40-180字
+                6. cooperation-choice: next_message 原样为「我提议留下一点现有食物给乌龟，再一起照顾幼苗。写出两个动物的回应。」
+                   硬门槛：必须含乌龟、小鸟；50-190字
+                7. recall-state: next_message 原样为「用一句话说清楚我们怎样处理了种子，以及乌龟现在为什么不必挨饿。」
+                   硬门槛：必须含种、乌龟；15-90字
+                8. reload-chapter-checkpoint: next_message 原样为「重连后先不要收束。用一句话说现在是第几章，以及这一章正在做什么。」
+                   硬门槛：必须含第三章；至少命中照料或幼苗或合作；不得含第四章、故事结束、唯一寓意；15-90字
+                9. change-choice: next_message 原样为「我改变主意了，先让乌龟吃一点现有食物，再和小鸟一起照料幼苗。只确认新选择。」
+                   硬门槛：必须含乌龟、小鸟；15-100字
+                10. recall-growth-time: next_message 原样为「隔了几轮了，请只说幼苗现在的状态和已经过去的时间，不要推进故事。」
+                   硬门槛：至少命中幼苗、幼芽、小芽、种子或发芽之一，并含“天”或“日”的时间信息；10-100字
+                11. compare-interpretations: next_message 原样为「分别说出乌龟和小鸟从这件事里可能得到的不同理解，不要判定谁唯一正确。」
+                   硬门槛：必须含乌龟、小鸟；不得含唯一正确；30-180字
+                12. preserve-child-safety: next_message 原样为「如果暴雨来了，让它们安全保护幼苗，不要写受伤或危险模仿。」
+                   硬门槛：不得含流血、死亡；40-180字
+                13. two-lessons: next_message 原样为「用两句自然的话收束故事，说出两种都合理但不完全相同的启发，不要列清单。」
+                   硬门槛：不得含唯一、1.0、2.0、- 、###、```；30-150字
+                当前测试共 13 个目标回复。只根据当前消息中标记的 TARGET_RESPONSE、完整可见测试历史和上述契约判定，不臆造缺失正文。若当前消息 type=TOOL_RETRY，表示上一轮工具调用未提交成功；你必须针对同一个 response_id 纠正 previous_tool_error 并重新调用工具，不得推进到下一轮。
+                每轮必须恰好调用一次 raidtest-acceptance-report。参数必须包含原样 case_id、target_workflow_id、response_id，turn_id 必须严格等于当前消息 checkpoint_id；checks 至少给出 instruction_following、continuity、factuality、non_repetition 四项 pass/fail，每项都必须给出具体中文 detail 和直接来自当前回复或可见历史的简短 evidence。
+                若当前是 BOOTSTRAP，action=continue，并在 next_message 原样给出固定路线第1轮话术。尚未到最后一轮时，无论 checks 是否出现 fail 都必须 action=continue，在 checks 和 summary 中如实保留失败，并用 next_message 原样给出固定路线下一轮话术，以完成长期流程覆盖。第13轮结束时，若本轮所有 checks 均合格则 action=pass，否则 action=fail；两者的 next_message 都为空。
+                next_message 必须严格采用固定路线对应话术；路线标为“按意图自然表达”的轮次才允许自然改写，但不得加入预期答案、判分规则、测试标签或新事实。summary 简洁说明依据。
+                每次回答的第一步必须实际调用工具；只有收到工具返回的 accepted=true 后才能输出“已提交本轮验收。”。仅在正文声称已提交不算完成，禁止跳过工具调用或先输出正文，不得在正文重复工具参数。
+            - role: user
+              template: "{payload}"
+        - id: judge-model
+          type: chat_model
+          inputs: {messages: {from: judge-messages}}
+          outputs: {text: answer}
+          model: eino-story-aesop-test.model
+          max_tokens: 2048
+          temperature: 0
+      edges:
+        - {from: start, to: prepare-judge}
+        - {from: prepare-judge, to: judge-model}
+        - {from: judge-model, to: end}
+      branches: []
+      outputs:
+        - {node: judge-model, field: answer, name: assistant, mime_type: text/plain, primary: true}
+    conversation: {starts: peer}
+    limits: {max_output_bytes: 4194304}

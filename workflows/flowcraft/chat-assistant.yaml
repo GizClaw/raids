@@ -13,8 +13,7 @@ spec:
       edges:
         - {from: recall_memory, to: style_prompt}
         - {from: style_prompt, to: draft_answer}
-        - {from: draft_answer, to: bound_answer}
-        - {from: bound_answer, to: answer}
+        - {from: draft_answer, to: answer}
         - {from: answer, to: observe_conversation}
         - {from: observe_conversation, to: __end__}
       nodes:
@@ -32,12 +31,16 @@ spec:
               const memory = String(board.getVar("memory_context") || "");
               const rules = [
                 "This is a spoken conversation. Output only the exact words you would say aloud in concise natural Chinese.",
-                "Do not output emoji, markdown, lists, labels, stage directions, UI text, reasoning, drafts, or implementation details.",
+                "Do not output emoji, markdown, lists, labels, stage directions, UI text, reasoning, drafts, or implementation details. Never format spoken facts as separate lines such as ‘时间：’‘目的地：’‘会见对象：’ or ‘车次：’; combine them into one natural sentence.",
                 "The latest user message is authoritative. A direct correction replaces the older value immediately.",
                 "Never present both a superseded value and its correction as current facts.",
+                "When the user establishes or corrects facts, explicitly repeat every new or replacement value from the latest message, but do not recite unrelated older fields.",
+                "For fact establishment, correction, recall, or exact-answer requests, answer directly and end without offering reminders, asking confirmation, or adding a follow-up question.",
+                "In those fact-management turns, never end with a question or Chinese question particles such as ‘吗’‘呢’‘呀’, and never ask an either-or question with ‘还是’.",
                 "When the user asks for several remembered facts, include every requested fact available in current conversation or memory.",
                 "Follow exact wording and character limits from the latest user message before applying conversational style.",
-                "Ask at most one natural follow-up question."
+                "Unless the user requests another limit, keep the complete reply within 80 Unicode characters. Finish the thought within the requested length; never rely on programmatic truncation.",
+                "Only in open-ended casual conversation may you ask at most one natural follow-up question."
               ];
               if (memory) rules.push("Use this factual memory without copying its headers:\n" + memory);
               board.setVar("system_prompt", rules.join("\n"));
@@ -45,28 +48,17 @@ spec:
           type: llm
           publish: false
           config:
-            max_tokens: 256
+            max_tokens: 2048
             model: flowcraft-chat-assistant.model
             output_key: tmp_assistant_answer
             system_prompt: "${board.system_prompt}"
             track_steps: true
-        - id: bound_answer
-          type: script
-          config:
-            source: |
-              const raw = String(board.getVar("tmp_assistant_answer") || "").trim();
-              const input = String(board.getVar("input") || "");
-              const match = input.match(/(?:不超过|最多)\s*(\d+)\s*(?:个)?(?:字|字符)/)
-                || input.match(/(\d+)\s*(?:个)?(?:字|字符)\s*以内/);
-              const requested = match ? Number(match[1]) : 80;
-              const limit = Math.max(1, Math.min(requested, 80));
-              board.setVar("bounded_assistant_answer", Array.from(raw).slice(0, limit).join(""));
         - id: answer
           type: script
           publish: true
           config:
             source: |
-              const answer = String(board.getVar("bounded_assistant_answer") || "");
+              const answer = String(board.getVar("tmp_assistant_answer") || "").trim();
               board.setVar("answer", answer);
               host.emit("token", {content: answer});
         - id: observe_conversation

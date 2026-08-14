@@ -45,6 +45,27 @@ func (c Client) Models(ctx context.Context) ([]string, error) {
 	return models, nil
 }
 
+func (c Client) Voices(ctx context.Context) ([]string, error) {
+	var response struct {
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	if err := c.do(ctx, http.MethodGet, "/voices", nil, &response); err != nil {
+		return nil, err
+	}
+	voices := make([]string, 0, len(response.Data))
+	for _, item := range response.Data {
+		if id := strings.TrimSpace(item.ID); id != "" {
+			voices = append(voices, id)
+		}
+	}
+	if len(voices) == 0 {
+		return nil, errors.New("OpenAI-compatible endpoint returned no voices")
+	}
+	return voices, nil
+}
+
 func (c Client) Chat(ctx context.Context, model string, messages []Message) (string, error) {
 	if strings.TrimSpace(model) == "" {
 		return "", errors.New("model is required")

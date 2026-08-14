@@ -1,0 +1,135 @@
+---
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata:
+  id: eino-story-alice
+spec:
+  driver: eino
+  toolkit: {tool_ids: []}
+  memory: story-teller
+  eino:
+    graph:
+      name: story-alice-eino
+      compile: {node_trigger_mode: any_predecessor, max_run_steps: 16}
+      state:
+        fields:
+          - {name: memory-query, type: string, merge: replace}
+          - {name: recalled, type: string, merge: replace}
+          - {name: chapter-route, type: string, merge: replace}
+          - {name: answer-messages, type: messages, merge: replace}
+          - {name: answer, type: string, merge: replace}
+          - {name: progress-fact, type: string, merge: replace}
+          - {name: progress-lane, type: string, merge: replace}
+          - {name: progress-kind, type: string, merge: replace}
+      nodes:
+        - id: prepare-memory-query
+          type: script
+          inputs: {text: {from: input.text}}
+          outputs: {query: memory-query}
+          language: starlark
+          entrypoint: run
+          source: |
+            def run(input):
+                text = input["text"]
+                base = "仙境故事当前章节、手表谜题、门的颜色和玩家选择"
+                return {"query": base + ("；当前请求：" + text if text else "")}
+          limits: {max_execution_steps: 10000, timeout: 250ms, max_input_bytes: 65536, max_output_bytes: 65536}
+        - id: recall-progress
+          type: memory_recall
+          query_from: memory-query
+          output: recalled
+          top_k: 12
+        - id: route-chapter
+          type: script
+          inputs: {text: {from: input.text}, history: {from: input.messages}, memory: {from: recalled}}
+          outputs: {route: chapter-route}
+          language: starlark
+          entrypoint: run
+          source: |
+            def contains_any(text, values):
+                for value in values:
+                    if value in text:
+                        return True
+                return False
+
+            def run(input):
+                current = input["text"]
+                combined = input["memory"] + "\n" + current
+                for message in input["history"]:
+                    if "content" in message:
+                        combined += "\n" + message["content"]
+                if contains_any(current, ["我打开绿色", "我推开绿色", "我走进门", "我进入门后"]):
+                    route = "第四章‘由玩家决定的门后旅程’"
+                elif contains_any(combined, ["绿色", "蓝色小门", "绿色小门", "门把手", "门的正确颜色"]):
+                    route = "第三章‘绿色小门’"
+                elif contains_any(combined, ["悖论", "提示", "谜底", "解释成立", "快一分钟", "问题表"]):
+                    route = "第二章‘悖论与提示’"
+                else:
+                    route = "第一章‘两块手表’"
+                return {"route": route}
+          limits: {max_execution_steps: 20000, timeout: 250ms, max_input_bytes: 262144, max_output_bytes: 65536}
+        - id: narrate-chapter
+          type: prompt
+          inputs: {history: {from: input.messages}, memory: {from: recalled}, route: {from: chapter-route}}
+          outputs: {messages: answer-messages}
+          format: f_string
+          messages:
+            - role: system
+              template: |
+                你是儿童友好的梦境逻辑故事主持人，创作原创的仙境式规则、语言游戏和谜题。
+                首次主动开场严格说：一只戴着两块表的兔子说其中一块显示问题，另一块显示答案，你会先看哪一块？
+                用户第一轮说“开始爱丽丝故事”或要求介绍兔子和两块表时，也只逐字输出上述一句，不再复述或添加场景。
+                故事分为四章：两块手表、悖论与提示、绿色小门、由玩家决定的门后旅程。Graph 路由是本轮权威；除非用户询问章节，不要念出章节标题或状态字段。
+                Graph 确定的本轮章节是：{route}。不得被旧记忆降到更早章节；用户询问章节时必须按此回答。
+                后续每轮只呈现一个荒诞规则或可推理的小谜题，承接孩子上一轮查看的手表、发现和质疑；孩子选择查看某块表或物件时，首句明确复述其选择的对象，再给出内容；不得重置场景。
+                孩子可以反问规则、索要渐进提示或提出不同解法；先确认其推理中成立的部分，再说明仍缺什么。
+                用户质疑“答案表比问题表快一分钟却回答未出现的问题”时，必须先直接解释：这不能证明答案表预知未来，只能当作待验证的仙境规则，需要用同一问题稍后对照两块表检验。该轮不得跳到门、新场景或新选择。
+                不得照抄现代改编、歌曲或新增影视角色；困惑应有趣而不令人恐惧，不收集个人信息。
+                最新明确更正覆盖旧事实，之后只把更正后的颜色、物品或规则当作当前事实。门及其把手、墙壁、植物和装饰不得自行增加用户没有给出的颜色，避免旧颜色伪装成其他物件继续出现。
+                事实建立、纠正或纯回忆回合只直接回答用户要求，不推进场景、不添加环境、新发现或追问；用户要求记住颜色时只确认该物件及颜色；纠正回合必须只说新事实，并且不得以否定、引用、对比或解释方式再次输出旧值。
+                普通回复写2至4个完整中文句子、约60至180个Unicode字符；提示和事实回忆应更短。
+                每轮最多问一个问题。只输出适合朗读的中文正文，不输出Markdown、列表、菜单、emoji、舞台说明、分析或系统文字。
+                必须写完整句子，不得依赖程序截断，不得重复同义内容。
+                相关长期进度只用于核对，不得覆盖更新的对话：
+                {memory}
+            - placeholder: history
+        - id: narrator-model
+          type: chat_model
+          inputs: {messages: {from: answer-messages}}
+          outputs: {text: answer}
+          model: eino-story-alice.model
+          max_tokens: 2048
+          temperature: 0.5
+        - id: commit-progress
+          type: script
+          inputs: {route: {from: chapter-route}, answer: {from: answer}}
+          outputs: {progress: progress-fact, lane: progress-lane, kind: progress-kind}
+          language: starlark
+          entrypoint: run
+          source: |
+            def run(input):
+                return {
+                    "progress": "Graph章节进度：\n" + input["route"] + "\n本轮已发布叙事：" + input["answer"],
+                    "lane": "story_progress",
+                    "kind": "state",
+                }
+          limits: {max_execution_steps: 10000, timeout: 250ms, max_input_bytes: 131072, max_output_bytes: 131072}
+        - id: observe-progress
+          type: memory_observe
+          facts:
+            - {text_from: progress-fact, attributes: {lane: progress-lane, kind: progress-kind}}
+          wait_for_completion: false
+      edges:
+        - {from: start, to: prepare-memory-query}
+        - {from: prepare-memory-query, to: recall-progress}
+        - {from: recall-progress, to: route-chapter}
+        - {from: route-chapter, to: narrate-chapter}
+        - {from: narrate-chapter, to: narrator-model}
+        - {from: narrator-model, to: commit-progress}
+        - {from: commit-progress, to: observe-progress}
+        - {from: observe-progress, to: end}
+      branches: []
+      outputs:
+        - {node: narrator-model, field: answer, name: assistant, mime_type: text/plain, primary: true}
+    conversation: {starts: peer}
+    limits: {max_output_bytes: 4194304}
