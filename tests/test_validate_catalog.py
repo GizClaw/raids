@@ -978,6 +978,9 @@ class PublicDefaultE2ERegressionTest(unittest.TestCase):
         self.assertIn("不得补写没有其他异常、没有其他痕迹、异常痕迹", prompt)
         self.assertIn("不得组合成‘主钥匙备用钥匙’", prompt)
         self.assertIn("无关来源不得用来支持厨师证词", prompt)
+        self.assertIn('latest.includes("厨师")', prompt)
+        self.assertIn("本轮是厨房证词核对，优先执行", prompt)
+        self.assertIn("禁止写‘没有其他线索能印证或反驳’", prompt)
         self.assertIn("死者当晚活动物品没有固定检查结果", prompt)
         self.assertIn("不得声称没有其他能印证或反驳厨师证词的线索", prompt)
         self.assertIn("首次报告用确认，不得称为更正", prompt)
@@ -1014,6 +1017,8 @@ class PublicDefaultE2ERegressionTest(unittest.TestCase):
             tester_prompt,
         )
         self.assertIn("不得把预期的主持人开场当成玩家台词", tester_prompt)
+        self.assertIn("在 challenge-chef，只能判定厨房挂钟和后门检查与厨师证词一致", tester_prompt)
+        self.assertIn("必须将 factuality 与 instruction_following 判 fail", tester_prompt)
         self.assertEqual(
             memory["spec"]["flowcraft"]["extraction"]["mode"],
             "single_pass",
