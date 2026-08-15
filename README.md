@@ -257,6 +257,12 @@ Target and Tester Peers/Workspaces, and never mutates MemoryLayouts. Tester
 Workflows own natural dialogue and semantic decisions through the scoped
 `raidtest_acceptance_report` client Tool; external paired plans retain only
 checkpoint order, deterministic/reload/Recall gates, and target latency limits.
+Paired cases remain serial by default. A Dev-only diagnostic mode can admit
+`1..8` isolated cases with a bounded launch ramp while sampling the public Peer
+`/server-info` health endpoint. An unhealthy initial or later probe stops new
+admission without reassigning active-case failures; reports preserve suite order
+and add candidate, concurrency, UTC failure, and coalesced health evidence
+without changing `raidtest.report/v1`.
 The five story/adventure Tester pairs route each envelope through deterministic
 checkpoint parsing and one of six phase-specific judge Prompts. Exact facts and
 length remain external hard gates; the Model judges only current-checkpoint
@@ -281,6 +287,11 @@ Journey, and all Default translation directions.
 Static `make ci`, an isolated `raidtest` result, a released Raids archive, a
 deployed RuntimeProfile, and the complete Beijing Default E2E are separate
 evidence. Passing one does not imply the later stages occurred.
+Likewise, private GizClaw process profiles remain Deploy/operator evidence:
+raidtest neither reaches the profiling ObjectStore nor embeds profiles in its
+report. Parallel qualification requires a clean Raids candidate, a healthy
+serial baseline, manually gated `2/4/8` waves, and matching manifest-verified
+Dev profile sets and Server logs before drawing a causal conclusion.
 
 Default Pet Care and General Assistant intentionally keep Memory extraction
 asynchronous. Same-Workspace turn continuity and reload recall come from the

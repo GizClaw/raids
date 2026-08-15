@@ -96,6 +96,9 @@ func parseFlags(args []string, stderr io.Writer) (config.Config, error) {
 	fs.BoolVar(&c.OpenAIKey.Stdin, "openai-api-key-stdin", false, "read the OpenAI-compatible key from stdin")
 	fs.BoolVar(&c.Keep, "keep", false, "retain run-owned resources for debugging")
 	fs.DurationVar(&c.Timeout, "timeout", 2*time.Minute, "per-turn timeout")
+	fs.IntVar(&c.CaseParallelism, "case-parallelism", 1, "paired suite case concurrency (1..8)")
+	fs.DurationVar(&c.CaseRampUp, "case-ramp-up", 0, "minimum delay between paired suite admissions")
+	fs.DurationVar(&c.DiagnosticProbeInterval, "diagnostic-probe-interval", 0, "Peer /server-info probe interval (0 disables; minimum 100ms)")
 	if err := fs.Parse(args); err != nil {
 		return c, err
 	}
@@ -105,6 +108,16 @@ func parseFlags(args []string, stderr io.Writer) (config.Config, error) {
 	c.MemoryLayouts = memories
 	c.ASTInputModes = astInputModes
 	c.Pairs = pairIDs
+	fs.Visit(func(f *flag.Flag) {
+		switch f.Name {
+		case "case-parallelism":
+			c.CaseParallelismSet = true
+		case "case-ramp-up":
+			c.CaseRampUpSet = true
+		case "diagnostic-probe-interval":
+			c.DiagnosticProbeIntervalSet = true
+		}
+	})
 	if c.AdminKey.Stdin && c.OpenAIKey.Stdin {
 		return c, errors.New("admin and OpenAI keys cannot both use stdin")
 	}

@@ -122,6 +122,23 @@ func TestParseFlagsAcceptsOnlySecretSources(t *testing.T) {
 	}
 }
 
+func TestParseFlagsTracksExplicitSuiteOnlyControls(t *testing.T) {
+	base := []string{"--server", "edge.example:9821", "--workflow", "workflow.yaml", "--plan", "plan.yaml", "--admin-private-key-env", "RAIDTEST_ADMIN"}
+	for _, explicit := range [][]string{{"--case-parallelism", "1"}, {"--case-ramp-up", "0"}, {"--diagnostic-probe-interval", "0"}} {
+		args := append(append([]string{}, base...), explicit...)
+		if _, err := parseFlags(args, &bytes.Buffer{}); err == nil {
+			t.Fatalf("explicit suite-only default %v was accepted outside suite mode", explicit)
+		}
+	}
+	cfg, err := parseFlags([]string{"--server", "edge.example:9821", "--suite", "suite.yaml", "--admin-private-key-env", "RAIDTEST_ADMIN", "--case-parallelism", "4", "--case-ramp-up", "250ms", "--diagnostic-probe-interval", "1s"}, &bytes.Buffer{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.CaseParallelism != 4 || cfg.CaseRampUp != 250*time.Millisecond || cfg.DiagnosticProbeInterval != time.Second {
+		t.Fatalf("config=%#v", cfg.Redacted())
+	}
+}
+
 func TestRequireAvailableRejectsUnavailableAlias(t *testing.T) {
 	if err := requireAvailable("model", []string{"chat", "judge"}, "chat", "judge", ""); err != nil {
 		t.Fatal(err)

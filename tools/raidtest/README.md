@@ -21,6 +21,27 @@ CGO_ENABLED=0 go vet ./...
 ```
 
 The repository shortcuts are `make build-raidtest` and `make test-raidtest`.
+Use `make build-raidtest` for live qualification: it injects the repository
+revision and pre-build dirty state because Go does not discover VCS metadata
+automatically from this nested module. `RAIDTEST_OUTPUT=/absolute/path` writes
+the candidate outside the checkout without changing that evidence.
+
+The race detector requires CGO and the real Git LFS payloads from the exact
+`gizclaw-go v0.3.3` tag. Preserve the repository-relative resource layout in a
+temporary tree so tests can still resolve the checked-in suite resources, and
+so `go mod edit` does not mutate this checkout:
+
+```sh
+RACE_ROOT=$(mktemp -d)
+git clone --depth 1 --branch v0.3.3 https://github.com/GizClaw/gizclaw-go.git "$RACE_ROOT/gizclaw-go"
+git -C "$RACE_ROOT/gizclaw-go" lfs pull
+mkdir -p "$RACE_ROOT/raids/tools"
+cp -R tools/raidtest "$RACE_ROOT/raids/tools/raidtest"
+cp -R workflows runtime-profiles registration-tokens tool-resources memory-layouts "$RACE_ROOT/raids/"
+cd "$RACE_ROOT/raids/tools/raidtest"
+go mod edit -replace "github.com/GizClaw/gizclaw-go=$RACE_ROOT/gizclaw-go"
+go test -race ./...
+```
 
 ## Run
 
@@ -89,6 +110,59 @@ export RAIDTEST_ADMIN_PRIVATE_KEY='private key text supplied by the operator'
 
 Repeat `--pair <target-workflow-id>` for a smoke subset. Omitting it runs the
 entire suite; the release qualification uses the unfiltered command.
+
+Paired suite cases are serial by default. Dev-only stall reproduction may use
+bounded case concurrency after a healthy serial baseline:
+
+```sh
+./raidtest run \
+  --server server-bj-01.dev.gizclaw.com:9820 \
+  --peer-server ap.dev.gizclaw.com:9821 \
+  --admin-private-key-env RAIDTEST_ADMIN_PRIVATE_KEY \
+  --suite suites/pr61-paired.yaml \
+  --case-parallelism 4 \
+  --case-ramp-up 250ms \
+  --diagnostic-probe-interval 1s \
+  --keep \
+  --report parallel-4.json
+```
+
+`--case-parallelism` accepts `1..8`; each case owns two Peers and two
+Workspaces, so the cap permits at most 16 of each case-owned resource at once.
+`--case-ramp-up` delays each admission after the first and rejects negative
+durations. `--diagnostic-probe-interval` is disabled at `0`; enabled values
+must be at least `100ms`. All three flags are suite-only, including when an
+explicit default value is supplied.
+
+The sampler performs an immediate credential-free request to the Peer
+`/server-info` endpoint before case admission. It classifies 2xx, HTTP errors,
+timeouts, and sanitized transport failures without retaining headers or bodies.
+The first unhealthy transition stops new admissions but does not overwrite
+active-case ownership; active cases finish their bounded cleanup or retain
+path. Parent cancellation also stops admission and cancels active case
+contexts. Independent case failures remain non-fail-fast while the probe is
+healthy.
+
+Reports keep `raidtest.report/v1` and add candidate VCS metadata, configured and
+peak concurrency, selected/admitted counts, per-case UTC intervals, the first
+failure, and coalesced probe transitions. Cases, lifecycle groups, companion
+reports, terminal output, and joined errors remain in suite ordinal order even
+when cases finish out of order. A missing revision or dirty local binary is
+useful for diagnostics but is not accepted live-qualification evidence.
+
+Run the complete suite separately at `N=1` with ramp `0`, then—only after
+manual report and Server-health review—at `N=2`, `4`, and `8` with a `250ms`
+ramp. Never automate advancement between levels. Stop after the first matching
+EOF plus `/server-info` timeout/5xx signature or after one complete `N=8` run.
+
+Raids does not collect process profiles. GizClaw v0.5.2 production Dev must
+already be writing its private startup baseline and five-minute
+heap/allocs/goroutine sets to the deployment-owned `process-profiles`
+ObjectStore. Candidate validation disables that collector. Operators correlate
+completed manifest-verified profile sets and Server logs with the report run ID
+and UTC interval; missing or mismatched profile evidence makes that live step a
+`SKIP`. No profile, ObjectStore credential, or arbitrary network error is
+written to a raidtest report.
 
 Suite mode applies the stable `testing` RuntimeProfile,
 `testing-runtime` RegistrationToken, `raidtest-acceptance-report` Tool,
