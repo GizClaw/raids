@@ -63,6 +63,16 @@ func TestReportExecutionContextIsAdditiveAndCopiedToCaseReports(t *testing.T) {
 	}
 }
 
+func TestNewPrefersInjectedCandidateMetadata(t *testing.T) {
+	previousRevision, previousModified := buildRevision, buildModified
+	buildRevision, buildModified = "injected-sha", "true"
+	t.Cleanup(func() { buildRevision, buildModified = previousRevision, previousModified })
+	r := New("injected")
+	if r.Candidate == nil || r.Candidate.Revision != "injected-sha" || !r.Candidate.Modified {
+		t.Fatalf("candidate=%#v", r.Candidate)
+	}
+}
+
 func TestTerminalUsesLastHealthyBeforeFirstUnhealthy(t *testing.T) {
 	base := time.Date(2026, 8, 16, 1, 2, 3, 0, time.UTC)
 	r := Report{ServerProbeTransitions: []ServerProbeTransition{

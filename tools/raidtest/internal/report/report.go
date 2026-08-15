@@ -14,6 +14,11 @@ import (
 
 const SchemaVersion = "raidtest.report/v1"
 
+var (
+	buildRevision string
+	buildModified string
+)
+
 type Report struct {
 	SchemaVersion          string                  `json:"schema_version"`
 	RunID                  string                  `json:"run_id"`
@@ -136,14 +141,18 @@ type Lifecycle struct {
 
 func New(runID string) Report {
 	r := Report{SchemaVersion: SchemaVersion, RunID: runID, StartedAt: time.Now().UTC(), Models: map[string]string{}}
-	candidate := Candidate{}
+	candidate := Candidate{Revision: buildRevision, Modified: buildModified == "true"}
 	if info, ok := debug.ReadBuildInfo(); ok {
 		for _, setting := range info.Settings {
 			switch setting.Key {
 			case "vcs.revision":
-				candidate.Revision = setting.Value
+				if candidate.Revision == "" {
+					candidate.Revision = setting.Value
+				}
 			case "vcs.modified":
-				candidate.Modified = setting.Value == "true"
+				if buildModified == "" {
+					candidate.Modified = setting.Value == "true"
+				}
 			}
 		}
 	}

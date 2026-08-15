@@ -21,6 +21,10 @@ CGO_ENABLED=0 go vet ./...
 ```
 
 The repository shortcuts are `make build-raidtest` and `make test-raidtest`.
+Use `make build-raidtest` for live qualification: it injects the repository
+revision and pre-build dirty state because Go does not discover VCS metadata
+automatically from this nested module. `RAIDTEST_OUTPUT=/absolute/path` writes
+the candidate outside the checkout without changing that evidence.
 
 The race detector requires CGO and the real Git LFS payloads from the exact
 `gizclaw-go v0.3.3` tag. Preserve the repository-relative resource layout in a

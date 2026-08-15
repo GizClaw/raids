@@ -3,6 +3,10 @@
 GO ?= go
 GIZCLAW ?= gizclaw
 CGO_ENABLED ?= 0
+RAIDTEST_OUTPUT ?= raidtest
+RAIDTEST_REVISION := $(shell git rev-parse --verify HEAD)
+RAIDTEST_MODIFIED := $(shell if test -z "$$(git status --porcelain)"; then printf false; else printf true; fi)
+RAIDTEST_LDFLAGS := -X github.com/GizClaw/raids/tools/raidtest/internal/report.buildRevision=$(RAIDTEST_REVISION) -X github.com/GizClaw/raids/tools/raidtest/internal/report.buildModified=$(RAIDTEST_MODIFIED)
 RESOURCE_DIRS := credentials tenants models voices memory-layouts petdefs workflows tool-resources runtime-profiles registration-tokens
 
 .PHONY: help ci raidtest build-raidtest validate-resources test-raidtest
@@ -24,7 +28,7 @@ ci: validate-resources test-raidtest
 raidtest: build-raidtest
 
 build-raidtest:
-	cd tools/raidtest && CGO_ENABLED=$(CGO_ENABLED) $(GO) build -o raidtest ./cmd/raidtest
+	cd tools/raidtest && CGO_ENABLED=$(CGO_ENABLED) $(GO) build -ldflags "$(RAIDTEST_LDFLAGS)" -o "$(RAIDTEST_OUTPUT)" ./cmd/raidtest
 
 test-raidtest:
 	cd tools/raidtest && CGO_ENABLED=$(CGO_ENABLED) $(GO) test ./...
