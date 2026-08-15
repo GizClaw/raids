@@ -3,7 +3,7 @@
 GO ?= go
 GIZCLAW ?= gizclaw
 CGO_ENABLED ?= 0
-RESOURCE_DIRS := credentials tenants models voices memory-layouts petdefs workflows runtime-profiles registration-tokens
+RESOURCE_DIRS := credentials tenants models voices memory-layouts petdefs workflows tool-resources runtime-profiles registration-tokens
 
 .PHONY: help ci raidtest build-raidtest validate-resources test-raidtest
 

@@ -224,9 +224,10 @@ make validate-resources
 
 Use `GIZCLAW=/path/to/gizclaw make validate-resources` to select an explicit
 binary. The target validates each YAML file under the applyable Resource
-directories independently and does not read `runtime-profile.example.yaml` or
-the plans and fixtures under `tools/raidtest`. It is offline: it does not use a
-GizClaw context, contact Server, or mutate resources.
+directories, including `tool-resources/`, independently. It does not read
+`runtime-profile.example.yaml` or the plans and fixtures under `tools/raidtest`.
+It is offline: it does not use a GizClaw context, contact Server, or mutate
+resources.
 
 For static schema validation, the target exports a fixed non-secret placeholder
 for each empty variable declared by `.env.example`. It never reads or requires
