@@ -286,6 +286,8 @@ func TestPairedFailureOwnerPreservesSpecificTimeoutAttribution(t *testing.T) {
 		"persistence barrier before response 20: timeout":               "memory_provider",
 		"wait for Tester Tool submission: context deadline exceeded":    "raids_tester",
 		"candidate_changed: read Workflow/x: context deadline exceeded": "environment_dependency",
+		"dial target peer: server-info status 502 Bad Gateway":          "environment_dependency",
+		"dial target peer: connection refused":                          "environment_dependency",
 		"candidate_changed: Workflow/x digest drifted":                  "deploy_stale",
 		"target response 3: peer stream closed":                         "transport",
 	}

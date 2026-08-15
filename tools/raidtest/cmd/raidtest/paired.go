@@ -968,7 +968,10 @@ func pairedFailureOwner(detail string) string {
 		return "memory_provider"
 	case strings.Contains(lower, "tester"), strings.Contains(lower, "acceptance tool"):
 		return "raids_tester"
-	case strings.Contains(lower, "context deadline exceeded"), strings.Contains(lower, "timed out"), strings.Contains(lower, "timeout"):
+	case strings.Contains(lower, "server-info status 5"), strings.Contains(lower, "bad gateway"),
+		strings.Contains(lower, "connection refused"), strings.Contains(lower, "no such host"),
+		strings.Contains(lower, "network is unreachable"), strings.Contains(lower, "context deadline exceeded"),
+		strings.Contains(lower, "timed out"), strings.Contains(lower, "timeout"):
 		return "environment_dependency"
 	case strings.Contains(lower, "register"), strings.Contains(lower, "workspace"), strings.Contains(lower, "reload"):
 		return "gizclaw_runtime"
