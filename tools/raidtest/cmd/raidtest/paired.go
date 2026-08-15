@@ -303,6 +303,9 @@ func executePairedDescriptors(
 			default:
 			}
 		}
+		if stopOwner != "" && active == 0 {
+			break
+		}
 		if stopOwner == "" && next < len(descriptors) && active < parallelism {
 			eligible := lastAdmission.Add(ramp)
 			if lastAdmission.IsZero() || !time.Now().Before(eligible) {

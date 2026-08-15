@@ -22,6 +22,23 @@ CGO_ENABLED=0 go vet ./...
 
 The repository shortcuts are `make build-raidtest` and `make test-raidtest`.
 
+The race detector requires CGO and the real Git LFS payloads from the exact
+`gizclaw-go v0.3.3` tag. Preserve the repository-relative resource layout in a
+temporary tree so tests can still resolve the checked-in suite resources, and
+so `go mod edit` does not mutate this checkout:
+
+```sh
+RACE_ROOT=$(mktemp -d)
+git clone --depth 1 --branch v0.3.3 https://github.com/GizClaw/gizclaw-go.git "$RACE_ROOT/gizclaw-go"
+git -C "$RACE_ROOT/gizclaw-go" lfs pull
+mkdir -p "$RACE_ROOT/raids/tools"
+cp -R tools/raidtest "$RACE_ROOT/raids/tools/raidtest"
+cp -R workflows runtime-profiles registration-tokens tool-resources memory-layouts "$RACE_ROOT/raids/"
+cd "$RACE_ROOT/raids/tools/raidtest"
+go mod edit -replace "github.com/GizClaw/gizclaw-go=$RACE_ROOT/gizclaw-go"
+go test -race ./...
+```
+
 ## Run
 
 ```sh
