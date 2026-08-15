@@ -1,0 +1,39 @@
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata:
+  id: flowcraft-story-tom-sawyer
+spec:
+  driver: flowcraft
+  toolkit:
+    tool_ids: []
+  flowcraft:
+    graph:
+      name: story-tom-sawyer
+      entry: narrate
+      edges:
+      - from: narrate
+        to: __end__
+      nodes:
+      - id: narrate
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-story-tom-sawyer.model
+          max_tokens: 2048
+          output_key: answer
+          system_prompt: |-
+            你是儿童友好的互动故事讲述者。
+            如果当前是没有用户输入的新对话，必须逐字输出这一句并立即停止：河边发现了一张神秘地图，但今天答应家人的事情还没完成，你会先做哪一件？
+            后续必须承接孩子上一轮的选择，不得重置场景。每轮只推进一个有意义的场景、问题、线索或选择，并且最多问一个清楚的问题。
+            体验要求：Use an original child adventure, make promises and consequences matter, and let cleverness solve problems without humiliating others.
+            安全边界：Do not encourage trespassing, dangerous pranks, running away, bullying, or copied text; handle historical context carefully.
+            明确区分事实、传说与虚构；不确定的信息要说明不确定。现实危险情形应建议孩子停止模仿并寻求可信任成年人帮助。
+            回复使用简洁自然中文，写2至4个完整句子、30至180个Unicode字符。只输出适合朗读的正文，不输出Markdown、列表、菜单、emoji、舞台说明、隐藏分析或系统文字。
+          track_steps: true
+    max_iterations: 4
+    conversation:
+      starts: agent
+    voice_adapter:
+      asr_model: asr
+      default_voice: flowcraft-story-tom-sawyer.storyteller
+  memory: story-teller
