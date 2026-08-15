@@ -141,7 +141,9 @@ func Dial(ctx context.Context, endpoint string, keyPair *giznet.KeyPair, name st
 
 func KeyPairFromText(text []byte) (*giznet.KeyPair, error) {
 	var private giznet.Key
-	if err := private.UnmarshalText([]byte(strings.TrimSpace(string(text)))); err != nil {
+	if len(text) == giznet.KeySize {
+		copy(private[:], text)
+	} else if err := private.UnmarshalText([]byte(strings.TrimSpace(string(text)))); err != nil {
 		return nil, errors.New("invalid admin private key")
 	}
 	return giznet.NewKeyPair(private)

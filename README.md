@@ -47,6 +47,7 @@ Current drivers:
 - `ast-translate`
 - `chatroom`
 - `doubao-realtime`
+- `eino`
 - `flowcraft`
 - `pet`
 
@@ -98,6 +99,19 @@ slots currently bind the same Model resource:
 | `ast-translate-zh-ko` | `ast-translate-zh-ko.model` |
 | `flowcraft-murder-mystery` | `flowcraft-murder-mystery.model` |
 | `flowcraft-journey-guide` | `flowcraft-journey-guide.model` |
+| `eino-journey-history` | `eino-journey-history.model` |
+| `eino-journey-memory-recall` | `eino-journey-memory-recall.model` |
+| `eino-journey-memory-async` | `eino-journey-memory-async.model` |
+| `flowcraft-story-aesop` | `flowcraft-story-aesop.model` |
+| `eino-story-aesop` | `eino-story-aesop.model` |
+| `flowcraft-story-alice` | `flowcraft-story-alice.model` |
+| `eino-story-alice` | `eino-story-alice.model` |
+| `flowcraft-adventure-space-rescue` | `flowcraft-adventure-space-rescue.model` |
+| `eino-adventure-space-rescue` | `eino-adventure-space-rescue.model` |
+| `flowcraft-adventure-monster-maze` | `flowcraft-adventure-monster-maze.model` |
+| `eino-adventure-monster-maze` | `eino-adventure-monster-maze.model` |
+| `flowcraft-adventure-castle-mystery` | `flowcraft-adventure-castle-mystery.model` |
+| `eino-adventure-castle-mystery` | `eino-adventure-castle-mystery.model` |
 | `pet-care` | `pet-care.model` |
 
 Voice roles use the same Workflow namespace:
@@ -109,6 +123,11 @@ Voice roles use the same Workflow namespace:
 | each `ast-translate-*` Workflow | `translator` |
 | `flowcraft-murder-mystery` | `game-master` |
 | `flowcraft-journey-guide` | `narrator` |
+| `flowcraft-story-aesop` | `storyteller` |
+| `flowcraft-story-alice` | `storyteller` |
+| `flowcraft-adventure-space-rescue` | `adventure-guide` |
+| `flowcraft-adventure-monster-maze` | `adventure-guide` |
+| `flowcraft-adventure-castle-mystery` | `adventure-guide` |
 | `pet-care` | `pet` |
 
 For example, Journey resolves `flowcraft-journey-guide.narrator` exactly, and
@@ -139,6 +158,23 @@ The public MemoryLayout catalog is organized by reusable scenario:
   interviews, and explicit corrections.
 - `pet-care` stores qualitative relationship, owner, knowledge, and shared
   event memory without treating Gameplay numbers as long-term memory.
+
+The public story catalog also includes paired Flowcraft and Eino text
+experiences for Aesop, Alice in Wonderland, Space Rescue, Monster Maze, and
+Castle Mystery. Each pair shares one player-visible scenario contract and Model
+resource while keeping independent Workflow-owned aliases and engine-native
+graph topology. Flowcraft uses Recall, a deterministic conditional router,
+phase-specific streaming model nodes, a correction-safe state reducer, and
+asynchronous Observe. Exactly one routed model publishes on each turn. Eino
+uses the same state boundaries through a non-empty
+`first_match` branch and separate opening, exploration, correction, challenge,
+and conclusion Prompt nodes. A normal turn selects exactly one streaming Model
+path; graph depth never creates an unconditional multi-model latency chain.
+Prompts are not shared across scenarios: fable interpretation, dream logic,
+operational rescue, spatial navigation, and evidence-based deduction have
+separate behavior and safety contracts. Flowcraft entries provide the public
+spoken path; Eino entries remain text-only until the Eino Workflow contract
+exposes a Voice adapter.
 
 Each Layout defines portable Flowcraft, Mem0, and Volc Mem0 policy. The public
 default profile selects Flowcraft with `connection.type: flowcraft_bbh`; it
@@ -185,6 +221,27 @@ RegistrationToken, peer, and Workspace on the selected Server. It then runs a
 declared multi-turn plan and deletes only the resources recorded by that run,
 in reverse dependency order.
 
+Its paired suite mode is a separate Dev qualification path: it updates the
+canonical target and dedicated Eino Tester Workflow IDs in place, reuses the
+stable `testing` RuntimeProfile and `testing-runtime` token, creates separate
+Target and Tester Peers/Workspaces, and never mutates MemoryLayouts. Tester
+Workflows own natural dialogue and semantic decisions through the scoped
+`raidtest_acceptance_report` client Tool; external paired plans retain only
+checkpoint order, deterministic/reload/Recall gates, and target latency limits.
+The five story/adventure Tester pairs route each envelope through deterministic
+checkpoint parsing and one of six phase-specific judge Prompts. Exact facts and
+length remain external hard gates; the Model judges only current-checkpoint
+semantics such as continuity, grounding, non-repetition, and player agency.
+
+The runner accepts Flowcraft and Eino scripted Workflows. The three public Eino
+Journey Workflows under `workflows/eino` keep the same underlying model and a
+comparable prompt while separating History, synchronous Memory Recall, and
+asynchronous Memory Observe. They are published beside the Flowcraft Journey
+Workflow so quality and first-response latency can be compared without
+replacing it. Eino currently has no public `voice_adapter` contract equivalent
+to Flowcraft, so these Eino entries qualify the text path only and are not a
+claim of spoken Journey parity.
+
 The runner never edits deployed source Resource IDs and never reads a
 Credential manifest. Admin and optional OpenAI-compatible secrets come from a
 caller-selected environment variable, file, or stdin source; argv and the JSON
@@ -201,14 +258,20 @@ asynchronous. Same-Workspace turn continuity and reload recall come from the
 GizClaw Flowcraft History store; deployments must configure
 `services.agent_host.flowcraft.history_store`. Memory supplies longer-lived
 semantic recall and must not become a per-turn response barrier.
+Murder Mystery follows the same History ownership for its full transcript and
+observes only its explicit authoritative shoe-size state into Memory. It does
+not run a second whole-conversation semantic extraction after publishing each
+reply; the bounded Recall barrier still verifies the corrected state before
+reload.
 
 Two Default gates require GizClaw runtime support beyond Raids configuration:
 Doubao realtime reload memory and deterministic text limits are tracked by
 [GizClaw #852](https://github.com/GizClaw/gizclaw/issues/852) and
-[GizClaw #853](https://github.com/GizClaw/gizclaw/issues/853); bidirectional
-AST target-language Voice selection is tracked by
-[GizClaw #854](https://github.com/GizClaw/gizclaw/issues/854). The committed
+[GizClaw #853](https://github.com/GizClaw/gizclaw/issues/853). The committed
 plans keep those checks active instead of treating the dependencies as passes.
+
+The bidirectional Chinese-English AST Workflow binds a multilingual Voice, so
+the same automatic-language entry can synthesize either target language.
 
 ## Download
 

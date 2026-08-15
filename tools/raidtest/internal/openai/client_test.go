@@ -48,6 +48,20 @@ func TestModelsAndChat(t *testing.T) {
 	}
 }
 
+func TestVoices(t *testing.T) {
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/voices" {
+			t.Fatalf("path = %q", r.URL.Path)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"data": []map[string]string{{"id": "voice-a"}, {"id": "voice-b"}}})
+	}))
+	defer s.Close()
+	voices, err := (Client{BaseURL: s.URL + "/v1", APIKey: "key", HTTPClient: s.Client()}).Voices(context.Background())
+	if err != nil || len(voices) != 2 || voices[0] != "voice-a" || voices[1] != "voice-b" {
+		t.Fatalf("voices=%#v err=%v", voices, err)
+	}
+}
+
 func TestSpeechRequestsOpus(t *testing.T) {
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v1/audio/speech" {

@@ -1,0 +1,66 @@
+version: v1
+name: flowcraft-journey-6s
+driver: flowcraft
+persona: 对比 Flowcraft 与 Eino 首响应延迟的西游互动故事玩家。
+cases:
+  - id: buffered-latency
+    workflow_id: flowcraft-journey-guide
+    turns:
+      - id: origin
+        user: 我从花果山出发，带着一枚青铜铃。承接我的行动，不要替我选择路线。
+        required: [花果山, 青铜铃]
+        min_runes: 80
+        max_runes: 260
+        first_response: 6s
+        total_response: 90s
+        judge: [narrative-coherence, player-agency, response-completeness]
+      - id: river
+        user: 我沿河寻找渡口，先观察水流和两岸，不急着决定怎么过河。
+        min_runes: 80
+        max_runes: 260
+        first_response: 6s
+        total_response: 90s
+        judge: [player-agency, narrative-coherence]
+      - id: establish-guide
+        user: 我确认同行向导叫清禾，她熟悉黑风岭，请记住。
+        required: [清禾, 黑风岭]
+        min_runes: 10
+        max_runes: 80
+        first_response: 6s
+        total_response: 90s
+        judge: [fact-establishment, naturalness]
+      - id: correct-guide
+        user: 更正，向导不叫清禾，叫明月；她仍然熟悉黑风岭。
+        required: [明月, 黑风岭]
+        forbidden: [清禾]
+        min_runes: 10
+        max_runes: 80
+        first_response: 6s
+        total_response: 90s
+        judge: [correction-handling, response-completeness]
+      - id: mountain
+        user: 我和明月翻越黑风岭，遇到暴雨时先找安全处避雨。
+        required: [明月]
+        forbidden: [清禾]
+        min_runes: 80
+        max_runes: 260
+        first_response: 6s
+        total_response: 90s
+        judge: [history-continuity, action-consequence]
+      - id: theory
+        user: 我猜商队只是自己迷路了，并没有被抓走。根据目前剧情回应，不要顺着我下定论，也不要推进场景。
+        forbidden: [商队就是迷路, 你继续前进, 你走进山洞]
+        min_runes: 40
+        max_runes: 240
+        first_response: 6s
+        total_response: 90s
+        judge: [uncertainty-handling, non-railroading, no-scene-advancement]
+      - id: recap
+        user: 用一句话说出向导姓名、我带的物品和当前地点。
+        required: [明月, 青铜铃, 黑风岭]
+        forbidden: [清禾]
+        min_runes: 10
+        max_runes: 100
+        first_response: 6s
+        total_response: 90s
+        judge: [long-term-continuity, correction-handling, response-completeness]

@@ -41,6 +41,13 @@ type RuntimeProfile struct {
 	Digest string
 }
 
+type GenericResource struct {
+	Source apitypes.Resource
+	Kind   string
+	ID     string
+	Digest string
+}
+
 func RuntimeProfileFrom(id string, spec apitypes.RuntimeProfileSpec) RuntimeProfile {
 	r := Resource[apitypes.RuntimeProfileSpec]{APIVersion: "gizclaw.admin/v1alpha1", Kind: "RuntimeProfile", Metadata: Metadata{ID: id}, Spec: spec}
 	return RuntimeProfile{Source: r, Digest: Digest(r)}
@@ -83,7 +90,7 @@ func LoadWorkflow(path string) (Workflow, error) {
 	spec, _ := envelope["spec"].(map[string]any)
 	driver, _ := spec["driver"].(string)
 	switch driver {
-	case "flowcraft", "doubao-realtime", "ast-translate", "pet":
+	case "flowcraft", "eino", "doubao-realtime", "ast-translate", "pet":
 	default:
 		return Workflow{}, fmt.Errorf("unsupported Workflow driver %q", driver)
 	}
@@ -112,6 +119,30 @@ func LoadRuntimeProfile(path string) (RuntimeProfile, error) {
 		return RuntimeProfile{}, errors.New("expected RuntimeProfile with metadata.id")
 	}
 	return RuntimeProfile{Source: r, Digest: digestJSON(j)}, nil
+}
+
+func LoadResource(path string) (GenericResource, error) {
+	var envelope struct {
+		APIVersion string   `json:"apiVersion"`
+		Kind       string   `json:"kind"`
+		Metadata   Metadata `json:"metadata"`
+	}
+	var raw any
+	j, err := readYAMLJSON(path, &raw)
+	if err != nil {
+		return GenericResource{}, err
+	}
+	if err := json.Unmarshal(j, &envelope); err != nil {
+		return GenericResource{}, err
+	}
+	if envelope.APIVersion != "gizclaw.admin/v1alpha1" || strings.TrimSpace(envelope.Kind) == "" || strings.TrimSpace(envelope.Metadata.ID) == "" {
+		return GenericResource{}, errors.New("expected Admin resource with kind and metadata.id")
+	}
+	var resource apitypes.Resource
+	if err := json.Unmarshal(j, &resource); err != nil {
+		return GenericResource{}, fmt.Errorf("decode typed Resource %s: %w", path, err)
+	}
+	return GenericResource{Source: resource, Kind: envelope.Kind, ID: envelope.Metadata.ID, Digest: digestJSON(j)}, nil
 }
 
 func digestJSON(value []byte) string {

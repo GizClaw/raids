@@ -15,6 +15,7 @@ type Plan struct {
 	Version string `yaml:"version" json:"version"`
 	Name    string `yaml:"name" json:"name"`
 	Driver  string `yaml:"driver" json:"driver"`
+	Paired  bool   `yaml:"paired,omitempty" json:"paired,omitempty"`
 	Persona string `yaml:"persona,omitempty" json:"persona,omitempty"`
 	Cases   []Case `yaml:"cases" json:"cases"`
 }
@@ -44,24 +45,31 @@ func (p Plan) ForWorkflow(workflowID string) (Plan, error) {
 }
 
 type Turn struct {
-	ID                 string        `yaml:"id" json:"id"`
-	User               string        `yaml:"user" json:"user"`
-	Intent             string        `yaml:"intent,omitempty" json:"intent,omitempty"`
-	ReloadBefore       bool          `yaml:"reload_before,omitempty" json:"reload_before,omitempty"`
-	Required           []string      `yaml:"required,omitempty" json:"required,omitempty"`
-	RequiredAny        [][]string    `yaml:"required_any,omitempty" json:"required_any,omitempty"`
-	Forbidden          []string      `yaml:"forbidden,omitempty" json:"forbidden,omitempty"`
-	Scripts            []string      `yaml:"scripts,omitempty" json:"scripts,omitempty"`
-	RequirePunctuation bool          `yaml:"require_punctuation,omitempty" json:"require_punctuation,omitempty"`
-	MaxRunes           int           `yaml:"max_runes,omitempty" json:"max_runes,omitempty"`
-	FirstResponse      time.Duration `yaml:"-" json:"first_response,omitempty"`
-	TotalResponse      time.Duration `yaml:"-" json:"total_response,omitempty"`
-	FirstResponseText  string        `yaml:"first_response,omitempty" json:"-"`
-	TotalResponseText  string        `yaml:"total_response,omitempty" json:"-"`
-	Judge              []string      `yaml:"judge,omitempty" json:"judge,omitempty"`
+	ID                     string        `yaml:"id" json:"id"`
+	User                   string        `yaml:"user" json:"user"`
+	Intent                 string        `yaml:"intent,omitempty" json:"intent,omitempty"`
+	ReloadBefore           bool          `yaml:"reload_before,omitempty" json:"reload_before,omitempty"`
+	PersistedBeforeReload  []string      `yaml:"persisted_before_reload,omitempty" json:"persisted_before_reload,omitempty"`
+	Required               []string      `yaml:"required,omitempty" json:"required,omitempty"`
+	RequiredAny            [][]string    `yaml:"required_any,omitempty" json:"required_any,omitempty"`
+	Forbidden              []string      `yaml:"forbidden,omitempty" json:"forbidden,omitempty"`
+	Scripts                []string      `yaml:"scripts,omitempty" json:"scripts,omitempty"`
+	RequirePunctuation     bool          `yaml:"require_punctuation,omitempty" json:"require_punctuation,omitempty"`
+	MinRunes               int           `yaml:"min_runes,omitempty" json:"min_runes,omitempty"`
+	MaxRunes               int           `yaml:"max_runes,omitempty" json:"max_runes,omitempty"`
+	FirstResponse          time.Duration `yaml:"-" json:"first_response,omitempty"`
+	TotalResponse          time.Duration `yaml:"-" json:"total_response,omitempty"`
+	PersistenceTimeout     time.Duration `yaml:"-" json:"persistence_timeout,omitempty"`
+	FirstResponseText      string        `yaml:"first_response,omitempty" json:"-"`
+	TotalResponseText      string        `yaml:"total_response,omitempty" json:"-"`
+	PersistenceTimeoutText string        `yaml:"persistence_timeout,omitempty" json:"-"`
+	Judge                  []string      `yaml:"judge,omitempty" json:"judge,omitempty"`
 }
 
 func (p Plan) NeedsAgent() bool {
+	if p.Paired {
+		return false
+	}
 	for _, c := range p.Cases {
 		for _, turn := range c.Turns {
 			if strings.TrimSpace(turn.User) == "" {
@@ -73,6 +81,9 @@ func (p Plan) NeedsAgent() bool {
 }
 
 func (p Plan) NeedsJudge() bool {
+	if p.Paired {
+		return false
+	}
 	for _, c := range p.Cases {
 		for _, turn := range c.Turns {
 			if len(turn.Judge) > 0 {
@@ -107,6 +118,12 @@ func Load(path string) (Plan, error) {
 					return Plan{}, fmt.Errorf("case %s turn %s total_response: %w", p.Cases[ci].ID, t.ID, err)
 				}
 			}
+			if t.PersistenceTimeoutText != "" {
+				t.PersistenceTimeout, err = time.ParseDuration(t.PersistenceTimeoutText)
+				if err != nil {
+					return Plan{}, fmt.Errorf("case %s turn %s persistence_timeout: %w", p.Cases[ci].ID, t.ID, err)
+				}
+			}
 		}
 	}
 	return p, p.Validate()
@@ -122,12 +139,15 @@ func (p Plan) Validate() error {
 		return errors.New("plan name must be a stable lowercase ID")
 	}
 	switch p.Driver {
-	case "flowcraft", "realtime", "translate", "pet":
+	case "flowcraft", "eino", "scripted-comparison", "realtime", "translate", "pet":
 	default:
 		return fmt.Errorf("unsupported driver %q", p.Driver)
 	}
 	if len(p.Cases) == 0 {
 		return errors.New("plan must contain at least one case")
+	}
+	if p.Paired && strings.TrimSpace(p.Persona) != "" {
+		return errors.New("paired plan must not contain a semantic persona")
 	}
 	seenCases := map[string]bool{}
 	for _, c := range p.Cases {
@@ -144,11 +164,31 @@ func (p Plan) Validate() error {
 				return fmt.Errorf("case %s has invalid or duplicate turn ID %q", c.ID, turn.ID)
 			}
 			seenTurns[turn.ID] = true
-			if strings.TrimSpace(turn.User) == "" && strings.TrimSpace(turn.Intent) == "" {
+			if p.Paired && (strings.TrimSpace(turn.User) != "" || strings.TrimSpace(turn.Intent) != "" || len(turn.Judge) != 0) {
+				return fmt.Errorf("paired plan case %s turn %s must not duplicate Tester dialogue or semantic judge prompts", c.ID, turn.ID)
+			}
+			if !p.Paired && strings.TrimSpace(turn.User) == "" && strings.TrimSpace(turn.Intent) == "" {
 				return fmt.Errorf("case %s turn %s needs user or intent", c.ID, turn.ID)
 			}
-			if turn.MaxRunes < 0 || turn.FirstResponse < 0 || turn.TotalResponse < 0 {
+			if turn.MinRunes < 0 || turn.MaxRunes < 0 || turn.FirstResponse < 0 || turn.TotalResponse < 0 || turn.PersistenceTimeout < 0 {
 				return fmt.Errorf("case %s turn %s has negative budget", c.ID, turn.ID)
+			}
+			if len(turn.PersistedBeforeReload) > 0 && (!turn.ReloadBefore || turn.PersistenceTimeout == 0) {
+				return fmt.Errorf("case %s turn %s persisted_before_reload requires reload_before and persistence_timeout", c.ID, turn.ID)
+			}
+			if len(turn.PersistedBeforeReload) == 0 && turn.PersistenceTimeout != 0 {
+				return fmt.Errorf("case %s turn %s persistence_timeout requires persisted_before_reload", c.ID, turn.ID)
+			}
+			persisted := map[string]bool{}
+			for _, fact := range turn.PersistedBeforeReload {
+				key := strings.ToLower(strings.TrimSpace(fact))
+				if key == "" || persisted[key] {
+					return fmt.Errorf("case %s turn %s has empty or duplicate persisted fact %q", c.ID, turn.ID, fact)
+				}
+				persisted[key] = true
+			}
+			if turn.MaxRunes > 0 && turn.MinRunes > turn.MaxRunes {
+				return fmt.Errorf("case %s turn %s minimum runes exceed maximum runes", c.ID, turn.ID)
 			}
 			if turn.FirstResponse > 0 && turn.TotalResponse > 0 && turn.FirstResponse > turn.TotalResponse {
 				return fmt.Errorf("case %s turn %s first response exceeds total response budget", c.ID, turn.ID)

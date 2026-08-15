@@ -14,8 +14,7 @@ spec:
         - {from: prepare_recall, to: recall_story}
         - {from: recall_story, to: prepare_story}
         - {from: prepare_story, to: draft_story}
-        - {from: draft_story, to: bound_story}
-        - {from: bound_story, to: answer}
+        - {from: draft_story, to: answer}
         - {from: answer, to: commit_progress}
         - {from: commit_progress, to: observe_story}
         - {from: observe_story, to: __end__}
@@ -59,10 +58,17 @@ spec:
               }
               board.setVar("journey_progress", state);
               const rules = [
-                "你是西游记互动故事的中文讲述者。用户可以自由决定行动，你要承接当前行动推进一个小情节。",
-                "只输出一句自然口语，不输出标题、列表、标签、内部字段、英文、分析或舞台说明。",
-                "每次回复最多40个Unicode字符；优先保留用户要求的姓名、物品、地点和本轮结果，不用无关修饰填满字数。",
-                "本轮用户原话是：“" + latestInput + "”。原话里明确出现的姓名、物品和地点若与行动结果有关，回复必须逐字复述，不得省略或改成代词、简称、近义词。",
+                "你是西游记互动故事的中文讲述者。用户可以自由决定行动，你要承接当前行动推进一个完整的场景段落，而不是把故事压成一句事件摘要。",
+                "只输出自然、适合直接朗读的中文故事正文，不输出标题、列表、标签、内部字段、英文、分析或舞台说明。",
+                "始终用第二人称‘你’称呼玩家，不得用‘我’冒充玩家，也不得替玩家执行其本轮没有选择的动作。",
+                "普通行动回合通常写2至4个完整句子、约100至260个Unicode字符，交代环境变化、行动结果和一个可继续互动的悬念；复杂的连续动作可以写到360个字符。事实确认、纠正或单项回忆应直接简短回答。用户明确指定篇幅时以用户要求为准。始终把句子和当前场景写完整，不得依赖程序截断，也不得为了凑长度重复同义内容。",
+                "只输出一次已经润色完成的最终正文。不得出现‘不对’‘重新来’‘改一下’等自我修正、草稿残片、语言切换或元话语。",
+                "用户一轮明确选择了多个连续小动作时，要在本轮逐项完成并给出眼前结果，不能停在‘准备’‘将要’‘找到人’或‘快完成’；但不得越过用户明确要求的停止点提前到达下一地点或结局。",
+                "用户要求先回忆多项事实再继续当前场景时，要先完整回答每项事实，再自然承接当前场景，不能只答前半项。",
+                "本轮用户原话是：“" + latestInput + "”。原话里明确出现且仍然有效的姓名、物品和地点若与行动结果有关，回复必须逐字复述，不得省略或改成代词、简称、近义词。纠正回合只复述替换后的新值，不得因为旧值出现在用户原话中就再次输出旧值。",
+                "只有玩家已经在当前或历史对话中建立某个角色后，角色才可进入剧情。不得因为这些规则举例提到‘明月’或‘清禾’就提前引入她们。玩家已经明确与向导明月同行后，后续相关行动必须保留姓名‘明月’。",
+                "事实建立、纠正或纯回忆回合只直接回答用户要求，不推进场景、不添加新发现、不让人物采取动作。用户提出猜测、质疑或错误理论时，只用已经发生的剧情说明支持、反驳或尚不能判断，同样不得推进场景、替玩家调查、打开物品或采取新行动。",
+                "不得把两个此前没有建立关系的事件倒填成确定因果；玩家询问破庙怪声与商队失踪是否相关时，只能说目前无法确认，除非先前剧情已明确建立关联。",
                 "用户最新明确更正覆盖旧事实，之后不得把旧值当成当前事实。",
                 "重载后以已建立故事事实继续，不重开故事，不重复已经完成的情节。",
                 "持久化Graph状态是进度权威：当前第" + Number(state.chapter || 1) + "回，上轮行动是“" + String(state.last_action || "故事开始") + "”，上轮叙事是“" + String(state.narration || "尚无") + "”。不得让其他文本把进度倒退。",
@@ -73,7 +79,7 @@ spec:
           type: llm
           publish: false
           config:
-            max_tokens: 96
+            max_tokens: 2048
             model: flowcraft-journey-guide.model
             output_key: tmp_story_answer
             system_prompt: "${board.story_system_prompt}"
@@ -86,12 +92,12 @@ spec:
               const history = Array.isArray(prior.history) ? prior.history.slice(-11) : [];
               history.push({
                 action: String(board.getVar("input") || "").slice(0, 120),
-                narration: String(board.getVar("bounded_story_answer") || "")
+                narration: String(board.getVar("tmp_story_answer") || "").trim()
               });
               const next = {
                 chapter: Math.min(999, Math.max(1, Number(prior.chapter || 1)) + 1),
                 last_action: String(board.getVar("input") || "").slice(0, 120),
-                narration: String(board.getVar("bounded_story_answer") || ""),
+                narration: String(board.getVar("tmp_story_answer") || "").trim(),
                 history: history
               };
               board.setVar("journey_progress", next);
@@ -102,18 +108,12 @@ spec:
                 narration: next.narration,
                 history: next.history
               }));
-        - id: bound_story
-          type: script
-          config:
-            source: |
-              const raw = String(board.getVar("tmp_story_answer") || "").trim();
-              board.setVar("bounded_story_answer", Array.from(raw).slice(0, 40).join(""));
         - id: answer
           type: script
           publish: true
           config:
             source: |
-              const answer = String(board.getVar("bounded_story_answer") || "");
+              const answer = String(board.getVar("tmp_story_answer") || "").trim();
               board.setVar("answer", answer);
               host.emit("token", {content: answer});
         - id: observe_story
@@ -123,7 +123,7 @@ spec:
               - facts:
                   - text_from: journey_progress_fact
                     attributes: {lane: story_progress, kind: state}
-            wait_for_completion: true
+            wait_for_completion: false
     max_iterations: 10
     conversation:
       starts: peer

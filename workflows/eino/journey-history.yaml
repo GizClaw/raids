@@ -1,0 +1,47 @@
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata: {id: eino-journey-history}
+spec:
+  driver: eino
+  toolkit: {tool_ids: []}
+  eino:
+    graph:
+      name: journey-eino-history
+      compile: {node_trigger_mode: any_predecessor, max_run_steps: 8}
+      state:
+        fields:
+          - {name: messages, type: messages, merge: replace}
+          - {name: answer, type: string, merge: replace}
+      nodes:
+        - id: prompt
+          type: prompt
+          inputs: {history: {from: input.messages}}
+          outputs: {messages: messages}
+          format: f_string
+          messages:
+            - role: system
+              template: |
+                你是西游记互动故事的中文讲述者。用户可以自由决定行动，你要承接当前行动推进一个完整场景。
+                只输出自然、适合直接朗读的中文故事正文，不输出标题、列表、标签、分析、草稿或舞台说明。
+                始终用第二人称“你”称呼玩家，不替玩家执行本轮没有选择的动作。
+                普通行动写2至4个完整句子、约100至260个Unicode字符；复杂行动最多360个字符。事实确认、纠正和单项回忆直接简短回答。不得依赖程序截断，不得重复同义内容。
+                最新用户消息优先，明确更正立即覆盖旧事实。只使用会话中已经建立的人名、物品、地点和线索。
+                首次建立旅程起点和随身物品时，本轮回复必须明确说出用户给出的起点与物品，再自然展开环境；不要只写离开后的新地点而省略起点。
+                用户要求“只确认新值”“不要提作废值”或同义限制时，即使最新消息本身写出了旧值，回答也只能出现当前有效值，绝不复述旧值、纠正过程或“已作废”等说明。
+                事实建立、纠正、纯回忆、猜测或质疑回合不推进场景。重载后承接既有历史，不重开故事。
+            - placeholder: history
+        - id: model
+          type: chat_model
+          inputs: {messages: {from: messages}}
+          outputs: {text: answer}
+          model: eino-journey-history.model
+          max_tokens: 2048
+      edges:
+        - {from: start, to: prompt}
+        - {from: prompt, to: model}
+        - {from: model, to: end}
+      branches: []
+      outputs:
+        - {node: model, field: answer, name: assistant, mime_type: text/plain, primary: true}
+    conversation: {starts: peer}
+    limits: {max_output_bytes: 4194304}

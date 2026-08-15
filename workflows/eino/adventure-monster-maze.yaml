@@ -1,0 +1,351 @@
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata:
+  id: eino-adventure-monster-maze
+spec:
+  driver: eino
+  toolkit:
+    tool_ids: []
+  memory: adventure
+  eino:
+    graph:
+      name: adventure-monster-maze-eino
+      compile:
+        node_trigger_mode: any_predecessor
+        max_run_steps: 20
+      state:
+        fields:
+        - name: memory-query
+          type: string
+          merge: replace
+        - name: recalled
+          type: string
+          merge: replace
+        - name: area-route
+          type: string
+          merge: replace
+        - name: phase-key
+          type: string
+          merge: replace
+        - name: stage-route
+          type: string
+          merge: replace
+        - name: scenario-policy
+          type: string
+          merge: replace
+        - name: answer-messages
+          type: messages
+          merge: replace
+        - name: answer
+          type: string
+          merge: replace
+        - name: progress-fact
+          type: string
+          merge: replace
+        - name: progress-lane
+          type: string
+          merge: replace
+        - name: progress-kind
+          type: string
+          merge: replace
+      nodes:
+      - id: prepare-memory-query
+        type: script
+        inputs:
+          text:
+            from: input.text
+        outputs:
+          query: memory-query
+        language: starlark
+        entrypoint: run
+        source: |
+          def run(input):
+              text = input["text"]
+              base = "怪兽迷宫当前区域、已确认路线、锁孔线索和遇到的角色"
+              return {"query": base + ("；当前请求：" + text if text else "")}
+        limits:
+          max_execution_steps: 10000
+          timeout: 250ms
+          max_input_bytes: 65536
+          max_output_bytes: 65536
+      - id: recall-progress
+        type: memory_recall
+        query_from: memory-query
+        output: recalled
+        top_k: 12
+      - id: route-stage
+        type: script
+        inputs:
+          text:
+            from: input.text
+          history:
+            from: input.messages
+          memory:
+            from: recalled
+        outputs:
+          phase: phase-key
+          route: stage-route
+          policy: scenario-policy
+        language: starlark
+        entrypoint: run
+        source: |
+          def contains_any(text, values):
+              for value in values:
+                  if value in text:
+                      return True
+              return False
+
+          def run(input):
+              current = input["text"].strip()
+              combined = input["memory"] + "\n" + current
+              for message in input["history"]:
+                  if "content" in message:
+                      combined += "\n" + message["content"]
+              if not current or contains_any(current, ['开始迷宫', '进入迷宫']):
+                  phase = "opening"
+              elif contains_any(current, ['更正', '只确认', '有效路线', '正确路线', '正确颜色', '只说有效', '回忆', '重连', '隔了几轮', '只说']):
+                  phase = "correction"
+              elif contains_any(current, ['总结', '路线图', '结合线索', '出口', '回顾', '用一句话说出']):
+                  phase = "conclusion"
+              elif contains_any(current, ['我猜', '可能', '一定', '危险', '捷径', '牺牲', '尚不能', '不要替我']):
+                  phase = "challenge"
+              else:
+                  phase = "explore"
+              if contains_any(combined, ["小怪兽", "怪兽成为帮手", "打喷嚏", "刚遇到的角色"]):
+                  route = "第四区‘怪兽合作’"
+              elif contains_any(combined, ["锁孔", "圆形", "三角形", "方形", "小提示"]):
+                  route = "第三区‘锁孔谜题’"
+              elif contains_any(combined, ["蘑菇花园", "右边", "右侧", "向右", "左边", "路线", "地图"]):
+                  route = "第二区‘路线校准’"
+              else:
+                  route = "第一区‘月亮机关’"
+              return {"phase": phase, "route": route, "policy": "你是儿童友好的怪兽迷宫主持人，用方向、图形和逻辑线索维护一张连续一致的虚构地图。\n首次主动开场严格说：迷宫门上有月亮、星星和太阳三个按钮，墙上的影子只指向没有光的图案，你会按哪个？\n迷宫分为月亮机关、路线校准、锁孔谜题、怪兽合作四个区域。Graph 路由是本轮权威；除非用户询问区域，不要念出状态字段。\n每轮只提供一个可解的空间或逻辑线索，承接孩子已走过的方向、门、图案和获得的物品，不得重置地图。\n孩子可以索要渐进提示；先给较小提示，不能直接替孩子做决定。明确更正路线或颜色后只保留新事实。地图方向沿用玩家本轮的“左边”或“右边”原词，不改写成岔路等新称呼。\n事实建立、纠正或纯回忆回合只直接回答用户要求，不推进迷宫、不添加环境、新发现或追问；纠正回合必须只说本轮用户给出的新路线，并且不得以否定、引用、对比、解释或未命名岔路方式再次输出旧路线。\n怪兽只能是友善帮手、迷糊守门人或非暴力障碍，不得恐怖、突然惊吓、威胁囚禁或要求现实危险动作。\n用户引入一只“小怪兽”时，本轮正文必须明确使用“小怪兽”这个称呼，不能只用“它”代替。\n当孩子提出猜测时，区分已观察线索与尚未证实的推断。\n普通回复写2至4个完整中文句子、约60至190个Unicode字符；地图回忆和提示应简短。\n每轮最多问一个问题。只输出适合朗读的中文正文，不输出Markdown、列表、菜单、emoji、舞台说明、分析或系统文字。\n必须写完整句子，不得依赖程序截断，不得重复同义内容。"}
+        limits:
+          max_execution_steps: 20000
+          timeout: 250ms
+          max_input_bytes: 262144
+          max_output_bytes: 65536
+      - id: prompt-opening
+        type: prompt
+        inputs:
+          history:
+            from: input.messages
+          memory:
+            from: recalled
+          route:
+            from: stage-route
+          policy:
+            from: scenario-policy
+        outputs:
+          messages: answer-messages
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {policy}
+            Graph确定的本轮路径：{route}。不得被旧记忆降到更早阶段。
+            本轮专用路径要求：本轮只建立安全的迷宫入口、可选道路和玩家自主选择，不替玩家迈出第一步。
+            相关长期进度只用于核对，不得覆盖更新的对话：
+            {memory}
+        - placeholder: history
+      - id: prompt-explore
+        type: prompt
+        inputs:
+          history:
+            from: input.messages
+          memory:
+            from: recalled
+          route:
+            from: stage-route
+          policy:
+            from: scenario-policy
+        outputs:
+          messages: answer-messages
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {policy}
+            Graph确定的本轮路径：{route}。不得被旧记忆降到更早阶段。
+            本轮专用路径要求：本轮只推进玩家当前选择的一段路线，给一个眼前结果和至多一个分级提示，不擅自走完迷宫。最新用户要求只描述机关可见规则时，当前意图优先于历史区域，只写机关上可见的形状、对应关系和规则，不添加怪兽、其他角色、角色位置、动作或意图。
+            相关长期进度只用于核对，不得覆盖更新的对话：
+            {memory}
+        - placeholder: history
+      - id: prompt-correction
+        type: prompt
+        inputs:
+          history:
+            from: input.messages
+          memory:
+            from: recalled
+          route:
+            from: stage-route
+          policy:
+            from: scenario-policy
+        outputs:
+          messages: answer-messages
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {policy}
+            Graph确定的本轮路径：{route}。不得被旧记忆降到更早阶段。
+            本轮专用路径要求：本轮只确认最新路线、标记或颜色；旧值失效且不得再次输出，也不得推进位置。
+            相关长期进度只用于核对，不得覆盖更新的对话：
+            {memory}
+        - placeholder: history
+      - id: prompt-challenge
+        type: prompt
+        inputs:
+          history:
+            from: input.messages
+          memory:
+            from: recalled
+          route:
+            from: stage-route
+          policy:
+            from: scenario-policy
+        outputs:
+          messages: answer-messages
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {policy}
+            Graph确定的本轮路径：{route}。不得被旧记忆降到更早阶段。
+            本轮专用路径要求：本轮拒绝危险牺牲和无证据捷径，说明风险与可验证线索，把最终选择留给玩家。
+            相关长期进度只用于核对，不得覆盖更新的对话：
+            {memory}
+        - placeholder: history
+      - id: prompt-conclusion
+        type: prompt
+        inputs:
+          history:
+            from: input.messages
+          memory:
+            from: recalled
+          route:
+            from: stage-route
+          policy:
+            from: scenario-policy
+        outputs:
+          messages: answer-messages
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {policy}
+            Graph确定的本轮路径：{route}。不得被旧记忆降到更早阶段。
+            本轮专用路径要求：本轮按有效路线、标记和已见机关回顾，不恢复旧路线，不宣称未验证的出口。
+            相关长期进度只用于核对，不得覆盖更新的对话：
+            {memory}
+        - placeholder: history
+      - id: narrator-model
+        type: chat_model
+        inputs:
+          messages:
+            from: answer-messages
+        outputs:
+          text: answer
+        model: eino-adventure-monster-maze.model
+        max_tokens: 2048
+        temperature: 0.5
+      - id: commit-progress
+        type: script
+        inputs:
+          phase:
+            from: phase-key
+          route:
+            from: stage-route
+          text:
+            from: input.text
+        outputs:
+          progress: progress-fact
+          lane: progress-lane
+          kind: progress-kind
+        language: starlark
+        entrypoint: run
+        source: |
+          def run(input):
+              progress = "schema=raid_scenario_progress_v2; phase=" + input["phase"] + "; route=" + input["route"]
+              if input["phase"] == "correction":
+                  correction = "latest_valid_facts_preserved_from_history"
+                  if "蘑菇花园" in input["text"] and ("右边" in input["text"] or "右侧" in input["text"] or "向右" in input["text"]):
+                      correction = "garden_route=右边通往蘑菇花园"
+                  elif "蓝色" in input["text"]:
+                      correction = "marker_color=蓝色"
+                  progress += "; correction_authority=latest_user_value; " + correction
+              else:
+                  progress += "; latest_input=" + input["text"]
+              return {"progress": progress, "lane": "case_state", "kind": "state"}
+        limits:
+          max_execution_steps: 10000
+          timeout: 250ms
+          max_input_bytes: 131072
+          max_output_bytes: 131072
+      - id: observe-progress
+        type: memory_observe
+        facts:
+        - text_from: progress-fact
+          attributes:
+            lane: progress-lane
+            kind: progress-kind
+        wait_for_completion: false
+      edges:
+      - from: start
+        to: prepare-memory-query
+      - from: prepare-memory-query
+        to: recall-progress
+      - from: recall-progress
+        to: route-stage
+      - from: prompt-opening
+        to: narrator-model
+      - from: prompt-explore
+        to: narrator-model
+      - from: prompt-correction
+        to: narrator-model
+      - from: prompt-challenge
+        to: narrator-model
+      - from: prompt-conclusion
+        to: narrator-model
+      - from: narrator-model
+        to: commit-progress
+      - from: commit-progress
+        to: observe-progress
+      - from: observe-progress
+        to: end
+      branches:
+      - from: route-stage
+        mode: first_match
+        routes:
+        - when:
+            field: phase-key
+            op: eq
+            value: opening
+          to: prompt-opening
+        - when:
+            field: phase-key
+            op: eq
+            value: correction
+          to: prompt-correction
+        - when:
+            field: phase-key
+            op: eq
+            value: challenge
+          to: prompt-challenge
+        - when:
+            field: phase-key
+            op: eq
+            value: conclusion
+          to: prompt-conclusion
+        default: prompt-explore
+      outputs:
+      - node: narrator-model
+        field: answer
+        name: assistant
+        mime_type: text/plain
+        primary: true
+    conversation:
+      starts: peer
+    limits:
+      max_output_bytes: 4194304

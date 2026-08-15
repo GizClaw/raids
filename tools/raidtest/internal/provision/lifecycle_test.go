@@ -58,14 +58,14 @@ func (f *fakeAdmin) GetReference(_ context.Context, kind, _ string) error {
 	return f.call("get reference " + kind)
 }
 
-func TestCleanupRunsInReverseOrderAndContinues(t *testing.T) {
+func TestCleanupDeletesPeerLastAndContinues(t *testing.T) {
 	f := &fakeAdmin{fail: map[string]error{"delete Peer": errors.New("busy")}}
 	l := New(f, false)
 	l.created = []Resource{{"Workflow", "w"}, {"MemoryLayout", "m"}, {"RuntimeProfile", "r"}, {"RegistrationToken", "t"}, {"Peer", "p"}, {"Workspace", "x"}}
 	if err := l.Cleanup(context.Background()); err == nil {
 		t.Fatal("expected aggregate cleanup error")
 	}
-	want := []string{"delete Workspace", "delete Peer", "delete RegistrationToken", "delete RuntimeProfile", "delete MemoryLayout", "delete Workflow"}
+	want := []string{"delete Workspace", "delete RegistrationToken", "delete RuntimeProfile", "delete MemoryLayout", "delete Workflow", "delete Peer"}
 	if !reflect.DeepEqual(f.calls, want) {
 		t.Fatalf("cleanup calls=%v want=%v", f.calls, want)
 	}

@@ -1,0 +1,230 @@
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata:
+  id: flowcraft-adventure-space-rescue
+spec:
+  driver: flowcraft
+  toolkit:
+    tool_ids: []
+  flowcraft:
+    graph:
+      name: adventure-space-rescue
+      entry: prepare-recall-query
+      edges:
+      - from: prepare-recall-query
+        to: recall-progress
+      - from: recall-progress
+        to: route-phase
+      - from: route-phase
+        to: narrate-opening
+        condition: scenario_phase == "opening"
+      - from: route-phase
+        to: narrate-correction
+        condition: scenario_phase == "correction"
+      - from: route-phase
+        to: narrate-challenge
+        condition: scenario_phase == "challenge"
+      - from: route-phase
+        to: narrate-conclusion
+        condition: scenario_phase == "conclusion"
+      - from: route-phase
+        to: narrate-explore
+      - from: narrate-opening
+        to: reduce-state
+      - from: narrate-explore
+        to: reduce-state
+      - from: narrate-correction
+        to: reduce-state
+      - from: narrate-challenge
+        to: reduce-state
+      - from: narrate-conclusion
+        to: reduce-state
+      - from: reduce-state
+        to: observe-progress
+      - from: observe-progress
+        to: __end__
+      nodes:
+      - id: prepare-recall-query
+        type: script
+        config:
+          source: |
+            const current = String(board.getVar("input") || "").trim();
+            board.setVar("scenario_recall_query", current || "raid_scenario_state_v2");
+      - id: recall-progress
+        type: memory_recall
+        config:
+          query:
+            text_from: scenario_recall_query
+            lanes:
+            - case_state
+            kinds:
+            - state
+            - note
+            - event
+          output: scenario_memory
+          render:
+            header: 'Confirmed scenario history:'
+            item_prefix: '- '
+            max_items: 12
+          top_k: 12
+      - id: route-phase
+        type: script
+        config:
+          source: |
+            const current = String(board.getVar("input") || "").trim();
+            const memory = String(board.getVar("scenario_memory") || "");
+            const liveState = board.getVar("scenario_state") || {schema: "raid_scenario_state_v2", revision: 0};
+            let prior = Object.assign({}, liveState);
+            let priorRevision = Math.max(0, Number(prior.revision || 0));
+            for (const line of memory.split("\n")) {
+              const start = line.indexOf('{"schema":"raid_scenario_state_v2"');
+              if (start < 0) continue;
+              try {
+                const candidate = JSON.parse(line.slice(start));
+                if (!candidate || candidate.schema !== "raid_scenario_state_v2") continue;
+                const candidateRevision = Math.max(0, Number(candidate.revision || 0));
+                if (candidateRevision > priorRevision) {
+                  prior = Object.assign({}, prior, candidate);
+                  priorRevision = candidateRevision;
+                }
+              } catch (_) {
+                // Recall may also contain natural-language notes; only Graph-authored JSON state is authoritative.
+              }
+            }
+            let combined = memory + "\n" + current;
+            const messages = board.channel(board.MAIN_CHANNEL) || [];
+            for (const message of messages) {
+              if (message && typeof message.content === "string") combined += "\n" + message.content;
+              const parts = message && Array.isArray(message.parts) ? message.parts : [];
+              const text = parts.map((part) => part && part.type === "text" && typeof part.text === "string" ? part.text : "").join("");
+              if (text) combined += "\n" + text;
+            }
+            const containsAnyText = (text, values) => values.some((value) => text.includes(value));
+            let phase = "explore";
+            if (!current || containsAnyText(current, ["开始太空", "开始救援", "空间站"])) phase = "opening";
+            else if (containsAnyText(current, ["更正", "只确认", "有效坐标", "正确坐标", "有效能量", "只说有效", "回忆", "重连", "隔了几轮", "只说"])) phase = "correction";
+            else if (containsAnyText(current, ["总结", "救援状态", "任务状态", "回顾", "用一句话说出"])) phase = "conclusion";
+            else if (containsAnyText(current, ["牺牲", "攻击", "直接炸", "危险", "拒绝", "窗口", "角色分工"])) phase = "challenge";
+            let route = "";
+            const execute = containsAnyText(current, ["现在执行会合", "开始执行会合", "开始对接", "完成救援"]);
+            if (execute && !current.includes("不要") && !current.includes("不提前")) route = "第四阶段‘执行与收束’";
+            else if (containsAnyText(combined, ["安全窗口", "备用电池", "导航员", "工程员", "生命保障", "会合"])) route = "第三阶段‘准备安全会合’";
+            else if (containsAnyText(combined, ["能源", "能量", "百分之六十", "百分之四十五", "校准"])) route = "第二阶段‘校准能源’";
+            else route = "第一阶段‘恢复通信’";
+            board.setVar("scenario_phase", phase);
+            board.setVar("scenario_route", route);
+            board.setVar("scenario_state", prior);
+            board.setVar("scenario_state_text", JSON.stringify(prior));
+            board.setVar("scenario_common_prompt", "你是儿童友好的非暴力宇宙救援任务主持人，跟踪通信、能源、时间、轨道和团队分工。\n首次主动开场严格说：一艘科研飞船失去动力，氧气充足但轨道正在偏离，我们先修通信还是计算新轨道？\n救援分为四阶段：第一阶段“恢复通信”、第二阶段“校准能源”、第三阶段“准备安全会合”、第四阶段“执行与收束”。事实建立、纠正、回忆、风险评估和等待窗口不自动完成任务；只有用户明确下令执行才可进入第四阶段。用户询问阶段时按已完成动作准确回答。\n每轮只给一个清楚的行动权衡，先说明上一选择对救援状态的直接影响，再让孩子决定下一步；不得重置任务。\n回复必须保留用户已经使用的任务实体名称，例如“科研飞船”，不得只改写成模糊的“飞船”或省略实体。\n已确认的能源数值、人员状态和修复结果必须连续；用户更正数值后，新值立即覆盖旧值。只有用户或明确仪表读数给出新数字时才能更新任何主能源、备用电池、消耗或余量数值，不得根据虚构行动自行计算、扣减、新增百分比或改写最新读数。用户本轮没有提供能源数值时，正文不得凭空出现百分号、百分比或能源数字；复述已有百分比时必须沿用“百分之四十五”这类中文口语形式，不得改写为阿拉伯数字或百分号。\n事实建立、纠正或纯回忆回合只直接回答用户要求，不推进任务、不添加后果、选择或追问；用户要求记住事实时明确回答已经记住；纠正回合必须只说新事实，并且不得以否定、引用、对比或解释方式再次输出旧值。\n用户选择等待安全窗口时，本轮最多推进到窗口到来和准备就绪；除非用户明确要求执行，不得自动完成稳定、对接、返航或宣布救援完成。\n用户已经指定用备用电池等待安全窗口时，后续关于选择、阶段或下一步的回答都必须同时保留“备用电池”和“安全窗口”，不得省略任一安全条件。\n让工程、导航、医疗和通信角色都有贡献，不把鲁莽牺牲描述为唯一英雄选择。\n所有技术细节保持虚构和概念化，不提供真实航天操作指令；危险非血腥，不收集个人信息。\n普通回复写2至4个完整中文句子、约70至200个Unicode字符；状态确认和回忆应简短。\n每轮最多问一个问题。只输出适合朗读的中文正文，不输出Markdown、列表、菜单、emoji、舞台说明、分析或系统文字。\n必须写完整句子，不得依赖程序截断，不得重复同义内容。");
+      - id: narrate-opening
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-adventure-space-rescue.model
+          max_tokens: 2048
+          output_key: tmp_answer
+          system_prompt: |-
+            ${board.scenario_common_prompt}
+            本轮Graph路径：${board.scenario_route}。
+            本轮只建立空间站故障、救援目标和可选行动，不提前完成通信或修复。
+            可核对的长期进度：${board.scenario_memory}
+            Graph状态：${board.scenario_state_text}
+          track_steps: true
+      - id: narrate-explore
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-adventure-space-rescue.model
+          max_tokens: 2048
+          output_key: tmp_answer
+          system_prompt: |-
+            ${board.scenario_common_prompt}
+            本轮Graph路径：${board.scenario_route}。
+            本轮只执行玩家当前选择的一项救援行动，保持能量、坐标、角色和等待窗口连续。
+            可核对的长期进度：${board.scenario_memory}
+            Graph状态：${board.scenario_state_text}
+          track_steps: true
+      - id: narrate-correction
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-adventure-space-rescue.model
+          max_tokens: 2048
+          output_key: tmp_answer
+          system_prompt: |-
+            ${board.scenario_common_prompt}
+            本轮Graph路径：${board.scenario_route}。
+            本轮只确认最新有效能量或坐标；旧值立即失效且不得再次输出，也不得推进任务。
+            可核对的长期进度：${board.scenario_memory}
+            Graph状态：${board.scenario_state_text}
+          track_steps: true
+      - id: narrate-challenge
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-adventure-space-rescue.model
+          max_tokens: 2048
+          output_key: tmp_answer
+          system_prompt: |-
+            ${board.scenario_common_prompt}
+            本轮Graph路径：${board.scenario_route}。
+            本轮拒绝牺牲队员、盲目攻击等不安全方案，给出可逆替代方案并保留团队选择。选择等待安全窗口不表示时间已经过去；除非最新用户消息明确说窗口已经开启或等待时间已经结束，否则只确认等待安排，不得宣称安全窗口已经到来、已经开启或已经准备就绪。
+            可核对的长期进度：${board.scenario_memory}
+            Graph状态：${board.scenario_state_text}
+          track_steps: true
+      - id: narrate-conclusion
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-adventure-space-rescue.model
+          max_tokens: 2048
+          output_key: tmp_answer
+          system_prompt: |-
+            ${board.scenario_common_prompt}
+            本轮Graph路径：${board.scenario_route}。
+            本轮只总结已经确认的通信、能量、坐标、角色和窗口，不把计划写成已完成事实。
+            可核对的长期进度：${board.scenario_memory}
+            Graph状态：${board.scenario_state_text}
+          track_steps: true
+      - id: reduce-state
+        type: script
+        config:
+          source: |
+            const input = String(board.getVar("input") || "").trim();
+            const phase = String(board.getVar("scenario_phase") || "explore");
+            const prior = board.getVar("scenario_state") || {schema: "raid_scenario_state_v2", revision: 0};
+            const next = Object.assign({}, prior);
+            let changed = false;
+            function set(name, value) {
+              if (value && next[name] !== value) { next[name] = value; changed = true; }
+            }
+            next.phase = phase;
+            next.route = String(board.getVar("scenario_route") || "");
+            if (input.includes("百分之四十五") || input.includes("45%")) set("energy", "百分之四十五");
+            if (input.includes("B-21")) set("coordinate", "B-21");
+            if (changed) next.revision = Math.max(0, Number(prior.revision || 0)) + 1;
+            if (phase === "correction") {
+              delete next.last_input;
+              next.last_correction = JSON.stringify({energy: next.energy || "", coordinate: next.coordinate || ""});
+            } else {
+              next.last_input = input.slice(0, 160);
+            }
+            board.setVar("scenario_state", next);
+            board.setVar("scenario_state_fact", JSON.stringify(next));
+      - id: observe-progress
+        type: memory_observe
+        config:
+          observations:
+          - facts:
+            - text_from: scenario_state_fact
+              attributes:
+                lane: case_state
+                kind: state
+          wait_for_completion: false
+    max_iterations: 10
+    conversation:
+      starts: agent
+    voice_adapter:
+      asr_model: asr
+      default_voice: flowcraft-adventure-space-rescue.adventure-guide
+  memory: adventure

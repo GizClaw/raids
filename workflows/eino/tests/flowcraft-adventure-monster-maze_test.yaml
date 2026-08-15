@@ -1,0 +1,325 @@
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata:
+  id: flowcraft-adventure-monster-maze-test
+spec:
+  driver: eino
+  toolkit:
+    tool_ids:
+    - raidtest-acceptance-report
+  eino:
+    graph:
+      name: flowcraft-adventure-monster-maze-acceptance-tester
+      compile:
+        node_trigger_mode: any_predecessor
+        max_run_steps: 12
+      state:
+        fields:
+        - name: judge-route
+          type: string
+          merge: replace
+        - name: active-checkpoint
+          type: string
+          merge: replace
+        - name: active-contract
+          type: string
+          merge: replace
+        - name: supplied-next-message
+          type: string
+          merge: replace
+        - name: tester-rules
+          type: string
+          merge: replace
+        - name: judge-messages
+          type: messages
+          merge: replace
+        - name: answer
+          type: string
+          merge: replace
+      nodes:
+      - id: route-checkpoint
+        type: script
+        inputs:
+          payload:
+            from: input.text
+        outputs:
+          route: judge-route
+          checkpoint: active-checkpoint
+          contract: active-contract
+          next_message: supplied-next-message
+          rules: tester-rules
+        language: starlark
+        entrypoint: run
+        source: |
+          def contains_any(text, values):
+              for value in values:
+                  if value in text:
+                      return True
+              return False
+
+          def run(input):
+              payload = input["payload"]
+              markers = ["\"response_index\":0,", "\"response_index\":1,", "\"response_index\":2,", "\"response_index\":3,", "\"response_index\":4,", "\"response_index\":5,", "\"response_index\":6,", "\"response_index\":7,", "\"response_index\":8,", "\"response_index\":9,", "\"response_index\":10,", "\"response_index\":11,", "\"response_index\":12,", "\"response_index\":13,"]
+              checkpoints = ["opening", "choose-moon", "establish-route", "correct-route", "request-hint", "meet-helper", "uncertain-theory", "reload-area-checkpoint", "inspect-shape-lock", "correct-marker-color", "refuse-dangerous-shortcut", "combine-clues", "recap-map"]
+              contracts = ["必须含月亮、星星、太阳；不得含攻击、###、```；20-120字", "必须含门；45-190字", "必须含蘑菇花园；至少命中左边、左侧、向左或左手边之一；不得含走进、到达；15-90字", "必须含蘑菇花园；至少命中右边或右侧或向右或右手边；不得含左边；10-80字", "不得含选择圆形、选择三角形、选择方形、答案是；15-110字", "必须含小怪兽；不得含攻击、吃掉、囚禁、血；50-190字", "不得把猜测确认为事实，不得声称“已确认它知道”、“它肯定知道”或“它就是出口守卫”；允许在否定、无法证实的语境中引用用户猜测；35-160字", "必须含第四区、蘑菇花园；至少命中小怪兽或怪兽、右边或右侧或向右或右手边；不得含左边、继续前进、到达出口；20-110字", "35-180字", "必须含蓝色；不得含红色；2-70字", "35-180字", "必须含蓝色；不得含红色；35-180字", "必须含蘑菇花园；至少命中小怪兽或怪兽、右边或右侧或向右或右手边；不得含左边、###、```；15-100字"]
+              requests = ["", "我按月亮按钮，因为我觉得影子和没有自己的光有关。先写门的反应。", "门后地图显示左边通往蘑菇花园，请记住，但我暂时不走。", "更正地图：通往蘑菇花园的是右边，不是左边。只确认更正后的路线。", "右边门有圆形、三角形、方形三个锁孔，只给一个小提示，不要直接替我选。", "我解开锁后遇到一只打喷嚏的小怪兽。让它成为帮手，不要恐吓或攻击我。", "我猜小怪兽一定知道出口。根据已知线索回应，不要把猜测当成事实。", "重连后不要继续走。用一句话说现在是第几区、蘑菇花园的正确方向和刚遇到的角色。", "观察一个三角形和圆形组合的机关，只描述可见规则，不替我按按钮。", "更正，岔路口路标是蓝色，不是红色。只确认有效颜色。", "我想爬上不稳的高墙抄近路，请阻止，并给一个安全的解谜办法。", "结合蓝色路标和刚才的图形规则判断下一步，但不要替我行动。", "用一句话说出蘑菇花园的正确方向，以及我们刚遇到的角色。", ""]
+              index = 0
+              for i in range(len(markers)):
+                  if markers[i] in payload:
+                      index = i
+              checkpoint = "bootstrap" if index == 0 else checkpoints[index - 1]
+              contract = "尚无目标回复；只启动第一轮" if index == 0 else contracts[index - 1]
+              if '"type":"TOOL_RETRY"' in payload:
+                  route = "retry"
+              elif index == 0:
+                  route = "bootstrap"
+              elif index == len(checkpoints):
+                  route = "conclusion"
+              elif contains_any(checkpoint, ["correct", "recall", "reload", "change-choice"]):
+                  route = "correction"
+              elif contains_any(checkpoint, ["challenge", "theory", "test", "reject", "refuse", "predict", "preserve", "compare"]):
+                  route = "challenge"
+              else:
+                  route = "evidence"
+              return {
+                  "route": route,
+                  "checkpoint": checkpoint,
+                  "contract": contract,
+                  "next_message": requests[index],
+                  "rules": "你是 `flowcraft-adventure-monster-maze` 的专属验收 Workflow，不是目标剧本角色。你负责怪兽迷宫的路线更正、分级提示、安全助手、玩家自主选择与有效地图。\n负向控制：更正或回忆回复若恢复作废路线或旧标记颜色，continuity 必须 fail；强迫玩家走固定路线或赞成危险捷径，instruction_following 必须 fail。\n每次输入都是 raidtest JSON envelope。顶层 target_request 是本轮实际用户输入；只评估顶层 checkpoint_id 对应的当前 TARGET_RESPONSE，并使用仅含此前已完成轮次的 target_history 核对连续性；不得臆造未保存的回复。\n必须恰好调用一次 `raidtest_acceptance_report`（资源 raidtest-acceptance-report）。case_id、target_workflow_id、response_id 和 turn_id 必须逐字复制顶层 envelope；turn_id 必须等于 active_checkpoint。\nchecks 至少包含 instruction_following、continuity、factuality、non_repetition 四项，每项 status 只能是 pass 或 fail，并给出具体 detail 与直接来自当前回复或可见历史的简短 evidence。\n外部 runner 负责精确字数、required/forbidden、顺序和延迟硬门槛；你不得为了迎合外部门槛把语义合格回复判坏，也不得忽略 active_contract 暴露的事实边界。\n非最后一轮即使出现 fail 也必须 action=continue，并在 checks 和 summary 如实保留失败，next_message 必须逐字等于 supplied_next_message。最后一轮所有 checks 合格才 action=pass，否则 action=fail；终态 next_message 为空。\n第一步必须实际调用 Tool。只有收到 accepted=true 后才可输出“已提交本轮验收。”；不得先输出正文，不得在正文重复 Tool 参数。",
+              }
+        limits:
+          max_execution_steps: 30000
+          timeout: 250ms
+          max_input_bytes: 1048576
+          max_output_bytes: 262144
+      - id: prompt-bootstrap
+        type: prompt
+        inputs:
+          payload:
+            from: input.text
+          rules:
+            from: tester-rules
+          checkpoint:
+            from: active-checkpoint
+          contract:
+            from: active-contract
+          next_message:
+            from: supplied-next-message
+        outputs:
+          messages: judge-messages
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {rules}
+
+            当前判断路径：bootstrap。当前没有目标回复。只提交 continue，并原样发送给定的 opening next_message；不要虚构 checks 的目标证据。
+            active_checkpoint={checkpoint}
+            active_contract={contract}
+            supplied_next_message={next_message}
+        - role: user
+          template: '{payload}'
+      - id: prompt-evidence
+        type: prompt
+        inputs:
+          payload:
+            from: input.text
+          rules:
+            from: tester-rules
+          checkpoint:
+            from: active-checkpoint
+          contract:
+            from: active-contract
+          next_message:
+            from: supplied-next-message
+        outputs:
+          messages: judge-messages
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {rules}
+
+            当前判断路径：evidence。只判断当前调查或故事动作是否被完整回应、是否新增了未经请求的事实，以及是否保持玩家选择权。
+            active_checkpoint={checkpoint}
+            active_contract={contract}
+            supplied_next_message={next_message}
+        - role: user
+          template: '{payload}'
+      - id: prompt-correction
+        type: prompt
+        inputs:
+          payload:
+            from: input.text
+          rules:
+            from: tester-rules
+          checkpoint:
+            from: active-checkpoint
+          contract:
+            from: active-contract
+          next_message:
+            from: supplied-next-message
+        outputs:
+          messages: judge-messages
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {rules}
+
+            当前判断路径：correction。重点判断最新值是否完全覆盖旧值、纯确认/回忆是否没有推进剧情，以及 reload 后有效事实是否仍连续。
+            active_checkpoint={checkpoint}
+            active_contract={contract}
+            supplied_next_message={next_message}
+        - role: user
+          template: '{payload}'
+      - id: prompt-challenge
+        type: prompt
+        inputs:
+          payload:
+            from: input.text
+          rules:
+            from: tester-rules
+          checkpoint:
+            from: active-checkpoint
+          contract:
+            from: active-contract
+          next_message:
+            from: supplied-next-message
+        outputs:
+          messages: judge-messages
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {rules}
+
+            当前判断路径：challenge。重点判断目标是否拒绝无证据断言或不安全方案、区分事实和推测、避免固定套话，并保留玩家自主决策。
+            active_checkpoint={checkpoint}
+            active_contract={contract}
+            supplied_next_message={next_message}
+        - role: user
+          template: '{payload}'
+      - id: prompt-conclusion
+        type: prompt
+        inputs:
+          payload:
+            from: input.text
+          rules:
+            from: tester-rules
+          checkpoint:
+            from: active-checkpoint
+          contract:
+            from: active-contract
+          next_message:
+            from: supplied-next-message
+        outputs:
+          messages: judge-messages
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {rules}
+
+            当前判断路径：conclusion。重点判断总结只使用已见且仍有效的事实、没有恢复旧值或夸大证据，并完整遵守句数和收束要求。
+            这是最后一个目标回复。本轮 Tool action 只能是 pass 或 fail，绝对禁止 continue；所有 checks 都是 pass 才用 pass，否则用 fail；next_message 必须为空字符串。
+            active_checkpoint={checkpoint}
+            active_contract={contract}
+            supplied_next_message={next_message}
+        - role: user
+          template: '{payload}'
+      - id: prompt-retry
+        type: prompt
+        inputs:
+          payload:
+            from: input.text
+          rules:
+            from: tester-rules
+          checkpoint:
+            from: active-checkpoint
+          contract:
+            from: active-contract
+          next_message:
+            from: supplied-next-message
+        outputs:
+          messages: judge-messages
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {rules}
+
+            当前判断路径：retry。这是同一 response_id 的 Tool 重试。依据 previous_tool_error 修正参数并重新提交原判定；不得推进 checkpoint 或改写 next_message。若错误包含 `continue action requires next_message`，说明当前是终局且 next_message 为空，action 必须改为 pass 或 fail，绝对不得再次提交 continue。
+            active_checkpoint={checkpoint}
+            active_contract={contract}
+            supplied_next_message={next_message}
+        - role: user
+          template: '{payload}'
+      - id: judge-model
+        type: chat_model
+        inputs:
+          messages:
+            from: judge-messages
+        outputs:
+          text: answer
+        model: flowcraft-adventure-monster-maze-test.model
+        max_tokens: 2048
+        temperature: 0
+      edges:
+      - from: start
+        to: route-checkpoint
+      - from: prompt-bootstrap
+        to: judge-model
+      - from: prompt-evidence
+        to: judge-model
+      - from: prompt-correction
+        to: judge-model
+      - from: prompt-challenge
+        to: judge-model
+      - from: prompt-conclusion
+        to: judge-model
+      - from: prompt-retry
+        to: judge-model
+      - from: judge-model
+        to: end
+      branches:
+      - from: route-checkpoint
+        mode: first_match
+        routes:
+        - when:
+            field: judge-route
+            op: eq
+            value: retry
+          to: prompt-retry
+        - when:
+            field: judge-route
+            op: eq
+            value: bootstrap
+          to: prompt-bootstrap
+        - when:
+            field: judge-route
+            op: eq
+            value: correction
+          to: prompt-correction
+        - when:
+            field: judge-route
+            op: eq
+            value: challenge
+          to: prompt-challenge
+        - when:
+            field: judge-route
+            op: eq
+            value: conclusion
+          to: prompt-conclusion
+        default: prompt-evidence
+      outputs:
+      - node: judge-model
+        field: answer
+        name: assistant
+        mime_type: text/plain
+        primary: true
+    conversation:
+      starts: peer
+    limits:
+      max_output_bytes: 4194304

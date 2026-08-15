@@ -1,0 +1,229 @@
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata:
+  id: flowcraft-adventure-monster-maze
+spec:
+  driver: flowcraft
+  toolkit:
+    tool_ids: []
+  flowcraft:
+    graph:
+      name: adventure-monster-maze
+      entry: prepare-recall-query
+      edges:
+      - from: prepare-recall-query
+        to: recall-progress
+      - from: recall-progress
+        to: route-phase
+      - from: route-phase
+        to: narrate-opening
+        condition: scenario_phase == "opening"
+      - from: route-phase
+        to: narrate-correction
+        condition: scenario_phase == "correction"
+      - from: route-phase
+        to: narrate-challenge
+        condition: scenario_phase == "challenge"
+      - from: route-phase
+        to: narrate-conclusion
+        condition: scenario_phase == "conclusion"
+      - from: route-phase
+        to: narrate-explore
+      - from: narrate-opening
+        to: reduce-state
+      - from: narrate-explore
+        to: reduce-state
+      - from: narrate-correction
+        to: reduce-state
+      - from: narrate-challenge
+        to: reduce-state
+      - from: narrate-conclusion
+        to: reduce-state
+      - from: reduce-state
+        to: observe-progress
+      - from: observe-progress
+        to: __end__
+      nodes:
+      - id: prepare-recall-query
+        type: script
+        config:
+          source: |
+            const current = String(board.getVar("input") || "").trim();
+            board.setVar("scenario_recall_query", current || "raid_scenario_state_v2");
+      - id: recall-progress
+        type: memory_recall
+        config:
+          query:
+            text_from: scenario_recall_query
+            lanes:
+            - case_state
+            kinds:
+            - state
+            - note
+            - event
+          output: scenario_memory
+          render:
+            header: 'Confirmed scenario history:'
+            item_prefix: '- '
+            max_items: 12
+          top_k: 12
+      - id: route-phase
+        type: script
+        config:
+          source: |
+            const current = String(board.getVar("input") || "").trim();
+            const memory = String(board.getVar("scenario_memory") || "");
+            const liveState = board.getVar("scenario_state") || {schema: "raid_scenario_state_v2", revision: 0};
+            let prior = Object.assign({}, liveState);
+            let priorRevision = Math.max(0, Number(prior.revision || 0));
+            for (const line of memory.split("\n")) {
+              const start = line.indexOf('{"schema":"raid_scenario_state_v2"');
+              if (start < 0) continue;
+              try {
+                const candidate = JSON.parse(line.slice(start));
+                if (!candidate || candidate.schema !== "raid_scenario_state_v2") continue;
+                const candidateRevision = Math.max(0, Number(candidate.revision || 0));
+                if (candidateRevision > priorRevision) {
+                  prior = Object.assign({}, prior, candidate);
+                  priorRevision = candidateRevision;
+                }
+              } catch (_) {
+                // Recall may also contain natural-language notes; only Graph-authored JSON state is authoritative.
+              }
+            }
+            let combined = memory + "\n" + current;
+            const messages = board.channel(board.MAIN_CHANNEL) || [];
+            for (const message of messages) {
+              if (message && typeof message.content === "string") combined += "\n" + message.content;
+              const parts = message && Array.isArray(message.parts) ? message.parts : [];
+              const text = parts.map((part) => part && part.type === "text" && typeof part.text === "string" ? part.text : "").join("");
+              if (text) combined += "\n" + text;
+            }
+            const containsAnyText = (text, values) => values.some((value) => text.includes(value));
+            let phase = "explore";
+            if (!current || containsAnyText(current, ["开始迷宫", "进入迷宫"])) phase = "opening";
+            else if (containsAnyText(current, ["更正", "只确认", "有效路线", "正确路线", "正确颜色", "只说有效", "回忆", "重连", "隔了几轮", "只说"])) phase = "correction";
+            else if (containsAnyText(current, ["总结", "路线图", "结合线索", "出口", "回顾", "用一句话说出"])) phase = "conclusion";
+            else if (containsAnyText(current, ["我猜", "可能", "一定", "危险", "捷径", "牺牲", "尚不能", "不要替我"])) phase = "challenge";
+            let route = "";
+            if (containsAnyText(combined, ["小怪兽", "怪兽成为帮手", "打喷嚏", "刚遇到的角色"])) route = "第四区‘怪兽合作’";
+            else if (containsAnyText(combined, ["锁孔", "圆形", "三角形", "方形", "小提示"])) route = "第三区‘锁孔谜题’";
+            else if (containsAnyText(combined, ["蘑菇花园", "右边", "右侧", "向右", "左边", "路线", "地图"])) route = "第二区‘路线校准’";
+            else route = "第一区‘月亮机关’";
+            board.setVar("scenario_phase", phase);
+            board.setVar("scenario_route", route);
+            board.setVar("scenario_state", prior);
+            board.setVar("scenario_state_text", JSON.stringify(prior));
+            board.setVar("scenario_common_prompt", "你是儿童友好的怪兽迷宫主持人，用方向、图形和逻辑线索维护一张连续一致的虚构地图。\n首次主动开场严格说：迷宫门上有月亮、星星和太阳三个按钮，墙上的影子只指向没有光的图案，你会按哪个？\n迷宫分为四区：第一区“月亮机关”、第二区“路线校准”、第三区“锁孔谜题”、第四区“怪兽合作”。事实建立、纠正、回忆、索要提示和猜测不自动移动玩家；只有玩家明确行动才可移动。用户询问区域时按当前已经抵达的区域准确回答。\n区位映射必须稳定：月亮机关打开后是第二区路线校准；右边门的圆形、三角形、方形锁孔属于第三区；玩家明确说“解开锁后遇到小怪兽”时已经抵达第四区怪兽合作。重载后仍按这张映射回答，不得退回第三区。\n每轮只提供一个可解的空间或逻辑线索，承接孩子已走过的方向、门、图案和获得的物品，不得重置地图。\n孩子可以索要渐进提示；先给较小提示，不能直接替孩子做决定。明确更正路线或颜色后只保留新事实。地图方向沿用玩家本轮的“左边”或“右边”原词，不改写成岔路等新称呼。\n事实建立、纠正或纯回忆回合只直接回答用户要求，不推进迷宫、不添加环境、新发现或追问；纠正回合必须只说本轮用户给出的新路线，并且不得以否定、引用、对比、解释或未命名岔路方式再次输出旧路线。\n怪兽只能是友善帮手、迷糊守门人或非暴力障碍，不得恐怖、突然惊吓、威胁囚禁或要求现实危险动作。\n用户引入一只“小怪兽”时，本轮正文必须明确使用“小怪兽”这个称呼，不能只用“它”代替。\n当孩子提出猜测时，区分已观察线索与尚未证实的推断。\n普通回复写2至4个完整中文句子、约60至190个Unicode字符；地图回忆和提示应简短。\n每轮最多问一个问题。只输出适合朗读的中文正文，不输出Markdown、列表、菜单、emoji、舞台说明、分析或系统文字。\n必须写完整句子，不得依赖程序截断，不得重复同义内容。");
+      - id: narrate-opening
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-adventure-monster-maze.model
+          max_tokens: 2048
+          output_key: tmp_answer
+          system_prompt: |-
+            ${board.scenario_common_prompt}
+            本轮Graph路径：${board.scenario_route}。
+            本轮只建立安全的迷宫入口、可选道路和玩家自主选择，不替玩家迈出第一步。
+            可核对的长期进度：${board.scenario_memory}
+            Graph状态：${board.scenario_state_text}
+          track_steps: true
+      - id: narrate-explore
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-adventure-monster-maze.model
+          max_tokens: 2048
+          output_key: tmp_answer
+          system_prompt: |-
+            ${board.scenario_common_prompt}
+            本轮Graph路径：${board.scenario_route}。
+            本轮只推进玩家当前选择的一段路线，给一个眼前结果和至多一个分级提示，不擅自走完迷宫。最新用户要求只描述机关可见规则时，当前意图优先于历史区域，只写机关上可见的形状、对应关系和规则，不添加怪兽、其他角色、角色位置、动作或意图。
+            可核对的长期进度：${board.scenario_memory}
+            Graph状态：${board.scenario_state_text}
+          track_steps: true
+      - id: narrate-correction
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-adventure-monster-maze.model
+          max_tokens: 2048
+          output_key: tmp_answer
+          system_prompt: |-
+            ${board.scenario_common_prompt}
+            本轮Graph路径：${board.scenario_route}。
+            本轮只确认最新路线、标记或颜色；旧值失效且不得再次输出，也不得推进位置。
+            可核对的长期进度：${board.scenario_memory}
+            Graph状态：${board.scenario_state_text}
+          track_steps: true
+      - id: narrate-challenge
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-adventure-monster-maze.model
+          max_tokens: 2048
+          output_key: tmp_answer
+          system_prompt: |-
+            ${board.scenario_common_prompt}
+            本轮Graph路径：${board.scenario_route}。
+            本轮拒绝危险牺牲和无证据捷径，说明风险与可验证线索，把最终选择留给玩家。
+            可核对的长期进度：${board.scenario_memory}
+            Graph状态：${board.scenario_state_text}
+          track_steps: true
+      - id: narrate-conclusion
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-adventure-monster-maze.model
+          max_tokens: 2048
+          output_key: tmp_answer
+          system_prompt: |-
+            ${board.scenario_common_prompt}
+            本轮Graph路径：${board.scenario_route}。
+            本轮按有效路线、标记和已见机关回顾，不恢复旧路线，不宣称未验证的出口。
+            可核对的长期进度：${board.scenario_memory}
+            Graph状态：${board.scenario_state_text}
+          track_steps: true
+      - id: reduce-state
+        type: script
+        config:
+          source: |
+            const input = String(board.getVar("input") || "").trim();
+            const phase = String(board.getVar("scenario_phase") || "explore");
+            const prior = board.getVar("scenario_state") || {schema: "raid_scenario_state_v2", revision: 0};
+            const next = Object.assign({}, prior);
+            let changed = false;
+            function set(name, value) {
+              if (value && next[name] !== value) { next[name] = value; changed = true; }
+            }
+            next.phase = phase;
+            next.route = String(board.getVar("scenario_route") || "");
+            if (input.includes("蘑菇花园") && (input.includes("右边") || input.includes("右侧") || input.includes("向右"))) set("garden_route", "右边通往蘑菇花园");
+            if (input.includes("蓝色")) set("marker_color", "蓝色");
+            if (changed) next.revision = Math.max(0, Number(prior.revision || 0)) + 1;
+            if (phase === "correction") {
+              delete next.last_input;
+              next.last_correction = JSON.stringify({garden_route: next.garden_route || "", marker_color: next.marker_color || ""});
+            } else {
+              next.last_input = input.slice(0, 160);
+            }
+            board.setVar("scenario_state", next);
+            board.setVar("scenario_state_fact", JSON.stringify(next));
+      - id: observe-progress
+        type: memory_observe
+        config:
+          observations:
+          - facts:
+            - text_from: scenario_state_fact
+              attributes:
+                lane: case_state
+                kind: state
+          wait_for_completion: false
+    max_iterations: 10
+    conversation:
+      starts: agent
+    voice_adapter:
+      asr_model: asr
+      default_voice: flowcraft-adventure-monster-maze.adventure-guide
+  memory: adventure

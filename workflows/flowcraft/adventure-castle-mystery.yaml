@@ -1,0 +1,230 @@
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata:
+  id: flowcraft-adventure-castle-mystery
+spec:
+  driver: flowcraft
+  toolkit:
+    tool_ids: []
+  flowcraft:
+    graph:
+      name: adventure-castle-mystery
+      entry: prepare-recall-query
+      edges:
+      - from: prepare-recall-query
+        to: recall-progress
+      - from: recall-progress
+        to: route-phase
+      - from: route-phase
+        to: narrate-opening
+        condition: scenario_phase == "opening"
+      - from: route-phase
+        to: narrate-correction
+        condition: scenario_phase == "correction"
+      - from: route-phase
+        to: narrate-challenge
+        condition: scenario_phase == "challenge"
+      - from: route-phase
+        to: narrate-conclusion
+        condition: scenario_phase == "conclusion"
+      - from: route-phase
+        to: narrate-explore
+      - from: narrate-opening
+        to: reduce-state
+      - from: narrate-explore
+        to: reduce-state
+      - from: narrate-correction
+        to: reduce-state
+      - from: narrate-challenge
+        to: reduce-state
+      - from: narrate-conclusion
+        to: reduce-state
+      - from: reduce-state
+        to: observe-progress
+      - from: observe-progress
+        to: __end__
+      nodes:
+      - id: prepare-recall-query
+        type: script
+        config:
+          source: |
+            const current = String(board.getVar("input") || "").trim();
+            board.setVar("scenario_recall_query", current || "raid_scenario_state_v2");
+      - id: recall-progress
+        type: memory_recall
+        config:
+          query:
+            text_from: scenario_recall_query
+            lanes:
+            - case_state
+            kinds:
+            - state
+            - note
+            - event
+          output: scenario_memory
+          render:
+            header: 'Confirmed scenario history:'
+            item_prefix: '- '
+            max_items: 12
+          top_k: 12
+      - id: route-phase
+        type: script
+        config:
+          source: |
+            const current = String(board.getVar("input") || "").trim();
+            const memory = String(board.getVar("scenario_memory") || "");
+            const liveState = board.getVar("scenario_state") || {schema: "raid_scenario_state_v2", revision: 0};
+            let prior = Object.assign({}, liveState);
+            let priorRevision = Math.max(0, Number(prior.revision || 0));
+            for (const line of memory.split("\n")) {
+              const start = line.indexOf('{"schema":"raid_scenario_state_v2"');
+              if (start < 0) continue;
+              try {
+                const candidate = JSON.parse(line.slice(start));
+                if (!candidate || candidate.schema !== "raid_scenario_state_v2") continue;
+                const candidateRevision = Math.max(0, Number(candidate.revision || 0));
+                if (candidateRevision > priorRevision) {
+                  prior = Object.assign({}, prior, candidate);
+                  priorRevision = candidateRevision;
+                }
+              } catch (_) {
+                // Recall may also contain natural-language notes; only Graph-authored JSON state is authoritative.
+              }
+            }
+            let combined = memory + "\n" + current;
+            const messages = board.channel(board.MAIN_CHANNEL) || [];
+            for (const message of messages) {
+              if (message && typeof message.content === "string") combined += "\n" + message.content;
+              const parts = message && Array.isArray(message.parts) ? message.parts : [];
+              const text = parts.map((part) => part && part.type === "text" && typeof part.text === "string" ? part.text : "").join("");
+              if (text) combined += "\n" + text;
+            }
+            const containsAnyText = (text, values) => values.some((value) => text.includes(value));
+            let phase = "explore";
+            if (!current || containsAnyText(current, ["开始城堡", "介绍钟楼"])) phase = "opening";
+            else if (containsAnyText(current, ["更正", "只确认", "有效鞋印", "正确时间", "正确尺码", "只说有效", "重连", "隔了几轮", "只说"])) phase = "correction";
+            else if (containsAnyText(current, ["总结", "暂时结论", "给出结论", "三句以内"])) phase = "conclusion";
+            else if (containsAnyText(current, ["我猜", "怀疑", "一定", "检验推理", "可能是", "能支持", "不能支持", "不要下结论", "第几阶段"])) phase = "challenge";
+            let route = "";
+            const conclude = containsAnyText(current, ["总结脚印", "暂时结论", "给出结论"]);
+            if (conclude && !current.includes("不要下结论")) route = "第四阶段‘临时结论’";
+            else if (containsAnyText(combined, ["竞争假设", "风雨", "松动零件", "机械误差", "修钟人", "不要下结论", "第几阶段"])) route = "第三阶段‘竞争假设’";
+            else if (containsAnyText(combined, ["零点十五分", "零点零五分", "机械日志", "管理员最初记录"])) route = "第二阶段‘日志校准’";
+            else route = "第一阶段‘客观勘察’";
+            board.setVar("scenario_phase", phase);
+            board.setVar("scenario_route", route);
+            board.setVar("scenario_state", prior);
+            board.setVar("scenario_state_text", JSON.stringify(prior));
+            board.setVar("scenario_common_prompt", "你是儿童友好的城堡谜案主持人，帮助孩子观察证据、检验推理并避免误判。\n首次主动开场严格说：城堡钟楼在午夜提前响了，桌上留下湿脚印和一根蓝色羽毛，你想先验证哪个线索？\n调查分为四阶段：第一阶段“客观勘察”、第二阶段“日志校准”、第三阶段“竞争假设”、第四阶段“临时结论”。事实建立、纠正、回忆和提出猜测不自动生成新检查结果；只有用户明确调查的对象才能产生可见观察。用户询问阶段时按已经完成的调查准确回答。\n每轮只处理一个调查行动或问题，先给可见结果，再允许孩子提出竞争假设；不得替孩子选择调查路线。\n始终明确区分观察、证词和推断。没有证据时说尚不能确认，不把猜测升级为事实或指控。\n保留已确认的时间、颜色、地点和来源；用户明确更正后，新事实立即覆盖旧事实，结论只使用更正后的证据。\n事实建立、纠正或纯回忆回合只直接回答用户要求，不推进调查、不添加线索或追问；纠正回合必须只说新事实，并且不得以否定、引用、对比或解释方式再次输出旧值。\n检查物件时只能描述用户要求的可见表面特征，不得凭空确定物种、来源、所有者、天气或城堡历史。湿脚印只能证明现场有湿脚印，不能单独证明下雨或有人进入；最终结论必须继续标明这些只是待验证假设。\n用户要求比较风雨、松动零件或机械误差时，必须逐项回答：湿脚印与风雨相容但不能证明风雨；没有检查零件所以不能支持松动；机械日志只支持更正后的响铃时间，未测试报时机构所以不能支持机械误差。最后分别提出检查门窗天气痕迹、零件松紧和报时机构校准。\n用户明确限定只描述方向和大小等字段时，只回答这些字段，不增加成因解释、其他属性或追问。检验竞争假设时只能使用对话中已经建立的观察；不得凭空声称检查过走廊、零件或日志，也不得编造新的检查结果，只能说明现有证据能否支持以及还需验证什么。\n描述脚印大小时只能用厘米或大、中、小等中性尺寸，不得拿任何人物、儿童、职业、鞋靴或身份作比较；写完用户指定的方向和大小后立即结束回复。\n脚印朝向某物只表示方向，不表示脚印位于该物旁边；例如“朝向书桌”不得改写成“在书桌边”。回顾时逐字保持观察关系，不得把方向改成位置。\n谜案不得包含谋杀、武器、血腥犯罪、恐怖囚禁或现实人物指控，最终用非暴力原因解释。\n普通调查回复写2至4个完整中文句子、约70至210个Unicode字符；纠错、回忆和最终结论应简洁完整。用户要求“三句以内”时，必须合并证据并严格使用不超过三句完整句子。\n每轮最多问一个问题。只输出适合朗读的中文正文，不输出Markdown、列表、菜单、emoji、舞台说明、分析或系统文字。\n必须写完整句子，不得依赖程序截断，不得重复同义内容。");
+      - id: narrate-opening
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-adventure-castle-mystery.model
+          max_tokens: 2048
+          output_key: tmp_answer
+          system_prompt: |-
+            ${board.scenario_common_prompt}
+            本轮Graph路径：${board.scenario_route}。
+            本轮只建立固定开场，让玩家自由选择线索；不要提前解释羽毛、脚印或钟声。
+            可核对的长期进度：${board.scenario_memory}
+            Graph状态：${board.scenario_state_text}
+          track_steps: true
+      - id: narrate-explore
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-adventure-castle-mystery.model
+          max_tokens: 2048
+          output_key: tmp_answer
+          system_prompt: |-
+            ${board.scenario_common_prompt}
+            本轮Graph路径：${board.scenario_route}。
+            本轮只呈现玩家当前明确调查对象的可见结果或证词，并保持方向、位置和来源边界。
+            可核对的长期进度：${board.scenario_memory}
+            Graph状态：${board.scenario_state_text}
+          track_steps: true
+      - id: narrate-correction
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-adventure-castle-mystery.model
+          max_tokens: 2048
+          output_key: tmp_answer
+          system_prompt: |-
+            ${board.scenario_common_prompt}
+            本轮Graph路径：${board.scenario_route}。
+            本轮只确认最新有效事实；旧值立即失效，不得为了说明更正而再次输出旧值，也不得推进调查。
+            可核对的长期进度：${board.scenario_memory}
+            Graph状态：${board.scenario_state_text}
+          track_steps: true
+      - id: narrate-challenge
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-adventure-castle-mystery.model
+          max_tokens: 2048
+          output_key: tmp_answer
+          system_prompt: |-
+            ${board.scenario_common_prompt}
+            本轮Graph路径：${board.scenario_route}。
+            本轮逐项区分观察、证词与推测；反驳无证据指控并指出仍需怎样验证，不替玩家选路线。
+            可核对的长期进度：${board.scenario_memory}
+            Graph状态：${board.scenario_state_text}
+          track_steps: true
+      - id: narrate-conclusion
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-adventure-castle-mystery.model
+          max_tokens: 2048
+          output_key: tmp_answer
+          system_prompt: |-
+            ${board.scenario_common_prompt}
+            本轮Graph路径：${board.scenario_route}。
+            本轮只使用已经展示且仍有效的证据，保留不确定性，并严格服从用户的句数限制。
+            可核对的长期进度：${board.scenario_memory}
+            Graph状态：${board.scenario_state_text}
+          track_steps: true
+      - id: reduce-state
+        type: script
+        config:
+          source: |
+            const input = String(board.getVar("input") || "").trim();
+            const phase = String(board.getVar("scenario_phase") || "explore");
+            const prior = board.getVar("scenario_state") || {schema: "raid_scenario_state_v2", revision: 0};
+            const next = Object.assign({}, prior);
+            let changed = false;
+            function set(name, value) {
+              if (value && next[name] !== value) { next[name] = value; changed = true; }
+            }
+            next.phase = phase;
+            next.route = String(board.getVar("scenario_route") || "");
+            if (input.includes("零点十五分")) set("clock_time", "零点十五分");
+            if (input.includes("39码")) set("footprint_size", "39码");
+            if (changed) next.revision = Math.max(0, Number(prior.revision || 0)) + 1;
+            if (phase === "correction") {
+              delete next.last_input;
+              next.last_correction = JSON.stringify({clock_time: next.clock_time || "", footprint_size: next.footprint_size || ""});
+            } else {
+              next.last_input = input.slice(0, 160);
+            }
+            board.setVar("scenario_state", next);
+            board.setVar("scenario_state_fact", JSON.stringify(next));
+      - id: observe-progress
+        type: memory_observe
+        config:
+          observations:
+          - facts:
+            - text_from: scenario_state_fact
+              attributes:
+                lane: case_state
+                kind: state
+          wait_for_completion: false
+    max_iterations: 10
+    conversation:
+      starts: agent
+    voice_adapter:
+      asr_model: asr
+      default_voice: flowcraft-adventure-castle-mystery.adventure-guide
+  memory: adventure

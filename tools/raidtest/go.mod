@@ -2,14 +2,14 @@ module github.com/GizClaw/raids/tools/raidtest
 
 go 1.26.4
 
-// gizclaw-go v0.2.5 uses these wire-compatible forks; Go does not propagate
+// gizclaw-go v0.3.3 uses these wire-compatible forks; Go does not propagate
 // replace directives from dependencies into the main module.
 replace github.com/pion/sctp => github.com/GizClaw/pion-sctp v0.0.0-20260807094155-cb2d223c9f55
 
 replace github.com/pion/webrtc/v4 => github.com/GizClaw/pion-webrtc/v4 v4.0.0-20260807105346-69086b0b86b0
 
 require (
-	github.com/GizClaw/gizclaw-go v0.2.5
+	github.com/GizClaw/gizclaw-go v0.3.3
 	gopkg.in/yaml.v3 v3.0.1
 )
 

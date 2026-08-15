@@ -13,6 +13,7 @@ import (
 func TestLoadWorkflowSupportsEveryCandidateDriver(t *testing.T) {
 	fixtures := map[string]string{
 		"workflow-flowcraft.yaml": "flowcraft",
+		"workflow-eino.yaml":      "eino",
 		"workflow-realtime.yaml":  "doubao-realtime",
 		"workflow-translate.yaml": "ast-translate",
 		"workflow-pet.yaml":       "pet",
@@ -33,9 +34,22 @@ func TestLoadWorkflowSupportsEveryCandidateDriver(t *testing.T) {
 func TestDefaultCandidateResourcesMatchV025PublicTypes(t *testing.T) {
 	root := "../../../../"
 	workflows := []string{
+		"workflows/eino/adventure-castle-mystery.yaml",
+		"workflows/eino/adventure-monster-maze.yaml",
+		"workflows/eino/adventure-space-rescue.yaml",
+		"workflows/eino/journey-history.yaml",
+		"workflows/eino/journey-memory-recall.yaml",
+		"workflows/eino/journey-memory-async.yaml",
+		"workflows/eino/story-aesop.yaml",
+		"workflows/eino/story-alice.yaml",
+		"workflows/flowcraft/adventure-castle-mystery.yaml",
+		"workflows/flowcraft/adventure-monster-maze.yaml",
+		"workflows/flowcraft/adventure-space-rescue.yaml",
 		"workflows/flowcraft/chat-assistant.yaml",
 		"workflows/flowcraft/journey-guide.yaml",
 		"workflows/flowcraft/murder-mystery.yaml",
+		"workflows/flowcraft/story-aesop.yaml",
+		"workflows/flowcraft/story-alice.yaml",
 		"workflows/doubao-realtime/conversation.yaml",
 		"workflows/pet/pet-care.yaml",
 		"workflows/ast-translate/zh-ja.yaml",
@@ -52,6 +66,22 @@ func TestDefaultCandidateResourcesMatchV025PublicTypes(t *testing.T) {
 	}
 	if _, err := LoadRuntimeProfile(root + "runtime-profiles/default.yaml"); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestLoadEinoJourneyCatalogWorkflows(t *testing.T) {
+	for _, path := range []string{
+		"../../../../workflows/eino/journey-history.yaml",
+		"../../../../workflows/eino/journey-memory-recall.yaml",
+		"../../../../workflows/eino/journey-memory-async.yaml",
+	} {
+		workflow, err := LoadWorkflow(path)
+		if err != nil {
+			t.Fatalf("%s: %v", path, err)
+		}
+		if workflow.Driver != "eino" {
+			t.Fatalf("%s driver=%q want eino", path, workflow.Driver)
+		}
 	}
 }
 
@@ -155,6 +185,24 @@ func TestLoadWorkflowRejectsUnknownFields(t *testing.T) {
 	}
 	if _, err := LoadWorkflow(path); err == nil {
 		t.Fatal("expected unknown-field error")
+	}
+}
+
+func TestLoadGenericClientRPCTool(t *testing.T) {
+	resource, err := LoadResource("../../../../tool-resources/raidtest-acceptance-report.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resource.Kind != "Tool" || resource.ID != "raidtest-acceptance-report" || resource.Digest == "" {
+		t.Fatalf("resource=%#v", resource)
+	}
+	tool, err := resource.Source.AsToolResource()
+	if err != nil {
+		t.Fatal(err)
+	}
+	spec, err := tool.Spec.AsClientRPCToolSpec()
+	if err != nil || spec.InvokeName != "raidtest_acceptance_report" {
+		t.Fatalf("spec=%#v err=%v", spec, err)
 	}
 }
 
