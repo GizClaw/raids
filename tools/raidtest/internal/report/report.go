@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"time"
 )
@@ -14,19 +15,53 @@ import (
 const SchemaVersion = "raidtest.report/v1"
 
 type Report struct {
-	SchemaVersion  string            `json:"schema_version"`
-	RunID          string            `json:"run_id"`
-	SuiteID        string            `json:"suite_id,omitempty"`
-	StartedAt      time.Time         `json:"started_at"`
-	FinishedAt     time.Time         `json:"finished_at"`
-	Server         Server            `json:"server"`
-	Resources      Resources         `json:"resources"`
-	Models         map[string]string `json:"models,omitempty"`
-	Cases          []Case            `json:"cases"`
-	Lifecycle      []Lifecycle       `json:"lifecycle"`
-	CredentialScan string            `json:"credential_scan,omitempty"`
-	Status         string            `json:"status"`
-	Error          string            `json:"error,omitempty"`
+	SchemaVersion          string                  `json:"schema_version"`
+	RunID                  string                  `json:"run_id"`
+	SuiteID                string                  `json:"suite_id,omitempty"`
+	StartedAt              time.Time               `json:"started_at"`
+	FinishedAt             time.Time               `json:"finished_at"`
+	Server                 Server                  `json:"server"`
+	Resources              Resources               `json:"resources"`
+	Models                 map[string]string       `json:"models,omitempty"`
+	Cases                  []Case                  `json:"cases"`
+	Lifecycle              []Lifecycle             `json:"lifecycle"`
+	CredentialScan         string                  `json:"credential_scan,omitempty"`
+	Candidate              *Candidate              `json:"candidate,omitempty"`
+	Execution              *Execution              `json:"execution,omitempty"`
+	FirstFailure           *FirstFailure           `json:"first_failure,omitempty"`
+	ServerProbeTransitions []ServerProbeTransition `json:"server_probe_transitions,omitempty"`
+	Status                 string                  `json:"status"`
+	Error                  string                  `json:"error,omitempty"`
+}
+
+type Candidate struct {
+	Revision string `json:"revision,omitempty"`
+	Modified bool   `json:"modified"`
+}
+
+type Execution struct {
+	CaseParallelism         int           `json:"case_parallelism,omitempty"`
+	CaseRampUp              time.Duration `json:"case_ramp_up_ns,omitempty"`
+	DiagnosticProbeInterval time.Duration `json:"diagnostic_probe_interval_ns,omitempty"`
+	SelectedCases           int           `json:"selected_cases,omitempty"`
+	AdmittedCases           int           `json:"admitted_cases,omitempty"`
+	PeakActiveCases         int           `json:"peak_active_cases,omitempty"`
+}
+
+type FirstFailure struct {
+	CaseID       string    `json:"case_id"`
+	CheckpointID string    `json:"checkpoint_id,omitempty"`
+	Owner        string    `json:"owner,omitempty"`
+	ObservedAt   time.Time `json:"observed_at"`
+}
+
+type ServerProbeTransition struct {
+	State           string    `json:"state"`
+	FirstObservedAt time.Time `json:"first_observed_at"`
+	LastObservedAt  time.Time `json:"last_observed_at"`
+	Samples         int       `json:"samples"`
+	HTTPStatus      int       `json:"http_status,omitempty"`
+	ErrorClass      string    `json:"error_class,omitempty"`
 }
 
 type Server struct {
@@ -76,16 +111,20 @@ type Turn struct {
 	Evidence         map[string]string `json:"evidence,omitempty"`
 }
 type Case struct {
-	ID                string `json:"id"`
-	InputMode         string `json:"input_mode,omitempty"`
-	TargetPeerID      string `json:"target_peer_id,omitempty"`
-	TesterPeerID      string `json:"tester_peer_id,omitempty"`
-	TargetWorkspaceID string `json:"target_workspace_id,omitempty"`
-	TesterWorkspaceID string `json:"tester_workspace_id,omitempty"`
-	Status            string `json:"status"`
-	Owner             string `json:"owner,omitempty"`
-	Error             string `json:"error,omitempty"`
-	Turns             []Turn `json:"turns"`
+	ID                  string     `json:"id"`
+	InputMode           string     `json:"input_mode,omitempty"`
+	TargetPeerID        string     `json:"target_peer_id,omitempty"`
+	TesterPeerID        string     `json:"tester_peer_id,omitempty"`
+	TargetWorkspaceID   string     `json:"target_workspace_id,omitempty"`
+	TesterWorkspaceID   string     `json:"tester_workspace_id,omitempty"`
+	Status              string     `json:"status"`
+	Owner               string     `json:"owner,omitempty"`
+	Error               string     `json:"error,omitempty"`
+	StartedAt           *time.Time `json:"started_at,omitempty"`
+	FinishedAt          *time.Time `json:"finished_at,omitempty"`
+	FailureAt           *time.Time `json:"failure_at,omitempty"`
+	FailureCheckpointID string     `json:"failure_checkpoint_id,omitempty"`
+	Turns               []Turn     `json:"turns"`
 }
 type Lifecycle struct {
 	ResourceType string `json:"resource_type"`
@@ -96,7 +135,22 @@ type Lifecycle struct {
 }
 
 func New(runID string) Report {
-	return Report{SchemaVersion: SchemaVersion, RunID: runID, StartedAt: time.Now().UTC(), Models: map[string]string{}}
+	r := Report{SchemaVersion: SchemaVersion, RunID: runID, StartedAt: time.Now().UTC(), Models: map[string]string{}}
+	candidate := Candidate{}
+	if info, ok := debug.ReadBuildInfo(); ok {
+		for _, setting := range info.Settings {
+			switch setting.Key {
+			case "vcs.revision":
+				candidate.Revision = setting.Value
+			case "vcs.modified":
+				candidate.Modified = setting.Value == "true"
+			}
+		}
+	}
+	if candidate.Revision != "" || candidate.Modified {
+		r.Candidate = &candidate
+	}
+	return r
 }
 
 func (r *Report) Finish(err error) {
@@ -201,6 +255,24 @@ func (r Report) WriteCaseReports(aggregatePath string) error {
 
 func (r Report) WriteTerminal(w io.Writer) {
 	fmt.Fprintf(w, "raidtest run=%s status=%s cases=%d lifecycle=%d\n", r.RunID, r.Status, len(r.Cases), len(r.Lifecycle))
+	if r.Execution != nil {
+		fmt.Fprintf(w, "execution parallelism=%d selected=%d admitted=%d peak=%d ramp=%s probe=%s\n", r.Execution.CaseParallelism, r.Execution.SelectedCases, r.Execution.AdmittedCases, r.Execution.PeakActiveCases, r.Execution.CaseRampUp, r.Execution.DiagnosticProbeInterval)
+	}
+	if len(r.ServerProbeTransitions) > 0 {
+		lastHealthy := time.Time{}
+		var firstUnhealthy *ServerProbeTransition
+		for index := range r.ServerProbeTransitions {
+			transition := &r.ServerProbeTransitions[index]
+			if transition.State == "healthy" && firstUnhealthy == nil {
+				lastHealthy = transition.LastObservedAt
+			} else if firstUnhealthy == nil {
+				firstUnhealthy = transition
+			}
+		}
+		if firstUnhealthy != nil {
+			fmt.Fprintf(w, "server-probe last-healthy=%s first-unhealthy=%s state=%s\n", lastHealthy.Format(time.RFC3339Nano), firstUnhealthy.FirstObservedAt.Format(time.RFC3339Nano), firstUnhealthy.State)
+		}
+	}
 	for _, c := range r.Cases {
 		fmt.Fprintf(w, "case %-32s %s turns=%d", c.ID, c.Status, len(c.Turns))
 		if c.InputMode != "" {

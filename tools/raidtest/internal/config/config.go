@@ -70,26 +70,32 @@ func (s SecretSource) Read(stdin io.Reader) ([]byte, error) {
 }
 
 type Config struct {
-	Server             string
-	PeerServer         string
-	Suite              string
-	Pairs              []string
-	Workflow           string
-	RuntimeProfile     string
-	RuntimeProfileFile string
-	MemoryLayouts      []string
-	Plan               string
-	Report             string
-	OpenAIBaseURL      string
-	AgentModel         string
-	JudgeModel         string
-	InputTTSModel      string
-	InputTTSVoice      string
-	ASTInputModes      []string
-	AdminKey           SecretSource
-	OpenAIKey          SecretSource
-	Keep               bool
-	Timeout            time.Duration
+	Server                     string
+	PeerServer                 string
+	Suite                      string
+	Pairs                      []string
+	Workflow                   string
+	RuntimeProfile             string
+	RuntimeProfileFile         string
+	MemoryLayouts              []string
+	Plan                       string
+	Report                     string
+	OpenAIBaseURL              string
+	AgentModel                 string
+	JudgeModel                 string
+	InputTTSModel              string
+	InputTTSVoice              string
+	ASTInputModes              []string
+	AdminKey                   SecretSource
+	OpenAIKey                  SecretSource
+	Keep                       bool
+	Timeout                    time.Duration
+	CaseParallelism            int
+	CaseRampUp                 time.Duration
+	DiagnosticProbeInterval    time.Duration
+	CaseParallelismSet         bool
+	CaseRampUpSet              bool
+	DiagnosticProbeIntervalSet bool
 }
 
 func (c *Config) Validate() error {
@@ -105,7 +111,22 @@ func (c *Config) Validate() error {
 		return err
 	}
 	c.Suite = strings.TrimSpace(c.Suite)
+	if c.CaseParallelism == 0 && !c.CaseParallelismSet {
+		c.CaseParallelism = 1
+	}
+	if c.CaseParallelism < 1 || c.CaseParallelism > 8 {
+		return errors.New("case parallelism must be between 1 and 8")
+	}
+	if c.CaseRampUp < 0 {
+		return errors.New("case ramp-up cannot be negative")
+	}
+	if c.DiagnosticProbeInterval < 0 || (c.DiagnosticProbeInterval > 0 && c.DiagnosticProbeInterval < 100*time.Millisecond) {
+		return errors.New("diagnostic probe interval must be 0 or at least 100ms")
+	}
 	if c.Suite == "" {
+		if c.CaseParallelismSet || c.CaseRampUpSet || c.DiagnosticProbeIntervalSet || c.CaseParallelism != 1 || c.CaseRampUp != 0 || c.DiagnosticProbeInterval != 0 {
+			return errors.New("case parallelism, ramp-up, and diagnostic probes require suite mode")
+		}
 		if strings.TrimSpace(c.Workflow) == "" {
 			return errors.New("workflow is required when suite is not set")
 		}
@@ -205,5 +226,7 @@ func (c Config) Redacted() map[string]any {
 		"agent_model": c.AgentModel, "judge_model": c.JudgeModel,
 		"input_tts_model": c.InputTTSModel, "input_tts_voice": c.InputTTSVoice,
 		"ast_input_modes": c.ASTInputModes, "keep": c.Keep,
+		"case_parallelism": c.CaseParallelism, "case_ramp_up": c.CaseRampUp,
+		"diagnostic_probe_interval": c.DiagnosticProbeInterval,
 	}
 }

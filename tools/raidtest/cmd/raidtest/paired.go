@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/GizClaw/gizclaw-go/pkgs/gizclaw/api/apitypes"
@@ -40,6 +41,20 @@ type pairedPairResources struct {
 	profile       catalog.GenericResource
 	tool          catalog.GenericResource
 	turns         []plan.Turn
+}
+
+type pairedDescriptor struct {
+	ordinal   int
+	caseID    string
+	pair      suite.Pair
+	resources pairedPairResources
+}
+
+type pairedExecution struct {
+	ordinal    int
+	caseResult report.Case
+	lifecycle  []report.Lifecycle
+	err        error
 }
 
 type testerEnvelope struct {
@@ -164,22 +179,229 @@ func runPaired(ctx context.Context, c config.Config, stdin io.Reader) (result re
 	if err != nil {
 		return result, err
 	}
+	descriptors, err := buildPairedDescriptors(selectedPairs, resources, runID)
+	if err != nil {
+		return result, err
+	}
+	if result.Candidate == nil {
+		result.Candidate = &report.Candidate{}
+	}
+	result.Execution = &report.Execution{
+		CaseParallelism: c.CaseParallelism, CaseRampUp: c.CaseRampUp,
+		DiagnosticProbeInterval: c.DiagnosticProbeInterval, SelectedCases: len(descriptors),
+	}
 
-	var failures []error
-	for _, pair := range selectedPairs {
-		for repeat := 1; repeat <= pair.Repeats; repeat++ {
-			caseID := fmt.Sprintf("%s-%02d", pair.ID, repeat)
-			caseResult, caseErr := runPairedCase(ctx, c, admin, loadedSuite, pair, resources.pairs[pair.ID], token, runID, caseID, &result)
-			result.Cases = append(result.Cases, caseResult)
-			if caseErr != nil {
-				failures = append(failures, fmt.Errorf("%s: %w", caseID, caseErr))
+	var probeStop <-chan struct{}
+	var probeCancel context.CancelFunc
+	var probeWG sync.WaitGroup
+	collector := newProbeCollector()
+	if c.DiagnosticProbeInterval > 0 {
+		probeCtx, cancel := context.WithCancel(context.Background())
+		probeCancel = cancel
+		samples := server.SampleServerInfo(probeCtx, c.PeerServer, c.DiagnosticProbeInterval, nil)
+		initial, ok := <-samples
+		if !ok {
+			return result, errors.New("diagnostic sampler stopped before its initial sample")
+		}
+		collector.add(initial)
+		probeStop = collector.unhealthy
+		probeWG.Add(1)
+		go func() {
+			defer probeWG.Done()
+			for sample := range samples {
+				collector.add(sample)
 			}
+		}()
+		defer func() {
+			probeCancel()
+			probeWG.Wait()
+			result.ServerProbeTransitions = collector.snapshot()
+		}()
+	}
+
+	executions, admitted, peak := executePairedDescriptors(ctx, descriptors, c.CaseParallelism, c.CaseRampUp, probeStop, func(caseCtx context.Context, descriptor pairedDescriptor) pairedExecution {
+		local := report.Report{}
+		started := time.Now().UTC()
+		caseResult, caseErr := runPairedCase(caseCtx, c, admin, loadedSuite, descriptor.pair, descriptor.resources, token, runID, descriptor.caseID, &local)
+		finished := time.Now().UTC()
+		caseResult.StartedAt = &started
+		caseResult.FinishedAt = &finished
+		if caseErr != nil {
+			caseResult.FailureAt = &finished
+			caseResult.FailureCheckpointID = failedCheckpoint(caseResult)
+		}
+		return pairedExecution{ordinal: descriptor.ordinal, caseResult: caseResult, lifecycle: local.Lifecycle, err: caseErr}
+	})
+	result.Execution.AdmittedCases = admitted
+	result.Execution.PeakActiveCases = peak
+	var failures []error
+	for _, execution := range executions {
+		result.Cases = append(result.Cases, execution.caseResult)
+		result.Lifecycle = append(result.Lifecycle, execution.lifecycle...)
+		if execution.err != nil {
+			failures = append(failures, fmt.Errorf("%s: %w", execution.caseResult.ID, execution.err))
+		}
+		if execution.caseResult.FailureAt != nil && (result.FirstFailure == nil || execution.caseResult.FailureAt.Before(result.FirstFailure.ObservedAt)) {
+			result.FirstFailure = &report.FirstFailure{CaseID: execution.caseResult.ID, CheckpointID: execution.caseResult.FailureCheckpointID, Owner: execution.caseResult.Owner, ObservedAt: *execution.caseResult.FailureAt}
 		}
 	}
 	if len(failures) > 0 {
 		return result, fmt.Errorf("%d paired acceptance cases failed: %w", len(failures), errors.Join(failures...))
 	}
 	return result, nil
+}
+
+func buildPairedDescriptors(pairs []suite.Pair, resources pairedResources, runID string) ([]pairedDescriptor, error) {
+	var descriptors []pairedDescriptor
+	identities := map[string]string{}
+	for _, pair := range pairs {
+		pairResources, ok := resources.pairs[pair.ID]
+		if !ok {
+			return nil, fmt.Errorf("pair %q has no loaded resources", pair.ID)
+		}
+		for repeat := 1; repeat <= pair.Repeats; repeat++ {
+			caseID := fmt.Sprintf("%s-%02d", pair.ID, repeat)
+			for _, identity := range []string{caseID, pairedWorkspaceName("target", runID, caseID), pairedWorkspaceName("tester", runID, caseID)} {
+				if prior, exists := identities[identity]; exists {
+					return nil, fmt.Errorf("duplicate derived identity %q for %s and %s", identity, prior, caseID)
+				}
+				identities[identity] = caseID
+			}
+			descriptors = append(descriptors, pairedDescriptor{ordinal: len(descriptors), caseID: caseID, pair: pair, resources: pairResources})
+		}
+	}
+	return descriptors, nil
+}
+
+func executePairedDescriptors(
+	ctx context.Context,
+	descriptors []pairedDescriptor,
+	parallelism int,
+	ramp time.Duration,
+	stop <-chan struct{},
+	run func(context.Context, pairedDescriptor) pairedExecution,
+) ([]pairedExecution, int, int) {
+	results := make([]pairedExecution, len(descriptors))
+	done := make(chan pairedExecution, len(descriptors))
+	next, active, admitted, peak := 0, 0, 0, 0
+	var lastAdmission time.Time
+	stopOwner := ""
+	ctxDone := ctx.Done()
+	stopSignal := stop
+	for active > 0 || (next < len(descriptors) && stopOwner == "") {
+		if stopOwner == "" {
+			select {
+			case <-ctxDone:
+				stopOwner, ctxDone = "operator", nil
+			default:
+			}
+		}
+		if stopOwner == "" && stopSignal != nil {
+			select {
+			case <-stopSignal:
+				stopOwner, stopSignal = "environment_dependency", nil
+			default:
+			}
+		}
+		if stopOwner == "" && next < len(descriptors) && active < parallelism {
+			eligible := lastAdmission.Add(ramp)
+			if lastAdmission.IsZero() || !time.Now().Before(eligible) {
+				descriptor := descriptors[next]
+				next, active, admitted = next+1, active+1, admitted+1
+				if active > peak {
+					peak = active
+				}
+				lastAdmission = time.Now()
+				go func() { done <- run(ctx, descriptor) }()
+				continue
+			}
+		}
+		var rampTimer <-chan time.Time
+		var timer *time.Timer
+		if stopOwner == "" && next < len(descriptors) && active < parallelism && !lastAdmission.IsZero() {
+			delay := time.Until(lastAdmission.Add(ramp))
+			if delay < 0 {
+				delay = 0
+			}
+			timer = time.NewTimer(delay)
+			rampTimer = timer.C
+		}
+		select {
+		case execution := <-done:
+			results[execution.ordinal] = execution
+			active--
+		case <-rampTimer:
+		case <-ctxDone:
+			stopOwner, ctxDone = "operator", nil
+		case <-stopSignal:
+			stopOwner, stopSignal = "environment_dependency", nil
+		}
+		if timer != nil && !timer.Stop() {
+			select {
+			case <-timer.C:
+			default:
+			}
+		}
+	}
+	for next < len(descriptors) {
+		descriptor := descriptors[next]
+		now := time.Now().UTC()
+		results[next] = pairedExecution{ordinal: next, caseResult: report.Case{
+			ID: descriptor.caseID, InputMode: "paired-eino-tester", Status: "skip", Owner: stopOwner,
+			Error: "case was not admitted after " + stopOwner + " stop", FinishedAt: &now, FailureAt: &now,
+			FailureCheckpointID: "admission",
+		}, err: errors.New("case was not admitted")}
+		next++
+	}
+	return results, admitted, peak
+}
+
+func failedCheckpoint(caseResult report.Case) string {
+	for _, turn := range caseResult.Turns {
+		if turn.Status != "pass" {
+			return turn.ID
+		}
+	}
+	if caseResult.Status == "pass" {
+		return "cleanup"
+	}
+	return "setup"
+}
+
+type probeCollector struct {
+	mu          sync.Mutex
+	transitions []report.ServerProbeTransition
+	unhealthy   chan struct{}
+	once        sync.Once
+}
+
+func newProbeCollector() *probeCollector { return &probeCollector{unhealthy: make(chan struct{})} }
+
+func (c *probeCollector) add(sample server.ProbeSample) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !sample.Healthy() {
+		c.once.Do(func() { close(c.unhealthy) })
+	}
+	last := len(c.transitions) - 1
+	if last >= 0 {
+		transition := &c.transitions[last]
+		if transition.State == sample.State && transition.HTTPStatus == sample.HTTPStatus && transition.ErrorClass == sample.ErrorClass {
+			transition.LastObservedAt = sample.ObservedAt
+			transition.Samples++
+			return
+		}
+	}
+	c.transitions = append(c.transitions, report.ServerProbeTransition{
+		State: sample.State, FirstObservedAt: sample.ObservedAt, LastObservedAt: sample.ObservedAt,
+		Samples: 1, HTTPStatus: sample.HTTPStatus, ErrorClass: sample.ErrorClass,
+	})
+}
+
+func (c *probeCollector) snapshot() []report.ServerProbeTransition {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return append([]report.ServerProbeTransition(nil), c.transitions...)
 }
 
 func pairedModelBindings(profileResource catalog.GenericResource, pairs []suite.Pair) (map[string]string, error) {

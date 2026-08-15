@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestReportIsCompleteAndRedactsSecrets(t *testing.T) {
@@ -28,10 +29,51 @@ func TestReportIsCompleteAndRedactsSecrets(t *testing.T) {
 	if decoded.SchemaVersion != SchemaVersion || decoded.Status != "fail" {
 		t.Fatalf("unexpected report: %#v", decoded)
 	}
+	if strings.Contains(string(b), "started_at\": \"0001-") || strings.Contains(string(b), "failure_at\": \"0001-") {
+		t.Fatal("legacy case report gained zero-value parallel timestamps")
+	}
 	var terminal bytes.Buffer
 	r.WriteTerminal(&terminal)
 	if !strings.Contains(terminal.String(), "case-one") || !strings.Contains(terminal.String(), "fail") || !strings.Contains(terminal.String(), "input=realtime") {
 		t.Fatal("terminal summary omitted terminal case status")
+	}
+}
+
+func TestReportExecutionContextIsAdditiveAndCopiedToCaseReports(t *testing.T) {
+	r := New("parallel")
+	r.SuiteID = "paired"
+	r.Execution = &Execution{CaseParallelism: 4, CaseRampUp: 250 * time.Millisecond, DiagnosticProbeInterval: time.Second, SelectedCases: 2, AdmittedCases: 2, PeakActiveCases: 2}
+	r.Candidate = &Candidate{Revision: "abc", Modified: false}
+	r.ServerProbeTransitions = []ServerProbeTransition{{State: "healthy", Samples: 2, FirstObservedAt: time.Now().UTC(), LastObservedAt: time.Now().UTC()}}
+	r.Cases = []Case{{ID: "first", Status: "pass"}, {ID: "second", Status: "pass"}}
+	path := filepath.Join(t.TempDir(), "aggregate.json")
+	if err := r.WriteCaseReports(path); err != nil {
+		t.Fatal(err)
+	}
+	body, err := os.ReadFile(filepath.Join(strings.TrimSuffix(path, ".json")+".d", "first.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded Report
+	if err := json.Unmarshal(body, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if decoded.Execution == nil || decoded.Execution.CaseParallelism != 4 || decoded.Candidate == nil || decoded.Candidate.Revision != "abc" || len(decoded.ServerProbeTransitions) != 1 {
+		t.Fatalf("decoded=%#v", decoded)
+	}
+}
+
+func TestTerminalUsesLastHealthyBeforeFirstUnhealthy(t *testing.T) {
+	base := time.Date(2026, 8, 16, 1, 2, 3, 0, time.UTC)
+	r := Report{ServerProbeTransitions: []ServerProbeTransition{
+		{State: "healthy", LastObservedAt: base},
+		{State: "http_error", FirstObservedAt: base.Add(time.Second)},
+		{State: "healthy", LastObservedAt: base.Add(2 * time.Second)},
+	}}
+	var output bytes.Buffer
+	r.WriteTerminal(&output)
+	if !strings.Contains(output.String(), "last-healthy="+base.Format(time.RFC3339Nano)) || strings.Contains(output.String(), "last-healthy="+base.Add(2*time.Second).Format(time.RFC3339Nano)) {
+		t.Fatalf("terminal=%q", output.String())
 	}
 }
 

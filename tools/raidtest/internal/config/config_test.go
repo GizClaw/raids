@@ -4,6 +4,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestSecretSourceRequiresExactlyOneSource(t *testing.T) {
@@ -14,6 +15,31 @@ func TestSecretSourceRequiresExactlyOneSource(t *testing.T) {
 	_, err = (SecretSource{Env: "A", File: "b"}).Read(strings.NewReader(""))
 	if err == nil {
 		t.Fatal("expected conflicting source error")
+	}
+}
+
+func TestConfigValidatesPairedExecutionControls(t *testing.T) {
+	valid := Config{Server: "edge.example:9821", Suite: "suite.yaml", AdminKey: SecretSource{Env: "RAIDTEST_TEST_ADMIN"}, CaseParallelism: 8, CaseRampUp: 250 * time.Millisecond, DiagnosticProbeInterval: time.Second}
+	if err := valid.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	for name, mutate := range map[string]func(*Config){
+		"parallelism":   func(c *Config) { c.CaseParallelism = 9 },
+		"explicit zero": func(c *Config) { c.CaseParallelism = 0; c.CaseParallelismSet = true },
+		"ramp":          func(c *Config) { c.CaseRampUp = -1 },
+		"probe":         func(c *Config) { c.DiagnosticProbeInterval = 99 * time.Millisecond },
+	} {
+		t.Run(name, func(t *testing.T) {
+			candidate := valid
+			mutate(&candidate)
+			if err := candidate.Validate(); err == nil {
+				t.Fatal("invalid execution control was accepted")
+			}
+		})
+	}
+	nonSuite := Config{Server: "edge.example:9821", Workflow: "workflow.yaml", Plan: "plan.yaml", AdminKey: SecretSource{Env: "RAIDTEST_TEST_ADMIN"}, CaseParallelism: 2}
+	if err := nonSuite.Validate(); err == nil {
+		t.Fatal("programmatic parallelism outside suite mode was accepted")
 	}
 }
 
