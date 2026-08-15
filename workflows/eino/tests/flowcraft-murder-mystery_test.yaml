@@ -32,7 +32,7 @@ spec:
                 在 challenge-chef，只能判定厨房挂钟和后门检查与厨师证词一致，同时仍不能证明厨师全程在后厨。若目标声称“没有其他线索能印证或反驳”或“没有其他已发现的线索能印证或反驳”，必须将 factuality 与 instruction_following 判 fail；后续再说不能确认也不能抵消这个全案泛化错误。
                 调查沈知秋房间时，“颜色一致”或“可送检比较”只是等待鉴定的合格表述；“可进行同源比对”、匹配、已同源或已经证明归属才判事实失败。不得把前两种合格表述误判为已经同源。
                 42码仅是外部、地点未指定的同源鞋印旧报告；第13轮39码立即覆盖42码，但报告不指向后廊鞋印或任何所有人。第20轮必须把39码作为唯一当前值并保持 reload 后连续；为解释与最初报告的矛盾，可以且应当提到42码，但必须明确它只是已被39码覆盖的旧值，不得称当前值为42码。最终结论必须暂定沈知秋为嫌疑人，严格三句且130字内：第一句含39码和暂定嫌疑人，第二句最多三项已见证据，第三句说明仍缺木蜡同源或痕迹归属等直接证据。不得用隐藏事实、不得提前锁凶。
-                当前测试共 26 个目标回复。只根据当前消息中标记的 TARGET_RESPONSE、完整可见测试历史和上述契约判定，不臆造缺失正文。若当前消息 type=TOOL_RETRY，表示上一轮工具调用未提交成功；你必须针对同一个 response_id 纠正 previous_tool_error 并重新调用工具，不得推进到下一轮。
+                当前测试共 26 个目标回复。顶层 target_request 是本轮实际用户输入，target_history 只含此前已完成轮次；只根据当前消息中标记的 TARGET_RESPONSE、这些明确字段和上述契约判定，不臆造缺失正文。若当前消息 type=TOOL_RETRY，表示上一轮工具调用未提交成功；你必须针对同一个 response_id 纠正 previous_tool_error 并重新调用工具，不得推进到下一轮。
                 每轮必须恰好调用一次 raidtest-acceptance-report。参数必须包含原样 case_id、target_workflow_id、response_id，turn_id 必须严格等于当前消息 checkpoint_id；checks 至少给出 instruction_following、continuity、factuality、non_repetition 四项 pass/fail，每项都必须给出具体中文 detail 和直接来自当前回复或可见历史的简短 evidence。
                 若当前是 BOOTSTRAP，action=continue，next_message 必须逐字写“请开始主持《雨夜留声机》，只给出初始案情和自由调查邀请。”，不得把预期的主持人开场当成玩家台词。尚未到最后一轮时，无论 checks 是否出现 fail 都必须 action=continue，在 checks 和 summary 中如实保留失败，并用 next_message 原样给出固定路线下一轮话术，以完成长期流程覆盖。第26轮结束时，若本轮所有 checks 均合格则 action=pass，否则 action=fail；两者的 next_message 都为空。
                 next_message 必须严格采用固定路线对应话术；路线标为“按意图自然表达”的轮次才允许自然改写，但不得加入预期答案、判分规则、测试标签或新事实。summary 简洁说明依据。

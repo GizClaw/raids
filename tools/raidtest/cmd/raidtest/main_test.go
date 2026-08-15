@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -352,12 +353,42 @@ func TestWaitForAcceptanceTimesOutWithoutInventingSubmission(t *testing.T) {
 	}
 }
 
-func TestBuildTesterHistoryIncludesCurrentResponseExactlyOnce(t *testing.T) {
-	prior := []report.Turn{{ID: "opening", User: "先看现场", Assistant: "你看见脚印。"}}
-	got := buildTesterHistory(prior, "inspect-window", "检查窗户", "窗闩完好。")
-	if len(got) != 2 || got[0].CheckpointID != "opening" || got[1].CheckpointID != "inspect-window" ||
-		got[1].User != "检查窗户" || got[1].Assistant != "窗闩完好。" {
+func TestTesterEnvelopeSeparatesCurrentRequestAndResponseFromPriorHistory(t *testing.T) {
+	prior := []report.Turn{
+		{ID: "opening", User: "先看现场", Assistant: "你看见脚印。"},
+		{ID: "inspect-door", User: "检查门锁", Assistant: "门锁完好。"},
+	}
+	got := buildTesterHistory(prior)
+	if len(got) != 2 || got[0].CheckpointID != "opening" || got[1].CheckpointID != "inspect-door" ||
+		got[1].User != "检查门锁" || got[1].Assistant != "门锁完好。" {
 		t.Fatalf("history=%#v", got)
+	}
+	for _, turn := range got {
+		if turn.CheckpointID == "inspect-window" || turn.Assistant == "窗闩完好。" {
+			t.Fatalf("current response was duplicated in target_history: %#v", got)
+		}
+	}
+	payload, err := json.Marshal(testerEnvelope{
+		TargetRequest:  "检查窗户",
+		TargetResponse: "窗闩完好。",
+		TargetHistory:  got,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded testerEnvelope
+	if err := json.Unmarshal(payload, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if decoded.TargetRequest != "检查窗户" || decoded.TargetResponse != "窗闩完好。" || len(decoded.TargetHistory) != 2 {
+		t.Fatalf("payload=%s", payload)
+	}
+	openingPayload, err := json.Marshal(testerEnvelope{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(openingPayload, []byte(`"target_request":""`)) {
+		t.Fatalf("opening payload omitted explicit empty target_request: %s", openingPayload)
 	}
 }
 

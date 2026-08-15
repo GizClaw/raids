@@ -9,8 +9,10 @@ spec:
   flowcraft:
     graph:
       name: adventure-monster-maze
-      entry: recall-progress
+      entry: prepare-recall-query
       edges:
+      - from: prepare-recall-query
+        to: recall-progress
       - from: recall-progress
         to: route-phase
       - from: route-phase
@@ -42,11 +44,17 @@ spec:
       - from: observe-progress
         to: __end__
       nodes:
+      - id: prepare-recall-query
+        type: script
+        config:
+          source: |
+            const current = String(board.getVar("input") || "").trim();
+            board.setVar("scenario_recall_query", current || "raid_scenario_state_v2");
       - id: recall-progress
         type: memory_recall
         config:
           query:
-            text_from: input
+            text_from: scenario_recall_query
             lanes:
             - case_state
             kinds:

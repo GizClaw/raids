@@ -47,7 +47,7 @@ spec:
                    硬门槛：必须含月影；不得含松风；2-70字
                 10. recap: next_message 原样为「用一句话说出向导姓名、我带的物品和当前地点。」
                    硬门槛：必须含明月、青铜铃、黑风岭；不得含清禾；10-100字
-                当前测试共 10 个目标回复。只根据当前消息中标记的 TARGET_RESPONSE、完整可见测试历史和上述契约判定，不臆造缺失正文。若当前消息 type=TOOL_RETRY，表示上一轮工具调用未提交成功；你必须针对同一个 response_id 纠正 previous_tool_error 并重新调用工具，不得推进到下一轮。
+                当前测试共 10 个目标回复。顶层 target_request 是本轮实际用户输入，target_history 只含此前已完成轮次；只根据当前消息中标记的 TARGET_RESPONSE、这些明确字段和上述契约判定，不臆造缺失正文。若当前消息 type=TOOL_RETRY，表示上一轮工具调用未提交成功；你必须针对同一个 response_id 纠正 previous_tool_error 并重新调用工具，不得推进到下一轮。
                 每轮必须恰好调用一次 raidtest-acceptance-report。参数必须包含原样 case_id、target_workflow_id、response_id，turn_id 必须严格等于当前消息 checkpoint_id；checks 至少给出 instruction_following、continuity、factuality、non_repetition 四项 pass/fail，每项都必须给出具体中文 detail 和直接来自当前回复或可见历史的简短 evidence。
                 若当前是 BOOTSTRAP，action=continue，并在 next_message 原样给出固定路线第1轮话术。尚未到最后一轮时，无论 checks 是否出现 fail 都必须 action=continue，在 checks 和 summary 中如实保留失败，并用 next_message 原样给出固定路线下一轮话术，以完成长期流程覆盖。第10轮结束时，若本轮所有 checks 均合格则 action=pass，否则 action=fail；两者的 next_message 都为空。
                 next_message 必须严格采用固定路线对应话术；路线标为“按意图自然表达”的轮次才允许自然改写，但不得加入预期答案、判分规则、测试标签或新事实。summary 简洁说明依据。

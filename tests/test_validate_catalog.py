@@ -1135,6 +1135,19 @@ class PublicDefaultE2ERegressionTest(unittest.TestCase):
                         "首句就必须逐字同时包含“备用电池”和“安全窗口”",
                         eino_contract,
                     )
+                if scenario == "story-alice":
+                    self.assertIn("已经作废的门色或口令不得再次输出", flow_contract)
+                    self.assertIn("第一、二章绝对不得出现门", flow_contract)
+                    self.assertIn("系统中的未来章节名称不是已经发生的剧情", flow_contract)
+                    self.assertIn("比较前后回答是否一致", flow_contract)
+                    self.assertIn("不使用第二人称祈使或建议句", flow_contract)
+                    self.assertIn("不得凭空增加第三块表", flow_contract)
+                    self.assertIn("不得指定伸手、摸口袋、开门等固定行动", flow_contract)
+                    self.assertIn("prior.door_color", flow_route)
+                    self.assertNotIn(
+                        'containsAnyText(combined, ["绿色", "蓝色小门"',
+                        flow_route,
+                    )
                 self.assertNotIn(eino_contract, prompts)
                 prompts.add(eino_contract)
                 self.assertEqual(len(flow_narrators), 5)
@@ -1207,6 +1220,22 @@ class PublicDefaultE2ERegressionTest(unittest.TestCase):
                     "story-teller" if scenario.startswith("story-") else "adventure",
                 )
                 self.assertEqual(flowcraft["spec"]["flowcraft"]["max_iterations"], 10)
+                flow_graph = flowcraft["spec"]["flowcraft"]["graph"]
+                self.assertEqual(flow_graph["entry"], "prepare-recall-query")
+                prepare_recall = flow_nodes["prepare-recall-query"]
+                self.assertEqual(prepare_recall["type"], "script")
+                self.assertIn(
+                    'current || "raid_scenario_state_v2"',
+                    prepare_recall["config"]["source"],
+                )
+                self.assertEqual(
+                    flow_nodes["recall-progress"]["config"]["query"]["text_from"],
+                    "scenario_recall_query",
+                )
+                self.assertIn(
+                    {"from": "prepare-recall-query", "to": "recall-progress"},
+                    flow_graph["edges"],
+                )
                 self.assertEqual(
                     {node["type"] for node in flow_nodes.values()},
                     {"memory_recall", "script", "llm", "memory_observe"},
@@ -1268,6 +1297,18 @@ class PublicDefaultE2ERegressionTest(unittest.TestCase):
             growth["required_any"],
             [["幼苗", "幼芽", "小芽", "种子", "发芽"], ["天", "日"]],
         )
+        prediction = next(
+            turn for turn in aesop_turns if turn["id"] == "predict-before-result"
+        )
+        self.assertNotIn("最后", prediction["forbidden"])
+        reveal = next(
+            turn for turn in aesop_turns if turn["id"] == "reveal-consequence"
+        )
+        self.assertNotIn("required", reveal)
+        self.assertEqual(
+            reveal["required_any"],
+            [["种子", "种皮", "幼苗", "幼芽", "小芽", "发芽"]],
+        )
         maze_turns = self.load(
             "tools/raidtest/plans/benchmarks/adventure-monster-maze-comparison.yaml"
         )["cases"][0]["turns"]
@@ -1285,6 +1326,22 @@ class PublicDefaultE2ERegressionTest(unittest.TestCase):
         self.assertEqual(
             communications["required_any"], [["通信", "天线", "收到", "传回"]]
         )
+        castle_turns = self.load(
+            "tools/raidtest/plans/benchmarks/adventure-castle-mystery-comparison.yaml"
+        )["cases"][0]["turns"]
+        castle_reload = next(
+            turn for turn in castle_turns if turn["id"] == "reload-stage-checkpoint"
+        )
+        self.assertEqual(castle_reload["required"], ["零点十五分"])
+        self.assertEqual(castle_reload["required_any"], [["第三阶段", "竞争假设"]])
+        castle = self.load("workflows/eino/adventure-castle-mystery.yaml")
+        challenge_prompt = next(
+            node
+            for node in castle["spec"]["eino"]["graph"]["nodes"]
+            if node["id"] == "prompt-challenge"
+        )["messages"][0]["template"]
+        self.assertIn("2至3个完整中文句子", challenge_prompt)
+        self.assertIn("80至180个Unicode字符", challenge_prompt)
 
     def test_pr61_workflows_have_independent_eino_testers_and_testing_profile(self) -> None:
         targets = {
@@ -1333,9 +1390,19 @@ class PublicDefaultE2ERegressionTest(unittest.TestCase):
                     )
                     self.assertIn("raidtest-acceptance-report", router["source"])
                     self.assertIn("next_message", router["source"])
+                    self.assertIn("target_request", router["source"])
+                    self.assertIn("target_history", router["source"])
                     self.assertIn("evidence", router["source"])
                     self.assertIn("负向控制", router["source"])
                     self.assertGreaterEqual(router["source"].count("必须 fail"), 2)
+                    self.assertNotIn(
+                        '["establish", "correct", "recall", "reload", "remember", "change-choice"]',
+                        router["source"],
+                    )
+                    self.assertIn(
+                        '["correct", "recall", "reload", "change-choice"]',
+                        router["source"],
+                    )
                     self.assertNotIn(router["source"], prompts)
                     prompts.add(router["source"])
                     self.assertEqual(len(graph["branches"]), 1)
@@ -1362,6 +1429,17 @@ class PublicDefaultE2ERegressionTest(unittest.TestCase):
                             set(prompt_node["inputs"]),
                             {"payload", "rules", "checkpoint", "contract", "next_message"},
                         )
+                    conclusion_prompt = next(
+                        node for node in prompt_nodes if node["id"] == "prompt-conclusion"
+                    )["messages"][0]["template"]
+                    self.assertIn("action 只能是 pass 或 fail", conclusion_prompt)
+                    self.assertIn("绝对禁止 continue", conclusion_prompt)
+                    self.assertIn("next_message 必须为空字符串", conclusion_prompt)
+                    retry_prompt = next(
+                        node for node in prompt_nodes if node["id"] == "prompt-retry"
+                    )["messages"][0]["template"]
+                    self.assertIn("continue action requires next_message", retry_prompt)
+                    self.assertIn("action 必须改为 pass 或 fail", retry_prompt)
                     self.assertNotIn("12轮", router["source"])
                 else:
                     self.assertEqual(len(prompt_nodes), 1)
@@ -1376,6 +1454,8 @@ class PublicDefaultE2ERegressionTest(unittest.TestCase):
                     prompt = prompt_node["messages"][0]["template"]
                     self.assertIn("raidtest-acceptance-report", prompt)
                     self.assertIn("next_message", prompt)
+                    self.assertIn("target_request", prompt)
+                    self.assertIn("target_history", prompt)
                     self.assertIn("evidence", prompt)
                     self.assertNotIn(prompt, prompts)
                     prompts.add(prompt)

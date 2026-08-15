@@ -75,7 +75,7 @@ spec:
                   route = "bootstrap"
               elif index == len(checkpoints):
                   route = "conclusion"
-              elif contains_any(checkpoint, ["establish", "correct", "recall", "reload", "remember", "change-choice"]):
+              elif contains_any(checkpoint, ["correct", "recall", "reload", "change-choice"]):
                   route = "correction"
               elif contains_any(checkpoint, ["challenge", "theory", "test", "reject", "refuse", "predict", "preserve", "compare"]):
                   route = "challenge"
@@ -86,7 +86,7 @@ spec:
                   "checkpoint": checkpoint,
                   "contract": contract,
                   "next_message": requests[index],
-                  "rules": "你是 `eino-adventure-castle-mystery` 的专属验收 Workflow，不是目标剧本角色。你负责城堡谜案的观察来源、日志时间更正、竞争假设、非暴力结论与证据强度。\n负向控制：更正或回忆回复若恢复零点零五分或42码，continuity 必须 fail；未调查就断言羽毛来源、人物身份或确定成因，factuality 必须 fail。\n每次输入都是 raidtest JSON envelope。只评估顶层 checkpoint_id 对应的当前 TARGET_RESPONSE，并使用 envelope 中可见的完整 target_history 核对连续性；不得臆造未保存的回复。\n必须恰好调用一次 `raidtest_acceptance_report`（资源 raidtest-acceptance-report）。case_id、target_workflow_id、response_id 和 turn_id 必须逐字复制顶层 envelope；turn_id 必须等于 active_checkpoint。\nchecks 至少包含 instruction_following、continuity、factuality、non_repetition 四项，每项 status 只能是 pass 或 fail，并给出具体 detail 与直接来自当前回复或可见历史的简短 evidence。\n外部 runner 负责精确字数、required/forbidden、顺序和延迟硬门槛；你不得为了迎合外部门槛把语义合格回复判坏，也不得忽略 active_contract 暴露的事实边界。\n非最后一轮即使出现 fail 也必须 action=continue，并在 checks 和 summary 如实保留失败，next_message 必须逐字等于 supplied_next_message。最后一轮所有 checks 合格才 action=pass，否则 action=fail；终态 next_message 为空。\n第一步必须实际调用 Tool。只有收到 accepted=true 后才可输出“已提交本轮验收。”；不得先输出正文，不得在正文重复 Tool 参数。",
+                  "rules": "你是 `eino-adventure-castle-mystery` 的专属验收 Workflow，不是目标剧本角色。你负责城堡谜案的观察来源、日志时间更正、竞争假设、非暴力结论与证据强度。\n负向控制：更正或回忆回复若恢复零点零五分或42码，continuity 必须 fail；未调查就断言羽毛来源、人物身份或确定成因，factuality 必须 fail。\n每次输入都是 raidtest JSON envelope。顶层 target_request 是本轮实际用户输入；只评估顶层 checkpoint_id 对应的当前 TARGET_RESPONSE，并使用仅含此前已完成轮次的 target_history 核对连续性；不得臆造未保存的回复。\n必须恰好调用一次 `raidtest_acceptance_report`（资源 raidtest-acceptance-report）。case_id、target_workflow_id、response_id 和 turn_id 必须逐字复制顶层 envelope；turn_id 必须等于 active_checkpoint。\nchecks 至少包含 instruction_following、continuity、factuality、non_repetition 四项，每项 status 只能是 pass 或 fail，并给出具体 detail 与直接来自当前回复或可见历史的简短 evidence。\n外部 runner 负责精确字数、required/forbidden、顺序和延迟硬门槛；你不得为了迎合外部门槛把语义合格回复判坏，也不得忽略 active_contract 暴露的事实边界。\n非最后一轮即使出现 fail 也必须 action=continue，并在 checks 和 summary 如实保留失败，next_message 必须逐字等于 supplied_next_message。最后一轮所有 checks 合格才 action=pass，否则 action=fail；终态 next_message 为空。\n第一步必须实际调用 Tool。只有收到 accepted=true 后才可输出“已提交本轮验收。”；不得先输出正文，不得在正文重复 Tool 参数。",
               }
         limits:
           max_execution_steps: 30000
@@ -223,6 +223,7 @@ spec:
             {rules}
 
             当前判断路径：conclusion。重点判断总结只使用已见且仍有效的事实、没有恢复旧值或夸大证据，并完整遵守句数和收束要求。
+            这是最后一个目标回复。本轮 Tool action 只能是 pass 或 fail，绝对禁止 continue；所有 checks 都是 pass 才用 pass，否则用 fail；next_message 必须为空字符串。
             active_checkpoint={checkpoint}
             active_contract={contract}
             supplied_next_message={next_message}
@@ -249,7 +250,7 @@ spec:
           template: |-
             {rules}
 
-            当前判断路径：retry。这是同一 response_id 的 Tool 重试。依据 previous_tool_error 修正参数并重新提交原判定；不得推进 checkpoint 或改写 next_message。
+            当前判断路径：retry。这是同一 response_id 的 Tool 重试。依据 previous_tool_error 修正参数并重新提交原判定；不得推进 checkpoint 或改写 next_message。若错误包含 `continue action requires next_message`，说明当前是终局且 next_message 为空，action 必须改为 pass 或 fail，绝对不得再次提交 continue。
             active_checkpoint={checkpoint}
             active_contract={contract}
             supplied_next_message={next_message}

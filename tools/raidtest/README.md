@@ -104,10 +104,13 @@ Workspace policy reliably. Its
 `raidtest_acceptance_report` Peer handler validates correlation and records
 the Tester's ToolCall before relaying `next_message` to the target. Each Tester
 invocation receives the runner's explicit target transcript through the current
-payload and does not replay its own acknowledgement history; this preserves
-cross-turn evidence without degrading Tool selection in long episodes. A
-correlated ToolCall remains authoritative even when the Tester emits no trailing
-assistant prose.
+payload and does not replay its own acknowledgement history. `target_history`
+contains only previously completed target turns; `target_request` carries the
+actual current player utterance, and the current target reply is present exactly
+once in `target_response` on the `TARGET_RESPONSE` envelope. This preserves
+cross-turn evidence without losing the request under judgment, duplicating the
+answer, or degrading Tool selection in long episodes. A correlated ToolCall
+remains authoritative even when the Tester emits no trailing assistant prose.
 
 The paired path never creates, updates, shadows, or deletes MemoryLayouts or
 provider connections. It reuses and verifies the `story-teller` and `adventure`

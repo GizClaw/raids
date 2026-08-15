@@ -50,6 +50,7 @@ type testerEnvelope struct {
 	ResponseIndex       int                 `json:"response_index"`
 	ExpectedResponses   int                 `json:"expected_responses"`
 	CheckpointID        string              `json:"checkpoint_id"`
+	TargetRequest       string              `json:"target_request"`
 	TargetResponse      string              `json:"target_response,omitempty"`
 	TargetHistory       []testerHistoryTurn `json:"target_history,omitempty"`
 	FirstResponseMillis int64               `json:"first_response_ms,omitempty"`
@@ -866,7 +867,7 @@ func evaluateTargetResponse(
 	pair suite.Pair,
 	caseID string,
 	responseIndex int,
-	user string,
+	request string,
 	priorTurns []report.Turn,
 	response conversation.Response,
 ) (acceptance.Submission, string, error) {
@@ -877,19 +878,19 @@ func evaluateTargetResponse(
 	return askTester(ctx, tester, handler, testerEnvelope{
 		Type: "TARGET_RESPONSE", CaseID: caseID, TargetWorkflowID: pair.TargetWorkflowID,
 		ResponseID: responseID, ResponseIndex: responseIndex, ExpectedResponses: pair.ExpectedTargetResponses,
-		CheckpointID:   pair.Checkpoints[responseIndex-1],
-		TargetResponse: response.Text, TargetHistory: buildTesterHistory(priorTurns, pair.Checkpoints[responseIndex-1], user, response.Text),
+		CheckpointID: pair.Checkpoints[responseIndex-1], TargetRequest: request,
+		TargetResponse: response.Text, TargetHistory: buildTesterHistory(priorTurns),
 		FirstResponseMillis: response.FirstResponse.Milliseconds(),
 		TotalResponseMillis: response.TotalResponse.Milliseconds(),
 	})
 }
 
-func buildTesterHistory(prior []report.Turn, checkpointID, user, assistant string) []testerHistoryTurn {
-	history := make([]testerHistoryTurn, 0, len(prior)+1)
+func buildTesterHistory(prior []report.Turn) []testerHistoryTurn {
+	history := make([]testerHistoryTurn, 0, len(prior))
 	for _, turn := range prior {
 		history = append(history, testerHistoryTurn{CheckpointID: turn.ID, User: turn.User, Assistant: turn.Assistant})
 	}
-	return append(history, testerHistoryTurn{CheckpointID: checkpointID, User: user, Assistant: assistant})
+	return history
 }
 
 func validatePairedAction(pair suite.Pair, responseIndex int, submission acceptance.Submission) error {
