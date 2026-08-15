@@ -1103,6 +1103,15 @@ class PublicDefaultE2ERegressionTest(unittest.TestCase):
                     for node in eino["spec"]["eino"]["graph"]["nodes"]
                 }
                 flow_route = flow_nodes["route-phase"]["config"]["source"]
+                self.assertIn(
+                    'candidate.schema !== "raid_scenario_state_v2"', flow_route
+                )
+                self.assertIn(
+                    "line.indexOf('{\"schema\":\"raid_scenario_state_v2\"')",
+                    flow_route,
+                )
+                self.assertIn("candidateRevision > priorRevision", flow_route)
+                self.assertIn('board.setVar("scenario_state", prior)', flow_route)
                 flow_narrators = [
                     node for node in flow_nodes.values() if node["type"] == "llm"
                 ]
@@ -1151,6 +1160,10 @@ class PublicDefaultE2ERegressionTest(unittest.TestCase):
                     self.assertIn("不得凭空增加第三块表", flow_contract)
                     self.assertIn("不得指定伸手、摸口袋、开门等固定行动", flow_contract)
                     self.assertIn("prior.door_color", flow_route)
+                    self.assertIn(
+                        "candidateRevision === priorRevision && !prior.door_color",
+                        flow_route,
+                    )
                     self.assertNotIn(
                         'containsAnyText(combined, ["绿色", "蓝色小门"',
                         flow_route,
