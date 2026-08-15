@@ -212,6 +212,34 @@ The `friend_chatroom` and `group_chatroom` system roles share the same
 These definitions require a GizClaw build containing the MemoryLayout contract
 merged by [GizClaw #590](https://github.com/GizClaw/gizclaw/pull/590).
 
+## Static resource validation
+
+Raids uses the released GizClaw binary as the only authority for declarative
+Resource format validation. With GizClaw v0.5.2 or later on `PATH`, validate
+every applyable catalog Resource with:
+
+```sh
+make validate-resources
+```
+
+Use `GIZCLAW=/path/to/gizclaw make validate-resources` to select an explicit
+binary. The target validates each YAML file under the applyable Resource
+directories independently and does not read `runtime-profile.example.yaml` or
+the plans and fixtures under `tools/raidtest`. It is offline: it does not use a
+GizClaw context, contact Server, or mutate resources.
+
+For static schema validation, the target exports a fixed non-secret placeholder
+for each empty variable declared by `.env.example`. It never reads or requires
+real provider credentials; `.env.example` remains the maintained list of
+allowed Credential and Tenant placeholders and validation fails if that file
+contains a populated value.
+
+Passing this check means each file conforms to the Resource schema embedded in
+that GizClaw release. It does not prove cross-resource references or aliases
+resolve, PIXA assets exist, provider credentials work, or a live Server will
+accept and run the complete catalog. Apply, runtime, `raidtest`, release, and
+Beijing Default E2E remain separate evidence.
+
 ## Live candidate validation
 
 [`tools/raidtest`](tools/raidtest/README.md) is the public Go runner for testing
