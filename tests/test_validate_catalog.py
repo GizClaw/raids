@@ -1135,6 +1135,13 @@ class PublicDefaultE2ERegressionTest(unittest.TestCase):
                         "首句就必须逐字同时包含“备用电池”和“安全窗口”",
                         eino_contract,
                     )
+                    for contract in (flow_contract, eino_contract):
+                        self.assertIn("选择等待安全窗口不表示时间已经过去", contract)
+                        self.assertIn("不得宣称安全窗口已经到来", contract)
+                if scenario == "adventure-monster-maze":
+                    for contract in (flow_contract, eino_contract):
+                        self.assertIn("最新用户要求只描述机关可见规则时", contract)
+                        self.assertIn("不添加怪兽、其他角色、角色位置、动作或意图", contract)
                 if scenario == "story-alice":
                     self.assertIn("已经作废的门色或口令不得再次输出", flow_contract)
                     self.assertIn("第一、二章绝对不得出现门", flow_contract)
