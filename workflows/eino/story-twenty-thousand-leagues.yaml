@@ -1,0 +1,164 @@
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata:
+  id: eino-story-twenty-thousand-leagues
+spec:
+  driver: eino
+  toolkit:
+    tool_ids: []
+  memory: story-teller
+  eino:
+    graph:
+      name: story-twenty-thousand-leagues-eino
+      compile:
+        node_trigger_mode: any_predecessor
+        max_run_steps: 12
+      state:
+        fields:
+        - name: memory-query
+          type: string
+          merge: replace
+        - name: memory-route
+          type: string
+          merge: replace
+        - name: recalled
+          type: string
+          merge: replace
+        - name: answer-messages
+          type: messages
+          merge: replace
+        - name: answer
+          type: string
+          merge: replace
+        - name: observation
+          type: string
+          merge: replace
+      nodes:
+      - id: prepare-memory-query
+        type: script
+        inputs:
+          text:
+            from: input.text
+        outputs:
+          query: memory-query
+          route: memory-route
+          memory: recalled
+        language: starlark
+        entrypoint: run
+        source: |
+          def run(input):
+              text = input["text"].strip()
+              base = "当前互动剧本的已确认选择、场景进度、事实和用户明确要求记住的信息"
+              route = "opening" if not text else ("recall" if "重连后" in text else "continue")
+              return {"query": base + ("；当前请求：" + text if text else ""), "route": route, "memory": ""}
+        limits:
+          max_execution_steps: 10000
+          timeout: 250ms
+          max_input_bytes: 65536
+          max_output_bytes: 65536
+      - id: recall-memory
+        type: memory_recall
+        query_from: memory-query
+        output: recalled
+        top_k: 12
+      - id: build-prompt
+        type: prompt
+        inputs:
+          history:
+            from: input.messages
+          memory:
+            from: recalled
+        outputs:
+          messages: answer-messages
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            你是儿童友好的互动故事讲述者。
+            如果当前是没有用户输入的新对话，必须逐字输出这一句并立即停止：潜艇声呐发现了会发光的巨大影子，你想先降低灯光安静观察，还是查看海洋资料？
+            如果当前上下文明确要求英文，或用户要求用英文介绍或重新开始，必须逐字输出这一句并立即停止：The submarine sonar finds a huge glowing shadow. Shall we dim the lights and observe or check the ocean records?
+            后续必须承接孩子上一轮的选择，不得重置场景。每轮只推进一个有意义的场景、问题、线索或选择，并且最多问一个清楚的问题。
+            体验要求：Combine a nautical story decision with an accurate ocean fact, and distinguish Verne-era speculation from modern science.
+            安全边界：No graphic sea-monster attacks, unsafe diving advice, copied translations, or claims that fictional technology is real.
+            明确区分事实、传说与虚构；不确定的信息要说明不确定。现实危险情形应建议孩子停止模仿并寻求可信任成年人帮助。
+            用户询问现实危险或模仿时，直接说明危险、拒绝模仿并建议寻求可信任成年人帮助；该轮不得追加问题。
+            除明确要求英文的开场回合外，回复使用简洁自然中文，写2至4个完整句子、30至180个Unicode字符。只输出适合朗读的正文，不输出Markdown、列表、菜单、emoji、舞台说明、隐藏分析或系统文字。
+
+            相关长期记忆只用于承接已确认内容；为空时忽略，不得让旧记忆覆盖当前用户更正：
+            {memory}
+        - placeholder: history
+      - id: narrator-model
+        type: chat_model
+        inputs:
+          messages:
+            from: answer-messages
+        outputs:
+          text: answer
+        model: eino-story-twenty-thousand-leagues.model
+        max_tokens: 2048
+        temperature: 0.3
+      - id: capture-observation
+        type: script
+        inputs:
+          text:
+            from: input.text
+          answer:
+            from: answer
+        outputs:
+          fact: observation
+        language: starlark
+        entrypoint: run
+        source: |
+          def run(input):
+              text = input["text"].strip()
+              return {"fact": "用户本轮输入：" + text + "；助手本轮确认：" + input["answer"]}
+        limits:
+          max_execution_steps: 10000
+          timeout: 250ms
+          max_input_bytes: 262144
+          max_output_bytes: 262144
+      - id: observe-memory
+        type: memory_observe
+        facts:
+        - text_from: observation
+        wait_for_completion: false
+      edges:
+      - from: start
+        to: prepare-memory-query
+      - from: recall-memory
+        to: build-prompt
+      - from: build-prompt
+        to: narrator-model
+      - from: capture-observation
+        to: observe-memory
+      - from: observe-memory
+        to: end
+      branches:
+      - from: prepare-memory-query
+        mode: first_match
+        routes:
+        - when:
+            field: memory-route
+            op: eq
+            value: recall
+          to: recall-memory
+        default: build-prompt
+      - from: narrator-model
+        mode: first_match
+        routes:
+        - when:
+            field: memory-route
+            op: eq
+            value: opening
+          to: end
+        default: capture-observation
+      outputs:
+      - node: narrator-model
+        field: answer
+        name: assistant
+        mime_type: text/plain
+        primary: true
+    conversation:
+      starts: peer
+    limits:
+      max_output_bytes: 4194304
