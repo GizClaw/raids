@@ -139,6 +139,17 @@ func TestParseFlagsTracksExplicitSuiteOnlyControls(t *testing.T) {
 	}
 }
 
+func TestParseFlagsAcceptsSuiteRuntimeProfileFromEnvironment(t *testing.T) {
+	t.Setenv("RAIDTEST_RUNTIME_PROFILE_FILE", "/tmp/volc-mem0-profile.yaml")
+	cfg, err := parseFlags([]string{"--server", "edge.example:9821", "--suite", "suite.yaml", "--admin-private-key-env", "RAIDTEST_ADMIN"}, &bytes.Buffer{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.RuntimeProfileFile != "/tmp/volc-mem0-profile.yaml" {
+		t.Fatalf("runtime profile file = %q", cfg.RuntimeProfileFile)
+	}
+}
+
 func TestRequireAvailableRejectsUnavailableAlias(t *testing.T) {
 	if err := requireAvailable("model", []string{"chat", "judge"}, "chat", "judge", ""); err != nil {
 		t.Fatal(err)
@@ -436,6 +447,35 @@ func TestPreserveLiveProfileMemoriesKeepsProviderConnections(t *testing.T) {
 	}
 	if binding := (*gotProfile.Spec.Resources.Memories)["story-teller"]; binding.LayoutId != "live-story-layout" {
 		t.Fatalf("memory binding was overwritten: %#v", binding)
+	}
+}
+
+func TestConfigureTemporaryPairedIdentityRebindsTokenAndPairs(t *testing.T) {
+	loadedSuite, err := suite.Load("../../suites/pr61-paired.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resources, err := loadPairedResources(loadedSuite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := configureTemporaryPairedIdentity(&loadedSuite, &resources, "abc123"); err != nil {
+		t.Fatal(err)
+	}
+	if loadedSuite.RuntimeProfile.ID != "raidtest-profile-abc123" || loadedSuite.RegistrationToken.ID != "raidtest-token-abc123" {
+		t.Fatalf("suite identities = %#v %#v", loadedSuite.RuntimeProfile, loadedSuite.RegistrationToken)
+	}
+	token, err := resources.token.Source.AsRegistrationTokenResource()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if token.Spec.RuntimeProfileId != loadedSuite.RuntimeProfile.ID {
+		t.Fatalf("token profile = %q", token.Spec.RuntimeProfileId)
+	}
+	for id, pair := range resources.pairs {
+		if pair.profile.ID != loadedSuite.RuntimeProfile.ID {
+			t.Fatalf("pair %s profile = %q", id, pair.profile.ID)
+		}
 	}
 }
 

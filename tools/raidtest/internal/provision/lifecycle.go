@@ -427,6 +427,16 @@ func (a AdminClient) DeleteRuntimeProfile(ctx context.Context, id string) error 
 	}
 	return statusError("delete RuntimeProfile", r.StatusCode(), r.Body)
 }
+func (a AdminClient) DeleteRuntimeProfileIfExists(ctx context.Context, id string) error {
+	r, e := a.API.DeleteRuntimeProfileWithResponse(ctx, id)
+	if e != nil {
+		return e
+	}
+	if r.StatusCode() == 404 {
+		return nil
+	}
+	return statusError("delete RuntimeProfile", r.StatusCode(), r.Body)
+}
 func (a AdminClient) CreateRegistrationToken(ctx context.Context, v adminhttp.RegistrationTokenUpsert) error {
 	r, e := a.API.CreateRegistrationTokenWithResponse(ctx, v)
 	if e != nil {
@@ -442,6 +452,16 @@ func (a AdminClient) DeleteRegistrationToken(ctx context.Context, id string) err
 	r, e := a.API.DeleteRegistrationTokenWithResponse(ctx, id)
 	if e != nil {
 		return e
+	}
+	return statusError("delete RegistrationToken", r.StatusCode(), r.Body)
+}
+func (a AdminClient) DeleteRegistrationTokenIfExists(ctx context.Context, id string) error {
+	r, e := a.API.DeleteRegistrationTokenWithResponse(ctx, id)
+	if e != nil {
+		return e
+	}
+	if r.StatusCode() == 404 {
+		return nil
 	}
 	return statusError("delete RegistrationToken", r.StatusCode(), r.Body)
 }

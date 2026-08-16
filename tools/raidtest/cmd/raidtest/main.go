@@ -78,7 +78,7 @@ func parseFlags(args []string, stderr io.Writer) (config.Config, error) {
 	fs.Var(&pairIDs, "pair", "paired suite target ID to run (repeatable; default: all)")
 	fs.StringVar(&c.Workflow, "workflow", "", "local Workflow YAML")
 	fs.StringVar(&c.RuntimeProfile, "runtime-profile", "default", "deployed base RuntimeProfile ID")
-	fs.StringVar(&c.RuntimeProfileFile, "runtime-profile-file", "", "optional local RuntimeProfile YAML")
+	fs.StringVar(&c.RuntimeProfileFile, "runtime-profile-file", os.Getenv("RAIDTEST_RUNTIME_PROFILE_FILE"), "optional local RuntimeProfile YAML (or RAIDTEST_RUNTIME_PROFILE_FILE); suite mode creates a run-owned profile")
 	fs.Var(&memories, "memory-layout", "optional local MemoryLayout YAML (repeatable)")
 	fs.StringVar(&c.Plan, "plan", "", "acceptance plan YAML")
 	fs.StringVar(&c.Report, "report", "raidtest-report.json", "JSON report path")

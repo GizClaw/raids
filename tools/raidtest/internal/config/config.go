@@ -133,8 +133,8 @@ func (c *Config) Validate() error {
 		if strings.TrimSpace(c.Plan) == "" {
 			return errors.New("plan is required when suite is not set")
 		}
-	} else if strings.TrimSpace(c.Workflow) != "" || strings.TrimSpace(c.Plan) != "" || c.RuntimeProfileFile != "" || len(c.MemoryLayouts) > 0 {
-		return errors.New("suite mode cannot be combined with workflow, plan, runtime-profile-file, or memory-layout")
+	} else if strings.TrimSpace(c.Workflow) != "" || strings.TrimSpace(c.Plan) != "" || len(c.MemoryLayouts) > 0 {
+		return errors.New("suite mode cannot be combined with workflow, plan, or memory-layout")
 	}
 	if c.Suite != "" && (c.AgentModel != "" || c.JudgeModel != "" || c.InputTTSModel != "" || c.OpenAIKey.Configured()) {
 		return errors.New("suite mode uses its Eino Testers and cannot accept external OpenAI agent, judge, TTS, or key flags")
