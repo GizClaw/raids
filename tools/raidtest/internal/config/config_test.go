@@ -41,6 +41,11 @@ func TestConfigValidatesPairedExecutionControls(t *testing.T) {
 	if err := nonSuite.Validate(); err == nil {
 		t.Fatal("programmatic parallelism outside suite mode was accepted")
 	}
+	withProfile := valid
+	withProfile.RuntimeProfileFile = "/tmp/volc-mem0-profile.yaml"
+	if err := withProfile.Validate(); err != nil {
+		t.Fatalf("suite RuntimeProfile override was rejected: %v", err)
+	}
 }
 
 func TestSecretSourceReportsWhetherItIsConfigured(t *testing.T) {

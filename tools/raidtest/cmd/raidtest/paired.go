@@ -95,6 +95,19 @@ func runPaired(ctx context.Context, c config.Config, stdin io.Reader) (result re
 	if err != nil {
 		return result, err
 	}
+	temporaryProfile := c.RuntimeProfileFile != ""
+	if temporaryProfile {
+		resources.profile, err = catalog.LoadResource(c.RuntimeProfileFile)
+		if err != nil {
+			return result, fmt.Errorf("load temporary RuntimeProfile: %w", err)
+		}
+		if resources.profile.Kind != "RuntimeProfile" {
+			return result, fmt.Errorf("temporary profile file contains %s, want RuntimeProfile", resources.profile.Kind)
+		}
+		if err := configureTemporaryPairedIdentity(&loadedSuite, &resources, runID); err != nil {
+			return result, err
+		}
+	}
 	tokenResource, err := resources.token.Source.AsRegistrationTokenResource()
 	if err != nil {
 		return result, fmt.Errorf("decode testing RegistrationToken: %w", err)
@@ -141,28 +154,30 @@ func runPaired(ctx context.Context, c config.Config, stdin io.Reader) (result re
 	if err := admin.GetReference(ctx, "Workflow", "chatroom"); err != nil {
 		return result, fmt.Errorf("verify Admin access with retained Workflow/chatroom: %w", err)
 	}
-	profileResponse, err := api.GetRuntimeProfileWithResponse(ctx, loadedSuite.RuntimeProfile.ID)
-	if err != nil {
-		return result, fmt.Errorf("read stable testing RuntimeProfile: %w", err)
-	}
-	switch profileResponse.StatusCode() {
-	case 200:
-		if profileResponse.JSON200 == nil {
-			return result, errors.New("stable testing RuntimeProfile returned HTTP 200 without a body")
+	if !temporaryProfile {
+		profileResponse, getErr := api.GetRuntimeProfileWithResponse(ctx, loadedSuite.RuntimeProfile.ID)
+		if getErr != nil {
+			return result, fmt.Errorf("read stable testing RuntimeProfile: %w", getErr)
 		}
-		resources.profile, err = preserveLiveProfileMemories(resources.profile, *profileResponse.JSON200)
-		if err != nil {
-			return result, err
+		switch profileResponse.StatusCode() {
+		case 200:
+			if profileResponse.JSON200 == nil {
+				return result, errors.New("stable testing RuntimeProfile returned HTTP 200 without a body")
+			}
+			resources.profile, err = preserveLiveProfileMemories(resources.profile, *profileResponse.JSON200)
+			if err != nil {
+				return result, err
+			}
+			result.Lifecycle = append(result.Lifecycle, report.Lifecycle{
+				ResourceType: "RuntimeProfile", ID: loadedSuite.RuntimeProfile.ID,
+				Action: "reuse-live-memory-bindings", Status: "pass",
+			})
+		case 404:
+			// The checked-in testing profile is the bootstrap source. Subsequent runs
+			// preserve the live memory provider connections installed from it.
+		default:
+			return result, fmt.Errorf("read stable testing RuntimeProfile returned HTTP %d", profileResponse.StatusCode())
 		}
-		result.Lifecycle = append(result.Lifecycle, report.Lifecycle{
-			ResourceType: "RuntimeProfile", ID: loadedSuite.RuntimeProfile.ID,
-			Action: "reuse-live-memory-bindings", Status: "pass",
-		})
-	case 404:
-		// The checked-in testing profile is the bootstrap source. Subsequent runs
-		// preserve the live memory provider connections installed from it.
-	default:
-		return result, fmt.Errorf("read stable testing RuntimeProfile returned HTTP %d", profileResponse.StatusCode())
 	}
 	for id, pairResources := range resources.pairs {
 		pairResources.profile = resources.profile
@@ -171,6 +186,30 @@ func runPaired(ctx context.Context, c config.Config, stdin io.Reader) (result re
 	result.Models, err = pairedModelBindings(resources.profile, loadedSuite.Pairs)
 	if err != nil {
 		return result, err
+	}
+	if temporaryProfile {
+		defer func() {
+			if c.Keep {
+				result.Lifecycle = append(result.Lifecycle,
+					report.Lifecycle{ResourceType: "RegistrationToken", ID: resources.token.ID, Action: "retain", Status: "pass"},
+					report.Lifecycle{ResourceType: "RuntimeProfile", ID: resources.profile.ID, Action: "retain", Status: "pass"})
+				return
+			}
+			cleanupCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+			defer cancel()
+			for _, item := range []struct {
+				kind string
+				id   string
+				del  func(context.Context, string) error
+			}{{"RegistrationToken", resources.token.ID, admin.DeleteRegistrationTokenIfExists}, {"RuntimeProfile", resources.profile.ID, admin.DeleteRuntimeProfileIfExists}} {
+				entry := report.Lifecycle{ResourceType: item.kind, ID: item.id, Action: "delete", Status: "pass"}
+				if deleteErr := item.del(cleanupCtx, item.id); deleteErr != nil {
+					entry.Status, entry.Error = "fail", deleteErr.Error()
+					runErr = errors.Join(runErr, fmt.Errorf("delete temporary %s %s: %w", item.kind, item.id, deleteErr))
+				}
+				result.Lifecycle = append(result.Lifecycle, entry)
+			}
+		}()
 	}
 	if err := applyPairedResources(ctx, admin, loadedSuite, resources, &result, []byte(token)); err != nil {
 		return result, err
@@ -426,6 +465,45 @@ func pairedModelBindings(profileResource catalog.GenericResource, pairs []suite.
 		}
 	}
 	return models, nil
+}
+
+func configureTemporaryPairedIdentity(s *suite.Suite, resources *pairedResources, runID string) error {
+	profile, err := resources.profile.Source.AsRuntimeProfileResource()
+	if err != nil {
+		return fmt.Errorf("decode temporary RuntimeProfile: %w", err)
+	}
+	profileID := "raidtest-profile-" + runID
+	profile.Metadata.Id = profileID
+	if err := resources.profile.Source.FromRuntimeProfileResource(profile); err != nil {
+		return fmt.Errorf("encode temporary RuntimeProfile: %w", err)
+	}
+	resources.profile.ID = profileID
+	resources.profile.Digest = catalog.Digest(resources.profile.Source)
+
+	token, err := resources.token.Source.AsRegistrationTokenResource()
+	if err != nil {
+		return fmt.Errorf("decode testing RegistrationToken: %w", err)
+	}
+	tokenID := "raidtest-token-" + runID
+	token.Metadata.Id = tokenID
+	tokenHash := sha256.Sum256([]byte("raidtest-registration-token/" + runID))
+	tokenHash[6] = (tokenHash[6] & 0x0f) | 0x40
+	tokenHash[8] = (tokenHash[8] & 0x3f) | 0x80
+	token.Spec.Token = fmt.Sprintf("%x-%x-%x-%x-%x", tokenHash[0:4], tokenHash[4:6], tokenHash[6:8], tokenHash[8:10], tokenHash[10:16])
+	token.Spec.RuntimeProfileId = profileID
+	if err := resources.token.Source.FromRegistrationTokenResource(token); err != nil {
+		return fmt.Errorf("encode temporary RegistrationToken: %w", err)
+	}
+	resources.token.ID = tokenID
+	resources.token.Digest = catalog.Digest(resources.token.Source)
+
+	s.RuntimeProfile.ID = profileID
+	s.RegistrationToken.ID = tokenID
+	for id, pair := range resources.pairs {
+		pair.profile = resources.profile
+		resources.pairs[id] = pair
+	}
+	return nil
 }
 
 func preserveLiveProfileMemories(local catalog.GenericResource, live apitypes.RuntimeProfile) (catalog.GenericResource, error) {

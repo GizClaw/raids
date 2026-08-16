@@ -111,6 +111,15 @@ export RAIDTEST_ADMIN_PRIVATE_KEY='private key text supplied by the operator'
 Repeat `--pair <target-workflow-id>` for a smoke subset. Omitting it runs the
 entire suite; the release qualification uses the unfiltered command.
 
+To select a memory provider for a suite run, pass a complete RuntimeProfile
+resource with `--runtime-profile-file`, or set `RAIDTEST_RUNTIME_PROFILE_FILE`
+to that file path. The runner rewrites its ID, creates a run-owned
+RuntimeProfile and RegistrationToken, and deletes both after the run. `--keep`
+retains them for diagnosis. This makes the provider choice explicit in the
+RuntimeProfile (for example, `driver: volc_mem0`) without changing the deployed
+`default` or checked-in `testing` profile. Keep provider credentials out of the
+repository and supply the rendered profile through the test environment.
+
 Paired suite cases are serial by default. Dev-only stall reproduction may use
 bounded case concurrency after a healthy serial baseline:
 
