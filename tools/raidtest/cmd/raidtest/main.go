@@ -126,7 +126,12 @@ func parseFlags(args []string, stderr io.Writer) (config.Config, error) {
 
 func run(ctx context.Context, c config.Config, stdin io.Reader) (result report.Report, runErr error) {
 	if c.Suite != "" {
-		return runPaired(ctx, c, stdin)
+		// The paired suite protocol (per-engine `<target>-test` Testers driven
+		// through the raidtest_acceptance_report Tool) was replaced by the
+		// relay-protocol Testers under workflows/<raid>/test.yaml and the
+		// declarative scenarios under tests/giztest; run those with
+		// `gizclaw test run` instead.
+		return report.New("unknown"), errors.New("--suite is superseded by tests/giztest (gizclaw test run); the legacy paired runner was retired with the raid package layout")
 	}
 	runID, err := randomID(6)
 	if err != nil {

@@ -6,7 +6,7 @@
 > `gizclaw test run`. The Tester Workflows under `workflows/<raid>` now
 > speak the `workspace_relay` text protocol and no longer call the
 > `raidtest_acceptance_report` Tool, so this runner's paired suite mode
-> (`--suite`) can no longer drive them. The plans under `plans/` are kept as
+> (`--suite`) now exits with an error pointing at `tests/giztest`. The plans under `plans/` are kept as
 > the readable record of each route's contracts; the single-candidate shadow
 > Workflow path still works but is scheduled for removal.
 

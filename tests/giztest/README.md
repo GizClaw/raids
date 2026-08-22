@@ -100,8 +100,10 @@ non-empty `/hits` before the reload.
   longer carry the external LLM judge dimensions. Script checks (`han`,
   `latin`, `japanese`, `korean`) are presence patterns (`\p{Han}` …) rather than
   raidtest's letter-ratio thresholds.
-- `h106/` targets are not part of this catalog; the files assume the
-  deployment's `testing` profile exposes them in the `assistants` collection.
+- `h106/` targets are not part of this catalog and are not provisioned by
+  `apply-testing.sh`; `run.sh` skips the directory by default, and running it
+  explicitly requires a deployment whose `testing` profile exposes those
+  Workflows in the `assistants` collection.
 
 ## Running
 

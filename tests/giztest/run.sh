@@ -8,9 +8,9 @@
 #   GIZCLAW_TEST_REGISTRATION_TOKEN=... \
 #   tests/giztest/run.sh [--parallel N] [--output report.json] [path ...]
 #
-# Defaults: --parallel 1, paths = tests/giztest (every scenario, including the
-# h106/ files whose target Workflows live outside this catalog); pass paths
-# explicitly to narrow the run.
+# Defaults: --parallel 1, paths = every scenario directory under tests/giztest
+# except h106/ (its target Workflows are not provisioned by apply-testing.sh;
+# pass tests/giztest/h106 explicitly against a deployment that exposes them).
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -54,7 +54,14 @@ command -v "$gizclaw" >/dev/null 2>&1 || {
 : "${GIZCLAW_TEST_REGISTRATION_TOKEN:?set GIZCLAW_TEST_REGISTRATION_TOKEN to the testing-runtime RegistrationToken value}"
 
 if ((${#paths[@]} == 0)); then
-	paths=("$script_dir")
+	# Every scenario directory except h106/, whose target Workflows are not part
+	# of the testing RuntimeProfile that apply-testing.sh provisions.
+	for dir in "$script_dir"/*/; do
+		case "$(basename "$dir")" in
+		h106 | reports) ;;
+		*) paths+=("${dir%/}") ;;
+		esac
+	done
 fi
 
 if [[ -z "$output" ]]; then

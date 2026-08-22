@@ -139,7 +139,8 @@ func (d *Document) Install(r *raid.Raid, catalog *raid.Catalog, opts Options) er
 }
 
 // Uninstall removes one implementation's bindings (and its tester when requested).
-// Alias slots are removed only when no binding of that Workflow remains.
+// Alias slots are removed only when no binding of that Workflow remains, and
+// the shared Tester only when no other implementation of the raid is bound.
 func (d *Document) Uninstall(r *raid.Raid, opts Options) error {
 	impl, ok := r.Implementations[opts.Implementation]
 	if !ok {
@@ -155,6 +156,13 @@ func (d *Document) Uninstall(r *raid.Raid, opts Options) error {
 		}
 	}
 	if opts.Tester && r.Tester != nil {
+		// The Tester is shared by every implementation of the raid: keep it
+		// while any other implementation is still bound.
+		for name, other := range r.Implementations {
+			if name != opts.Implementation && len(d.bindingsOf(other.WorkflowID)) > 0 {
+				return nil
+			}
+		}
 		d.unbindWorkflow(r.Tester.WorkflowID, "")
 		for alias := range r.Tester.Parameters.Models {
 			mapDelete(d.path("spec", "resources", "models"), alias)

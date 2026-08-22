@@ -227,3 +227,42 @@ func TestAllRaidManifestsValidate(t *testing.T) {
 		}
 	}
 }
+
+func TestUninstallKeepsSharedTesterWhileAnotherImplementationRemains(t *testing.T) {
+	root := repoRoot(t)
+	catalog, err := raid.LoadCatalog(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := raid.Load(root, "story-aesop")
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc, err := Load(writeFixture(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	models := map[string]string{"flowcraft-story-aesop.model": "doubao-seed-2-0-lite", "eino-story-aesop.model": "doubao-seed-2-0-lite", "story-aesop-test.model": "doubao-seed-2-0-lite"}
+	voices := map[string]string{"flowcraft-story-aesop.storyteller": "volc-tenant:volc-cn-beijing:zh_female_shaoergushi_mars_bigtts"}
+	if err := doc.Install(r, catalog, Options{Implementation: "flowcraft", Collection: "story-teller", Tester: true, Models: models, Voices: voices}); err != nil {
+		t.Fatal(err)
+	}
+	if err := doc.Install(r, catalog, Options{Implementation: "eino", Collection: "story-teller", Tester: true, Models: models}); err != nil {
+		t.Fatal(err)
+	}
+	if err := doc.Uninstall(r, Options{Implementation: "flowcraft", Tester: true}); err != nil {
+		t.Fatal(err)
+	}
+	if len(doc.bindingsOf("story-aesop-test")) != 1 || mapGet(doc.path("spec", "resources", "models"), "story-aesop-test.model") == nil {
+		t.Fatal("shared tester was removed while eino remained installed")
+	}
+	if len(doc.bindingsOf("flowcraft-story-aesop")) != 0 {
+		t.Fatal("flowcraft binding survived uninstall")
+	}
+	if err := doc.Uninstall(r, Options{Implementation: "eino", Tester: true}); err != nil {
+		t.Fatal(err)
+	}
+	if len(doc.bindingsOf("story-aesop-test")) != 0 || mapGet(doc.path("spec", "resources", "models"), "story-aesop-test.model") != nil {
+		t.Fatal("shared tester should be removed with the last implementation")
+	}
+}
