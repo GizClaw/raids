@@ -11,7 +11,7 @@ root="$(repo_root)"
 : "${GIZCLAW:=gizclaw}"
 : "${GIZCLAW_TEST_CLI:=$GIZCLAW}"
 
-resource_dirs='credentials tenants models voices memory-layouts petdefs workflows tool-resources runtime-profiles registration-tokens'
+resource_dirs='credentials tenants models voices memory-layouts petdefs workflows runtime-profiles registration-tokens'
 
 require_command "$GIZCLAW"
 require_command "$GIZCLAW_TEST_CLI"

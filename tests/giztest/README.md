@@ -4,9 +4,9 @@ Every Raids live test is one `gizclaw.test/v1alpha1` document under this
 directory. `gizclaw test run <dir> --parallel N` gives each file (and each
 `repeat` task) its own ephemeral Peers, Workspaces, variables, and bounded
 `finally` cleanup, so one cluster can run the whole catalog concurrently under
-one global worker pool. Nothing here needs the Go runner under
-`tools/raidtest`; that runner is kept only for legacy single-candidate use and
-is no longer the owner of paired, catalog, or default qualification.
+one global worker pool. This corpus replaced the retired `tools/raidtest` Go
+runner, which owned paired, catalog, and default qualification before the raid
+package layout.
 
 Requires GizClaw v0.6.0 or later, the first release containing the declarative
 runner, assertion matchers, and `workspace_relay` operation (GizClaw #916,
@@ -51,7 +51,7 @@ candidate replies, N scripted player turns, one verdict).
 
 The relay-protocol Tester Workflows (`workflows/<raid>/test.yaml`, one per
 scenario and shared by its Flowcraft and Eino implementations) are generated
-from the previous raidtest Testers and plans and share one Eino graph: `route-turn` (Starlark) → `build-prompt` → `judge-model` → `finalize`.
+from the previous Tool-protocol Testers and plans and share one Eino graph: `route-turn` (Starlark) → `build-prompt` → `judge-model` → `finalize`.
 
 - `route-turn` derives the turn index from its own History (`input.messages`):
   the last assistant message is matched against the scripted request list, with
@@ -60,7 +60,7 @@ from the previous raidtest Testers and plans and share one Eino graph: `route-tu
   grounded player utterance.
 - The final turn re-reads the whole visible transcript, runs the plan's
   deterministic contracts (required / required_any / forbidden / rune window,
-  ported from `raidtest/internal/conversation`), and builds one holistic judge
+  ported from the retired runner's deterministic checks), and builds one holistic judge
   prompt from the scenario rules and per-checkpoint contracts.
 - `finalize` makes the output deterministic: scripted text passes through
   unchanged, generated utterances are trimmed to one line, and the verdict is
@@ -88,8 +88,8 @@ non-empty `/hits` before the reload.
 - Eino History is capped at 50 messages. Only Murder Mystery (26 responses)
   crosses it: the turn index still resolves through scripted-message matching,
   but the final audit and judge prompt see the latest 25 rounds only.
-- The recall barrier is a single RPC after the first relay segment; raidtest
-  polled until `persistence_timeout`. A configurable retry on RPC steps is a
+- The recall barrier is a single RPC after the first relay segment; the retired
+  runner polled until `persistence_timeout`. A configurable retry on RPC steps is a
   pending GizClaw request.
 - Murder Mystery's previously free-form investigation turns are now fixed
   scripted sentences (the `REQUESTS` list inside
@@ -99,7 +99,7 @@ non-empty `/hits` before the reload.
   they keep every keyword, rune, script, latency, and audio-present gate but no
   longer carry the external LLM judge dimensions. Script checks (`han`,
   `latin`, `japanese`, `korean`) are presence patterns (`\p{Han}` …) rather than
-  raidtest's letter-ratio thresholds.
+  the retired runner's letter-ratio thresholds.
 - `h106/` targets are not part of this catalog and are not provisioned by
   `APPLY=1 make test-e2e`; `RAID=all` skips the directory, and running it with
   `RAID=h106` requires a deployment whose `testing` profile exposes those
@@ -129,9 +129,8 @@ a production credential.
 ## Provenance
 
 The corpus and the relay Testers were produced once, mechanically, from the
-raidtest plans, suites, and the previous Tool-protocol Testers; the generator
-was a migration aid and is not part of the repository. The generated files are
-now the source of truth: edit a `.giztest.yaml` or a Tester directly and re-run
-`make test-unit-resources`. The legacy plans under
-`tools/raidtest/plans` remain only as the readable record of each route's
-contracts until `tools/raidtest` is removed.
+the retired runner's plans, suites, and Tool-protocol Testers; the generator was
+a migration aid and is not part of the repository. The generated files are now
+the source of truth: edit a `.giztest.yaml` or a Tester directly and re-run
+`make test-unit-resources`. Each route's contracts stay readable in
+`workflows/<raid>/README.md` and in the Tester's own `CONTRACTS` list.
