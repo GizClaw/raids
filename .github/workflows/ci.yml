@@ -38,7 +38,8 @@ jobs:
           dpkg-deb --extract "$package" "$root"
           printf 'GIZCLAW=%s\n' "$root/usr/bin/gizclaw" >> "$GITHUB_ENV"
 
-      - name: Run repository checks
-        env:
-          CGO_ENABLED: "0"
-        run: make ci
+      - name: Validate Resources and Giztest documents
+        run: make test-unit-resources
+
+      - name: Vet and test Go modules
+        run: make test-unit-go

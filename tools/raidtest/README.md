@@ -30,7 +30,7 @@ CGO_ENABLED=0 go test ./...
 CGO_ENABLED=0 go vet ./...
 ```
 
-The repository shortcuts are `make build-raidtest` and `make test-raidtest`.
+The repository shortcuts are `make build-raidtest` and `make test-unit-go`.
 Use `make build-raidtest` for live qualification: it injects the repository
 revision and pre-build dirty state because Go does not discover VCS metadata
 automatically from this nested module. `RAIDTEST_OUTPUT=/absolute/path` writes

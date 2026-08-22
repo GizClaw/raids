@@ -37,5 +37,5 @@ The route has 12 target responses:
 Run:
 
 ```sh
-tests/giztest/run.sh --parallel 2 tests/giztest/chat-assistant
+make test-e2e RAID=chat-assistant PARALLEL=2
 ```

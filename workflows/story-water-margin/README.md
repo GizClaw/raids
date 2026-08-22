@@ -36,5 +36,5 @@ The route has 7 target responses:
 Run:
 
 ```sh
-tests/giztest/run.sh --parallel 2 tests/giztest/story-water-margin
+make test-e2e RAID=story-water-margin PARALLEL=2
 ```

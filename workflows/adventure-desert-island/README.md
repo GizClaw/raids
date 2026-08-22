@@ -36,5 +36,5 @@ The route has 7 target responses:
 Run:
 
 ```sh
-tests/giztest/run.sh --parallel 2 tests/giztest/adventure-desert-island
+make test-e2e RAID=adventure-desert-island PARALLEL=2
 ```

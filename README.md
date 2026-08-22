@@ -225,15 +225,23 @@ Resource format validation. With GizClaw v0.6.0 or later on `PATH`, validate
 every applyable catalog Resource with:
 
 ```sh
-make validate-resources
+make test-unit-resources
 ```
 
-Use `GIZCLAW=/path/to/gizclaw make validate-resources` to select an explicit
+Use `GIZCLAW=/path/to/gizclaw make test-unit-resources` to select an explicit
 binary. The target validates each YAML file under the applyable Resource
-directories, including `tool-resources/`, independently. It does not read
+directories, including `tool-resources/`, independently, and then validates the
+declarative Giztest corpus with `gizclaw test validate`. It does not read
 `runtime-profile.example.yaml` or the plans and fixtures under `tools/raidtest`.
 It is offline: it does not use a GizClaw context, contact Server, or mutate
 resources.
+
+Every public Make target dispatches to the same-named script under
+`scripts/<group>/<target>.sh`; the Makefile itself only declares targets,
+default variables, and exports. `make help` lists the complete surface:
+`build-raids`, `build-raidtest`, `build-profiles`, `test-unit-go`,
+`test-unit-resources`, and `test-e2e`. CI runs the two `test-unit-*` targets as
+separate steps; there is no aggregate target.
 
 For static schema validation, the target exports a fixed non-secret placeholder
 for each empty variable declared by `.env.example`. It never reads or requires
@@ -258,11 +266,11 @@ resources; rating (`raids-age-v1`), category, and tags make the catalog
 filterable. [`tools/raids`](tools/raids/README.md) is the package manager:
 `raids install <raid> --impl <engine> --profile <file> --collection <name> --set …`
 binds a package into a RuntimeProfile (YAML-only edits, no Server access),
-`raids check` verifies the committed profiles, and `make check-raids` runs both
-in CI. The committed `runtime-profiles/testing.yaml` and
+`raids check` verifies the committed profiles, and `make test-unit-go` runs the
+same checks as Go tests in CI. The committed `runtime-profiles/testing.yaml` and
 `runtime-profiles/default.yaml` are themselves generated:
 `profile-plans/<id>.base.yaml` holds the non-raid part, `profile-plans/<id>.plan.yaml`
-lists the installs, and `profile-plans/regenerate.sh` (or `--check` in CI)
+lists the installs, and `make build-profiles` (or `CHECK=1 make build-profiles`)
 replays them with `raids generate`.
 
 ## Declarative live tests
@@ -274,13 +282,13 @@ default assistant, Journey, Pet Care, Doubao realtime, and AST translation
 routes, the Journey TTFT benchmark, and the historical 3×/5× qualification
 repeats. `gizclaw test run tests/giztest/paired --parallel N` isolates each
 file and repeat in its own ephemeral Peers and Workspaces and schedules them
-through one global worker pool; `make validate-giztest` validates the corpus
-offline. Each scenario's single Tester Workflow (`workflows/<raid>/test.yaml`, id `<raid>-test`, shared by every engine implementation) speaks the
+through one global worker pool; `make test-e2e` runs them against a provisioned
+deployment and `make test-unit-resources` validates the corpus offline. Each scenario's single Tester Workflow (`workflows/<raid>/test.yaml`, id `<raid>-test`, shared by every engine implementation) speaks the
 `workspace_relay` text protocol: they drive the scripted route, audit the
 deterministic contracts over their own History, and end with a single `PASS`
-or `FAIL`. Provisioning stays outside the runner:
-`tests/giztest/apply-testing.sh` applies the catalog, the Testers, the
-`testing` RuntimeProfile, and the `testing-runtime` token.
+or `FAIL`. Provisioning stays outside the runner: `APPLY=1 make test-e2e`
+applies the catalog, the Testers, the `testing` RuntimeProfile, and the
+`testing-runtime` token with the selected Admin context before running.
 
 This corpus requires GizClaw v0.6.0 or later (GizClaw #916, #921, #923). It supersedes the raidtest paired suite below; `tools/raidtest` remains
 only as the legacy single-candidate runner until it is removed.
@@ -328,7 +336,7 @@ report contain only non-secret execution metadata. The committed plans under
 `tools/raidtest/plans/default` cover Pet Care, both assistants, Murder Mystery,
 Journey, and all Default translation directions.
 
-Static `make ci`, an isolated `raidtest` result, a released Raids archive, a
+Static `make test-unit-resources` and `make test-unit-go`, an isolated `raidtest` result, a released Raids archive, a
 deployed RuntimeProfile, and the complete Beijing Default E2E are separate
 evidence. Passing one does not imply the later stages occurred.
 Likewise, private GizClaw process profiles remain Deploy/operator evidence:

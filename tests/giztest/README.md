@@ -10,7 +10,7 @@ is no longer the owner of paired, catalog, or default qualification.
 
 Requires GizClaw v0.6.0 or later, the first release containing the declarative
 runner, assertion matchers, and `workspace_relay` operation (GizClaw #916,
-#921, #923). `make validate-giztest` validates the corpus offline.
+#921, #923). `make test-unit-resources` validates the corpus offline.
 
 ## Layout
 
@@ -101,32 +101,30 @@ non-empty `/hits` before the reload.
   `latin`, `japanese`, `korean`) are presence patterns (`\p{Han}` …) rather than
   raidtest's letter-ratio thresholds.
 - `h106/` targets are not part of this catalog and are not provisioned by
-  `apply-testing.sh`; `run.sh` skips the directory by default, and running it
-  explicitly requires a deployment whose `testing` profile exposes those
+  `APPLY=1 make test-e2e`; `RAID=all` skips the directory, and running it with
+  `RAID=h106` requires a deployment whose `testing` profile exposes those
   Workflows in the `assistants` collection.
 
 ## Running
 
 ```sh
-# 1. Provision the stable Dev testing closure (Admin authority required).
-GIZCLAW=/path/to/gizclaw tests/giztest/apply-testing.sh --context dev
-
-# 2. Point the runner at the Peer access point and the testing token.
-export GIZCLAW_TEST_ENDPOINT=ap.dev.gizclaw.com:9821
+# 1. Point the runner at the Peer access point and the testing token.
+export GIZCLAW_TEST_ENDPOINT=edge-bj-01.e2e.gizclaw.com:9821
 export GIZCLAW_TEST_REGISTRATION_TOKEN=9c845896-1447-5a7e-b799-a1df42694fb8
 
-# 3. Smoke: one target, serial.
-tests/giztest/run.sh --parallel 1 tests/giztest/story-aesop/eino.giztest.yaml
+# 2. Smoke: one raid, serial. APPLY=1 provisions the testing closure first
+#    (Admin authority; GIZCLAW_CONTEXT selects the context).
+APPLY=1 GIZCLAW_CONTEXT=dev make test-e2e RAID=story-aesop
 
-# 4. Full catalog wave with the global worker pool.
-tests/giztest/run.sh --parallel 8 tests/giztest
-
+# 3. Full catalog wave through the global worker pool.
+make test-e2e PARALLEL=8
 ```
 
-`run.sh` validates offline first, then writes a redacted JSON report under
-`tests/giztest/reports/` (ignored by git) unless `--output` is given. The
-`testing-runtime` token value above is the committed Dev/E2E-only token from
-`registration-tokens/testing.yaml`; it is not a production credential.
+`make test-e2e` validates the selected scenarios offline first, then writes a
+redacted JSON report under `tests/giztest/reports/` (ignored by git) unless
+`REPORT=<path>` is given. The `testing-runtime` token value above is the
+committed Dev/E2E-only token from `registration-tokens/testing.yaml`; it is not
+a production credential.
 
 ## Provenance
 
@@ -134,6 +132,6 @@ The corpus and the relay Testers were produced once, mechanically, from the
 raidtest plans, suites, and the previous Tool-protocol Testers; the generator
 was a migration aid and is not part of the repository. The generated files are
 now the source of truth: edit a `.giztest.yaml` or a Tester directly and re-run
-`make validate-giztest` and `make validate-resources`. The legacy plans under
+`make test-unit-resources`. The legacy plans under
 `tools/raidtest/plans` remain only as the readable record of each route's
 contracts until `tools/raidtest` is removed.

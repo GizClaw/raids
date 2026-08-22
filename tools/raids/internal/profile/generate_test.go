@@ -34,7 +34,7 @@ func TestPlansRegenerateCommittedProfiles(t *testing.T) {
 			t.Fatal(err)
 		}
 		if string(generated) != string(committed) {
-			t.Errorf("%s: committed %s is stale; run profile-plans/regenerate.sh", filepath.Base(planPath), plan.Output)
+			t.Errorf("%s: committed %s is stale; run make build-profiles", filepath.Base(planPath), plan.Output)
 		}
 	}
 }

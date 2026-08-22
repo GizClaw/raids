@@ -14,7 +14,7 @@ or `gizclaw admin apply` deploy the result.
 
 ```sh
 make build-raids            # tools/raids/raids
-make check-raids            # validate every raid.json and both committed profiles (part of make ci)
+make test-unit-go           # vet and test every Go module, including the raid.json and profile checks
 
 raids validate                               # all raid.json manifests
 raids list  --profile runtime-profiles/default.yaml
@@ -33,8 +33,8 @@ raids install story-aesop --impl eino --tester --profile runtime-profiles/testin
 raids uninstall story-aesop --impl eino --tester --profile runtime-profiles/testing.yaml
 
 # The committed profiles are generated: a raid-free base + an install plan.
-profile-plans/regenerate.sh            # raids generate --plan profile-plans/*.plan.yaml
-profile-plans/regenerate.sh --check    # what CI runs: fail when runtime-profiles/*.yaml are stale
+make build-profiles                    # raids generate --plan profile-plans/*.plan.yaml
+CHECK=1 make build-profiles            # fail when the committed runtime-profiles/*.yaml are stale
 ```
 
 `profile-plans/<id>.base.yaml` holds everything raid packages do not own
@@ -90,10 +90,12 @@ catalog; `--dry-run` prints the edited profile instead of writing it.
 }
 ```
 
-`go test ./...` proves the tool against the committed profiles: rendering a
-profile through the tool is byte-identical, and uninstalling plus reinstalling
-every raid implementation of `testing.yaml` and `default.yaml` with the values
-read from the file reproduces the same bindings and resource ids.
+`go test ./...` (`make test-unit-go`) is the authoritative offline check: it
+validates every `raid.json`, proves both committed profiles are complete,
+reproduces them from their plans byte-for-byte, and round-trips every raid
+implementation through uninstall plus reinstall with the values read from the
+file. The CLI subcommands run the same package-level code, so CI does not
+invoke them separately.
 
 Rules enforced by `raids validate`: the id matches the directory; every
 implementation/tester file is a `Workflow` whose `metadata.id` matches; slot

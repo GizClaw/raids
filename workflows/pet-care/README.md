@@ -39,5 +39,5 @@ The route has 12 target responses:
 Run:
 
 ```sh
-tests/giztest/run.sh --parallel 2 tests/giztest/pet-care
+make test-e2e RAID=pet-care PARALLEL=2
 ```

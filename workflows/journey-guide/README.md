@@ -52,5 +52,5 @@ The route has 20 target responses:
 Run:
 
 ```sh
-tests/giztest/run.sh --parallel 2 tests/giztest/journey-guide
+make test-e2e RAID=journey-guide PARALLEL=2
 ```

@@ -36,5 +36,5 @@ The route has 7 target responses:
 Run:
 
 ```sh
-tests/giztest/run.sh --parallel 2 tests/giztest/story-journey-center-earth
+make test-e2e RAID=story-journey-center-earth PARALLEL=2
 ```

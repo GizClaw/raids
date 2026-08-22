@@ -42,5 +42,5 @@ The route has 13 target responses:
 Run:
 
 ```sh
-tests/giztest/run.sh --parallel 2 tests/giztest/adventure-space-rescue
+make test-e2e RAID=adventure-space-rescue PARALLEL=2
 ```
