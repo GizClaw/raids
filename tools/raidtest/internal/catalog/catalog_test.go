@@ -34,24 +34,24 @@ func TestLoadWorkflowSupportsEveryCandidateDriver(t *testing.T) {
 func TestDefaultCandidateResourcesMatchV025PublicTypes(t *testing.T) {
 	root := "../../../../"
 	workflows := []string{
-		"workflows/eino/adventure-castle-mystery.yaml",
-		"workflows/eino/adventure-monster-maze.yaml",
-		"workflows/eino/adventure-space-rescue.yaml",
-		"workflows/eino/journey-history.yaml",
-		"workflows/eino/journey-memory-recall.yaml",
-		"workflows/eino/journey-memory-async.yaml",
-		"workflows/eino/story-aesop.yaml",
-		"workflows/eino/story-alice.yaml",
-		"workflows/flowcraft/adventure-castle-mystery.yaml",
-		"workflows/flowcraft/adventure-monster-maze.yaml",
-		"workflows/flowcraft/adventure-space-rescue.yaml",
-		"workflows/flowcraft/chat-assistant.yaml",
-		"workflows/flowcraft/journey-guide.yaml",
-		"workflows/flowcraft/murder-mystery.yaml",
-		"workflows/flowcraft/story-aesop.yaml",
-		"workflows/flowcraft/story-alice.yaml",
+		"workflows/adventure-castle-mystery/eino.yaml",
+		"workflows/adventure-monster-maze/eino.yaml",
+		"workflows/adventure-space-rescue/eino.yaml",
+		"workflows/journey-guide/eino-history.yaml",
+		"workflows/journey-guide/eino-memory-recall.yaml",
+		"workflows/journey-guide/eino-memory-async.yaml",
+		"workflows/story-aesop/eino.yaml",
+		"workflows/story-alice/eino.yaml",
+		"workflows/adventure-castle-mystery/flowcraft.yaml",
+		"workflows/adventure-monster-maze/flowcraft.yaml",
+		"workflows/adventure-space-rescue/flowcraft.yaml",
+		"workflows/chat-assistant/flowcraft.yaml",
+		"workflows/journey-guide/flowcraft.yaml",
+		"workflows/murder-mystery/flowcraft.yaml",
+		"workflows/story-aesop/flowcraft.yaml",
+		"workflows/story-alice/flowcraft.yaml",
 		"workflows/doubao-realtime/conversation.yaml",
-		"workflows/pet/pet-care.yaml",
+		"workflows/pet-care/pet.yaml",
 		"workflows/ast-translate/zh-ja.yaml",
 	}
 	for _, path := range workflows {
@@ -71,9 +71,9 @@ func TestDefaultCandidateResourcesMatchV025PublicTypes(t *testing.T) {
 
 func TestLoadEinoJourneyCatalogWorkflows(t *testing.T) {
 	for _, path := range []string{
-		"../../../../workflows/eino/journey-history.yaml",
-		"../../../../workflows/eino/journey-memory-recall.yaml",
-		"../../../../workflows/eino/journey-memory-async.yaml",
+		"../../../../workflows/journey-guide/eino-history.yaml",
+		"../../../../workflows/journey-guide/eino-memory-recall.yaml",
+		"../../../../workflows/journey-guide/eino-memory-async.yaml",
 	} {
 		workflow, err := LoadWorkflow(path)
 		if err != nil {

@@ -3,7 +3,7 @@
 > **Superseded.** Every paired, catalog, default, benchmark, and H106 test now
 > lives as a declarative `gizclaw.test/v1alpha1` document under
 > [`tests/giztest`](../../tests/giztest/README.md) and runs through
-> `gizclaw test run`. The Tester Workflows under `workflows/eino/tests` now
+> `gizclaw test run`. The Tester Workflows under `workflows/<raid>` now
 > speak the `workspace_relay` text protocol and no longer call the
 > `raidtest_acceptance_report` Tool, so this runner's paired suite mode
 > (`--suite`) can no longer drive them. The plans under `plans/` are kept as
@@ -62,7 +62,7 @@ export RAIDTEST_ADMIN_PRIVATE_KEY='private key text supplied by the operator'
   --server server-bj-01.dev.gizclaw.com:9820 \
   --peer-server edge-bj-01.dev.gizclaw.com:9821 \
   --admin-private-key-env RAIDTEST_ADMIN_PRIVATE_KEY \
-  --workflow ../../workflows/flowcraft/murder-mystery.yaml \
+  --workflow ../../workflows/murder-mystery/flowcraft.yaml \
   --runtime-profile default \
   --runtime-profile-file ../../runtime-profiles/default.yaml \
   --memory-layout ../../memory-layouts/adventure.yaml \

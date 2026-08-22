@@ -450,52 +450,8 @@ func TestPreserveLiveProfileMemoriesKeepsProviderConnections(t *testing.T) {
 	}
 }
 
-func TestConfigureTemporaryPairedIdentityRebindsTokenAndPairs(t *testing.T) {
-	loadedSuite, err := suite.Load("../../suites/pr61-paired.yaml")
-	if err != nil {
-		t.Fatal(err)
-	}
-	resources, err := loadPairedResources(loadedSuite)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := configureTemporaryPairedIdentity(&loadedSuite, &resources, "abc123"); err != nil {
-		t.Fatal(err)
-	}
-	if loadedSuite.RuntimeProfile.ID != "raidtest-profile-abc123" || loadedSuite.RegistrationToken.ID != "raidtest-token-abc123" {
-		t.Fatalf("suite identities = %#v %#v", loadedSuite.RuntimeProfile, loadedSuite.RegistrationToken)
-	}
-	token, err := resources.token.Source.AsRegistrationTokenResource()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if token.Spec.RuntimeProfileId != loadedSuite.RuntimeProfile.ID {
-		t.Fatalf("token profile = %q", token.Spec.RuntimeProfileId)
-	}
-	for id, pair := range resources.pairs {
-		if pair.profile.ID != loadedSuite.RuntimeProfile.ID {
-			t.Fatalf("pair %s profile = %q", id, pair.profile.ID)
-		}
-	}
-}
-
-func TestPairedModelBindingsRecordsTargetAndTesterModels(t *testing.T) {
-	profile, err := catalog.LoadResource("../../../../runtime-profiles/testing.yaml")
-	if err != nil {
-		t.Fatal(err)
-	}
-	loadedSuite, err := suite.Load("../../suites/pr61-paired.yaml")
-	if err != nil {
-		t.Fatal(err)
-	}
-	models, err := pairedModelBindings(profile, loadedSuite.Pairs)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(models) != len(loadedSuite.Pairs)*2 || models["flowcraft-murder-mystery-test.model"] == "" {
-		t.Fatalf("models=%#v", models)
-	}
-}
+// The paired-suite provisioning tests were removed with the migration to the
+// relay-protocol Testers under workflows/<raid>/test.yaml; see tests/giztest.
 
 func TestPreserveLiveProfileMemoriesRejectsIncompleteLiveProfile(t *testing.T) {
 	local, err := catalog.LoadResource("../../../../runtime-profiles/testing.yaml")
