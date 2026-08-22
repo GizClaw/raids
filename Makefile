@@ -9,7 +9,7 @@ RAIDTEST_MODIFIED := $(shell if test -z "$$(git status --porcelain)"; then print
 RAIDTEST_LDFLAGS := -X github.com/GizClaw/raids/tools/raidtest/internal/report.buildRevision=$(RAIDTEST_REVISION) -X github.com/GizClaw/raids/tools/raidtest/internal/report.buildModified=$(RAIDTEST_MODIFIED)
 RESOURCE_DIRS := credentials tenants models voices memory-layouts petdefs workflows tool-resources runtime-profiles registration-tokens
 
-.PHONY: help ci raidtest build-raidtest validate-resources test-raidtest
+.PHONY: help ci raidtest build-raidtest validate-catalog-invariants validate-resources test-raidtest
 
 help:
 	@printf '%s\n' \
@@ -20,10 +20,11 @@ help:
 		'Targets:' \
 		'  ci            run all repository checks' \
 		'  build-raidtest build the public live candidate runner' \
+		'  validate-catalog-invariants validate catalog-wide runtime requirements' \
 		'  validate-resources validate applyable Resources with GizClaw' \
 		'  test-raidtest run raidtest unit tests and vet'
 
-ci: validate-resources test-raidtest
+ci: validate-catalog-invariants validate-resources test-raidtest
 
 raidtest: build-raidtest
 
@@ -33,6 +34,9 @@ build-raidtest:
 test-raidtest:
 	cd tools/raidtest && CGO_ENABLED=$(CGO_ENABLED) $(GO) test ./...
 	cd tools/raidtest && CGO_ENABLED=$(CGO_ENABLED) $(GO) vet ./...
+
+validate-catalog-invariants:
+	./scripts/check-minimax-voice-models.sh
 
 validate-resources:
 	@set -eu; \

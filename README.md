@@ -240,8 +240,10 @@ contains a populated value.
 
 Passing this check means each file conforms to the Resource schema embedded in
 that GizClaw release. CI pins the immutable v0.7.0 Linux package and verifies
-its published SHA-256 digest before validation. Per-file schema validation does
-not prove runtime-only requirements such as a non-empty MiniMax Voice model,
+its published SHA-256 digest before validation. CI separately runs
+`make validate-catalog-invariants`, which requires exactly 635 MiniMax Voice
+files and exactly one `model: speech-2.6-turbo` field in each. Per-file schema
+validation alone does not prove other runtime-only requirements such as
 cross-resource references or aliases resolve, PIXA assets exist, provider
 credentials work, or a live Server will accept and run the complete catalog.
 Apply, runtime, `raidtest`, release, and Beijing Default E2E remain separate
