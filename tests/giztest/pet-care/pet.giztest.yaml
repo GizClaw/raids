@@ -1,0 +1,256 @@
+# User Story:
+# As a Raids catalog maintainer,
+# I want the `pet-care-test` Tester Workflow to drive `pet-care` through one live relay,
+# So that the 12-response `default-pet-care` route, its deterministic contracts, and the final verdict stay declarative.
+version: gizclaw.test/v1alpha1
+name: paired.pet-care
+clients:
+  candidate:
+    identity: ephemeral
+    connection: webrtc
+    access_point: ${endpoint}
+  tester:
+    identity: ephemeral
+    connection: webrtc
+    access_point: ${endpoint}
+variables:
+  endpoint:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_ENDPOINT
+  registration_token:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_REGISTRATION_TOKEN
+    secret: true
+  candidate_workspace:
+    direction: output
+    type: string
+  tester_workspace:
+    direction: input
+    type: string
+    generate: token
+  test_brief:
+    direction: input
+    type: string
+    value: BEGIN pet-care long-term-owner-pet-relationship
+  verdict:
+    direction: output
+    type: string
+  pet_name:
+    direction: input
+    type: string
+    generate: token
+  reload_handoff:
+    direction: output
+    type: string
+repeat: 1
+timeout: 52m
+steps:
+- id: register_candidate
+  client: candidate
+  rpc:
+    method: server.register
+    request:
+      token: ${registration_token}
+- id: register_tester
+  client: tester
+  rpc:
+    method: server.register
+    request:
+      token: ${registration_token}
+- id: adopt_candidate_pet
+  client: candidate
+  rpc:
+    method: runtime.adopt
+    request:
+      name: ${pet_name}
+      display_name: Giztest Pet
+  capture:
+    candidate_workspace: /pet/workspace_name
+- id: create_tester_workspace
+  client: tester
+  rpc:
+    method: server.workspace.create
+    request:
+      name: ${tester_workspace}
+      collection: raidtest-testers
+      workflow_name: pet-care-test
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_candidate_workspace
+  client: candidate
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: ${candidate_workspace}
+- id: select_tester_workspace
+  client: tester
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: ${tester_workspace}
+- id: run_dialogue_before_reload
+  timeout: 27m
+  workspace_relay:
+    first_client: tester
+    second_client: candidate
+    input: ${test_brief}
+    media: text
+    max_turns: 16
+    terminal_client: candidate
+  capture:
+    reload_handoff: /terminal/text
+  expect:
+    /terminal/client:
+      equals: candidate
+    /completed_turns:
+      equals: 16
+    /turns/candidate/count:
+      equals: 8
+    /turns/tester/count:
+      equals: 8
+    /turns/candidate/first_text_ms/max:
+      maximum: 6000
+- id: recall_barrier_1
+  client: candidate
+  rpc:
+    method: server.run.workspace.recall
+    request:
+      query: 林然
+  timeout: 90s
+  expect:
+    /available:
+      equals: true
+    /hits:
+      non_empty: true
+- id: recall_barrier_2
+  client: candidate
+  rpc:
+    method: server.run.workspace.recall
+    request:
+      query: 豆包
+  timeout: 90s
+  expect:
+    /available:
+      equals: true
+    /hits:
+      non_empty: true
+- id: recall_barrier_3
+  client: candidate
+  rpc:
+    method: server.run.workspace.recall
+    request:
+      query: 鱼
+  timeout: 90s
+  expect:
+    /available:
+      equals: true
+    /hits:
+      non_empty: true
+- id: recall_barrier_4
+  client: candidate
+  rpc:
+    method: server.run.workspace.recall
+    request:
+      query: 蓝色羽毛
+  timeout: 90s
+  expect:
+    /available:
+      equals: true
+    /hits:
+      non_empty: true
+- id: recall_barrier_5
+  client: candidate
+  rpc:
+    method: server.run.workspace.recall
+    request:
+      query: 八点
+  timeout: 90s
+  expect:
+    /available:
+      equals: true
+    /hits:
+      non_empty: true
+- id: recall_barrier_6
+  client: candidate
+  rpc:
+    method: server.run.workspace.recall
+    request:
+      query: 客厅
+  timeout: 90s
+  expect:
+    /available:
+      equals: true
+    /hits:
+      non_empty: true
+- id: reload_candidate_workspace
+  client: candidate
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+- id: run_dialogue_after_reload
+  timeout: 15m
+  workspace_relay:
+    first_client: tester
+    second_client: candidate
+    input: ${reload_handoff}
+    media: text
+    max_turns: 9
+    terminal_client: tester
+  capture:
+    verdict: /terminal/text
+  expect:
+    /terminal/client:
+      equals: tester
+    /terminal/text:
+      pattern: ^\s*PASS\s*$
+    /completed_turns:
+      equals: 9
+    /turns/candidate/count:
+      equals: 4
+    /turns/tester/count:
+      equals: 5
+    /turns/candidate/first_text_ms/max:
+      maximum: 6000
+- id: emit_verdict
+  output:
+    variable: verdict
+finally:
+- id: stop_candidate_run
+  client: candidate
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: stop_tester_run
+  client: tester
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_candidate_pet
+  client: candidate
+  rpc:
+    method: server.pet.delete
+    request:
+      name: ${pet_name}
+- id: delete_tester_workspace
+  client: tester
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: ${tester_workspace}
+- id: delete_candidate_peer
+  client: candidate
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: delete_tester_peer
+  client: tester
+  rpc:
+    method: server.peer.delete
+    request: {}
+report:
+  redact:
+  - registration_token

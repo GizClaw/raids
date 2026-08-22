@@ -1,0 +1,129 @@
+{
+  "schema": "raids.raid/v1alpha1",
+  "id": "story-aesop",
+  "category": "story",
+  "title": {
+    "zh-CN": "伊索寓言",
+    "en": "Aesop's Fables"
+  },
+  "summary": {
+    "zh-CN": "通过简短动物寓言发现选择带来的结果与启发。",
+    "en": "Discover consequences and lessons through short interactive animal fables."
+  },
+  "rating": {
+    "age": "6+",
+    "scheme": "raids-age-v1",
+    "content": [
+      "mild-peril"
+    ]
+  },
+  "tags": [
+    "fable",
+    "animals",
+    "choices",
+    "cooperation",
+    "classic"
+  ],
+  "language": [
+    "zh-CN"
+  ],
+  "implementations": {
+    "eino": {
+      "file": "eino.yaml",
+      "workflow_id": "eino-story-aesop",
+      "driver": "eino",
+      "input": [
+        "text"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "eino-story-aesop.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {}
+      }
+    },
+    "flowcraft": {
+      "file": "flowcraft.yaml",
+      "workflow_id": "flowcraft-story-aesop",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-story-aesop.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-story-aesop.storyteller": {
+            "role": "storyteller",
+            "language": "zh-CN",
+            "description": "Storyteller voice"
+          }
+        }
+      }
+    }
+  },
+  "tester": {
+    "file": "test.yaml",
+    "workflow_id": "story-aesop-test",
+    "driver": "eino",
+    "parameters": {
+      "models": {
+        "story-aesop-test.model": {
+          "kind": "llm",
+          "role": "judge",
+          "description": "Chat model that generates every turn; needs streaming Chinese output"
+        }
+      }
+    },
+    "route": {
+      "responses": 13,
+      "checkpoints": [
+        "opening",
+        "choose-plant",
+        "predict-before-result",
+        "reveal-consequence",
+        "challenge-absolute-moral",
+        "cooperation-choice",
+        "recall-state",
+        "reload-chapter-checkpoint",
+        "change-choice",
+        "recall-growth-time",
+        "compare-interpretations",
+        "preserve-child-safety",
+        "two-lessons"
+      ]
+    }
+  },
+  "tests": [
+    {
+      "file": "tests/giztest/story-aesop/eino.giztest.yaml",
+      "implementation": "eino",
+      "topology": "relay",
+      "reload": true,
+      "timeout": "55m"
+    },
+    {
+      "file": "tests/giztest/story-aesop/flowcraft.giztest.yaml",
+      "implementation": "flowcraft",
+      "topology": "relay",
+      "reload": true,
+      "timeout": "55m"
+    }
+  ]
+}

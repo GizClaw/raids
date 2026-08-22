@@ -1,0 +1,192 @@
+# User Story:
+# As a Raids catalog maintainer,
+# I want the `adventure-monster-maze-test` Tester Workflow to drive `eino-adventure-monster-maze` through one live relay,
+# So that the 13-response `adventure-monster-maze-comparison` route, its deterministic contracts, and the final verdict stay declarative.
+version: gizclaw.test/v1alpha1
+name: adventure-monster-maze.eino
+clients:
+  candidate:
+    identity: ephemeral
+    connection: webrtc
+    access_point: ${endpoint}
+  tester:
+    identity: ephemeral
+    connection: webrtc
+    access_point: ${endpoint}
+variables:
+  endpoint:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_ENDPOINT
+  registration_token:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_REGISTRATION_TOKEN
+    secret: true
+  candidate_workspace:
+    direction: input
+    type: string
+    generate: token
+  tester_workspace:
+    direction: input
+    type: string
+    generate: token
+  test_brief:
+    direction: input
+    type: string
+    value: BEGIN eino-adventure-monster-maze buttons-map-and-helper
+  verdict:
+    direction: output
+    type: string
+  reload_handoff:
+    direction: output
+    type: string
+repeat: 1
+timeout: 55m
+steps:
+- id: register_candidate
+  client: candidate
+  rpc:
+    method: server.register
+    request:
+      token: ${registration_token}
+- id: register_tester
+  client: tester
+  rpc:
+    method: server.register
+    request:
+      token: ${registration_token}
+- id: create_candidate_workspace
+  client: candidate
+  rpc:
+    method: server.workspace.create
+    request:
+      name: ${candidate_workspace}
+      collection: raidtest-targets
+      workflow_name: eino-adventure-monster-maze
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: create_tester_workspace
+  client: tester
+  rpc:
+    method: server.workspace.create
+    request:
+      name: ${tester_workspace}
+      collection: raidtest-testers
+      workflow_name: adventure-monster-maze-test
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_candidate_workspace
+  client: candidate
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: ${candidate_workspace}
+- id: select_tester_workspace
+  client: tester
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: ${tester_workspace}
+- id: run_dialogue_before_reload
+  timeout: 24m
+  workspace_relay:
+    first_client: tester
+    second_client: candidate
+    input: ${test_brief}
+    media: text
+    max_turns: 14
+    terminal_client: candidate
+  capture:
+    reload_handoff: /terminal/text
+  expect:
+    /terminal/client:
+      equals: candidate
+    /completed_turns:
+      equals: 14
+    /turns/candidate/count:
+      equals: 7
+    /turns/tester/count:
+      equals: 7
+    /turns/candidate/first_text_ms/max:
+      maximum: 6000
+    /turns/candidate/text_runes/min:
+      minimum: 10
+    /turns/candidate/text_runes/max:
+      maximum: 190
+- id: reload_candidate_workspace
+  client: candidate
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+- id: run_dialogue_after_reload
+  timeout: 22m
+  workspace_relay:
+    first_client: tester
+    second_client: candidate
+    input: ${reload_handoff}
+    media: text
+    max_turns: 13
+    terminal_client: tester
+  capture:
+    verdict: /terminal/text
+  expect:
+    /terminal/client:
+      equals: tester
+    /terminal/text:
+      pattern: ^\s*PASS\s*$
+    /completed_turns:
+      equals: 13
+    /turns/candidate/count:
+      equals: 6
+    /turns/tester/count:
+      equals: 7
+    /turns/candidate/first_text_ms/max:
+      maximum: 6000
+    /turns/candidate/text_runes/min:
+      minimum: 2
+    /turns/candidate/text_runes/max:
+      maximum: 180
+- id: emit_verdict
+  output:
+    variable: verdict
+finally:
+- id: stop_candidate_run
+  client: candidate
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: stop_tester_run
+  client: tester
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_candidate_workspace
+  client: candidate
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: ${candidate_workspace}
+- id: delete_tester_workspace
+  client: tester
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: ${tester_workspace}
+- id: delete_candidate_peer
+  client: candidate
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: delete_tester_peer
+  client: tester
+  rpc:
+    method: server.peer.delete
+    request: {}
+report:
+  redact:
+  - registration_token

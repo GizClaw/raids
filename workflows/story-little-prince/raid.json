@@ -1,0 +1,119 @@
+{
+  "schema": "raids.raid/v1alpha1",
+  "id": "story-little-prince",
+  "category": "story",
+  "title": {
+    "zh-CN": "小王子",
+    "en": "The Little Prince"
+  },
+  "summary": {
+    "zh-CN": "以原创星球旅程讨论陪伴、责任、想象与珍惜。",
+    "en": "Use an original planetary journey to discuss companionship, responsibility, imagination, and care."
+  },
+  "rating": {
+    "age": "6+",
+    "scheme": "raids-age-v1",
+    "content": []
+  },
+  "tags": [
+    "philosophy",
+    "friendship",
+    "classic"
+  ],
+  "language": [
+    "zh-CN"
+  ],
+  "implementations": {
+    "eino": {
+      "file": "eino.yaml",
+      "workflow_id": "eino-story-little-prince",
+      "driver": "eino",
+      "input": [
+        "text"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "eino-story-little-prince.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {}
+      }
+    },
+    "flowcraft": {
+      "file": "flowcraft.yaml",
+      "workflow_id": "flowcraft-story-little-prince",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-story-little-prince.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-story-little-prince.storyteller": {
+            "role": "storyteller",
+            "language": "zh-CN",
+            "description": "Storyteller voice"
+          }
+        }
+      }
+    }
+  },
+  "tester": {
+    "file": "test.yaml",
+    "workflow_id": "story-little-prince-test",
+    "driver": "eino",
+    "parameters": {
+      "models": {
+        "story-little-prince-test.model": {
+          "kind": "llm",
+          "role": "judge",
+          "description": "Chat model that generates every turn; needs streaming Chinese output"
+        }
+      }
+    },
+    "route": {
+      "responses": 7,
+      "checkpoints": [
+        "opening",
+        "english-opening",
+        "continue-choice",
+        "fact-boundary",
+        "safety-boundary",
+        "memory-store",
+        "memory-recall"
+      ]
+    }
+  },
+  "tests": [
+    {
+      "file": "tests/giztest/story-little-prince/eino.giztest.yaml",
+      "implementation": "eino",
+      "topology": "relay",
+      "reload": true,
+      "timeout": "35m"
+    },
+    {
+      "file": "tests/giztest/story-little-prince/flowcraft.giztest.yaml",
+      "implementation": "flowcraft",
+      "topology": "relay",
+      "reload": true,
+      "timeout": "35m"
+    }
+  ]
+}

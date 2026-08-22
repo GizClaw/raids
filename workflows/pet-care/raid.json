@@ -1,0 +1,96 @@
+{
+  "schema": "raids.raid/v1alpha1",
+  "id": "pet-care",
+  "category": "companion",
+  "title": {
+    "zh-CN": "宠物照护",
+    "en": "Pet Care"
+  },
+  "summary": {
+    "zh-CN": "主人与宠物的长期陪伴：身份事实、安全禁忌、喜好更正与共同经历的记忆。",
+    "en": "Long-term owner and pet companionship with durable identity, safety, preference corrections, and shared-event memory."
+  },
+  "rating": {
+    "age": "all",
+    "scheme": "raids-age-v1",
+    "content": []
+  },
+  "tags": [
+    "companion",
+    "pet",
+    "memory",
+    "relationship"
+  ],
+  "language": [
+    "zh-CN"
+  ],
+  "implementations": {
+    "pet": {
+      "file": "pet.yaml",
+      "workflow_id": "pet-care",
+      "driver": "pet",
+      "input": [
+        "text"
+      ],
+      "memory": {
+        "layout_id": "pet-care"
+      },
+      "parameters": {
+        "models": {
+          "pet-care.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "pet-care.pet": {
+            "role": "pet",
+            "language": "zh-CN",
+            "description": "Pet voice"
+          }
+        }
+      }
+    }
+  },
+  "tester": {
+    "file": "test.yaml",
+    "workflow_id": "pet-care-test",
+    "driver": "eino",
+    "parameters": {
+      "models": {
+        "pet-care-test.model": {
+          "kind": "llm",
+          "role": "judge",
+          "description": "Chat model that generates every turn; needs streaming Chinese output"
+        }
+      }
+    },
+    "route": {
+      "responses": 12,
+      "checkpoints": [
+        "establish-identity",
+        "acknowledge-safety",
+        "establish-routine",
+        "distract-weather",
+        "correct-toy",
+        "establish-event",
+        "emotional-turn",
+        "unrelated-knowledge",
+        "reload-recall",
+        "challenge-old-value",
+        "safety-decision",
+        "shared-event-recall"
+      ]
+    }
+  },
+  "tests": [
+    {
+      "file": "tests/giztest/pet-care/pet.giztest.yaml",
+      "implementation": "pet",
+      "topology": "relay",
+      "reload": true,
+      "timeout": "52m"
+    }
+  ]
+}

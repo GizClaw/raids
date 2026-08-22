@@ -1,0 +1,122 @@
+{
+  "schema": "raids.raid/v1alpha1",
+  "id": "story-fengshen",
+  "category": "story",
+  "title": {
+    "zh-CN": "封神榜",
+    "en": "Investiture of the Gods"
+  },
+  "summary": {
+    "zh-CN": "讲述封神世界中的人物选择、法宝与正邪责任。",
+    "en": "Tell child-friendly stories about choices, magical artifacts, duty, and justice in Investiture of the Gods."
+  },
+  "rating": {
+    "age": "9+",
+    "scheme": "raids-age-v1",
+    "content": [
+      "mythology",
+      "mild-peril"
+    ]
+  },
+  "tags": [
+    "chinese-mythology",
+    "legend",
+    "classic"
+  ],
+  "language": [
+    "zh-CN"
+  ],
+  "implementations": {
+    "eino": {
+      "file": "eino.yaml",
+      "workflow_id": "eino-story-fengshen",
+      "driver": "eino",
+      "input": [
+        "text"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "eino-story-fengshen.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {}
+      }
+    },
+    "flowcraft": {
+      "file": "flowcraft.yaml",
+      "workflow_id": "flowcraft-story-fengshen",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-story-fengshen.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-story-fengshen.storyteller": {
+            "role": "storyteller",
+            "language": "zh-CN",
+            "description": "Storyteller voice"
+          }
+        }
+      }
+    }
+  },
+  "tester": {
+    "file": "test.yaml",
+    "workflow_id": "story-fengshen-test",
+    "driver": "eino",
+    "parameters": {
+      "models": {
+        "story-fengshen-test.model": {
+          "kind": "llm",
+          "role": "judge",
+          "description": "Chat model that generates every turn; needs streaming Chinese output"
+        }
+      }
+    },
+    "route": {
+      "responses": 7,
+      "checkpoints": [
+        "opening",
+        "english-opening",
+        "continue-choice",
+        "fact-boundary",
+        "safety-boundary",
+        "memory-store",
+        "memory-recall"
+      ]
+    }
+  },
+  "tests": [
+    {
+      "file": "tests/giztest/story-fengshen/eino.giztest.yaml",
+      "implementation": "eino",
+      "topology": "relay",
+      "reload": true,
+      "timeout": "35m"
+    },
+    {
+      "file": "tests/giztest/story-fengshen/flowcraft.giztest.yaml",
+      "implementation": "flowcraft",
+      "topology": "relay",
+      "reload": true,
+      "timeout": "35m"
+    }
+  ]
+}

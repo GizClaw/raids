@@ -1,0 +1,119 @@
+{
+  "schema": "raids.raid/v1alpha1",
+  "id": "adventure-space-encyclopedia",
+  "category": "adventure",
+  "title": {
+    "zh-CN": "宇宙百科",
+    "en": "Space Encyclopedia"
+  },
+  "summary": {
+    "zh-CN": "通过任务、问答和观测探索真实宇宙知识。",
+    "en": "Explore real astronomy through missions, questions, and observations."
+  },
+  "rating": {
+    "age": "6+",
+    "scheme": "raids-age-v1",
+    "content": []
+  },
+  "tags": [
+    "space",
+    "astronomy",
+    "facts"
+  ],
+  "language": [
+    "zh-CN"
+  ],
+  "implementations": {
+    "eino": {
+      "file": "eino.yaml",
+      "workflow_id": "eino-adventure-space-encyclopedia",
+      "driver": "eino",
+      "input": [
+        "text"
+      ],
+      "memory": {
+        "layout_id": "adventure"
+      },
+      "parameters": {
+        "models": {
+          "eino-adventure-space-encyclopedia.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {}
+      }
+    },
+    "flowcraft": {
+      "file": "flowcraft.yaml",
+      "workflow_id": "flowcraft-adventure-space-encyclopedia",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk"
+      ],
+      "memory": {
+        "layout_id": "adventure"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-adventure-space-encyclopedia.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-adventure-space-encyclopedia.adventure-guide": {
+            "role": "adventure-guide",
+            "language": "zh-CN",
+            "description": "Adventure guide voice"
+          }
+        }
+      }
+    }
+  },
+  "tester": {
+    "file": "test.yaml",
+    "workflow_id": "adventure-space-encyclopedia-test",
+    "driver": "eino",
+    "parameters": {
+      "models": {
+        "adventure-space-encyclopedia-test.model": {
+          "kind": "llm",
+          "role": "judge",
+          "description": "Chat model that generates every turn; needs streaming Chinese output"
+        }
+      }
+    },
+    "route": {
+      "responses": 7,
+      "checkpoints": [
+        "opening",
+        "english-opening",
+        "continue-choice",
+        "fact-boundary",
+        "safety-boundary",
+        "memory-store",
+        "memory-recall"
+      ]
+    }
+  },
+  "tests": [
+    {
+      "file": "tests/giztest/adventure-space-encyclopedia/eino.giztest.yaml",
+      "implementation": "eino",
+      "topology": "relay",
+      "reload": true,
+      "timeout": "35m"
+    },
+    {
+      "file": "tests/giztest/adventure-space-encyclopedia/flowcraft.giztest.yaml",
+      "implementation": "flowcraft",
+      "topology": "relay",
+      "reload": true,
+      "timeout": "35m"
+    }
+  ]
+}

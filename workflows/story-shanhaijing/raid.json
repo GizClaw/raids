@@ -1,0 +1,121 @@
+{
+  "schema": "raids.raid/v1alpha1",
+  "id": "story-shanhaijing",
+  "category": "story",
+  "title": {
+    "zh-CN": "山海经",
+    "en": "Shanhaijing"
+  },
+  "summary": {
+    "zh-CN": "以儿童友好的方式探索《山海经》中的奇山异兽与想象世界。",
+    "en": "Explore the imagined lands and creatures of the Classic of Mountains and Seas in a child-friendly way."
+  },
+  "rating": {
+    "age": "6+",
+    "scheme": "raids-age-v1",
+    "content": [
+      "mythology"
+    ]
+  },
+  "tags": [
+    "chinese-mythology",
+    "creatures",
+    "geography"
+  ],
+  "language": [
+    "zh-CN"
+  ],
+  "implementations": {
+    "eino": {
+      "file": "eino.yaml",
+      "workflow_id": "eino-story-shanhaijing",
+      "driver": "eino",
+      "input": [
+        "text"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "eino-story-shanhaijing.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {}
+      }
+    },
+    "flowcraft": {
+      "file": "flowcraft.yaml",
+      "workflow_id": "flowcraft-story-shanhaijing",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-story-shanhaijing.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-story-shanhaijing.storyteller": {
+            "role": "storyteller",
+            "language": "zh-CN",
+            "description": "Storyteller voice"
+          }
+        }
+      }
+    }
+  },
+  "tester": {
+    "file": "test.yaml",
+    "workflow_id": "story-shanhaijing-test",
+    "driver": "eino",
+    "parameters": {
+      "models": {
+        "story-shanhaijing-test.model": {
+          "kind": "llm",
+          "role": "judge",
+          "description": "Chat model that generates every turn; needs streaming Chinese output"
+        }
+      }
+    },
+    "route": {
+      "responses": 7,
+      "checkpoints": [
+        "opening",
+        "english-opening",
+        "continue-choice",
+        "fact-boundary",
+        "safety-boundary",
+        "memory-store",
+        "memory-recall"
+      ]
+    }
+  },
+  "tests": [
+    {
+      "file": "tests/giztest/story-shanhaijing/eino.giztest.yaml",
+      "implementation": "eino",
+      "topology": "relay",
+      "reload": true,
+      "timeout": "35m"
+    },
+    {
+      "file": "tests/giztest/story-shanhaijing/flowcraft.giztest.yaml",
+      "implementation": "flowcraft",
+      "topology": "relay",
+      "reload": true,
+      "timeout": "35m"
+    }
+  ]
+}

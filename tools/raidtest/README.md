@@ -1,5 +1,15 @@
 # raidtest
 
+> **Superseded.** Every paired, catalog, default, benchmark, and H106 test now
+> lives as a declarative `gizclaw.test/v1alpha1` document under
+> [`tests/giztest`](../../tests/giztest/README.md) and runs through
+> `gizclaw test run`. The Tester Workflows under `workflows/eino/tests` now
+> speak the `workspace_relay` text protocol and no longer call the
+> `raidtest_acceptance_report` Tool, so this runner's paired suite mode
+> (`--suite`) can no longer drive them. The plans under `plans/` are kept as
+> the readable record of each route's contracts; the single-candidate shadow
+> Workflow path still works but is scheduled for removal.
+
 `raidtest` runs a local Raids Workflow against a real GizClaw Server without
 overwriting the deployed Workflow. It is a candidate validator, not a catalog
 installer, deployment tool, or replacement for complete product E2E.

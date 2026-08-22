@@ -1,0 +1,122 @@
+{
+  "schema": "raids.raid/v1alpha1",
+  "id": "story-around-world-80-days",
+  "category": "story",
+  "title": {
+    "zh-CN": "环游地球八十天",
+    "en": "Around the World in Eighty Days"
+  },
+  "summary": {
+    "zh-CN": "用路线、时区和交通选择完成环球旅行挑战。",
+    "en": "Complete a world journey through route, time-zone, and transport choices."
+  },
+  "rating": {
+    "age": "6+",
+    "scheme": "raids-age-v1",
+    "content": [
+      "mild-peril"
+    ]
+  },
+  "tags": [
+    "travel",
+    "geography",
+    "classic",
+    "verne"
+  ],
+  "language": [
+    "zh-CN"
+  ],
+  "implementations": {
+    "eino": {
+      "file": "eino.yaml",
+      "workflow_id": "eino-story-around-world-80-days",
+      "driver": "eino",
+      "input": [
+        "text"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "eino-story-around-world-80-days.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {}
+      }
+    },
+    "flowcraft": {
+      "file": "flowcraft.yaml",
+      "workflow_id": "flowcraft-story-around-world-80-days",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-story-around-world-80-days.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-story-around-world-80-days.storyteller": {
+            "role": "storyteller",
+            "language": "zh-CN",
+            "description": "Storyteller voice"
+          }
+        }
+      }
+    }
+  },
+  "tester": {
+    "file": "test.yaml",
+    "workflow_id": "story-around-world-80-days-test",
+    "driver": "eino",
+    "parameters": {
+      "models": {
+        "story-around-world-80-days-test.model": {
+          "kind": "llm",
+          "role": "judge",
+          "description": "Chat model that generates every turn; needs streaming Chinese output"
+        }
+      }
+    },
+    "route": {
+      "responses": 7,
+      "checkpoints": [
+        "opening",
+        "english-opening",
+        "continue-choice",
+        "fact-boundary",
+        "safety-boundary",
+        "memory-store",
+        "memory-recall"
+      ]
+    }
+  },
+  "tests": [
+    {
+      "file": "tests/giztest/story-around-world-80-days/eino.giztest.yaml",
+      "implementation": "eino",
+      "topology": "relay",
+      "reload": true,
+      "timeout": "35m"
+    },
+    {
+      "file": "tests/giztest/story-around-world-80-days/flowcraft.giztest.yaml",
+      "implementation": "flowcraft",
+      "topology": "relay",
+      "reload": true,
+      "timeout": "35m"
+    }
+  ]
+}

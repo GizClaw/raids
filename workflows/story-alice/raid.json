@@ -1,0 +1,128 @@
+{
+  "schema": "raids.raid/v1alpha1",
+  "id": "story-alice",
+  "category": "story",
+  "title": {
+    "zh-CN": "爱丽丝梦游仙境",
+    "en": "Alice in Wonderland"
+  },
+  "summary": {
+    "zh-CN": "用奇妙规则、语言游戏和逻辑谜题探索梦境世界。",
+    "en": "Explore a dreamlike world through strange rules, wordplay, and logic puzzles."
+  },
+  "rating": {
+    "age": "6+",
+    "scheme": "raids-age-v1",
+    "content": [
+      "dream-logic"
+    ]
+  },
+  "tags": [
+    "fantasy",
+    "wonderland",
+    "riddles",
+    "classic"
+  ],
+  "language": [
+    "zh-CN"
+  ],
+  "implementations": {
+    "eino": {
+      "file": "eino.yaml",
+      "workflow_id": "eino-story-alice",
+      "driver": "eino",
+      "input": [
+        "text"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "eino-story-alice.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {}
+      }
+    },
+    "flowcraft": {
+      "file": "flowcraft.yaml",
+      "workflow_id": "flowcraft-story-alice",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-story-alice.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-story-alice.storyteller": {
+            "role": "storyteller",
+            "language": "zh-CN",
+            "description": "Storyteller voice"
+          }
+        }
+      }
+    }
+  },
+  "tester": {
+    "file": "test.yaml",
+    "workflow_id": "story-alice-test",
+    "driver": "eino",
+    "parameters": {
+      "models": {
+        "story-alice-test.model": {
+          "kind": "llm",
+          "role": "judge",
+          "description": "Chat model that generates every turn; needs streaming Chinese output"
+        }
+      }
+    },
+    "route": {
+      "responses": 13,
+      "checkpoints": [
+        "opening",
+        "choose-question-watch",
+        "challenge-rule",
+        "ask-small-hint",
+        "propose-solution",
+        "establish-door",
+        "correct-door",
+        "reload-chapter-checkpoint",
+        "remember-password",
+        "correct-password",
+        "test-rule-counterexample",
+        "recall-password",
+        "recap-and-exit"
+      ]
+    }
+  },
+  "tests": [
+    {
+      "file": "tests/giztest/story-alice/eino.giztest.yaml",
+      "implementation": "eino",
+      "topology": "relay",
+      "reload": true,
+      "timeout": "55m"
+    },
+    {
+      "file": "tests/giztest/story-alice/flowcraft.giztest.yaml",
+      "implementation": "flowcraft",
+      "topology": "relay",
+      "reload": true,
+      "timeout": "55m"
+    }
+  ]
+}

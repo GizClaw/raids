@@ -1,0 +1,93 @@
+{
+  "schema": "raids.raid/v1alpha1",
+  "id": "chat-assistant",
+  "category": "assistant",
+  "title": {
+    "zh-CN": "聊天助手",
+    "en": "Chat Assistant"
+  },
+  "summary": {},
+  "rating": {
+    "age": "all",
+    "scheme": "raids-age-v1",
+    "content": []
+  },
+  "tags": [
+    "assistant",
+    "memory",
+    "scheduling"
+  ],
+  "language": [
+    "zh-CN"
+  ],
+  "implementations": {
+    "flowcraft": {
+      "file": "flowcraft.yaml",
+      "workflow_id": "flowcraft-chat-assistant",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk"
+      ],
+      "memory": {
+        "layout_id": "user-chat-with-assistant"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-chat-assistant.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-chat-assistant.assistant": {
+            "role": "assistant",
+            "language": "zh-CN",
+            "description": "Assistant voice"
+          }
+        }
+      }
+    }
+  },
+  "tester": {
+    "file": "test.yaml",
+    "workflow_id": "chat-assistant-test",
+    "driver": "eino",
+    "parameters": {
+      "models": {
+        "chat-assistant-test.model": {
+          "kind": "llm",
+          "role": "judge",
+          "description": "Chat model that generates every turn; needs streaming Chinese output"
+        }
+      }
+    },
+    "route": {
+      "responses": 12,
+      "checkpoints": [
+        "establish-trip",
+        "establish-purpose",
+        "correct-destination-train",
+        "short-encouragement",
+        "exact-answer",
+        "challenge-stale-trip",
+        "partial-recall",
+        "correct-day-time",
+        "unrelated-turn",
+        "reload-recall",
+        "compact-recall",
+        "final-confirmation"
+      ]
+    }
+  },
+  "tests": [
+    {
+      "file": "tests/giztest/chat-assistant/flowcraft.giztest.yaml",
+      "implementation": "flowcraft",
+      "topology": "relay",
+      "reload": true,
+      "timeout": "52m"
+    }
+  ]
+}

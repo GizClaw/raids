@@ -1,0 +1,127 @@
+{
+  "schema": "raids.raid/v1alpha1",
+  "id": "adventure-castle-mystery",
+  "category": "adventure",
+  "title": {
+    "zh-CN": "城堡谜案",
+    "en": "Castle Mystery"
+  },
+  "summary": {
+    "zh-CN": "在安全的城堡谜案中收集证据、验证推理并避免误判。",
+    "en": "Collect evidence, test deductions, and avoid false accusations in a child-safe castle mystery."
+  },
+  "rating": {
+    "age": "9+",
+    "scheme": "raids-age-v1",
+    "content": [
+      "mystery"
+    ]
+  },
+  "tags": [
+    "mystery",
+    "deduction",
+    "evidence"
+  ],
+  "language": [
+    "zh-CN"
+  ],
+  "implementations": {
+    "eino": {
+      "file": "eino.yaml",
+      "workflow_id": "eino-adventure-castle-mystery",
+      "driver": "eino",
+      "input": [
+        "text"
+      ],
+      "memory": {
+        "layout_id": "adventure"
+      },
+      "parameters": {
+        "models": {
+          "eino-adventure-castle-mystery.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {}
+      }
+    },
+    "flowcraft": {
+      "file": "flowcraft.yaml",
+      "workflow_id": "flowcraft-adventure-castle-mystery",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk"
+      ],
+      "memory": {
+        "layout_id": "adventure"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-adventure-castle-mystery.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-adventure-castle-mystery.adventure-guide": {
+            "role": "adventure-guide",
+            "language": "zh-CN",
+            "description": "Adventure guide voice"
+          }
+        }
+      }
+    }
+  },
+  "tester": {
+    "file": "test.yaml",
+    "workflow_id": "adventure-castle-mystery-test",
+    "driver": "eino",
+    "parameters": {
+      "models": {
+        "adventure-castle-mystery-test.model": {
+          "kind": "llm",
+          "role": "judge",
+          "description": "Chat model that generates every turn; needs streaming Chinese output"
+        }
+      }
+    },
+    "route": {
+      "responses": 13,
+      "checkpoints": [
+        "opening",
+        "inspect-footprints",
+        "inspect-feather",
+        "establish-clock-time",
+        "correct-clock-time",
+        "test-theory",
+        "seek-nonviolent-cause",
+        "reload-stage-checkpoint",
+        "interview-keeper-again",
+        "challenge-wrong-accusation",
+        "correct-footprint-size",
+        "recall-corrected-footprint",
+        "evidence-conclusion"
+      ]
+    }
+  },
+  "tests": [
+    {
+      "file": "tests/giztest/adventure-castle-mystery/eino.giztest.yaml",
+      "implementation": "eino",
+      "topology": "relay",
+      "reload": true,
+      "timeout": "55m"
+    },
+    {
+      "file": "tests/giztest/adventure-castle-mystery/flowcraft.giztest.yaml",
+      "implementation": "flowcraft",
+      "topology": "relay",
+      "reload": true,
+      "timeout": "55m"
+    }
+  ]
+}

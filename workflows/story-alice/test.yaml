@@ -1,0 +1,334 @@
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata:
+  id: story-alice-test
+spec:
+  driver: eino
+  toolkit:
+    tool_ids: []
+  eino:
+    graph:
+      name: story-alice-test-relay
+      compile:
+        node_trigger_mode: any_predecessor
+        max_run_steps: 8
+      state:
+        fields:
+        - name: tester-route
+          type: string
+          merge: replace
+        - name: tester-message
+          type: string
+          merge: replace
+        - name: tester-det
+          type: string
+          merge: replace
+        - name: prompt-system
+          type: string
+          merge: replace
+        - name: prompt-user
+          type: string
+          merge: replace
+        - name: judge-messages
+          type: messages
+          merge: replace
+        - name: model-text
+          type: string
+          merge: replace
+        - name: answer
+          type: string
+          merge: replace
+      nodes:
+      - id: route-turn
+        type: script
+        inputs:
+          text:
+            from: input.text
+          messages:
+            from: input.messages
+        outputs:
+          route: tester-route
+          message: tester-message
+          det: tester-det
+          system: prompt-system
+          user: prompt-user
+        language: starlark
+        entrypoint: run
+        source: |
+          REQUESTS = ["开始爱丽丝故事，请简短介绍兔子和两块表的选择。", "我先看显示问题的那块表，想知道它到底问了什么。", "如果答案表总比问题表快一分钟，那它怎么可能回答还没出现的问题？先回应我的质疑。", "给我一个小提示，不要直接告诉我谜底，也不要替我选下一步。", "我猜两块表不是在预测，而是在把同一个问题拆成先后两面。这个解释成立吗？", "我们来到一扇蓝色小门前，门把手像问号。请记住颜色，不要开门。", "更正，小门不是蓝色，是绿色；其他细节不变。只确认正确事实。", "重连后先别开门。用一句话说现在是第几章，并确认门的正确颜色。", "先记住门边口令是“茶杯向左”，只简短确认，不要开门。", "更正，口令是“茶杯向右”，旧口令作废。只确认新口令。", "如果所有会说话的门都诚实，这扇门刚才自相矛盾，该怎样检验规则而不是直接相信？", "隔了几轮，现在只说有效口令，不要提已经作废的那个。", "用两句完整的话说出我先看的手表和门的正确颜色，再让我自己决定是否开门。"]
+          INTENTS = ["", "", "", "", "", "", "", "", "", "", "", "", ""]
+          CHECKPOINTS = ["opening", "choose-question-watch", "challenge-rule", "ask-small-hint", "propose-solution", "establish-door", "correct-door", "reload-chapter-checkpoint", "remember-password", "correct-password", "test-rule-counterexample", "recall-password", "recap-and-exit"]
+          CONTRACTS = ["必须含兔子、两块表；不得含###、```、- ；20-120字", "必须含问题、表；45-185字", "40-180字", "不得含答案就是、正确答案是、你选择；20-110字", "35-170字", "必须含蓝色、门；不得含你打开了、你推开了、你进入了；15-90字", "必须含绿色、问号；不得含蓝色；10-80字", "必须含第三章、绿色；不得含蓝色、第四章、你打开、你进入；15-90字", "必须含茶杯向左；8-80字", "必须含茶杯向右；不得含茶杯向左；8-80字", "40-190字", "必须含茶杯向右；不得含茶杯向左；4-60字", "必须含问题、绿色；不得含蓝色、你打开、你进入、###、```；25-140字"]
+          CHECKS = [{"required": ["兔子", "两块表"], "required_any": [], "forbidden": ["###", "```", "- "], "min_runes": 20, "max_runes": 120}, {"required": ["问题", "表"], "required_any": [], "forbidden": [], "min_runes": 45, "max_runes": 185}, {"required": [], "required_any": [], "forbidden": [], "min_runes": 40, "max_runes": 180}, {"required": [], "required_any": [], "forbidden": ["答案就是", "正确答案是", "你选择"], "min_runes": 20, "max_runes": 110}, {"required": [], "required_any": [], "forbidden": [], "min_runes": 35, "max_runes": 170}, {"required": ["蓝色", "门"], "required_any": [], "forbidden": ["你打开了", "你推开了", "你进入了"], "min_runes": 15, "max_runes": 90}, {"required": ["绿色", "问号"], "required_any": [], "forbidden": ["蓝色"], "min_runes": 10, "max_runes": 80}, {"required": ["第三章", "绿色"], "required_any": [], "forbidden": ["蓝色", "第四章", "你打开", "你进入"], "min_runes": 15, "max_runes": 90}, {"required": ["茶杯向左"], "required_any": [], "forbidden": [], "min_runes": 8, "max_runes": 80}, {"required": ["茶杯向右"], "required_any": [], "forbidden": ["茶杯向左"], "min_runes": 8, "max_runes": 80}, {"required": [], "required_any": [], "forbidden": [], "min_runes": 40, "max_runes": 190}, {"required": ["茶杯向右"], "required_any": [], "forbidden": ["茶杯向左"], "min_runes": 4, "max_runes": 60}, {"required": ["问题", "绿色"], "required_any": [], "forbidden": ["蓝色", "你打开", "你进入", "###", "```"], "min_runes": 25, "max_runes": 140}]
+          RULES = "你是 `story-alice` 的专属验收 Workflow，不是目标剧本角色。你负责爱丽丝谜题的怀表规则、分级提示、门色和口令更正、反例、角色连续与玩家自主推理。\n负向控制：更正或回忆回复若恢复旧门色或旧口令，continuity 必须 fail；直接公布谜底、替玩家行动或强迫固定路线，instruction_following 必须 fail。"
+          PERSONA = ""
+          JUDGE_DIMS = ["instruction_following", "continuity", "factuality", "non_repetition"]
+          OFFSET = 0
+          N = 13
+          WHITESPACE = " \t\n\r　"
+          PUNCT = "，。！？、；：“”‘’（）《》〈〉【】『』「」—…·～,.!?;:'\"()[]{}<>-_/\\|`~@#$%^&*+=·"
+          DIGITS = {"０": "0", "１": "1", "２": "2", "３": "3", "４": "4", "５": "5", "６": "6", "７": "7", "８": "8", "９": "9", "零": "0", "一": "1", "二": "2", "三": "3", "四": "4", "五": "5", "六": "6", "七": "7", "八": "8", "九": "9"}
+          def rune_count(text):
+              n = 0
+              for _ in text.codepoints():
+                  n += 1
+              return n
+
+          def normalize(text, drop_punct):
+              out = []
+              for ch in text.codepoints():
+                  if ch in WHITESPACE:
+                      continue
+                  if drop_punct and ch in PUNCT:
+                      continue
+                  if ch in DIGITS:
+                      out.append(DIGITS[ch])
+                      continue
+                  out.append(ch.lower())
+              return "".join(out)
+
+          def is_sentinel(value):
+              if value in ["```", "###", "-"]:
+                  return True
+              if len(value) < 2 or not value.endswith("."):
+                  return False
+              for ch in value[:-1].codepoints():
+                  if ch not in "0123456789":
+                      return False
+              return True
+
+          def forbidden_hit(text, needle):
+              trimmed = needle.strip()
+              if trimmed.endswith(":") or trimmed.endswith("："):
+                  return normalize(trimmed, False) in normalize(text, False)
+              normalized = normalize(needle, True)
+              if normalized == "" or is_sentinel(trimmed):
+                  return trimmed in text
+              return normalized in normalize(text, True)
+
+          def deterministic_failures(index, text):
+              spec = CHECKS[index]
+              failures = []
+              plain = normalize(text, False)
+              for fact in spec.get("required", []):
+                  if normalize(fact, False) not in plain:
+                      failures.append("required:" + fact)
+              for group in spec.get("required_any", []):
+                  found = False
+                  for fact in group:
+                      if normalize(fact, False) in plain:
+                          found = True
+                          break
+                  if not found:
+                      failures.append("required_any:" + "|".join(group))
+              for fact in spec.get("forbidden", []):
+                  if forbidden_hit(text, fact):
+                      failures.append("forbidden:" + fact)
+              count = rune_count(text)
+              if spec.get("min_runes", 0) > 0 and count < spec["min_runes"]:
+                  failures.append("min_runes:" + str(count) + "<" + str(spec["min_runes"]))
+              if spec.get("max_runes", 0) > 0 and count > spec["max_runes"]:
+                  failures.append("max_runes:" + str(count) + ">" + str(spec["max_runes"]))
+              return failures
+
+          def aligned_rounds(messages):
+              # Returns [(index, request_text, reply_text)] aligned from the newest message
+              # backwards so a truncated History window still maps later rounds correctly.
+              users = []
+              previous_assistant = ""
+              for message in messages:
+                  role = message.get("role", "")
+                  content = message.get("content", "")
+                  if role == "assistant":
+                      previous_assistant = content
+                  elif role == "user":
+                      users.append((previous_assistant, content))
+              rounds = []
+              total = len(users)
+              for position in range(total):
+                  index = N - 1 - (total - 1 - position)
+                  if index < 0:
+                      continue
+                  request = REQUESTS[index]
+                  if request == "":
+                      request = users[position][0]
+                  rounds.append((index, request, users[position][1]))
+              return rounds
+
+          def output_index(messages):
+              count = 0
+              last = ""
+              for message in messages:
+                  if message.get("role", "") == "assistant":
+                      count += 1
+                      last = message.get("content", "").strip()
+              index = count
+              if last != "":
+                  for j in range(N):
+                      if REQUESTS[j] != "" and REQUESTS[j].strip() == last and j + 1 - OFFSET > index:
+                          index = j + 1 - OFFSET
+              return index
+
+          def recent_transcript(messages, limit):
+              lines = []
+              for message in messages[-limit:]:
+                  role = message.get("role", "")
+                  label = "玩家" if role == "assistant" else "目标"
+                  lines.append(label + "：" + message.get("content", "").strip())
+              return "\n".join(lines)
+
+          def run(input):
+              messages = input["messages"]
+              k = output_index(messages)
+              request_index = k + OFFSET
+              if request_index < N:
+                  if REQUESTS[request_index] != "":
+                      return {
+                          "route": "scripted",
+                          "message": REQUESTS[request_index],
+                          "det": "",
+                          "system": "你是测试脚手架。只回复 OK。",
+                          "user": "OK",
+                      }
+                  system = "\n".join([
+                      RULES,
+                      "",
+                      "现在你扮演模拟玩家。" + PERSONA,
+                      "根据给定意图，只输出一句自然的玩家话语；不得回答它、不得添加对话中不存在的名字、数字、事件或证据，不得削弱意图约束，不得提及测试。只输出这句话，不要引号、前缀或解释。",
+                  ])
+                  user = "意图：" + INTENTS[request_index] + "\n\n最近对话：\n" + recent_transcript(messages, 6)
+                  return {"route": "player", "message": "", "det": "", "system": system, "user": user}
+              rounds = aligned_rounds(messages)
+              failures = []
+              blocks = []
+              for round in rounds:
+                  index = round[0]
+                  for failure in deterministic_failures(index, round[2]):
+                      failures.append(CHECKPOINTS[index] + " " + failure)
+                  blocks.append("\n".join([
+                      "【第" + str(index + 1) + "轮 " + CHECKPOINTS[index] + "】",
+                      "契约：" + CONTRACTS[index],
+                      "玩家：" + round[1],
+                      "目标：" + round[2],
+                  ]))
+              system = "\n".join([
+                  RULES,
+                  "",
+                  "这是最后一轮。你只看到完整对话记录：标注“玩家”的是测试方发出的消息，标注“目标”的是被测 Workflow 的回复。",
+                  "请依据每一轮的契约逐轮判断以下维度：" + "、".join(JUDGE_DIMS) + "。确定性字数、关键词、顺序和延迟门槛由外部负责，你只判断语义：连续性、事实边界、指令遵循、不重复、玩家自主权和安全。",
+                  "失败必须指出某一轮回复中的具体缺陷；不得因为风格偏好判坏语义合格的回复，也不得忽略契约暴露的事实边界。",
+                  "先用不超过200字说明依据，最后一行只写 PASS 或 FAIL，不要其他字符。",
+              ])
+              user_parts = ["完整测试对话（按时间顺序，共 " + str(len(rounds)) + " 轮可见）：", ""] + blocks
+              if len(failures) > 0:
+                  user_parts.append("")
+                  user_parts.append("确定性检查已发现失败（最终裁决将为 FAIL）：" + "；".join(failures))
+              user_parts.append("")
+              user_parts.append("请按规则裁决，最后一行只写 PASS 或 FAIL。")
+              return {
+                  "route": "judge",
+                  "message": "",
+                  "det": "；".join(failures),
+                  "system": system,
+                  "user": "\n".join(user_parts),
+              }
+        limits:
+          max_execution_steps: 2000000
+          timeout: 2s
+          max_input_bytes: 1048576
+          max_output_bytes: 262144
+      - id: build-prompt
+        type: prompt
+        inputs:
+          system:
+            from: prompt-system
+          user:
+            from: prompt-user
+        outputs:
+          messages: judge-messages
+        format: f_string
+        messages:
+        - role: system
+          template: '{system}'
+        - role: user
+          template: '{user}'
+      - id: judge-model
+        type: chat_model
+        inputs:
+          messages:
+            from: judge-messages
+        outputs:
+          text: model-text
+        model: story-alice-test.model
+        max_tokens: 512
+        temperature: 0
+      - id: finalize
+        type: script
+        inputs:
+          route:
+            from: tester-route
+          message:
+            from: tester-message
+          det:
+            from: tester-det
+          model_text:
+            from: model-text
+        outputs:
+          answer: answer
+        language: starlark
+        entrypoint: run
+        source: |
+          def verdict_from(text):
+              lines = []
+              for line in text.strip().split("\n"):
+                  if line.strip() != "":
+                      lines.append(line.strip())
+              last = lines[-1] if len(lines) > 0 else ""
+              if "PASS" in last and "FAIL" not in last:
+                  return "PASS"
+              if "FAIL" in last:
+                  return "FAIL"
+              if "PASS" in text and "FAIL" not in text:
+                  return "PASS"
+              return "FAIL"
+
+          def run(input):
+              route = input["route"]
+              if route == "scripted":
+                  return {"answer": input["message"]}
+              if route == "player":
+                  text = input["model_text"].strip()
+                  first = text.split("\n")[0].strip().strip("“”\"'")
+                  if first == "":
+                      first = "请继续。"
+                  return {"answer": first}
+              if input["det"] != "":
+                  return {"answer": "FAIL"}
+              return {"answer": verdict_from(input["model_text"])}
+        limits:
+          max_execution_steps: 200000
+          timeout: 500ms
+          max_input_bytes: 262144
+          max_output_bytes: 65536
+      edges:
+      - from: start
+        to: route-turn
+      - from: route-turn
+        to: build-prompt
+      - from: build-prompt
+        to: judge-model
+      - from: judge-model
+        to: finalize
+      - from: finalize
+        to: end
+      branches: []
+      outputs:
+      - node: finalize
+        field: answer
+        name: assistant
+        mime_type: text/plain
+        primary: true
+    conversation:
+      starts: peer
+    limits:
+      max_output_bytes: 4194304

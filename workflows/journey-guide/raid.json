@@ -1,0 +1,192 @@
+{
+  "schema": "raids.raid/v1alpha1",
+  "id": "journey-guide",
+  "category": "story",
+  "title": {
+    "zh-CN": "西游记",
+    "en": "Journey to the West"
+  },
+  "summary": {},
+  "rating": {
+    "age": "6+",
+    "scheme": "raids-age-v1",
+    "content": [
+      "mild-peril"
+    ]
+  },
+  "tags": [
+    "journey-to-the-west",
+    "interactive-fiction",
+    "chinese-classic"
+  ],
+  "language": [
+    "zh-CN"
+  ],
+  "implementations": {
+    "eino-history": {
+      "file": "eino-history.yaml",
+      "workflow_id": "eino-journey-history",
+      "driver": "eino",
+      "memory_layout": null,
+      "input": [
+        "text"
+      ],
+      "parameters": {
+        "models": {
+          "eino-journey-history.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {}
+      }
+    },
+    "eino-memory-async": {
+      "file": "eino-memory-async.yaml",
+      "workflow_id": "eino-journey-memory-async",
+      "driver": "eino",
+      "input": [
+        "text"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "eino-journey-memory-async.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {}
+      }
+    },
+    "eino-memory-recall": {
+      "file": "eino-memory-recall.yaml",
+      "workflow_id": "eino-journey-memory-recall",
+      "driver": "eino",
+      "input": [
+        "text"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "eino-journey-memory-recall.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {}
+      }
+    },
+    "flowcraft": {
+      "file": "flowcraft.yaml",
+      "workflow_id": "flowcraft-journey-guide",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-journey-guide.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-journey-guide.narrator": {
+            "role": "narrator",
+            "language": "zh-CN",
+            "description": "Narrator voice"
+          }
+        }
+      }
+    }
+  },
+  "tester": {
+    "file": "test.yaml",
+    "workflow_id": "journey-guide-test",
+    "driver": "eino",
+    "parameters": {
+      "models": {
+        "journey-guide-test.model": {
+          "kind": "llm",
+          "role": "judge",
+          "description": "Chat model that generates every turn; needs streaming Chinese output"
+        }
+      }
+    },
+    "route": {
+      "responses": 20,
+      "checkpoints": [
+        "origin",
+        "river",
+        "choose-bridge",
+        "village",
+        "temple",
+        "establish-guide",
+        "correct-guide",
+        "mountain",
+        "shelter",
+        "wrong-theory",
+        "cave",
+        "scout",
+        "reload-recall",
+        "waterfall",
+        "diversion",
+        "rescue",
+        "return-choice",
+        "night-camp",
+        "recap",
+        "return"
+      ]
+    }
+  },
+  "tests": [
+    {
+      "file": "tests/giztest/journey-guide/eino-history.giztest.yaml",
+      "implementation": "eino-history",
+      "topology": "relay",
+      "reload": true,
+      "timeout": "45m"
+    },
+    {
+      "file": "tests/giztest/journey-guide/eino-memory-async.giztest.yaml",
+      "implementation": "eino-memory-async",
+      "topology": "relay",
+      "reload": true,
+      "timeout": "45m"
+    },
+    {
+      "file": "tests/giztest/journey-guide/eino-memory-recall.giztest.yaml",
+      "implementation": "eino-memory-recall",
+      "topology": "relay",
+      "reload": true,
+      "timeout": "45m"
+    },
+    {
+      "file": "tests/giztest/journey-guide/flowcraft.benchmark-6s.giztest.yaml",
+      "implementation": "flowcraft",
+      "topology": "single-client",
+      "reload": false,
+      "timeout": "18m"
+    },
+    {
+      "file": "tests/giztest/journey-guide/flowcraft.giztest.yaml",
+      "implementation": "flowcraft",
+      "topology": "relay",
+      "reload": true,
+      "timeout": "79m"
+    }
+  ]
+}
