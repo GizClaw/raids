@@ -22,7 +22,7 @@ fi
 failed=0
 while IFS= read -r file; do
   model_count="$(grep -Ec '^[[:space:]]+model:' "$file" || true)"
-  expected_count_in_file="$(grep -Ec "^[[:space:]]+model:[[:space:]]*${expected_model}[[:space:]]*$" "$file" || true)"
+  expected_count_in_file="$(grep -Fxc "    model: ${expected_model}" "$file" || true)"
   if [[ "$model_count" != 1 || "$expected_count_in_file" != 1 ]]; then
     printf '%s must contain exactly one model: %s field\n' "$file" "$expected_model" >&2
     failed=1
