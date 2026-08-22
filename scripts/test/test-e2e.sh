@@ -18,11 +18,12 @@ set -eu
 #   <raid>               every scenario of one raid, for example story-aesop
 #   <raid>/<scenario>    one scenario file, for example story-aesop/eino
 #
-# APPLY=1 applies the raid packages the run needs (candidate implementations,
-# the shared Tester, the testing RuntimeProfile, and the testing token) with
-# GIZCLAW_CONTEXT before running. That replaces the retired raidtest shadow
-# mode: edit workflows/<raid>/<engine>.yaml, then run
-# `APPLY=1 make test-e2e RAID=<raid>/<engine>`.
+# APPLY=1 applies the complete testing closure (every raid package, the testing
+# RuntimeProfile, and the testing token) with GIZCLAW_CONTEXT before running.
+# That replaces the retired raidtest shadow mode: edit
+# workflows/<raid>/<engine>.yaml, then run
+# `APPLY=1 make test-e2e RAID=<raid>/<engine>` to publish the edit and exercise
+# just that scenario.
 . "$(dirname -- "$0")/../common/repo.sh"
 root="$(repo_root)"
 : "${GIZCLAW:=gizclaw}"
@@ -77,16 +78,12 @@ if test "$APPLY" = 1; then
 		"$GIZCLAW" admin apply $context_args -f "$1" >/dev/null
 		printf 'applied %s\n' "$1"
 	}
+	# The testing RuntimeProfile binds the whole catalog, so every Workflow it
+	# references must exist before it is applied, whatever RAID selects.
 	printf '==> apply the testing closure\n'
-	if test "$RAID" = all; then
-		find workflows -type f -name '*.yaml' | LC_ALL=C sort | while IFS= read -r file; do
-			apply "$file"
-		done
-	else
-		for file in "workflows/$raid"/*.yaml; do
-			apply "$file"
-		done
-	fi
+	find workflows -type f -name '*.yaml' | LC_ALL=C sort | while IFS= read -r file; do
+		apply "$file"
+	done
 	apply runtime-profiles/testing.yaml
 	apply registration-tokens/testing.yaml
 fi
