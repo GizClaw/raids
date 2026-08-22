@@ -148,7 +148,10 @@ Workflows select the public MiniMax system Voices `Japanese_CalmLady`,
 [MiniMax system Voice catalog](https://platform.minimaxi.com/docs/faq/system-voice-id)
 classifies for those languages. These bindings add `MiniMaxTenant/minimax-cn`
 and its environment-owned Credential to the default dependency closure; Raids
-contains no credential value.
+contains no credential value. Every public MiniMax Voice selects
+`speech-2.6-turbo` through `spec.provider_data.model`; GizClaw v0.7.0 and later
+require that Voice-owned provider model when constructing MiniMax TTS and do
+not substitute a hidden model default.
 
 The public MemoryLayout catalog is organized by reusable scenario:
 
@@ -215,7 +218,7 @@ merged by [GizClaw #590](https://github.com/GizClaw/gizclaw/pull/590).
 ## Static resource validation
 
 Raids uses the released GizClaw binary as the only authority for declarative
-Resource format validation. With GizClaw v0.5.2 or later on `PATH`, validate
+Resource format validation. With GizClaw v0.7.0 or later on `PATH`, validate
 every applyable catalog Resource with:
 
 ```sh
@@ -236,10 +239,13 @@ allowed Credential and Tenant placeholders and validation fails if that file
 contains a populated value.
 
 Passing this check means each file conforms to the Resource schema embedded in
-that GizClaw release. It does not prove cross-resource references or aliases
-resolve, PIXA assets exist, provider credentials work, or a live Server will
-accept and run the complete catalog. Apply, runtime, `raidtest`, release, and
-Beijing Default E2E remain separate evidence.
+that GizClaw release. CI pins the immutable v0.7.0 Linux package and verifies
+its published SHA-256 digest before validation. Per-file schema validation does
+not prove runtime-only requirements such as a non-empty MiniMax Voice model,
+cross-resource references or aliases resolve, PIXA assets exist, provider
+credentials work, or a live Server will accept and run the complete catalog.
+Apply, runtime, `raidtest`, release, and Beijing Default E2E remain separate
+evidence.
 
 ## Live candidate validation
 
@@ -440,6 +446,24 @@ Voice files are snapshots of provider system catalogs. Purchased, cloned,
 generated, trained, and otherwise account-private voices are excluded. Server
 timestamps, account status, and raw provider responses are not source
 resources and are also excluded.
+
+The MiniMax CN and Global snapshots make the TTS provider model explicit on
+each Voice; the current public catalogs select `speech-2.6-turbo`. Volc Voice
+identity is generation-specific: the filename stem, `metadata.id` suffix, and
+`provider_data.voice_id` preserve the provider's exact `voice_type`, while
+`provider_data.resource_id` distinguishes `seed-tts-1.0`, `seed-tts-2.0`, and
+realtime resources. Consumers opt into a generation by selecting its concrete
+Voice resource; the catalog does not derive counterparts or fall back across
+generations.
+
+The Volc `seed-tts-2.0` snapshot comes from the public
+[voice list](https://www.volcengine.com/docs/6561/1257544?lang=zh), document
+`1257544` updated `2026-08-20T07:24:41Z`. It contains 444 Voices: 93 system,
+200 public ICL, and 151 multilingual entries. Provider-documented synthesis
+mode restrictions are descriptive selection metadata; the provider remains
+the enforcement point. The public `ICL_uranus_*_tob` entries still use
+`seed-tts-2.0`; `seed-icl-2.0` is reserved for account-private trained Voices
+and remains outside this snapshot.
 
 Each Voice directory name matches its Tenant `metadata.id`, so catalogs with
 different providers, endpoints, or regions remain separate. For example,
