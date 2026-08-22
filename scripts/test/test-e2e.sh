@@ -5,8 +5,11 @@ set -eu
 # itself has no Admin authority: it needs only the Peer access point and the
 # testing RegistrationToken.
 #
-#   GIZCLAW_TEST_ENDPOINT=edge-bj-01.e2e.gizclaw.com:9821 \
-#   GIZCLAW_TEST_REGISTRATION_TOKEN=... \
+# The deployment is configuration, never a default baked into this script:
+# GIZCLAW_TEST_ENDPOINT and GIZCLAW_TEST_REGISTRATION_TOKEN come from the
+# environment.
+#
+#   GIZCLAW_TEST_ENDPOINT=<host:port> GIZCLAW_TEST_REGISTRATION_TOKEN=<token> \
 #   make test-e2e RAID=story-aesop/eino
 #
 # RAID selects the scope:
@@ -88,7 +91,7 @@ if test "$APPLY" = 1; then
 	apply registration-tokens/testing.yaml
 fi
 
-: "${GIZCLAW_TEST_ENDPOINT:?set GIZCLAW_TEST_ENDPOINT to the Peer access point, for example edge-bj-01.e2e.gizclaw.com:9821}"
+: "${GIZCLAW_TEST_ENDPOINT:?set GIZCLAW_TEST_ENDPOINT to the Peer access point (host:port)}"
 : "${GIZCLAW_TEST_REGISTRATION_TOKEN:?set GIZCLAW_TEST_REGISTRATION_TOKEN to the testing-runtime RegistrationToken value}"
 
 if test -z "$REPORT"; then

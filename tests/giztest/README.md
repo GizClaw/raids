@@ -108,9 +108,10 @@ non-empty `/hits` before the reload.
 ## Running
 
 ```sh
-# 1. Point the runner at the Peer access point and the testing token.
-export GIZCLAW_TEST_ENDPOINT=edge-bj-01.e2e.gizclaw.com:9821
-export GIZCLAW_TEST_REGISTRATION_TOKEN=9c845896-1447-5a7e-b799-a1df42694fb8
+# 1. Point the runner at a deployment: the Peer access point and the value of
+#    the RegistrationToken it bootstraps with.
+export GIZCLAW_TEST_ENDPOINT=<host:port>
+export GIZCLAW_TEST_REGISTRATION_TOKEN=<testing-runtime token>
 
 # 2. Smoke: one raid, serial. APPLY=1 provisions the testing closure first
 #    (Admin authority; GIZCLAW_CONTEXT selects the context).
@@ -122,9 +123,13 @@ make test-e2e PARALLEL=8
 
 `make test-e2e` validates the selected scenarios offline first, then writes a
 redacted JSON report under `tests/giztest/reports/` (ignored by git) unless
-`REPORT=<path>` is given. The `testing-runtime` token value above is the
-committed Dev/E2E-only token from `registration-tokens/testing.yaml`; it is not
-a production credential.
+`REPORT=<path>` is given. No endpoint or token is baked into a script or a
+scenario: every document declares them as Giztest input variables
+(`env: GIZCLAW_TEST_ENDPOINT`, `env: GIZCLAW_TEST_REGISTRATION_TOKEN`, the
+latter `secret: true` so reports redact it), so the same checkout drives dev,
+e2e, or a local stack from the environment alone. The `testing-runtime` token in
+`registration-tokens/testing.yaml` is a committed Dev/E2E-only value, not a
+production credential.
 
 ## Provenance
 
