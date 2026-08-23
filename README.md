@@ -170,7 +170,8 @@ The public story catalog also includes paired Flowcraft and Eino text
 experiences for Aesop, Alice in Wonderland, Space Rescue, Monster Maze, and
 Castle Mystery. Each pair shares one player-visible scenario contract and Model
 resource while keeping independent Workflow-owned aliases and engine-native
-graph topology. Flowcraft uses Recall, a deterministic conditional router,
+graph topology. Flowcraft uses per-turn Recall to reconstruct its
+invocation-local Graph state before a deterministic phase router,
 phase-specific streaming model nodes, a correction-safe state reducer, and
 asynchronous Observe. Exactly one routed model publishes on each turn. Eino
 uses the same state boundaries through a non-empty
@@ -182,6 +183,14 @@ operational rescue, spatial navigation, and evidence-based deduction have
 separate behavior and safety contracts. Flowcraft entries provide the public
 spoken path; Eino entries remain text-only until the Eino Workflow contract
 exposes a Voice adapter.
+
+The other 25 simple story and adventure Flowcraft Workflows do not reconstruct
+authoritative Graph state. Their deterministic `route-recall` script bypasses
+Recall for openings, ordinary continuation, and store-only turns, while
+routing durable reads, post-reload resumes, and corrections through Recall.
+Both routes converge on the same narrator, progress capture, and single
+asynchronous Observe. The five stateful Workflows above retain per-turn Recall
+until their reducer state has a different authoritative owner.
 
 Each Layout defines portable Flowcraft, Mem0, and Volc Mem0 policy. The public
 default profile selects Flowcraft with `connection.type: flowcraft_bbh`; it
