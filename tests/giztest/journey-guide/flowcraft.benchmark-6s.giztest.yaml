@@ -1,0 +1,204 @@
+# User Story:
+# As a Raids catalog maintainer,
+# I want to drive `flowcraft-journey-guide` through the scripted `flowcraft-journey-6s` / `buffered-latency` turns over text input,
+# So that the deterministic keyword, length, script, and latency gates run as one isolated declarative task.
+version: gizclaw.test/v1alpha1
+name: journey-guide.flowcraft.benchmark-6s
+clients:
+  peer:
+    identity: ephemeral
+    connection: webrtc
+    access_point: ${endpoint}
+variables:
+  endpoint:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_ENDPOINT
+  registration_token:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_REGISTRATION_TOKEN
+    secret: true
+  workspace_name:
+    direction: input
+    type: string
+    generate: token
+repeat: 1
+timeout: 18m
+steps:
+- id: register_peer
+  client: peer
+  rpc:
+    method: server.register
+    request:
+      token: ${registration_token}
+- id: create_workspace
+  client: peer
+  rpc:
+    method: server.workspace.create
+    request:
+      name: ${workspace_name}
+      collection: story-teller
+      workflow_name: journey
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: FLOWCRAFT_CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_workspace
+  client: peer
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: ${workspace_name}
+- id: turn_1_origin
+  client: peer
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我从花果山出发，带着一枚青铜铃。承接我的行动，不要替我选择路线。
+    require_text: true
+  expect:
+    /text:
+      contains_all:
+      - 花果山
+      - 青铜铃
+      min_length: 80
+      max_length: 520
+    /first_text_ms:
+      maximum: 6000
+    /text_eos_ms:
+      maximum: 90000
+- id: turn_2_river
+  client: peer
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我沿河寻找渡口，先观察水流和两岸，不急着决定怎么过河。
+    require_text: true
+  expect:
+    /text:
+      min_length: 80
+      max_length: 520
+    /first_text_ms:
+      maximum: 6000
+    /text_eos_ms:
+      maximum: 90000
+- id: turn_3_establish-guide
+  client: peer
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我确认同行向导叫清禾，她熟悉黑风岭，请记住。
+    require_text: true
+  expect:
+    /text:
+      contains_all:
+      - 清禾
+      - 黑风岭
+      min_length: 10
+      max_length: 200
+    /first_text_ms:
+      maximum: 6000
+    /text_eos_ms:
+      maximum: 90000
+- id: turn_4_correct-guide
+  client: peer
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 更正，向导不叫清禾，叫明月；她仍然熟悉黑风岭。
+    require_text: true
+  expect:
+    /text:
+      contains_all:
+      - 明月
+      - 黑风岭
+      not_contains:
+      - 清禾
+      min_length: 10
+      max_length: 200
+    /first_text_ms:
+      maximum: 6000
+    /text_eos_ms:
+      maximum: 90000
+- id: turn_5_mountain
+  client: peer
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我和明月翻越黑风岭，遇到暴雨时先找安全处避雨。
+    require_text: true
+  expect:
+    /text:
+      contains_all:
+      - 明月
+      not_contains:
+      - 清禾
+      min_length: 80
+      max_length: 520
+    /first_text_ms:
+      maximum: 6000
+    /text_eos_ms:
+      maximum: 90000
+- id: turn_6_theory
+  client: peer
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我猜商队只是自己迷路了，并没有被抓走。根据目前剧情回应，不要顺着我下定论，也不要推进场景。
+    require_text: true
+  expect:
+    /text:
+      not_contains:
+      - 商队就是迷路
+      - 你继续前进
+      - 你走进山洞
+      min_length: 40
+      max_length: 480
+    /first_text_ms:
+      maximum: 6000
+    /text_eos_ms:
+      maximum: 90000
+- id: turn_7_recap
+  client: peer
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 用一句话说出向导姓名、我带的物品和当前地点。
+    require_text: true
+  expect:
+    /text:
+      contains_all:
+      - 明月
+      - 青铜铃
+      - 黑风岭
+      not_contains:
+      - 清禾
+      min_length: 10
+      max_length: 200
+    /first_text_ms:
+      maximum: 6000
+    /text_eos_ms:
+      maximum: 90000
+finally:
+- id: stop_run
+  client: peer
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_workspace
+  client: peer
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: ${workspace_name}
+- id: delete_peer
+  client: peer
+  rpc:
+    method: server.peer.delete
+    request: {}
+report:
+  redact:
+  - registration_token

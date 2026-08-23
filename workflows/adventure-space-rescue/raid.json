@@ -1,0 +1,127 @@
+{
+  "schema": "raids.raid/v1alpha1",
+  "id": "adventure-space-rescue",
+  "category": "adventure",
+  "title": {
+    "zh-CN": "宇宙救援",
+    "en": "Space Rescue"
+  },
+  "summary": {
+    "zh-CN": "协调信息、能源和团队完成非暴力宇宙救援。",
+    "en": "Coordinate information, energy, and teamwork in a non-violent space rescue."
+  },
+  "rating": {
+    "age": "6+",
+    "scheme": "raids-age-v1",
+    "content": [
+      "mild-peril"
+    ]
+  },
+  "tags": [
+    "space",
+    "teamwork",
+    "problem-solving"
+  ],
+  "language": [
+    "zh-CN"
+  ],
+  "implementations": {
+    "eino": {
+      "file": "eino.yaml",
+      "workflow_id": "eino-adventure-space-rescue",
+      "driver": "eino",
+      "input": [
+        "text"
+      ],
+      "memory": {
+        "layout_id": "adventure"
+      },
+      "parameters": {
+        "models": {
+          "eino-adventure-space-rescue.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {}
+      }
+    },
+    "flowcraft": {
+      "file": "flowcraft.yaml",
+      "workflow_id": "flowcraft-adventure-space-rescue",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk"
+      ],
+      "memory": {
+        "layout_id": "adventure"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-adventure-space-rescue.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-adventure-space-rescue.adventure-guide": {
+            "role": "adventure-guide",
+            "language": "zh-CN",
+            "description": "Adventure guide voice"
+          }
+        }
+      }
+    }
+  },
+  "tester": {
+    "file": "test.yaml",
+    "workflow_id": "adventure-space-rescue-test",
+    "driver": "eino",
+    "parameters": {
+      "models": {
+        "adventure-space-rescue-test.model": {
+          "kind": "llm",
+          "role": "judge",
+          "description": "Chat model that generates every turn; needs streaming Chinese output"
+        }
+      }
+    },
+    "route": {
+      "responses": 13,
+      "checkpoints": [
+        "opening",
+        "restore-communications",
+        "establish-energy",
+        "correct-energy",
+        "assign-roles",
+        "reject-sacrifice",
+        "choose-window",
+        "reload-stage-checkpoint",
+        "establish-coordinate",
+        "correct-coordinate",
+        "reject-attack",
+        "recall-coordinate",
+        "recap-state"
+      ]
+    }
+  },
+  "tests": [
+    {
+      "file": "tests/giztest/adventure-space-rescue/eino.giztest.yaml",
+      "implementation": "eino",
+      "topology": "relay",
+      "reload": true,
+      "timeout": "55m"
+    },
+    {
+      "file": "tests/giztest/adventure-space-rescue/flowcraft.giztest.yaml",
+      "implementation": "flowcraft",
+      "topology": "relay",
+      "reload": true,
+      "timeout": "55m"
+    }
+  ]
+}

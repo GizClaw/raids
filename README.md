@@ -13,8 +13,9 @@ voices, credentials, and provider definitions needed for an AI scenario.
 
 Resources are grouped by kind. Credential, Tenant, Model, MemoryLayout, and
 PetDef resources are flat because their `metadata.id` already provides the
-stable identity. Voice catalogs and Workflows keep one grouping level for
-navigability:
+stable identity. Voice catalogs keep one grouping level per Tenant; Workflows are grouped by
+scenario (raid), with one file per engine implementation plus the scenario's
+Tester, metadata, and README:
 
 ```text
 credentials/<credential-name>.yaml
@@ -23,7 +24,10 @@ models/<model-name>.yaml
 memory-layouts/<layout-name>.yaml
 petdefs/<petdef-name>.yaml
 voices/<tenant-name>/<voice-id>.yaml
-workflows/<driver>/<raid-name>.yaml
+workflows/<raid-name>/<engine>.yaml        # one directory per scenario: flowcraft.yaml, eino.yaml, ...
+workflows/<raid-name>/test.yaml            # the scenario's single Tester Workflow (id <raid-name>-test)
+workflows/<raid-name>/raid.json            # scenario metadata: rating, category, tags, voices, models, testing
+workflows/<raid-name>/README.md            # human-readable play and test route
 runtime-profiles/<profile-name>.yaml
 registration-tokens/<token-name>.yaml
 runtime-profile.example.yaml
@@ -222,15 +226,21 @@ Resource format validation. With GizClaw v0.7.0 or later on `PATH`, validate
 every applyable catalog Resource with:
 
 ```sh
-make validate-resources
+make test-unit-resources
 ```
 
-Use `GIZCLAW=/path/to/gizclaw make validate-resources` to select an explicit
+Use `GIZCLAW=/path/to/gizclaw make test-unit-resources` to select an explicit
 binary. The target validates each YAML file under the applyable Resource
-directories, including `tool-resources/`, independently. It does not read
-`runtime-profile.example.yaml` or the plans and fixtures under `tools/raidtest`.
-It is offline: it does not use a GizClaw context, contact Server, or mutate
+directories independently, and then validates the
+declarative Giztest corpus with `gizclaw test validate`. It does not read
+`runtime-profile.example.yaml`. It is offline: it does not use a GizClaw context, contact Server, or mutate
 resources.
+
+Every public Make target dispatches to the same-named script under
+`scripts/<group>/<target>.sh`; the Makefile itself only declares targets,
+default variables, and exports. `make help` lists the complete surface:
+`test-unit-resources`, `test-unit-voices`, and `test-e2e`. CI runs each
+`test-unit-*` target as its own step; there is no aggregate target.
 
 For static schema validation, the target exports a fixed non-secret placeholder
 for each empty variable declared by `.env.example`. It never reads or requires
@@ -240,66 +250,51 @@ contains a populated value.
 
 Passing this check means each file conforms to the Resource schema embedded in
 that GizClaw release. CI pins the immutable v0.7.0 Linux package and verifies
-its published SHA-256 digest before validation. CI separately runs
-`make validate-catalog-invariants`, which requires exactly 635 MiniMax Voice
-files and exactly one `model: speech-2.6-turbo` field in each. Per-file schema
-validation alone does not prove other runtime-only requirements such as
-cross-resource references or aliases resolve, PIXA assets exist, provider
-credentials work, or a live Server will accept and run the complete catalog.
-Apply, runtime, `raidtest`, release, and Beijing Default E2E remain separate
-evidence.
+its published SHA-256 digest before validation. `make test-unit-voices`
+separately requires exactly 635 MiniMax Voice files and exactly one
+`model: speech-2.6-turbo` field in each. Per-file schema validation alone does
+not prove other runtime-only requirements such as cross-resource references or
+aliases resolve, PIXA assets exist, provider credentials work, or a live Server
+will accept and run the complete catalog. Apply, runtime, `make test-e2e`,
+release, and Beijing Default E2E remain separate evidence.
 
-## Live candidate validation
+## Raid packages
 
-[`tools/raidtest`](tools/raidtest/README.md) is the public Go runner for testing
-one locally edited Workflow before it is published. It creates a unique shadow
-Workflow, optional MemoryLayouts, a rewritten shadow RuntimeProfile, temporary
-RegistrationToken, peer, and Workspace on the selected Server. It then runs a
-declared multi-turn plan and deletes only the resources recorded by that run,
-in reverse dependency order.
+Every scenario is one package directory `workflows/<raid>/`: one Workflow per
+engine implementation (`flowcraft.yaml`, `eino.yaml`, …), the scenario's single
+relay Tester (`test.yaml`, id `<raid>-test`), a `raid.json` manifest, and a
+README. `raid.json` declares the implementations and the slots each needs —
+model aliases, voice aliases, MemoryLayout — without binding them to concrete
+resources; rating (`raids-age-v1`), category, and tags make the catalog
+filterable. It is descriptive metadata for consumers and reviewers, not an
+input to a generator: `runtime-profiles/default.yaml` and
+`runtime-profiles/testing.yaml` stay hand-written, and adding a raid to a
+profile means binding its Workflow in a collection and declaring the model and
+voice aliases the manifest lists.
 
-Its paired suite mode is a separate Dev qualification path: it updates the
-canonical target and dedicated Eino Tester Workflow IDs in place, reuses the
-stable `testing` RuntimeProfile and `testing-runtime` token, creates separate
-Target and Tester Peers/Workspaces, and never mutates MemoryLayouts. Tester
-Workflows own natural dialogue and semantic decisions through the scoped
-`raidtest_acceptance_report` client Tool; external paired plans retain only
-checkpoint order, deterministic/reload/Recall gates, and target latency limits.
-Paired cases remain serial by default. A Dev-only diagnostic mode can admit
-`1..8` isolated cases with a bounded launch ramp while sampling the public Peer
-`/server-info` health endpoint. An unhealthy initial or later probe stops new
-admission without reassigning active-case failures; reports preserve suite order
-and add candidate, concurrency, UTC failure, and coalesced health evidence
-without changing `raidtest.report/v1`.
-The five story/adventure Tester pairs route each envelope through deterministic
-checkpoint parsing and one of six phase-specific judge Prompts. Exact facts and
-length remain external hard gates; the Model judges only current-checkpoint
-semantics such as continuity, grounding, non-repetition, and player agency.
+## Declarative live tests
 
-The runner accepts Flowcraft and Eino scripted Workflows. The three public Eino
-Journey Workflows under `workflows/eino` keep the same underlying model and a
-comparable prompt while separating History, synchronous Memory Recall, and
-asynchronous Memory Observe. They are published beside the Flowcraft Journey
-Workflow so quality and first-response latency can be compared without
-replacing it. Eino currently has no public `voice_adapter` contract equivalent
-to Flowcraft, so these Eino entries qualify the text path only and are not a
-claim of spoken Journey parity.
+[`tests/giztest`](tests/giztest/README.md) holds every live Raids test as one
+`gizclaw.test/v1alpha1` document: 64 paired candidate/Tester relays (every
+story, adventure, Journey, and Murder Mystery target on both engines), the
+default assistant, Journey, Pet Care, Doubao realtime, and AST translation
+routes, the Journey TTFT benchmark, and the historical 3×/5× qualification
+repeats. `gizclaw test run tests/giztest/paired --parallel N` isolates each
+file and repeat in its own ephemeral Peers and Workspaces and schedules them
+through one global worker pool; `make test-e2e` runs them against a provisioned
+deployment and `make test-unit-resources` validates the corpus offline. Each scenario's single Tester Workflow (`workflows/<raid>/test.yaml`, id `<raid>-test`, shared by every engine implementation) speaks the
+`workspace_relay` text protocol: they drive the scripted route, audit the
+deterministic contracts over their own History, and end with a single `PASS`
+or `FAIL`. Provisioning stays outside the runner: `APPLY=1 make test-e2e`
+applies the catalog, the Testers, the `testing` RuntimeProfile, and the
+`testing-runtime` token with the selected Admin context before running.
 
-The runner never edits deployed source Resource IDs and never reads a
-Credential manifest. Admin and optional OpenAI-compatible secrets come from a
-caller-selected environment variable, file, or stdin source; argv and the JSON
-report contain only non-secret execution metadata. The committed plans under
-`tools/raidtest/plans/default` cover Pet Care, both assistants, Murder Mystery,
-Journey, and all Default translation directions.
+This corpus requires GizClaw v0.6.0 or later (GizClaw #916, #921, #923). It
+replaces the retired `tools/raidtest` Go runner: validating one locally edited
+Workflow is now `APPLY=1 make test-e2e RAID=<raid>/<engine>`, which applies that
+raid package and the testing closure before running its scenario.
 
-Static `make ci`, an isolated `raidtest` result, a released Raids archive, a
-deployed RuntimeProfile, and the complete Beijing Default E2E are separate
-evidence. Passing one does not imply the later stages occurred.
-Likewise, private GizClaw process profiles remain Deploy/operator evidence:
-raidtest neither reaches the profiling ObjectStore nor embeds profiles in its
-report. Parallel qualification requires a clean Raids candidate, a healthy
-serial baseline, manually gated `2/4/8` waves, and matching manifest-verified
-Dev profile sets and Server logs before drawing a causal conclusion.
+## Catalog behavior notes
 
 Default Pet Care and General Assistant intentionally keep Memory extraction
 asynchronous. Same-Workspace turn continuity and reload recall come from the

@@ -1,0 +1,127 @@
+{
+  "schema": "raids.raid/v1alpha1",
+  "id": "adventure-monster-maze",
+  "category": "adventure",
+  "title": {
+    "zh-CN": "怪兽迷宫",
+    "en": "Monster Maze"
+  },
+  "summary": {
+    "zh-CN": "用方向、图形和逻辑谜题走出不恐怖的怪兽迷宫。",
+    "en": "Escape a friendly monster maze using direction, shape, and logic puzzles."
+  },
+  "rating": {
+    "age": "6+",
+    "scheme": "raids-age-v1",
+    "content": [
+      "mild-peril"
+    ]
+  },
+  "tags": [
+    "maze",
+    "spatial",
+    "puzzle"
+  ],
+  "language": [
+    "zh-CN"
+  ],
+  "implementations": {
+    "eino": {
+      "file": "eino.yaml",
+      "workflow_id": "eino-adventure-monster-maze",
+      "driver": "eino",
+      "input": [
+        "text"
+      ],
+      "memory": {
+        "layout_id": "adventure"
+      },
+      "parameters": {
+        "models": {
+          "eino-adventure-monster-maze.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {}
+      }
+    },
+    "flowcraft": {
+      "file": "flowcraft.yaml",
+      "workflow_id": "flowcraft-adventure-monster-maze",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk"
+      ],
+      "memory": {
+        "layout_id": "adventure"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-adventure-monster-maze.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-adventure-monster-maze.adventure-guide": {
+            "role": "adventure-guide",
+            "language": "zh-CN",
+            "description": "Adventure guide voice"
+          }
+        }
+      }
+    }
+  },
+  "tester": {
+    "file": "test.yaml",
+    "workflow_id": "adventure-monster-maze-test",
+    "driver": "eino",
+    "parameters": {
+      "models": {
+        "adventure-monster-maze-test.model": {
+          "kind": "llm",
+          "role": "judge",
+          "description": "Chat model that generates every turn; needs streaming Chinese output"
+        }
+      }
+    },
+    "route": {
+      "responses": 13,
+      "checkpoints": [
+        "opening",
+        "choose-moon",
+        "establish-route",
+        "correct-route",
+        "request-hint",
+        "meet-helper",
+        "uncertain-theory",
+        "reload-area-checkpoint",
+        "inspect-shape-lock",
+        "correct-marker-color",
+        "refuse-dangerous-shortcut",
+        "combine-clues",
+        "recap-map"
+      ]
+    }
+  },
+  "tests": [
+    {
+      "file": "tests/giztest/adventure-monster-maze/eino.giztest.yaml",
+      "implementation": "eino",
+      "topology": "relay",
+      "reload": true,
+      "timeout": "55m"
+    },
+    {
+      "file": "tests/giztest/adventure-monster-maze/flowcraft.giztest.yaml",
+      "implementation": "flowcraft",
+      "topology": "relay",
+      "reload": true,
+      "timeout": "55m"
+    }
+  ]
+}

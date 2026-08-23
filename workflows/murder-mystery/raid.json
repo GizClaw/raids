@@ -1,0 +1,112 @@
+{
+  "schema": "raids.raid/v1alpha1",
+  "id": "murder-mystery",
+  "category": "adventure",
+  "title": {
+    "zh-CN": "雨夜留声机（剧本杀）",
+    "en": "Rainy Night Phonograph (Murder Mystery)"
+  },
+  "summary": {
+    "zh-CN": "长流程侦探剧本杀：自由调查、证词核对、证据更正与暂定结论。",
+    "en": "Long-form detective mystery with free investigation, testimony checks, evidence corrections, and a provisional conclusion."
+  },
+  "rating": {
+    "age": "12+",
+    "scheme": "raids-age-v1",
+    "content": [
+      "mystery-death"
+    ]
+  },
+  "tags": [
+    "murder-mystery",
+    "deduction",
+    "role-play"
+  ],
+  "language": [
+    "zh-CN"
+  ],
+  "implementations": {
+    "flowcraft": {
+      "file": "flowcraft.yaml",
+      "workflow_id": "flowcraft-murder-mystery",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk"
+      ],
+      "memory": {
+        "layout_id": "adventure"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-murder-mystery.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-murder-mystery.game-master": {
+            "role": "game-master",
+            "language": "zh-CN",
+            "description": "Game master voice"
+          }
+        }
+      }
+    }
+  },
+  "tester": {
+    "file": "test.yaml",
+    "workflow_id": "murder-mystery-test",
+    "driver": "eino",
+    "parameters": {
+      "models": {
+        "murder-mystery-test.model": {
+          "kind": "llm",
+          "role": "judge",
+          "description": "Chat model that generates every turn; needs streaming Chinese output"
+        }
+      }
+    },
+    "route": {
+      "responses": 26,
+      "checkpoints": [
+        "opening",
+        "inspect-balcony",
+        "inspect-window",
+        "interview-chef",
+        "inspect-kitchen",
+        "interview-housekeeper",
+        "inspect-study",
+        "establish-shoe-size",
+        "interview-heir",
+        "inspect-phonograph",
+        "irrelevant-garden-route",
+        "mistaken-outage-theory",
+        "correct-shoe-size",
+        "inspect-heir-room",
+        "inspect-fireplace",
+        "interview-lawyer",
+        "inspect-will",
+        "inspect-rear-corridor",
+        "inspect-thread",
+        "delayed-correction-recall",
+        "challenge-chef",
+        "revisit-phonograph",
+        "accuse-wrong-suspect",
+        "summarize-confirmed-clues",
+        "analyze-contradictions",
+        "conclude"
+      ]
+    }
+  },
+  "tests": [
+    {
+      "file": "tests/giztest/murder-mystery/flowcraft.giztest.yaml",
+      "implementation": "flowcraft",
+      "topology": "relay",
+      "reload": true,
+      "timeout": "99m"
+    }
+  ]
+}
