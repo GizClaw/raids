@@ -28,8 +28,6 @@ workflows/<raid-name>/<engine>.yaml        # one directory per scenario: flowcra
 workflows/<raid-name>/test.yaml            # the scenario's single Tester Workflow (id <raid-name>-test)
 workflows/<raid-name>/raid.json            # scenario metadata: rating, category, tags, voices, models, testing
 workflows/<raid-name>/README.md            # human-readable play and test route
-profile-plans/<profile>.base.yaml          # RuntimeProfile without raid bindings
-profile-plans/<profile>.plan.yaml          # `raids install` plan that regenerates runtime-profiles/<profile>.yaml
 runtime-profiles/<profile-name>.yaml
 registration-tokens/<token-name>.yaml
 runtime-profile.example.yaml
@@ -241,9 +239,8 @@ resources.
 Every public Make target dispatches to the same-named script under
 `scripts/<group>/<target>.sh`; the Makefile itself only declares targets,
 default variables, and exports. `make help` lists the complete surface:
-`build-raids`, `build-profiles`, `test-unit-go`,
-`test-unit-resources`, and `test-e2e`. CI runs the two `test-unit-*` targets as
-separate steps; there is no aggregate target.
+`test-unit-resources`, `test-unit-voices`, and `test-e2e`. CI runs each
+`test-unit-*` target as its own step; there is no aggregate target.
 
 For static schema validation, the target exports a fixed non-secret placeholder
 for each empty variable declared by `.env.example`. It never reads or requires
@@ -269,15 +266,11 @@ relay Tester (`test.yaml`, id `<raid>-test`), a `raid.json` manifest, and a
 README. `raid.json` declares the implementations and the slots each needs —
 model aliases, voice aliases, MemoryLayout — without binding them to concrete
 resources; rating (`raids-age-v1`), category, and tags make the catalog
-filterable. [`tools/raids`](tools/raids/README.md) is the package manager:
-`raids install <raid> --impl <engine> --profile <file> --collection <name> --set …`
-binds a package into a RuntimeProfile (YAML-only edits, no Server access),
-`raids check` verifies the committed profiles, and `make test-unit-go` runs the
-same checks as Go tests in CI. The committed `runtime-profiles/testing.yaml` and
-`runtime-profiles/default.yaml` are themselves generated:
-`profile-plans/<id>.base.yaml` holds the non-raid part, `profile-plans/<id>.plan.yaml`
-lists the installs, and `make build-profiles` (or `CHECK=1 make build-profiles`)
-replays them with `raids generate`.
+filterable. It is descriptive metadata for consumers and reviewers, not an
+input to a generator: `runtime-profiles/default.yaml` and
+`runtime-profiles/testing.yaml` stay hand-written, and adding a raid to a
+profile means binding its Workflow in a collection and declaring the model and
+voice aliases the manifest lists.
 
 ## Declarative live tests
 

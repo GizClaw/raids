@@ -1,31 +1,18 @@
 .DEFAULT_GOAL := help
 
-GO ?= go
-CGO_ENABLED ?= 0
 GIZCLAW ?= gizclaw
 GIZCLAW_TEST_CLI ?= $(GIZCLAW)
-RAIDS_OUTPUT ?= raids
 RAID ?= all
 PARALLEL ?= 1
 APPLY ?= 0
-CHECK ?= 0
 
-export GO CGO_ENABLED GIZCLAW GIZCLAW_TEST_CLI RAIDS_OUTPUT
-export RAID PARALLEL APPLY CHECK GIZCLAW_CONTEXT REPORT
+export GIZCLAW GIZCLAW_TEST_CLI
+export RAID PARALLEL APPLY GIZCLAW_CONTEXT REPORT
 
-.PHONY: help build-raids build-profiles test-unit-go test-unit-resources test-unit-voices test-e2e
+.PHONY: help test-unit-resources test-unit-voices test-e2e
 
 help:
 	@scripts/config/help.sh
-
-build-raids:
-	@scripts/build/build-raids.sh
-
-build-profiles:
-	@scripts/build/build-profiles.sh
-
-test-unit-go:
-	@scripts/test/test-unit-go.sh
 
 test-unit-resources:
 	@scripts/test/test-unit-resources.sh
