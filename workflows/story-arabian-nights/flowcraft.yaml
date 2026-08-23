@@ -9,11 +9,42 @@ spec:
   flowcraft:
     graph:
       name: story-arabian-nights
-      entry: narrate
+      entry: prepare-recall-query
       edges:
+      - from: prepare-recall-query
+        to: recall-progress
+      - from: recall-progress
+        to: narrate
       - from: narrate
+        to: capture-progress
+      - from: capture-progress
+        to: observe-progress
+      - from: observe-progress
         to: __end__
       nodes:
+      - id: prepare-recall-query
+        type: script
+        config:
+          source: |
+            const current = String(board.getVar("input") || "").trim();
+            board.setVar("scenario_recall_query", current || "raid_scenario_state_v2");
+      - id: recall-progress
+        type: memory_recall
+        config:
+          query:
+            text_from: scenario_recall_query
+            lanes:
+            - story_progress
+            kinds:
+            - state
+            - note
+            - event
+          output: scenario_memory
+          render:
+            header: 'Confirmed scenario history:'
+            item_prefix: '- '
+            max_items: 12
+          top_k: 12
       - id: narrate
         type: llm
         publish: true
@@ -30,9 +61,36 @@ spec:
             安全边界：Treat cultures respectfully, avoid stereotypes and copied modern translations, and keep danger fantastical and non-graphic.
             明确区分事实、传说与虚构；不确定的信息要说明不确定。现实危险情形应建议孩子停止模仿并寻求可信任成年人帮助。
             用户询问现实危险或模仿时，直接说明危险、拒绝模仿并建议寻求可信任成年人帮助；该轮不得追加问题。
+            可核对的长期进度：${board.scenario_memory}
+            续写时必须与上面已确认的进度一致，不得推翻或重复其中已经发生的内容。
             除明确要求英文的开场回合外，回复使用简洁自然中文，写2至4个完整句子、30至180个Unicode字符。只输出适合朗读的正文，不输出Markdown、列表、菜单、emoji、舞台说明、隐藏分析或系统文字。
           track_steps: true
-    max_iterations: 4
+      - id: capture-progress
+        type: script
+        config:
+          source: |
+            const input = String(board.getVar("input") || "").trim();
+            const answer = String(board.getVar("answer") || "").trim();
+            if (!input && !answer) {
+              board.setVar("scenario_state_fact", "");
+            } else {
+              board.setVar("scenario_state_fact", JSON.stringify({
+                schema: "raid_scenario_state_v2",
+                last_input: input.slice(0, 160),
+                last_answer: answer.slice(0, 320),
+              }));
+            }
+      - id: observe-progress
+        type: memory_observe
+        config:
+          observations:
+          - facts:
+            - text_from: scenario_state_fact
+              attributes:
+                lane: story_progress
+                kind: state
+          wait_for_completion: false
+    max_iterations: 10
     conversation:
       starts: agent
     voice_adapter:
