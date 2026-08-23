@@ -42,7 +42,7 @@ variables:
     direction: output
     type: string
 repeat: 1
-timeout: 45m
+timeout: 79m
 steps:
 - id: register_candidate
   client: candidate
@@ -93,13 +93,13 @@ steps:
     request:
       workspace_name: ${tester_workspace}
 - id: run_dialogue_before_reload
-  timeout: 27m
+  timeout: 40m
   workspace_relay:
     first_client: tester
     second_client: candidate
     input: ${test_brief}
     media: text
-    max_turns: 16
+    max_turns: 24
     terminal_client: candidate
   capture:
     reload_handoff: /terminal/text
@@ -107,11 +107,11 @@ steps:
     /terminal/client:
       equals: candidate
     /completed_turns:
-      equals: 16
+      equals: 24
     /turns/candidate/count:
-      equals: 8
+      equals: 12
     /turns/tester/count:
-      equals: 8
+      equals: 12
     /turns/candidate/first_text_ms/max:
       maximum: 6000
     /turns/candidate/text_runes/min:
@@ -124,13 +124,13 @@ steps:
     method: server.run.workspace.reload
     request: {}
 - id: run_dialogue_after_reload
-  timeout: 9m
+  timeout: 29m
   workspace_relay:
     first_client: tester
     second_client: candidate
     input: ${reload_handoff}
     media: text
-    max_turns: 5
+    max_turns: 17
     terminal_client: tester
   capture:
     verdict: /terminal/text
@@ -140,11 +140,11 @@ steps:
     /terminal/text:
       pattern: ^\s*PASS\s*$
     /completed_turns:
-      equals: 5
+      equals: 17
     /turns/candidate/count:
-      equals: 2
+      equals: 8
     /turns/tester/count:
-      equals: 3
+      equals: 9
     /turns/candidate/first_text_ms/max:
       maximum: 6000
     /turns/candidate/text_runes/min:
