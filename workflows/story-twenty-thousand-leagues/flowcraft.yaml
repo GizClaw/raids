@@ -9,8 +9,13 @@ spec:
   flowcraft:
     graph:
       name: story-twenty-thousand-leagues
-      entry: prepare-recall-query
+      entry: route-recall
       edges:
+      - from: route-recall
+        to: prepare-recall-query
+        condition: needs_memory_recall == true
+      - from: route-recall
+        to: narrate
       - from: prepare-recall-query
         to: recall-progress
       - from: recall-progress
@@ -22,6 +27,32 @@ spec:
       - from: observe-progress
         to: __end__
       nodes:
+      - id: route-recall
+        type: script
+        config:
+          source: |
+            const current = String(board.getVar("input") || "").trim();
+            const normalized = current.toLowerCase();
+            const containsAny = (values) => values.some((value) => normalized.includes(value));
+            const storeCues = ["请记住", "记住：", "please remember", "remember this"];
+            const durableReadCues = [
+              "回忆", "还记得", "记得什么", "重连", "重新连接", "恢复",
+              "继续上次", "接着上次", "上次", "之前", "代号",
+              "recall", "do you remember", "what do you remember", "reconnect",
+              "resume", "continue where", "last time", "previous",
+            ];
+            const correctionCues = [
+              "更正", "纠正", "修正", "改成", "改变主意", "其实",
+              "correction", "correct", "change my mind", "actually",
+            ];
+            const storeOverrideCues = durableReadCues
+              .filter((value) => value !== "代号")
+              .concat(correctionCues);
+            const storeOnly = containsAny(storeCues) && !containsAny(storeOverrideCues);
+            const needsRecall = current !== "" && !storeOnly
+              && (containsAny(durableReadCues) || containsAny(correctionCues));
+            board.setVar("scenario_memory", "");
+            board.setVar("needs_memory_recall", needsRecall);
       - id: prepare-recall-query
         type: script
         config:
