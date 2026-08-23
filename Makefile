@@ -13,7 +13,7 @@ CHECK ?= 0
 export GO CGO_ENABLED GIZCLAW GIZCLAW_TEST_CLI RAIDS_OUTPUT
 export RAID PARALLEL APPLY CHECK GIZCLAW_CONTEXT REPORT
 
-.PHONY: help build-raids build-profiles test-unit-go test-unit-resources test-e2e
+.PHONY: help build-raids build-profiles test-unit-go test-unit-resources test-unit-voices test-e2e
 
 help:
 	@scripts/config/help.sh
@@ -29,6 +29,9 @@ test-unit-go:
 
 test-unit-resources:
 	@scripts/test/test-unit-resources.sh
+
+test-unit-voices:
+	@scripts/test/test-unit-voices.sh
 
 test-e2e:
 	@scripts/test/test-e2e.sh
