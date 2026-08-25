@@ -11,6 +11,7 @@ Discover courage, wisdom, kindness, and friendship on a journey through Oz.
 - State: current chapter, completed beats, location, active roles, player choices, explicit corrections, durable clues, and unresolved hooks survive the bounded reload.
 - Safety and source boundary: distinguish fact, legend, and original fiction; keep peril child-safe and do not reproduce a published translation.
 - Repetition boundary: do not repeat acknowledgements, openings, choices, questions, recaps, or moral summaries.
+- Language restart: both implementations preserve the explicit English restart path with `Chapter 1: The Yellow Brick Fork` and the established three-way yellow-brick-road opening.
 
 | Chapter | Entry condition | Goal | Allowed beats (at least two) | Transition condition | Ending condition |
 | --- | --- | --- | --- | --- | --- |
@@ -33,6 +34,7 @@ Flowcraft selects exactly one published node per external response. Chapter entr
 - Paired Flowcraft and Eino relays each require 16 continuous target responses with a reload before response 9.
 - Milestones: 8, 16; intermediate segments end in strict `CHECKPOINT PASS` and the final segment ends in strict `PASS`.
 - `flowcraft.roles.giztest.yaml` creates isolated narrator/dorothy/scarecrow Workspaces and requires text EOS, audio EOS, non-empty Opus, timing evidence, and role-specific text.
+- `english-restart.giztest.yaml` checks Flowcraft text/audio directly; `english-restart.eino.giztest.yaml` checks English restart, named-character continuation, negated English selection, and English reconnect recall through the stable relay transport.
 - Final live evidence must come from the e2e deployment through `edge-bj-01.e2e.gizclaw.com:9821`; dev evidence is diagnostic only.
 
 ```sh

@@ -1,0 +1,112 @@
+# User Story:
+# As a user of The Wizard of Oz experience,
+# I want the supported English restart to remain available on Flowcraft,
+# So that selecting English does not silently fall back to the Chinese opening.
+version: gizclaw.test/v1alpha1
+name: story-wizard-oz.english-restart
+clients:
+  flowcraft: {identity: ephemeral, connection: webrtc, access_point: "${endpoint}"}
+variables:
+  endpoint: {direction: input, type: string, env: GIZCLAW_TEST_ENDPOINT}
+  registration_token: {direction: input, type: string, env: GIZCLAW_TEST_REGISTRATION_TOKEN, secret: true}
+  flowcraft_workspace: {direction: input, type: string, generate: token}
+repeat: 1
+timeout: 12m
+steps:
+- id: register_flowcraft
+  client: flowcraft
+  rpc: {method: server.register, request: {token: "${registration_token}"}}
+- id: create_flowcraft_workspace
+  client: flowcraft
+  rpc:
+    method: server.workspace.create
+    request:
+      name: ${flowcraft_workspace}
+      collection: raidtest-targets
+      workflow_name: flowcraft-story-wizard-oz
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation: {initiative: FLOWCRAFT_CONVERSATION_PARAMETERS_INITIATIVE_PEER}
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_flowcraft_workspace
+  client: flowcraft
+  rpc: {method: server.run.workspace.set, request: {workspace_name: "${flowcraft_workspace}"}}
+- id: restart_flowcraft_in_english
+  client: flowcraft
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: "Please introduce this experience in English."
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    /text:
+      contains_all:
+      - "Chapter 1: The Yellow Brick Fork"
+      - "The yellow brick road splits three ways: courage, wisdom, or helping one another. Which path will you take first?"
+      not_contains:
+      - "第 1 章"
+      - "黄砖岔路"
+    /text_eos: {equals: true}
+    /audio_eos: {equals: true}
+    /audio_bytes: {minimum: 1}
+    /first_text_ms: {maximum: 6000}
+    /first_audio_ms: {maximum: 90000}
+- id: continue_flowcraft_in_english_without_restart
+  client: flowcraft
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: "Please have Dorothy continue in English without restarting, begin with Dorothy says:, include the exact phrase Dorothy continues, and add one new consequence."
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    /text:
+      contains_all: ["Dorothy says:", "Dorothy continues"]
+      pattern: '^[\x00-\x7F]+$'
+      not_contains:
+      - "Chapter 1: The Yellow Brick Fork"
+      - "The yellow brick road splits three ways"
+      - "第 1 章"
+      - "黄砖岔路"
+      min_length: 20
+    /text_eos: {equals: true}
+    /audio_eos: {equals: true}
+    /audio_bytes: {minimum: 1}
+    /first_text_ms: {maximum: 6000}
+    /first_audio_ms: {maximum: 90000}
+- id: reject_negated_english_request
+  client: flowcraft
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: "Continue without English; use Chinese and include the phrase 继续同行."
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    /text:
+      contains: "继续同行"
+      not_contains:
+      - "Chapter 1: The Yellow Brick Fork"
+      - "The yellow brick road splits three ways"
+    /text_eos: {equals: true}
+    /audio_eos: {equals: true}
+    /audio_bytes: {minimum: 1}
+    /first_text_ms: {maximum: 6000}
+    /first_audio_ms: {maximum: 90000}
+finally:
+- id: stop_flowcraft_run
+  client: flowcraft
+  rpc: {method: server.run.stop, request: {}}
+- id: delete_flowcraft_workspace
+  client: flowcraft
+  rpc: {method: server.workspace.delete, request: {name: "${flowcraft_workspace}"}}
+- id: delete_flowcraft_peer
+  client: flowcraft
+  rpc: {method: server.peer.delete, request: {}}
+report:
+  redact: [registration_token]

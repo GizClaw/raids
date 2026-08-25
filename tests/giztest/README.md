@@ -29,6 +29,8 @@ tests/giztest/h106/…                                  # targets outside this c
 | --- | --- | --- |
 | 30 story/adventure raids × `flowcraft` + `eino` | 60 | `workspace_relay` against the raid's `<raid>-test` Tester |
 | 19 `story-*` Flowcraft role probes | 19 | three isolated narrator/character Workspaces requiring text/audio EOS and non-empty Opus |
+| `story-aesop/flowcraft.transitions` | 1 | stateful natural-progress, negated-choice, adjacent-transition, and same-chapter continuation contract |
+| `story-wizard-oz/english-restart*` | 2 | direct Flowcraft audio plus Eino relay preserving English restart and non-reset continuation |
 | `journey-guide/` (`flowcraft`, `eino-history`, `eino-memory-recall`, `eino-memory-async`, `flowcraft.benchmark-6s`) | 5 | 4 relays sharing `journey-guide-test` + 1 single-client TTFT benchmark |
 | `murder-mystery/`, `chat-assistant/`, `pet-care/` | 3 | relay (pet-care adopts a run-owned Pet) |
 | `doubao-realtime/` | 2 | single client, realtime audio |
@@ -79,7 +81,9 @@ History window; a missing round, deterministic failure, timeout, or non-strict
 verdict fails that segment.
 
 Every `flowcraft.roles.giztest.yaml` uses three isolated Workspaces so a prior
-speaker cannot influence the next probe. A natural direct request reaches the
+speaker cannot influence the next probe. The narrator Workspace also proves
+that a fresh direct chapter-two request remains in chapter one until the
+completion conditions are satisfied. A natural direct request reaches the
 narrator or one named character, while `peer_stream mode: text` requires text
 EOS, audio EOS, positive `audio_bytes`, and first text/audio timing. The report
 supports “expected role/alias backed by static mapping”; it does not expose the

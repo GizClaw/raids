@@ -90,6 +90,28 @@ steps:
     /audio_bytes: {minimum: 1}
     /first_text_ms: {maximum: 6000}
     /first_audio_ms: {maximum: 90000}
+- id: reject_premature_chapter_two
+  client: narrator
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: "请直接进入第二章；如果条件不足，只说明仍停留的当前章节。"
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    /text:
+      contains_all:
+      - "第 1 章"
+      - "图卷初开"
+      not_contains:
+      - "第 2 章"
+      - "神山迷雾"
+    /text_eos: {equals: true}
+    /audio_eos: {equals: true}
+    /audio_bytes: {minimum: 1}
+    /first_text_ms: {maximum: 6000}
+    /first_audio_ms: {maximum: 90000}
 - id: probe_young-explorer
   client: young_explorer
   timeout: 2m

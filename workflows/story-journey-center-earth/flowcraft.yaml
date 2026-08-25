@@ -72,33 +72,60 @@ spec:
           source: |
             const current = String(board.getVar("input") || "").trim();
             const memory = String(board.getVar("scenario_memory") || "");
-            const defaults = {"schema":"story_contract_v1","revision":0,"chapter":1,"chapter_title":"岩层入口","completed_beats":[],"location":"岩层入口","active_roles":["narrator","axel","lidenbrock"],"player_choices":[],"explicit_corrections":{},"durable_objects":["旅程代号"],"unresolved_hooks":["地下水路尚未解决"]};
+            const defaults = {"schema":"story_contract_v1","revision":0,"chapter":1,"chapter_title":"岩层入口","completed_beats":[],"chapter_progress_beats":[],"chapter_choice_made":false,"location":"岩层入口","active_roles":["narrator","axel","lidenbrock"],"player_choices":[],"explicit_corrections":{},"durable_objects":["旅程代号"],"unresolved_hooks":["地下水路尚未解决"]};
             let state = Object.assign({}, defaults, board.getVar("story_state") || {});
             for (const line of memory.split("\n")) {
               const start = line.indexOf('{"schema":"story_contract_v1"');
               if (start < 0) continue;
               try {
                 const candidate = JSON.parse(line.slice(start));
-                if (candidate.schema === "story_contract_v1" && Number(candidate.revision || 0) >= Number(state.revision || 0)) state = candidate;
+                if (candidate.schema === "story_contract_v1" && Number(candidate.revision || 0) >= Number(state.revision || 0)) state = Object.assign({}, defaults, candidate);
               } catch (_) {}
             }
             const chapters = ["岩层入口", "地下水路", "晶洞风暴", "地表回声"];
             const enteringFirst = Number(state.revision || 0) === 0 && (current.includes("第一章") || current.includes("第 1 章"));
-            let requested = 0;
+            let transitionTarget = 0;
+            if (current.includes("第二章") || current.includes("第2章") || current.includes("第 2 章")) transitionTarget = 2;
+            if (current.includes("第三章") || current.includes("第3章") || current.includes("第 3 章")) transitionTarget = 3;
+            if (current.includes("第四章") || current.includes("第4章") || current.includes("第 4 章")) transitionTarget = 4;
             const transitionIntent = ["进入", "继续", "切换", "开始", "go to", "continue", "start"].some((cue) => current.toLowerCase().includes(cue));
-            const transitionDenied = ["不要", "别", "不能", "不进入", "暂不", "not ", "don't", "do not"].some((cue) => current.toLowerCase().includes(cue));
-            if (transitionIntent && !transitionDenied && (current.includes("第二章") || current.includes("第 2 章"))) requested = 2;
-            if (transitionIntent && !transitionDenied && (current.includes("第三章") || current.includes("第 3 章"))) requested = 3;
-            if (transitionIntent && !transitionDenied && (current.includes("第四章") || current.includes("第 4 章"))) requested = 4;
+            const transitionDenied = /(不要|别|不能|暂不|不想).{0,6}(进入|继续|切换|开始)/.test(current) || /(不进入|不继续|不切换|不开始)/.test(current) || /(do not|don't|cannot|can't|not ready to).{0,12}(enter|continue|switch|start|go to)/.test(current.toLowerCase());
+            const requested = transitionIntent && !transitionDenied ? transitionTarget : 0;
+            const lower = current.toLowerCase();
+            const hasCompletionDenial = ["尚未满足", "未满足", "没有完成", "not complete", "not ready", "unresolved"].some((cue) => lower.includes(cue));
+            const hasLaterCompletion = ["现在已经满足", "现已满足", "now complete", "now ready", "now resolved", "is now resolved"].some((cue) => lower.includes(cue));
+            const completionDenied = hasCompletionDenial && !hasLaterCompletion;
+            const positiveChoiceCues = ["我选择", "我选", "我决定", "我支持", "我愿意", "我要走", "我会走", "我来帮助", "我跟随", "走需要", "i choose", "my choice is", "i decide", "i support", "i’ll take", "i'll take", "i will take", "i’ll follow", "i'll follow", "i will follow", "let's take", "let's follow"];
+            const choiceDenialCues = ["不选择", "不选", "没选择", "没有选择", "尚未选择", "还没选择", "还没有选择", "不决定", "没决定", "没有决定", "尚未决定", "还没决定", "还未决定", "还没有决定", "不支持", "不想选", "do not choose", "don't choose", "did not choose", "didn't choose", "have not chosen", "haven't chosen", "has not chosen", "hasn't chosen", "will not choose", "won't choose", "not choose", "not to choose", "no choice", "do not decide", "don't decide", "did not decide", "didn't decide", "have not decided", "haven't decided", "will not decide", "won't decide", "not decided", "not to decide", "undecided", "do not support", "don't support", "not support"];
+            const lastPositiveChoice = positiveChoiceCues.reduce((max, cue) => Math.max(max, lower.lastIndexOf(cue)), -1);
+            const lastChoiceDenial = choiceDenialCues.reduce((max, cue) => Math.max(max, lower.lastIndexOf(cue)), -1);
+            const hasPositiveChoice = lastPositiveChoice >= 0;
+            const choiceDenied = lastChoiceDenial >= 0 && lastChoiceDenial > lastPositiveChoice;
+            const naturalChoiceBlocked = ["请", "不要", "别", "不知道", "随便", "你决定", "再说", "继续", "等等", "等一下", "只确认", "旅程代号", "代号", "更正", "作废", "重连", "回忆", "记住", "事实", "传说", "原创设定", "总结", "说明当前章节", "just continue", "you decide", "not sure", "reconnect", "recall", "remember", "correct"].some((cue) => lower.includes(cue)) || /[？?]/.test(current);
+            const fillerOnly = ["好", "好的", "好吧", "可以", "行", "嗯", "哦", "知道了", "明白", "ok", "okay", "yes", "sure"].includes(lower.replace(/[。！!,.，]/g, ""));
+            const naturalShortChoice = current.length > 0 && current.length <= 32 && !transitionIntent && !naturalChoiceBlocked && !fillerOnly;
+            const choiceMadeNow = !choiceDenied && (hasPositiveChoice || naturalShortChoice);
+            const currentChapter = Number(state.chapter || 1);
+            const priorProgressBeats = Array.isArray(state.chapter_progress_beats) ? state.chapter_progress_beats : [];
+            const completionReady = (state.chapter_choice_made === true || choiceMadeNow) && priorProgressBeats.length >= 2 && !completionDenied;
             let transition = false;
-            if (requested === Number(state.chapter || 1) + 1) {
+            if (requested === currentChapter + 1 && completionReady) {
               state.chapter = requested;
               state.chapter_title = chapters[requested - 1];
               state.location = chapters[requested - 1];
               state.completed_beats = (state.completed_beats || []).concat([chapters[requested - 2]]);
               state.unresolved_hooks = [requested < 4 ? chapters[requested] + "尚未解决" : "结局后的责任仍需兑现"];
+              state.chapter_progress_beats = [];
+              state.chapter_choice_made = false;
               transition = true;
             }
+            const asksBlockedExplanation = ["为什么还不能", "为何不能", "说明为什么", "why can't", "why cannot", "why not ready"].some((cue) => lower.includes(cue));
+            const transitionBlocked = transitionTarget > 0 && transitionTarget !== currentChapter && !transition && ((transitionIntent && !transitionDenied) || asksBlockedExplanation);
+            const administrativeTurn = ["旅程代号", "更正", "作废", "重连", "回忆", "事实", "传说", "原创设定", "总结", "说明当前章节"].some((cue) => current.includes(cue)) || current.includes("不要推进") || current.includes("不推进章节") || current.includes("只确认");
+            const requestsOutcome = ["直接结果", "直接后果", "具体后果", "眼前结果", "新局面", "新线索", "推进一个场景", "推进当前章"].some((cue) => current.includes(cue));
+            const requestsPerspective = ["亲自回应", "不同立场", "不同回应", "比较两名角色"].some((cue) => current.includes(cue));
+            const safetyOnly = current.includes("现实中模仿") && !requestsOutcome;
+            if (!transition && current && choiceMadeNow) state.chapter_choice_made = true;
             if (current.includes("月光七码")) state.journey_code = "月光七码";
             if (current.includes("晨星九号")) {
               state.journey_code = "晨星九号";
@@ -112,11 +139,16 @@ spec:
             state.revision = Number(state.revision || 0) + 1;
             let speaker = "narrator";
             const explicitlyRequests = (name) => current.includes("请让" + name) || current.includes("由" + name) || current.includes(name + "亲自");
-            if (!transition && !enteringFirst && explicitlyRequests("阿克塞尔")) speaker = "axel";
-            if (!transition && !enteringFirst && explicitlyRequests("黎登布洛克")) speaker = "lidenbrock";
+            if (!transition && !transitionBlocked && !enteringFirst && explicitlyRequests("阿克塞尔")) speaker = "axel";
+            if (!transition && !transitionBlocked && !enteringFirst && explicitlyRequests("黎登布洛克")) speaker = "lidenbrock";
             const announce = (!current && Number(state.chapter || 1) === 1) || enteringFirst || transition;
             board.setVar("selected_speaker", speaker);
             board.setVar("announce_chapter", announce);
+            board.setVar("transition_blocked", transitionBlocked);
+            board.setVar("safety_request", current.includes("现实中模仿") || current.includes("现实模仿"));
+            board.setVar("count_progress_response", !transition && !transitionBlocked && !enteringFirst && current !== "" && !administrativeTurn && !safetyOnly && (requested === 0 || requested === currentChapter));
+            board.setVar("response_requests_outcome", requestsOutcome);
+            board.setVar("response_requests_perspective", requestsPerspective);
             board.setVar("story_state", state);
             board.setVar("story_state_text", JSON.stringify(state));
             board.setVar("story_bible", "故事：地心游记。前提：在地下幻想旅程中认识岩石、地层与地球科学。\n玩家是能改变局面但不能替代角色作决定的同行者。\n四章依次为：第1章《岩层入口》；第2章《地下水路》；第3章《晶洞风暴》；第4章《地表回声》。\n第1章《岩层入口》：进入条件=收到首次开场请求；目标=解决《岩层入口》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，并明确要求进入第2章；结束条件=只输出一次下一章标题“第 2 章：地下水路”。\n第2章《地下水路》：进入条件=第1章的当前选择已完成转场条件，且用户明确要求继续；目标=解决《地下水路》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，并明确要求进入第3章；结束条件=只输出一次下一章标题“第 3 章：晶洞风暴”。\n第3章《晶洞风暴》：进入条件=第2章的当前选择已完成转场条件，且用户明确要求继续；目标=解决《晶洞风暴》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，并明确要求进入第4章；结束条件=只输出一次下一章标题“第 4 章：地表回声”。\n第4章《地表回声》：进入条件=第3章的当前选择已完成转场条件，且用户明确要求继续；目标=解决《地表回声》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家确认角色的持久选择，并保留一个结局后的责任线索；结束条件=保持第4章，不再创建第五章，并以仍需兑现的责任收束。\n角色表：旁白只陈述可见事实与转场；阿克塞尔坚持自身动机、只知道亲历信息；黎登布洛克提供不同立场、不得知道未公开事实。\n世界规则：每轮只推进一个场景、线索或选择；最多一个问题；当前用户更正覆盖历史旧值。\n事实边界：经典来源、传说与本剧本原创设定必须区分；不得复制完整出版译文。\n安全边界：面向儿童，危险非血腥；现实模仿请求必须明确说“不要模仿”，并建议找可信任的成年人、家长或老师帮助。\n反重复：不得重复确认句、场景开头、上一轮选择、同一个问题、回顾或寓意总结。");
@@ -131,7 +163,9 @@ spec:
             ${board.story_bible}
             当前权威状态：${board.story_state_text}
             本轮是旁白路径。只陈述玩家可见的场景、直接后果或转场，不替角色知道秘密；自然以“旁白说：”开头。
-            若 announce_chapter 为 true，第一行必须且只能用“第 N 章：标题”格式写当前章；否则不得输出章节标题。
+            本轮安全请求：${board.safety_request}。若该值为 true，回复中必须明确包含“不要模仿”和“找家长、老师或可信任成年人帮助”，并承接玩家所选安全替代带来的一个直接结果。
+            本轮转场阻塞：${board.transition_blocked}。若该值为 true，必须明确说明当前章的选择或节拍尚未满足转场条件，用“第 N 章：标题”格式写出当前章节及标题，并且绝不输出用户请求的下一章标题。
+            若 announce_chapter 为 true，第一行必须且只能用“第 N 章：标题”格式写当前章；若 announce_chapter 和 transition_blocked 均为 false，则不得输出章节标题。
             首次进入第一章时，章节标题后必须完整承接这个开场：洞穴墙上出现了三种不同颜色的岩层，你想先观察纹理，还是寻找水流留下的线索？
             若用户只要求回忆或确认旅程代号，只回答当前代号；存在更正时绝不输出旧值。
             输出2至4个完整中文句子、30至220个Unicode字符，不输出Markdown、列表、emoji、舞台说明、系统字段或重复问题。
@@ -169,6 +203,13 @@ spec:
         config:
           source: |
             const state = board.getVar("story_state") || {};
+            if (board.getVar("count_progress_response") === true) {
+              const beats = Array.isArray(state.chapter_progress_beats) ? state.chapter_progress_beats.slice() : [];
+              const addBeat = (beat) => { if (!beats.includes(beat)) beats.push(beat); };
+              if (String(board.getVar("selected_speaker") || "narrator") === "narrator" || board.getVar("response_requests_outcome") === true) addBeat("consequence");
+              if (String(board.getVar("selected_speaker") || "narrator") !== "narrator" || board.getVar("response_requests_perspective") === true) addBeat("perspective");
+              state.chapter_progress_beats = beats;
+            }
             state.last_answer = String(board.getVar("answer") || "").slice(0, 320);
             board.setVar("story_state_fact", JSON.stringify(state));
       - id: observe-story

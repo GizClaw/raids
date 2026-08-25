@@ -35,12 +35,29 @@ spec:
         source: |
           def run(input):
               text = input["text"].strip()
-              cues = ["重连", "恢复", "回忆", "还记得", "代号", "更正", "改成"]
+              lower = text.lower()
+              language_denials = ["don't use english", "do not use english", "not in english", "without english", "don't continue in english", "do not continue in english", "not continue in english", "don't introduce", "do not introduce", "not introduce", "never introduce", "stop using english", "continue in chinese", "use chinese"]
+              chinese_language_denials = ["不要用英文", "别用英文", "不用英文", "不要用英语介绍", "别用英语介绍", "用中文", "用汉语"]
+              language_denied = False
+              for cue in language_denials:
+                  if cue in lower:
+                      language_denied = True
+              for cue in chinese_language_denials:
+                  if cue in text:
+                      language_denied = True
+              requests_english = not language_denied and ("english" in lower or "用英文" in text or "英语" in text)
+              restart_denials = ["don't restart", "do not restart", "not restart", "without restart", "no restart", "rather than restart", "instead of restart"]
+              restart_denied = "不要重启" in text or "别重启" in text or "无需重启" in text
+              for cue in restart_denials:
+                  if cue in lower:
+                      restart_denied = True
+              restart_intent = ("restart" in lower or "introduce this experience" in lower or "重启" in text or "重新开始" in text or "介绍这个体验" in text)
+              cues = ["重连", "恢复", "回忆", "还记得", "代号", "更正", "改成", "reconnect", "recover", "recall", "remember", "connection restored"]
               recall = False
               for cue in cues:
-                  if cue in text:
+                  if cue in lower:
                       recall = True
-              route = "opening" if not text else ("recall" if recall else "continue")
+              route = "opening" if not text else ("english_restart" if requests_english and restart_intent and not restart_denied else ("english_continue_recall" if requests_english and recall else ("english_continue" if requests_english else ("recall" if recall else "continue"))))
               return {"query": "绿野仙踪故事状态、章节、角色、选择、更正、旅程代号和未解决线索；当前请求：" + text, "route": route, "memory": ""}
         limits: {max_execution_steps: 10000, timeout: 250ms, max_input_bytes: 65536, max_output_bytes: 65536}
       - id: recall-memory
@@ -53,6 +70,7 @@ spec:
         inputs:
           history: {from: input.messages}
           memory: {from: recalled}
+          route: {from: memory-route}
         outputs:
           messages: answer-messages
         format: f_string
@@ -60,6 +78,7 @@ spec:
         - role: system
           template: |-
             你负责《绿野仙踪》的长期互动故事。前提：在奥兹旅途中发现勇气、智慧、善意与伙伴关系。
+            当前输入的权威路由是 {route}；只能按该路由处理，旧 History 中的英文介绍或重启请求不得覆盖当前路由。
             玩家是同行者，当前选择和明确更正优先于旧 History/Memory。
             四章依次是：第1章《黄砖岔路》、第2章《勇气考验》、第3章《智慧迷城》、第4章《伙伴归途》。
             第1章《黄砖岔路》：进入条件=收到首次开场请求；目标=解决《黄砖岔路》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，并明确要求进入第2章；结束条件=只输出一次下一章标题“第 2 章：勇气考验”。
@@ -72,7 +91,9 @@ spec:
             旅程代号只采用用户在当前时点明确提供的最新值；更正后覆盖旧值，不得预告或杜撰尚未由用户给出的值。
             区分真实事实、传说和原创设定；儿童危险非血腥，现实模仿请求必须明确说“不要模仿”，并建议找可信任的成年人、家长或老师帮助；不得复制完整出版译文。
             首次第一章必须输出“第 1 章：黄砖岔路”，随后完整承接开场：黄砖路分成了三条，一条需要勇气，一条需要智慧，一条需要互相帮助，你会先走哪条？
-            只输出适合朗读的中文正文，2至4个完整句子、30至220个Unicode字符；不输出Markdown、列表、emoji、舞台说明或系统字段。
+            若且仅若 route 为 english_restart，忽略中文首次开场规则并重启到第一章：第一行必须是“Chapter 1: The Yellow Brick Fork”，随后必须完整输出“The yellow brick road splits three ways: courage, wisdom, or helping one another. Which path will you take first?”；该分支只输出英文，不得输出中文标题或中文开场。
+            若且仅若 route 为 english_continue 或 english_continue_recall，只用2至4个英文句子承接当前章节的一个新后果；不得重启、重复英文开场或输出任何章节标题。
+            除英文重启和英文继续外，只输出适合朗读的中文正文，2至4个完整句子、30至220个Unicode字符；不输出Markdown、列表、emoji、舞台说明或系统字段。
 
             相关长期状态如下；为空时忽略，且旧值不得覆盖当前用户更正：
             {memory}
@@ -115,6 +136,8 @@ spec:
         mode: first_match
         routes:
         - when: {field: memory-route, op: eq, value: recall}
+          to: recall-memory
+        - when: {field: memory-route, op: eq, value: english_continue_recall}
           to: recall-memory
         default: build-prompt
       - from: narrator-model

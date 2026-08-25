@@ -172,6 +172,8 @@ fact/legend/fiction rules, child-safety rules, correction precedence, durable
 clues, unresolved hooks, and anti-repetition policy. A transition happens only
 when the current choice satisfies the adjacent chapter condition; entering a
 chapter emits its localized title once, while ordinary turns never repeat it.
+The Wizard of Oz additionally preserves its explicit English chapter-one
+restart and established English opening on both implementations.
 
 Flowcraft reconstructs `story_contract_v1` after reload, selects narrator or
 one of two in-scene characters, and routes to exactly one published model node.
@@ -276,7 +278,8 @@ voice aliases the manifest lists.
 [`tests/giztest`](tests/giztest/README.md) holds every live Raids test as one
 `gizclaw.test/v1alpha1` document: 64 paired candidate/Tester relays (every
 story, adventure, Journey, and Murder Mystery target on both engines), the
-19 Flowcraft story role probes, the default assistant, Journey, Pet Care,
+19 Flowcraft story role probes, the Wizard of Oz dual-engine English restart,
+the default assistant, Journey, Pet Care,
 Doubao realtime, and AST translation routes, the Journey TTFT benchmark, and
 the historical 3×/5× qualification repeats. `gizclaw test run tests/giztest --parallel N` isolates each
 file and repeat in its own ephemeral Peers and Workspaces and schedules them

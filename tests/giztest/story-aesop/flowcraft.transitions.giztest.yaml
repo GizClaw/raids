@@ -1,0 +1,143 @@
+# User Story:
+# As a long-form story player,
+# I want natural progress and explicit non-choices to control chapter transitions,
+# So that the controller neither blocks ordinary play nor advances without a decision.
+version: gizclaw.test/v1alpha1
+name: story-aesop.flowcraft.transitions
+clients:
+  player: {identity: ephemeral, connection: webrtc, access_point: "${endpoint}"}
+variables:
+  endpoint: {direction: input, type: string, env: GIZCLAW_TEST_ENDPOINT}
+  registration_token: {direction: input, type: string, env: GIZCLAW_TEST_REGISTRATION_TOKEN, secret: true}
+  workspace: {direction: input, type: string, generate: token}
+repeat: 1
+timeout: 12m
+steps:
+- id: register_player
+  client: player
+  rpc: {method: server.register, request: {token: "${registration_token}"}}
+- id: create_workspace
+  client: player
+  rpc:
+    method: server.workspace.create
+    request:
+      name: ${workspace}
+      collection: raidtest-targets
+      workflow_name: flowcraft-story-aesop
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation: {initiative: FLOWCRAFT_CONVERSATION_PARAMETERS_INITIATIVE_PEER}
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_workspace
+  client: player
+  rpc: {method: server.run.workspace.set, request: {workspace_name: "${workspace}"}}
+- id: natural_consequence
+  client: player
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: "请继续当前场景，推进一个直接结果。"
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    /text_eos: {equals: true}
+    /audio_eos: {equals: true}
+    /audio_bytes: {minimum: 1}
+    /first_text_ms: {maximum: 6000}
+- id: character_perspective
+  client: player
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: "请让乌龟亲自回应当前结果，说出他的不同立场。"
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    /text: {pattern: 乌龟}
+    /text_eos: {equals: true}
+    /audio_eos: {equals: true}
+    /audio_bytes: {minimum: 1}
+    /first_text_ms: {maximum: 6000}
+- id: reject_negated_choice
+  client: player
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: "我先不选择，请让乌龟说明为什么还不能进入第二章；只说明仍停留的当前章节。"
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    /text:
+      contains_all: ["第 1 章", "种子的选择"]
+      not_contains: ["第 2 章", "等待与分歧"]
+    /text_eos: {equals: true}
+    /audio_eos: {equals: true}
+    /audio_bytes: {minimum: 1}
+    /first_text_ms: {maximum: 6000}
+- id: accept_natural_choice
+  client: player
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: "小鸟"
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    /text:
+      not_contains: ["第 2 章", "等待与分歧"]
+      min_length: 4
+    /text_eos: {equals: true}
+    /audio_eos: {equals: true}
+    /audio_bytes: {minimum: 1}
+    /first_text_ms: {maximum: 6000}
+- id: enter_after_option_only_choice
+  client: player
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: "请进入第二章。"
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    /text:
+      contains_all: ["第 2 章", "等待与分歧"]
+      not_contains: ["第 1 章", "种子的选择"]
+    /text_eos: {equals: true}
+    /audio_eos: {equals: true}
+    /audio_bytes: {minimum: 1}
+    /first_text_ms: {maximum: 6000}
+- id: continue_current_chapter
+  client: player
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: "请继续第二章当前场景，推进一个直接结果，不要重复章节标题。"
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    /text:
+      not_contains: ["第 2 章", "等待与分歧", "转场条件"]
+      min_length: 4
+    /text_eos: {equals: true}
+    /audio_eos: {equals: true}
+    /audio_bytes: {minimum: 1}
+    /first_text_ms: {maximum: 6000}
+finally:
+- id: stop_run
+  client: player
+  rpc: {method: server.run.stop, request: {}}
+- id: delete_workspace
+  client: player
+  rpc: {method: server.workspace.delete, request: {name: "${workspace}"}}
+- id: delete_peer
+  client: player
+  rpc: {method: server.peer.delete, request: {}}
+report:
+  redact: [registration_token]
