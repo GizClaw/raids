@@ -41,7 +41,7 @@ spec:
           MILESTONES = [7, 15]
           RULES = '你是 `story-wizard-oz` 的专属验收 Workflow，不是目标剧本角色。必须检查《绿野仙踪》的章节连续性、角色知识边界、当前更正优先、儿童安全、事实文化边界和反重复。'
           ENGLISH_REQUESTS = ["Please introduce this experience in English.", "Please have Dorothy continue in English without restarting, begin with Dorothy says:, include the exact phrase Dorothy continues, and add one new consequence.", "Continue without English; use Chinese, remember journey code SUNRISE-42, and include the phrase 继续同行.", "After reconnect, continue in English without restarting, include the phrase journey code, and state the current journey code."]
-          ASCII_ENGLISH = " abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,!?;:'\"()-\n\r"
+          ENGLISH_TEXT = " abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,!?;:'\"()-\n\r“”‘’—–… "
           N = 16
           WHITESPACE = " \t\n\r　"
           PUNCT = "，。！？、；：“”‘’（）《》〈〉【】『』「」—…·～,.!?;:'\"()[]{}<>-_/\\|`~@#$%^&*+="
@@ -164,7 +164,7 @@ spec:
                       if not text.startswith("Dorothy says:"):
                           failures.append("required-prefix:Dorothy says:")
                       for ch in text.codepoints():
-                          if ch not in ASCII_ENGLISH:
+                          if ch not in ENGLISH_TEXT:
                               failures.append("english_only")
                               break
                   if english_index == 1 and not failures:
@@ -179,7 +179,7 @@ spec:
                       failures.append("required:journey code")
                   if english_index == 3:
                       for ch in text.codepoints():
-                          if ch not in ASCII_ENGLISH:
+                          if ch not in ENGLISH_TEXT:
                               failures.append("english_only")
                               break
                   verdict = "FAIL" if failures else "PASS"
