@@ -12,339 +12,119 @@ spec:
       name: story-alice-eino
       compile:
         node_trigger_mode: any_predecessor
-        max_run_steps: 20
+        max_run_steps: 12
       state:
         fields:
-        - name: memory-query
-          type: string
-          merge: replace
-        - name: recalled
-          type: string
-          merge: replace
-        - name: chapter-route
-          type: string
-          merge: replace
-        - name: phase-key
-          type: string
-          merge: replace
-        - name: stage-route
-          type: string
-          merge: replace
-        - name: scenario-policy
-          type: string
-          merge: replace
-        - name: answer-messages
-          type: messages
-          merge: replace
-        - name: answer
-          type: string
-          merge: replace
-        - name: progress-fact
-          type: string
-          merge: replace
-        - name: progress-lane
-          type: string
-          merge: replace
-        - name: progress-kind
-          type: string
-          merge: replace
+        - {name: memory-query, type: string, merge: replace}
+        - {name: memory-route, type: string, merge: replace}
+        - {name: recalled, type: string, merge: replace}
+        - {name: answer-messages, type: messages, merge: replace}
+        - {name: answer, type: string, merge: replace}
+        - {name: observation, type: string, merge: replace}
       nodes:
       - id: prepare-memory-query
         type: script
         inputs:
-          text:
-            from: input.text
+          text: {from: input.text}
         outputs:
           query: memory-query
+          route: memory-route
+          memory: recalled
         language: starlark
         entrypoint: run
         source: |
           def run(input):
-              text = input["text"]
-              base = "仙境故事当前章节、手表谜题、门的颜色和玩家选择"
-              return {"query": base + ("；当前请求：" + text if text else "")}
-        limits:
-          max_execution_steps: 10000
-          timeout: 250ms
-          max_input_bytes: 65536
-          max_output_bytes: 65536
-      - id: recall-progress
+              text = input["text"].strip()
+              cues = ["重连", "恢复", "回忆", "还记得", "代号", "更正", "改成"]
+              recall = False
+              for cue in cues:
+                  if cue in text:
+                      recall = True
+              route = "opening" if not text else ("recall" if recall else "continue")
+              return {"query": "爱丽丝梦游仙境故事状态、章节、角色、选择、更正、旅程代号和未解决线索；当前请求：" + text, "route": route, "memory": ""}
+        limits: {max_execution_steps: 10000, timeout: 250ms, max_input_bytes: 65536, max_output_bytes: 65536}
+      - id: recall-memory
         type: memory_recall
         query_from: memory-query
         output: recalled
-        top_k: 12
-      - id: route-stage
-        type: script
+        top_k: 16
+      - id: build-prompt
+        type: prompt
         inputs:
-          text:
-            from: input.text
-          history:
-            from: input.messages
-          memory:
-            from: recalled
+          history: {from: input.messages}
+          memory: {from: recalled}
         outputs:
-          phase: phase-key
-          route: stage-route
-          policy: scenario-policy
-        language: starlark
-        entrypoint: run
-        source: |
-          def contains_any(text, values):
-              for value in values:
-                  if value in text:
-                      return True
-              return False
+          messages: answer-messages
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            你负责《爱丽丝梦游仙境》的长期互动故事。前提：用奇妙规则、语言游戏和逻辑谜题探索梦境世界。
+            玩家是同行者，当前选择和明确更正优先于旧 History/Memory。
+            四章依次是：第1章《迟到的怀表》、第2章《缩小之门》、第3章《茶会反例》、第4章《花园答案》。
+            第1章《迟到的怀表》：进入条件=收到首次开场请求；目标=解决《迟到的怀表》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，并明确要求进入第2章；结束条件=只输出一次下一章标题“第 2 章：缩小之门”。
+            第2章《缩小之门》：进入条件=第1章的当前选择已完成转场条件，且用户明确要求继续；目标=解决《缩小之门》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，并明确要求进入第3章；结束条件=只输出一次下一章标题“第 3 章：茶会反例”。
+            第3章《茶会反例》：进入条件=第2章的当前选择已完成转场条件，且用户明确要求继续；目标=解决《茶会反例》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，并明确要求进入第4章；结束条件=只输出一次下一章标题“第 4 章：花园答案”。
+            第4章《花园答案》：进入条件=第3章的当前选择已完成转场条件，且用户明确要求继续；目标=解决《花园答案》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家确认角色的持久选择，并保留一个结局后的责任线索；结束条件=保持第4章，不再创建第五章，并以仍需兑现的责任收束。
+            稳定角色是旁白、爱丽丝、白兔；角色只能知道亲历或已经公开的信息，并保持不同立场和说话方式。
+            只有用户明确要求进入紧邻的下一章时才转场；转场第一行写一次“第 N 章：标题”，普通回合绝不重复章节标题。
+            每轮只推进一个场景、线索或选择，最多一个问题；不得重置场景、重复开头、复述上一轮或给出重复总结。
+            旅程代号只采用用户在当前时点明确提供的最新值；更正后覆盖旧值，不得预告或杜撰尚未由用户给出的值。
+            区分真实事实、传说和原创设定；儿童危险非血腥，现实模仿请求必须明确说“不要模仿”，并建议找可信任的成年人、家长或老师帮助；不得复制完整出版译文。
+            首次第一章必须输出“第 1 章：迟到的怀表”，随后完整承接开场：白兔的怀表只剩三分钟，蓝门和红门都在移动，你想先追白兔还是先检查怀表？
+            只输出适合朗读的中文正文，2至4个完整句子、30至220个Unicode字符；不输出Markdown、列表、emoji、舞台说明或系统字段。
 
-          def run(input):
-              current = input["text"].strip()
-              combined = input["memory"] + "\n" + current
-              for message in input["history"]:
-                  if "content" in message:
-                      combined += "\n" + message["content"]
-              if not current or contains_any(current, ['开始爱丽丝', '开始故事', '怀表']):
-                  phase = "opening"
-              elif contains_any(current, ['更正', '只确认', '有效颜色', '有效口令', '正确口令', '正确颜色', '回忆', '重连', '隔了几轮', '只说']):
-                  phase = "correction"
-              elif contains_any(current, ['总结', '离开', '回顾', '出口', '用两句完整的话说出']):
-                  phase = "conclusion"
-              elif contains_any(current, ['反例', '规则', '提示', '不要替我', '我猜', '悖论']):
-                  phase = "challenge"
-              else:
-                  phase = "explore"
-              if contains_any(current, ["我打开绿色", "我推开绿色", "我走进门", "我进入门后"]):
-                  route = "第四章‘由玩家决定的门后旅程’"
-              elif contains_any(combined, ["绿色", "蓝色小门", "绿色小门", "门把手", "门的正确颜色"]):
-                  route = "第三章‘绿色小门’"
-              elif contains_any(combined, ["悖论", "提示", "谜底", "解释成立", "快一分钟", "问题表"]):
-                  route = "第二章‘悖论与提示’"
-              else:
-                  route = "第一章‘两块手表’"
-              return {"phase": phase, "route": route, "policy": "你是儿童友好的梦境逻辑故事主持人，创作原创的仙境式规则、语言游戏和谜题。\n首次主动开场严格说：一只戴着两块表的兔子说其中一块显示问题，另一块显示答案，你会先看哪一块？\n用户第一轮说“开始爱丽丝故事”或要求介绍兔子和两块表时，也只逐字输出上述一句，不再复述或添加场景。\n故事分为四章：两块手表、悖论与提示、绿色小门、由玩家决定的门后旅程。Graph 路由是本轮权威；除非用户询问章节，不要念出章节标题或状态字段。\n后续每轮只呈现一个荒诞规则或可推理的小谜题，承接孩子上一轮查看的手表、发现和质疑；孩子选择查看某块表或物件时，首句明确复述其选择的对象，再给出内容；不得重置场景。\n孩子可以反问规则、索要渐进提示或提出不同解法；先确认其推理中成立的部分，再说明仍缺什么。\n用户质疑“答案表比问题表快一分钟却回答未出现的问题”时，必须先直接解释：这不能证明答案表预知未来，只能当作待验证的仙境规则，需要用同一问题稍后对照两块表检验。该轮不得跳到门、新场景或新选择。\n不得照抄现代改编、歌曲或新增影视角色；困惑应有趣而不令人恐惧，不收集个人信息。\n最新明确更正覆盖旧事实，之后只把更正后的颜色、物品或规则当作当前事实。门及其把手、墙壁、植物和装饰不得自行增加用户没有给出的颜色，避免旧颜色伪装成其他物件继续出现。\n事实建立、纠正或纯回忆回合只直接回答用户要求，不推进场景、不添加环境、新发现或追问；只输出当前请求明确给出的新事实，不得提及、引用或比较任何此前值；用户要求记住颜色时只确认该物件及颜色。\n普通回复写2至4个完整中文句子、约60至180个Unicode字符；提示和事实回忆应更短。\n每轮最多问一个问题。只输出适合朗读的中文正文，不输出Markdown、列表、菜单、emoji、舞台说明、分析或系统文字。\n必须写完整句子，不得依赖程序截断，不得重复同义内容。"}
-        limits:
-          max_execution_steps: 20000
-          timeout: 250ms
-          max_input_bytes: 262144
-          max_output_bytes: 65536
-      - id: prompt-opening
-        type: prompt
-        inputs:
-          history:
-            from: input.messages
-          memory:
-            from: recalled
-          route:
-            from: stage-route
-          policy:
-            from: scenario-policy
-        outputs:
-          messages: answer-messages
-        format: f_string
-        messages:
-        - role: system
-          template: |-
-            {policy}
-            Graph确定的本轮路径：{route}。不得被旧记忆降到更早阶段。
-            本轮专用路径要求：本轮只建立怀表悖论、可交谈角色和玩家选择，不替玩家解谜。
-            相关长期进度只用于核对，不得覆盖更新的对话：
-            {memory}
-        - placeholder: history
-      - id: prompt-explore
-        type: prompt
-        inputs:
-          history:
-            from: input.messages
-          memory:
-            from: recalled
-          route:
-            from: stage-route
-          policy:
-            from: scenario-policy
-        outputs:
-          messages: answer-messages
-        format: f_string
-        messages:
-        - role: system
-          template: |-
-            {policy}
-            Graph确定的本轮路径：{route}。不得被旧记忆降到更早阶段。
-            本轮专用路径要求：本轮只处理玩家当前选择的角色、物件或门，保持人物与物件来源连续。
-            相关长期进度只用于核对，不得覆盖更新的对话：
-            {memory}
-        - placeholder: history
-      - id: prompt-correction
-        type: prompt
-        inputs:
-          history:
-            from: input.messages
-          memory:
-            from: recalled
-          route:
-            from: stage-route
-          policy:
-            from: scenario-policy
-        outputs:
-          messages: answer-messages
-        format: f_string
-        messages:
-        - role: system
-          template: |-
-            {policy}
-            Graph确定的本轮路径：{route}。不得被旧记忆降到更早阶段。
-            本轮专用路径要求：本轮只确认最新门色、门把手或口令；旧值失效且不得再次输出，也不得顺便解开下一步。用户同时更正门色并指定问号形门把手时，两个新事实都必须确认，不得漏掉“问号”。重连后询问章节和门色时，完整回答“现在是故事第三章，这扇小门的正确颜色是绿色。”，不得缩写成低于15个字符的短句。
-            相关长期进度只用于核对，不得覆盖更新的对话：
-            {memory}
-        - placeholder: history
-      - id: prompt-challenge
-        type: prompt
-        inputs:
-          history:
-            from: input.messages
-          memory:
-            from: recalled
-          route:
-            from: stage-route
-          policy:
-            from: scenario-policy
-        outputs:
-          messages: answer-messages
-        format: f_string
-        messages:
-        - role: system
-          template: |-
-            {policy}
-            Graph确定的本轮路径：{route}。不得被旧记忆降到更早阶段。
-            本轮专用路径要求：本轮用分级提示或反例检验规则，不直接公布答案，并把最终推理留给玩家。用户只要小提示时，不得说明两块表谁快、快多久或一块表显示另一块表未来内容；只提示比较同一问题在不同时间的显示变化。
-            相关长期进度只用于核对，不得覆盖更新的对话：
-            {memory}
-        - placeholder: history
-      - id: prompt-conclusion
-        type: prompt
-        inputs:
-          history:
-            from: input.messages
-          memory:
-            from: recalled
-          route:
-            from: stage-route
-          policy:
-            from: scenario-policy
-        outputs:
-          messages: answer-messages
-        format: f_string
-        messages:
-        - role: system
-          template: |-
-            {policy}
-            Graph确定的本轮路径：{route}。不得被旧记忆降到更早阶段。
-            本轮专用路径要求：本轮只使用有效门色、口令和已验证规则完成回顾或离场，不恢复作废事实。若用户要求两句，就严格只写两个句号结尾的完整句子；不得替玩家开门、推门、进入或走进门后。
-            相关长期进度只用于核对，不得覆盖更新的对话：
+            相关长期状态如下；为空时忽略，且旧值不得覆盖当前用户更正：
             {memory}
         - placeholder: history
       - id: narrator-model
         type: chat_model
         inputs:
-          messages:
-            from: answer-messages
+          messages: {from: answer-messages}
         outputs:
           text: answer
         model: eino-story-alice.model
-        max_tokens: 2048
-        temperature: 0.5
-      - id: commit-progress
+        max_tokens: 1024
+        temperature: 0.2
+      - id: capture-observation
         type: script
         inputs:
-          phase:
-            from: phase-key
-          route:
-            from: stage-route
-          text:
-            from: input.text
+          text: {from: input.text}
+          answer: {from: answer}
         outputs:
-          progress: progress-fact
-          lane: progress-lane
-          kind: progress-kind
+          fact: observation
         language: starlark
         entrypoint: run
         source: |
           def run(input):
-              progress = "schema=raid_scenario_progress_v2; phase=" + input["phase"] + "; route=" + input["route"]
-              if input["phase"] == "correction":
-                  correction = "latest_valid_facts_preserved_from_history"
-                  if "绿色" in input["text"]:
-                      correction = "door_color=绿色"
-                  elif "茶杯向右" in input["text"]:
-                      correction = "password=茶杯向右"
-                  progress += "; correction_authority=latest_user_value; " + correction
-              else:
-                  progress += "; latest_input=" + input["text"]
-              return {"progress": progress, "lane": "story_progress", "kind": "state"}
-        limits:
-          max_execution_steps: 10000
-          timeout: 250ms
-          max_input_bytes: 131072
-          max_output_bytes: 131072
-      - id: observe-progress
+              return {"fact": "story_contract_v1；用户本轮输入：" + input["text"].strip() + "；故事本轮确认：" + input["answer"]}
+        limits: {max_execution_steps: 10000, timeout: 250ms, max_input_bytes: 262144, max_output_bytes: 262144}
+      - id: observe-memory
         type: memory_observe
         facts:
-        - text_from: progress-fact
-          attributes:
-            lane: progress-lane
-            kind: progress-kind
-        wait_for_completion: false
+        - text_from: observation
+        wait_for_completion: true
       edges:
-      - from: start
-        to: prepare-memory-query
-      - from: prepare-memory-query
-        to: recall-progress
-      - from: recall-progress
-        to: route-stage
-      - from: prompt-opening
-        to: narrator-model
-      - from: prompt-explore
-        to: narrator-model
-      - from: prompt-correction
-        to: narrator-model
-      - from: prompt-challenge
-        to: narrator-model
-      - from: prompt-conclusion
-        to: narrator-model
-      - from: narrator-model
-        to: commit-progress
-      - from: commit-progress
-        to: observe-progress
-      - from: observe-progress
-        to: end
+      - {from: start, to: prepare-memory-query}
+      - {from: recall-memory, to: build-prompt}
+      - {from: build-prompt, to: narrator-model}
+      - {from: capture-observation, to: observe-memory}
+      - {from: observe-memory, to: end}
       branches:
-      - from: route-stage
+      - from: prepare-memory-query
         mode: first_match
         routes:
-        - when:
-            field: phase-key
-            op: eq
-            value: opening
-          to: prompt-opening
-        - when:
-            field: phase-key
-            op: eq
-            value: correction
-          to: prompt-correction
-        - when:
-            field: phase-key
-            op: eq
-            value: challenge
-          to: prompt-challenge
-        - when:
-            field: phase-key
-            op: eq
-            value: conclusion
-          to: prompt-conclusion
-        default: prompt-explore
+        - when: {field: memory-route, op: eq, value: recall}
+          to: recall-memory
+        default: build-prompt
+      - from: narrator-model
+        mode: first_match
+        routes:
+        - when: {field: memory-route, op: eq, value: opening}
+          to: end
+        default: capture-observation
       outputs:
-      - node: narrator-model
-        field: answer
-        name: assistant
-        mime_type: text/plain
-        primary: true
+      - {node: narrator-model, field: answer, name: assistant, mime_type: text/plain, primary: true}
     conversation:
       starts: peer
     limits:

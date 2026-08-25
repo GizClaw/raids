@@ -1,61 +1,28 @@
 # User Story:
 # As a Raids catalog maintainer,
-# I want the `story-arabian-nights-test` Tester Workflow to drive `eino-story-arabian-nights` through one live relay,
-# So that the 7-response `story-arabian-nights-acceptance` route, its deterministic contracts, and the final verdict stay declarative.
+# I want eino-story-arabian-nights to complete its long-form story route through a bounded relay,
+# So that chapter, correction, reload, role, and continuity behavior remain reproducible.
 version: gizclaw.test/v1alpha1
 name: story-arabian-nights.eino
 clients:
-  candidate:
-    identity: ephemeral
-    connection: webrtc
-    access_point: ${endpoint}
-  tester:
-    identity: ephemeral
-    connection: webrtc
-    access_point: ${endpoint}
+  candidate: {identity: ephemeral, connection: webrtc, access_point: "${endpoint}"}
+  tester: {identity: ephemeral, connection: webrtc, access_point: "${endpoint}"}
 variables:
-  endpoint:
-    direction: input
-    type: string
-    env: GIZCLAW_TEST_ENDPOINT
-  registration_token:
-    direction: input
-    type: string
-    env: GIZCLAW_TEST_REGISTRATION_TOKEN
-    secret: true
-  candidate_workspace:
-    direction: input
-    type: string
-    generate: token
-  tester_workspace:
-    direction: input
-    type: string
-    generate: token
-  test_brief:
-    direction: input
-    type: string
-    value: BEGIN eino-story-arabian-nights core-experience
-  verdict:
-    direction: output
-    type: string
-  reload_handoff:
-    direction: output
-    type: string
+  endpoint: {direction: input, type: string, env: GIZCLAW_TEST_ENDPOINT}
+  registration_token: {direction: input, type: string, env: GIZCLAW_TEST_REGISTRATION_TOKEN, secret: true}
+  candidate_workspace: {direction: input, type: string, generate: token}
+  tester_workspace: {direction: input, type: string, generate: token}
+  test_brief: {direction: input, type: string, value: "BEGIN eino-story-arabian-nights long-form-story"}
+  verdict: {direction: output, type: string}
 repeat: 1
-timeout: 35m
+timeout: 300m
 steps:
 - id: register_candidate
   client: candidate
-  rpc:
-    method: server.register
-    request:
-      token: ${registration_token}
+  rpc: {method: server.register, request: {token: "${registration_token}"}}
 - id: register_tester
   client: tester
-  rpc:
-    method: server.register
-    request:
-      token: ${registration_token}
+  rpc: {method: server.register, request: {token: "${registration_token}"}}
 - id: create_candidate_workspace
   client: candidate
   rpc:
@@ -82,125 +49,145 @@ steps:
           input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
 - id: select_candidate_workspace
   client: candidate
-  rpc:
-    method: server.run.workspace.set
-    request:
-      workspace_name: ${candidate_workspace}
+  rpc: {method: server.run.workspace.set, request: {workspace_name: "${candidate_workspace}"}}
 - id: select_tester_workspace
   client: tester
-  rpc:
-    method: server.run.workspace.set
-    request:
-      workspace_name: ${tester_workspace}
-- id: run_dialogue_before_reload
-  timeout: 20m
+  rpc: {method: server.run.workspace.set, request: {workspace_name: "${tester_workspace}"}}
+- id: relay_responses_1_8
+  timeout: 32m
   workspace_relay:
     first_client: tester
     second_client: candidate
     input: ${test_brief}
     media: text
     idle_timeout: 90s
-    max_turns: 12
-    terminal_client: candidate
-  capture:
-    reload_handoff: /terminal/text
+    max_turns: 17
+    terminal_client: tester
+
   expect:
-    /terminal/client:
-      equals: candidate
-    /completed_turns:
-      equals: 12
-    /turns/candidate/count:
-      equals: 6
-    /turns/tester/count:
-      equals: 6
-    /turns/candidate/first_text_ms/max:
-      maximum: 6000
-    /turns/candidate/text_runes/min:
-      minimum: 4
-    /turns/candidate/text_runes/max:
-      maximum: 360
-- id: recall_barrier_1
+    /terminal/client: {equals: tester}
+    /terminal/text: {pattern: ^\s*CHECKPOINT PASS\s*$}
+    /completed_turns: {equals: 17}
+    /turns/candidate/count: {equals: 8}
+    /turns/tester/count: {equals: 9}
+    /turns/candidate/first_text_ms/max: {maximum: 6000}
+    /turns/candidate/text_runes/min: {minimum: 4}
+    /turns/candidate/text_runes/max: {maximum: 360}
+- id: relay_responses_9_16
+  timeout: 32m
+  workspace_relay:
+    first_client: tester
+    second_client: candidate
+    input: CONTINUE 8
+    media: text
+    idle_timeout: 90s
+    max_turns: 17
+    terminal_client: tester
+
+  expect:
+    /terminal/client: {equals: tester}
+    /terminal/text: {pattern: ^\s*CHECKPOINT PASS\s*$}
+    /completed_turns: {equals: 17}
+    /turns/candidate/count: {equals: 8}
+    /turns/tester/count: {equals: 9}
+    /turns/candidate/first_text_ms/max: {maximum: 6000}
+    /turns/candidate/text_runes/min: {minimum: 4}
+    /turns/candidate/text_runes/max: {maximum: 360}
+- id: relay_responses_17_32
+  timeout: 64m
+  workspace_relay:
+    first_client: tester
+    second_client: candidate
+    input: CONTINUE 16
+    media: text
+    idle_timeout: 90s
+    max_turns: 33
+    terminal_client: tester
+
+  expect:
+    /terminal/client: {equals: tester}
+    /terminal/text: {pattern: ^\s*CHECKPOINT PASS\s*$}
+    /completed_turns: {equals: 33}
+    /turns/candidate/count: {equals: 16}
+    /turns/tester/count: {equals: 17}
+    /turns/candidate/first_text_ms/max: {maximum: 6000}
+    /turns/candidate/text_runes/min: {minimum: 4}
+    /turns/candidate/text_runes/max: {maximum: 360}
+- id: recall_barrier
   client: candidate
   rpc:
     method: server.run.workspace.recall
-    request:
-      query: 星火七号
+    request: {query: 月光七码}
   timeout: 60s
   expect:
-    /available:
-      equals: true
-    /hits:
-      non_empty: true
+    /available: {equals: true}
+    /hits: {non_empty: true}
 - id: reload_candidate_workspace
   client: candidate
   rpc:
     method: server.run.workspace.reload
     request: {}
-- id: run_dialogue_after_reload
-  timeout: 5m
+- id: relay_responses_33_48
+  timeout: 64m
   workspace_relay:
     first_client: tester
     second_client: candidate
-    input: ${reload_handoff}
+    input: CONTINUE 32
     media: text
     idle_timeout: 90s
-    max_turns: 3
+    max_turns: 33
+    terminal_client: tester
+
+  expect:
+    /terminal/client: {equals: tester}
+    /terminal/text: {pattern: ^\s*CHECKPOINT PASS\s*$}
+    /completed_turns: {equals: 33}
+    /turns/candidate/count: {equals: 16}
+    /turns/tester/count: {equals: 17}
+    /turns/candidate/first_text_ms/max: {maximum: 6000}
+    /turns/candidate/text_runes/min: {minimum: 4}
+    /turns/candidate/text_runes/max: {maximum: 360}
+- id: relay_responses_49_64
+  timeout: 64m
+  workspace_relay:
+    first_client: tester
+    second_client: candidate
+    input: CONTINUE 48
+    media: text
+    idle_timeout: 90s
+    max_turns: 33
     terminal_client: tester
   capture:
     verdict: /terminal/text
   expect:
-    /terminal/client:
-      equals: tester
-    /terminal/text:
-      pattern: ^\s*PASS\s*$
-    /completed_turns:
-      equals: 3
-    /turns/candidate/count:
-      equals: 1
-    /turns/tester/count:
-      equals: 2
-    /turns/candidate/first_text_ms/max:
-      maximum: 6000
-    /turns/candidate/text_runes/min:
-      minimum: 4
-    /turns/candidate/text_runes/max:
-      maximum: 200
+    /terminal/client: {equals: tester}
+    /terminal/text: {pattern: ^\s*PASS\s*$}
+    /completed_turns: {equals: 33}
+    /turns/candidate/count: {equals: 16}
+    /turns/tester/count: {equals: 17}
+    /turns/candidate/first_text_ms/max: {maximum: 6000}
+    /turns/candidate/text_runes/min: {minimum: 4}
+    /turns/candidate/text_runes/max: {maximum: 360}
 - id: emit_verdict
-  output:
-    variable: verdict
+  output: {variable: verdict}
 finally:
 - id: stop_candidate_run
   client: candidate
-  rpc:
-    method: server.run.stop
-    request: {}
+  rpc: {method: server.run.stop, request: {}}
 - id: stop_tester_run
   client: tester
-  rpc:
-    method: server.run.stop
-    request: {}
+  rpc: {method: server.run.stop, request: {}}
 - id: delete_candidate_workspace
   client: candidate
-  rpc:
-    method: server.workspace.delete
-    request:
-      name: ${candidate_workspace}
+  rpc: {method: server.workspace.delete, request: {name: "${candidate_workspace}"}}
 - id: delete_tester_workspace
   client: tester
-  rpc:
-    method: server.workspace.delete
-    request:
-      name: ${tester_workspace}
+  rpc: {method: server.workspace.delete, request: {name: "${tester_workspace}"}}
 - id: delete_candidate_peer
   client: candidate
-  rpc:
-    method: server.peer.delete
-    request: {}
+  rpc: {method: server.peer.delete, request: {}}
 - id: delete_tester_peer
   client: tester
-  rpc:
-    method: server.peer.delete
-    request: {}
+  rpc: {method: server.peer.delete, request: {}}
 report:
-  redact:
-  - registration_token
+  redact: [registration_token]

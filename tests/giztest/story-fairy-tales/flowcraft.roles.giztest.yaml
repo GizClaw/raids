@@ -1,0 +1,154 @@
+# User Story:
+# As a Raids catalog maintainer,
+# I want isolated narrator and character probes for flowcraft-story-fairy-tales,
+# So that every reachable role path produces text and non-empty synthesized audio.
+version: gizclaw.test/v1alpha1
+name: story-fairy-tales.flowcraft.roles
+clients:
+  narrator: {identity: ephemeral, connection: webrtc, access_point: "${endpoint}"}
+  heroine: {identity: ephemeral, connection: webrtc, access_point: "${endpoint}"}
+  companion: {identity: ephemeral, connection: webrtc, access_point: "${endpoint}"}
+variables:
+  endpoint: {direction: input, type: string, env: GIZCLAW_TEST_ENDPOINT}
+  registration_token: {direction: input, type: string, env: GIZCLAW_TEST_REGISTRATION_TOKEN, secret: true}
+  narrator_workspace: {direction: input, type: string, generate: token}
+  heroine_workspace: {direction: input, type: string, generate: token}
+  companion_workspace: {direction: input, type: string, generate: token}
+repeat: 1
+timeout: 12m
+steps:
+- id: register_narrator
+  client: narrator
+  rpc: {method: server.register, request: {token: "${registration_token}"}}
+- id: create_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.workspace.create
+    request:
+      name: ${narrator_workspace}
+      collection: raidtest-targets
+      workflow_name: flowcraft-story-fairy-tales
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation: {initiative: FLOWCRAFT_CONVERSATION_PARAMETERS_INITIATIVE_PEER}
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_narrator_workspace
+  client: narrator
+  rpc: {method: server.run.workspace.set, request: {workspace_name: "${narrator_workspace}"}}
+- id: register_heroine
+  client: heroine
+  rpc: {method: server.register, request: {token: "${registration_token}"}}
+- id: create_heroine_workspace
+  client: heroine
+  rpc:
+    method: server.workspace.create
+    request:
+      name: ${heroine_workspace}
+      collection: raidtest-targets
+      workflow_name: flowcraft-story-fairy-tales
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation: {initiative: FLOWCRAFT_CONVERSATION_PARAMETERS_INITIATIVE_PEER}
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_heroine_workspace
+  client: heroine
+  rpc: {method: server.run.workspace.set, request: {workspace_name: "${heroine_workspace}"}}
+- id: register_companion
+  client: companion
+  rpc: {method: server.register, request: {token: "${registration_token}"}}
+- id: create_companion_workspace
+  client: companion
+  rpc:
+    method: server.workspace.create
+    request:
+      name: ${companion_workspace}
+      collection: raidtest-targets
+      workflow_name: flowcraft-story-fairy-tales
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation: {initiative: FLOWCRAFT_CONVERSATION_PARAMETERS_INITIATIVE_PEER}
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_companion_workspace
+  client: companion
+  rpc: {method: server.run.workspace.set, request: {workspace_name: "${companion_workspace}"}}
+- id: probe_narrator
+  client: narrator
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: "请由旁白承接当前故事，只推进一个可见线索。"
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    /text: {pattern: 旁白}
+    /text_eos: {equals: true}
+    /audio_eos: {equals: true}
+    /audio_bytes: {minimum: 1}
+    /first_text_ms: {maximum: 6000}
+    /first_audio_ms: {maximum: 90000}
+- id: probe_heroine
+  client: heroine
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: "请让女主角亲自回应，只说这个角色知道的事。"
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    /text: {pattern: 女主角}
+    /text_eos: {equals: true}
+    /audio_eos: {equals: true}
+    /audio_bytes: {minimum: 1}
+    /first_text_ms: {maximum: 6000}
+    /first_audio_ms: {maximum: 90000}
+- id: probe_companion
+  client: companion
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: "请让伙伴亲自回应，只说这个角色知道的事。"
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    /text: {pattern: 伙伴}
+    /text_eos: {equals: true}
+    /audio_eos: {equals: true}
+    /audio_bytes: {minimum: 1}
+    /first_text_ms: {maximum: 6000}
+    /first_audio_ms: {maximum: 90000}
+finally:
+- id: stop_narrator_run
+  client: narrator
+  rpc: {method: server.run.stop, request: {}}
+- id: delete_narrator_workspace
+  client: narrator
+  rpc: {method: server.workspace.delete, request: {name: "${narrator_workspace}"}}
+- id: delete_narrator_peer
+  client: narrator
+  rpc: {method: server.peer.delete, request: {}}
+- id: stop_heroine_run
+  client: heroine
+  rpc: {method: server.run.stop, request: {}}
+- id: delete_heroine_workspace
+  client: heroine
+  rpc: {method: server.workspace.delete, request: {name: "${heroine_workspace}"}}
+- id: delete_heroine_peer
+  client: heroine
+  rpc: {method: server.peer.delete, request: {}}
+- id: stop_companion_run
+  client: companion
+  rpc: {method: server.run.stop, request: {}}
+- id: delete_companion_workspace
+  client: companion
+  rpc: {method: server.workspace.delete, request: {name: "${companion_workspace}"}}
+- id: delete_companion_peer
+  client: companion
+  rpc: {method: server.peer.delete, request: {}}
+report:
+  redact: [registration_token]

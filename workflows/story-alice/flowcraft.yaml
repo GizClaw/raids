@@ -9,222 +9,184 @@ spec:
   flowcraft:
     graph:
       name: story-alice
-      entry: prepare-recall-query
+      entry: route-recall
       edges:
+      - from: route-recall
+        to: prepare-recall-query
+        condition: needs_memory_recall == true
+      - from: route-recall
+        to: control-story
       - from: prepare-recall-query
         to: recall-progress
       - from: recall-progress
-        to: route-phase
-      - from: route-phase
-        to: narrate-opening
-        condition: scenario_phase == "opening"
-      - from: route-phase
-        to: narrate-correction
-        condition: scenario_phase == "correction"
-      - from: route-phase
-        to: narrate-challenge
-        condition: scenario_phase == "challenge"
-      - from: route-phase
-        to: narrate-conclusion
-        condition: scenario_phase == "conclusion"
-      - from: route-phase
-        to: narrate-explore
-      - from: narrate-opening
-        to: reduce-state
-      - from: narrate-explore
-        to: reduce-state
-      - from: narrate-correction
-        to: reduce-state
-      - from: narrate-challenge
-        to: reduce-state
-      - from: narrate-conclusion
-        to: reduce-state
-      - from: reduce-state
-        to: observe-progress
-      - from: observe-progress
+        to: control-story
+      - from: control-story
+        to: speak-alice
+        condition: selected_speaker == "alice"
+      - from: control-story
+        to: speak-white-rabbit
+        condition: selected_speaker == "white-rabbit"
+      - from: control-story
+        to: speak-narrator
+      - from: speak-narrator
+        to: persist-story
+      - from: speak-alice
+        to: persist-story
+      - from: speak-white-rabbit
+        to: persist-story
+      - from: persist-story
+        to: observe-story
+      - from: observe-story
         to: __end__
       nodes:
+      - id: route-recall
+        type: script
+        config:
+          source: |
+            const current = String(board.getVar("input") || "").trim().toLowerCase();
+            const cues = ["重连", "恢复", "回忆", "还记得", "代号", "更正", "改成", "reconnect", "recall", "correct"];
+            board.setVar("scenario_memory", "");
+            board.setVar("needs_memory_recall", current !== "" && cues.some((cue) => current.includes(cue)));
       - id: prepare-recall-query
         type: script
         config:
           source: |
             const current = String(board.getVar("input") || "").trim();
-            board.setVar("scenario_recall_query", current || "raid_scenario_state_v2");
+            board.setVar("scenario_recall_query", current || "story_contract_v1");
       - id: recall-progress
         type: memory_recall
         config:
           query:
             text_from: scenario_recall_query
-            lanes:
-            - story_progress
-            kinds:
-            - state
-            - note
-            - event
+            lanes: [story_progress]
+            kinds: [state]
           output: scenario_memory
           render:
-            header: 'Confirmed scenario history:'
-            item_prefix: '- '
-            max_items: 12
-          top_k: 12
-      - id: route-phase
+            header: "Confirmed story state:"
+            item_prefix: "- "
+            max_items: 16
+          top_k: 16
+      - id: control-story
         type: script
         config:
           source: |
             const current = String(board.getVar("input") || "").trim();
             const memory = String(board.getVar("scenario_memory") || "");
-            const liveState = board.getVar("scenario_state") || {schema: "raid_scenario_state_v2", revision: 0};
-            let prior = Object.assign({}, liveState);
-            let priorRevision = Math.max(0, Number(prior.revision || 0));
+            const defaults = {"schema":"story_contract_v1","revision":0,"chapter":1,"chapter_title":"迟到的怀表","completed_beats":[],"location":"迟到的怀表","active_roles":["narrator","alice","white-rabbit"],"player_choices":[],"explicit_corrections":{},"durable_objects":["旅程代号"],"unresolved_hooks":["缩小之门尚未解决"]};
+            let state = Object.assign({}, defaults, board.getVar("story_state") || {});
             for (const line of memory.split("\n")) {
-              const start = line.indexOf('{"schema":"raid_scenario_state_v2"');
+              const start = line.indexOf('{"schema":"story_contract_v1"');
               if (start < 0) continue;
               try {
                 const candidate = JSON.parse(line.slice(start));
-                if (!candidate || candidate.schema !== "raid_scenario_state_v2") continue;
-                const candidateRevision = Math.max(0, Number(candidate.revision || 0));
-                if (candidateRevision > priorRevision || (candidateRevision === priorRevision && !prior.door_color && candidate.door_color)) {
-                  prior = Object.assign({}, prior, candidate);
-                  priorRevision = candidateRevision;
-                }
-              } catch (_) {
-                // Recall may also contain natural-language notes; only Graph-authored JSON state is authoritative.
-              }
+                if (candidate.schema === "story_contract_v1" && Number(candidate.revision || 0) >= Number(state.revision || 0)) state = candidate;
+              } catch (_) {}
             }
-            let combined = memory + "\n" + current;
-            const messages = board.channel(board.MAIN_CHANNEL) || [];
-            for (const message of messages) {
-              if (message && typeof message.content === "string") combined += "\n" + message.content;
-              const parts = message && Array.isArray(message.parts) ? message.parts : [];
-              const text = parts.map((part) => part && part.type === "text" && typeof part.text === "string" ? part.text : "").join("");
-              if (text) combined += "\n" + text;
+            const chapters = ["迟到的怀表", "缩小之门", "茶会反例", "花园答案"];
+            const enteringFirst = Number(state.revision || 0) === 0 && (current.includes("第一章") || current.includes("第 1 章"));
+            let requested = 0;
+            const transitionIntent = ["进入", "继续", "切换", "开始", "go to", "continue", "start"].some((cue) => current.toLowerCase().includes(cue));
+            const transitionDenied = ["不要", "别", "不能", "不进入", "暂不", "not ", "don't", "do not"].some((cue) => current.toLowerCase().includes(cue));
+            if (transitionIntent && !transitionDenied && (current.includes("第二章") || current.includes("第 2 章"))) requested = 2;
+            if (transitionIntent && !transitionDenied && (current.includes("第三章") || current.includes("第 3 章"))) requested = 3;
+            if (transitionIntent && !transitionDenied && (current.includes("第四章") || current.includes("第 4 章"))) requested = 4;
+            let transition = false;
+            if (requested === Number(state.chapter || 1) + 1) {
+              state.chapter = requested;
+              state.chapter_title = chapters[requested - 1];
+              state.location = chapters[requested - 1];
+              state.completed_beats = (state.completed_beats || []).concat([chapters[requested - 2]]);
+              state.unresolved_hooks = [requested < 4 ? chapters[requested] + "尚未解决" : "结局后的责任仍需兑现"];
+              transition = true;
             }
-            const containsAnyText = (text, values) => values.some((value) => text.includes(value));
-            let phase = "explore";
-            if (!current || containsAnyText(current, ["开始爱丽丝", "开始故事", "怀表"])) phase = "opening";
-            else if (containsAnyText(current, ["更正", "只确认", "有效颜色", "有效口令", "正确口令", "正确颜色", "回忆", "重连", "隔了几轮", "只说"])) phase = "correction";
-            else if (containsAnyText(current, ["总结", "离开", "回顾", "出口", "用两句完整的话说出"])) phase = "conclusion";
-            else if (containsAnyText(current, ["反例", "规则", "提示", "不要替我", "我猜", "悖论"])) phase = "challenge";
-            let route = "";
-            if (containsAnyText(current, ["我打开绿色", "我推开绿色", "我走进门", "我进入门后"])) route = "第四章‘由玩家决定的门后旅程’";
-            else if (prior.door_color || containsAnyText(current, ["蓝色小门", "绿色小门", "门把手", "门的正确颜色", "门边口令", "有效口令"])) route = "第三章‘绿色小门’";
-            else if (containsAnyText(combined, ["悖论", "提示", "谜底", "解释成立", "快一分钟", "问题表"])) route = "第二章‘悖论与提示’";
-            else route = "第一章‘两块手表’";
-            board.setVar("scenario_phase", phase);
-            board.setVar("scenario_route", route);
-            board.setVar("scenario_state", prior);
-            board.setVar("scenario_state_text", JSON.stringify(prior));
-            board.setVar("scenario_common_prompt", "你是儿童友好的梦境逻辑故事主持人，创作原创的仙境式规则、语言游戏和谜题。\n首次主动开场严格说：一只戴着两块表的兔子说其中一块显示问题，另一块显示答案，你会先看哪一块？\n故事分为四章：第一章“两块手表”、第二章“悖论与提示”、第三章“绿色小门”、第四章“由玩家决定的门后旅程”。事实建立、纠正、回忆、质疑和索要提示不推进章节；只有可见叙事或玩家明确行动才推进。用户询问章节时按当前已发生情节准确回答，不得因为提到第四章就替玩家开门。\n在用户明确建立一扇门之前，第一、二章绝对不得出现门、门色、门把手、钥匙、口令或第三、四章场景；系统中的未来章节名称不是已经发生的剧情。用户首次查看问题表时，问题只围绕两块表如何对应同一个尚未出现的问题，不得偷渡未来场景。\n后续每轮只呈现一个荒诞规则或可推理的小谜题，承接孩子上一轮查看的手表、发现和质疑；孩子选择查看某块表或物件时，首句明确复述其选择的对象，再给出内容；不得重置场景。\n孩子可以反问规则、索要渐进提示或提出不同解法；先确认其推理中成立的部分，再说明仍缺什么。用户质疑答案表比问题表快一分钟时，必须直接说明这不能证明预知未来，只能作为待验证规则，并用稍后对照同一问题在两块表上的内容来检验；该轮不得引入新物件、场景、行动或选择。用户提出“两块表把同一个问题拆成先后两面”时，只判断该解释与现有观察是否相容以及尚缺哪项表内证据，不得跳到门或安排动作。\n不得照抄现代改编、歌曲或新增影视角色；困惑应有趣而不令人恐惧，不收集个人信息。\n最新明确更正覆盖旧事实，之后只把更正后的颜色、物品或规则当作当前事实。门及其把手、墙壁、植物和装饰不得自行增加用户没有给出的颜色，避免旧颜色伪装成其他物件继续出现。\n事实建立、纠正或纯回忆回合只直接回答用户要求，不推进场景、不添加环境、新发现或追问；用户要求记住颜色时只确认该物件及颜色；纠正回合必须只说新事实，并且不得以否定、引用、对比或解释方式再次输出旧值。\n普通回复写2至4个完整中文句子、约60至180个Unicode字符；提示和事实回忆应更短。\n每轮最多问一个问题。只输出适合朗读的中文正文，不输出Markdown、列表、菜单、emoji、舞台说明、分析或系统文字。\n必须写完整句子，不得依赖程序截断，不得重复同义内容。");
-      - id: narrate-opening
+            if (current.includes("月光七码")) state.journey_code = "月光七码";
+            if (current.includes("晨星九号")) {
+              state.journey_code = "晨星九号";
+              state.explicit_corrections = {journey_code: "晨星九号", supersedes: "月光七码"};
+            }
+            if (current && !current.includes("只说") && !current.includes("只确认")) {
+              const choices = Array.isArray(state.player_choices) ? state.player_choices.slice(-7) : [];
+              choices.push(current.slice(0, 120));
+              state.player_choices = choices;
+            }
+            state.revision = Number(state.revision || 0) + 1;
+            let speaker = "narrator";
+            const explicitlyRequests = (name) => current.includes("请让" + name) || current.includes("由" + name) || current.includes(name + "亲自");
+            if (!transition && !enteringFirst && explicitlyRequests("爱丽丝")) speaker = "alice";
+            if (!transition && !enteringFirst && explicitlyRequests("白兔")) speaker = "white-rabbit";
+            const announce = (!current && Number(state.chapter || 1) === 1) || enteringFirst || transition;
+            board.setVar("selected_speaker", speaker);
+            board.setVar("announce_chapter", announce);
+            board.setVar("story_state", state);
+            board.setVar("story_state_text", JSON.stringify(state));
+            board.setVar("story_bible", "故事：爱丽丝梦游仙境。前提：用奇妙规则、语言游戏和逻辑谜题探索梦境世界。\n玩家是能改变局面但不能替代角色作决定的同行者。\n四章依次为：第1章《迟到的怀表》；第2章《缩小之门》；第3章《茶会反例》；第4章《花园答案》。\n第1章《迟到的怀表》：进入条件=收到首次开场请求；目标=解决《迟到的怀表》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，并明确要求进入第2章；结束条件=只输出一次下一章标题“第 2 章：缩小之门”。\n第2章《缩小之门》：进入条件=第1章的当前选择已完成转场条件，且用户明确要求继续；目标=解决《缩小之门》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，并明确要求进入第3章；结束条件=只输出一次下一章标题“第 3 章：茶会反例”。\n第3章《茶会反例》：进入条件=第2章的当前选择已完成转场条件，且用户明确要求继续；目标=解决《茶会反例》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，并明确要求进入第4章；结束条件=只输出一次下一章标题“第 4 章：花园答案”。\n第4章《花园答案》：进入条件=第3章的当前选择已完成转场条件，且用户明确要求继续；目标=解决《花园答案》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家确认角色的持久选择，并保留一个结局后的责任线索；结束条件=保持第4章，不再创建第五章，并以仍需兑现的责任收束。\n角色表：旁白只陈述可见事实与转场；爱丽丝坚持自身动机、只知道亲历信息；白兔提供不同立场、不得知道未公开事实。\n世界规则：每轮只推进一个场景、线索或选择；最多一个问题；当前用户更正覆盖历史旧值。\n事实边界：经典来源、传说与本剧本原创设定必须区分；不得复制完整出版译文。\n安全边界：面向儿童，危险非血腥；现实模仿请求必须明确说“不要模仿”，并建议找可信任的成年人、家长或老师帮助。\n反重复：不得重复确认句、场景开头、上一轮选择、同一个问题、回顾或寓意总结。");
+      - id: speak-narrator
         type: llm
         publish: true
         config:
           model: flowcraft-story-alice.model
-          max_tokens: 2048
-          output_key: tmp_answer
+          max_tokens: 1024
+          output_key: answer
           system_prompt: |-
-            ${board.scenario_common_prompt}
-            本轮Graph路径：${board.scenario_route}。
-            本轮只建立怀表悖论、可交谈角色和玩家选择，不替玩家解谜。
-            可核对的长期进度：${board.scenario_memory}
-            Graph状态：${board.scenario_state_text}
+            ${board.story_bible}
+            当前权威状态：${board.story_state_text}
+            本轮是旁白路径。只陈述玩家可见的场景、直接后果或转场，不替角色知道秘密；自然以“旁白说：”开头。
+            若 announce_chapter 为 true，第一行必须且只能用“第 N 章：标题”格式写当前章；否则不得输出章节标题。
+            首次进入第一章时，章节标题后必须完整承接这个开场：白兔的怀表只剩三分钟，蓝门和红门都在移动，你想先追白兔还是先检查怀表？
+            若用户只要求回忆或确认旅程代号，只回答当前代号；存在更正时绝不输出旧值。
+            输出2至4个完整中文句子、30至220个Unicode字符，不输出Markdown、列表、emoji、舞台说明、系统字段或重复问题。
           track_steps: true
-      - id: narrate-explore
+      - id: speak-alice
         type: llm
         publish: true
         config:
           model: flowcraft-story-alice.model
-          max_tokens: 2048
-          output_key: tmp_answer
+          max_tokens: 1024
+          output_key: answer
           system_prompt: |-
-            ${board.scenario_common_prompt}
-            本轮Graph路径：${board.scenario_route}。
-            本轮只处理玩家当前选择的角色、物件或门，保持人物与物件来源连续。
-            可核对的长期进度：${board.scenario_memory}
-            Graph状态：${board.scenario_state_text}
+            ${board.story_bible}
+            当前权威状态：${board.story_state_text}
+            本轮只能由爱丽丝说话，第一句必须自然以“爱丽丝说：”开头；只说该角色亲历或已公开的信息，不替旁白或另一角色发言。
+            本轮不得输出章节标题。承接玩家当前选择，推进一个直接后果或线索，最多一个问题。
+            输出2至4个完整中文句子、30至220个Unicode字符，不输出Markdown、列表、emoji、舞台说明或系统字段。
           track_steps: true
-      - id: narrate-correction
+      - id: speak-white-rabbit
         type: llm
         publish: true
         config:
           model: flowcraft-story-alice.model
-          max_tokens: 2048
-          output_key: tmp_answer
+          max_tokens: 1024
+          output_key: answer
           system_prompt: |-
-            ${board.scenario_common_prompt}
-            本轮Graph路径：${board.scenario_route}。
-            本轮只确认最新门色或口令；旧值失效且不得再次输出，也不得顺便解开下一步。
-            可核对的长期进度：${board.scenario_memory}
-            Graph状态：${board.scenario_state_text}
+            ${board.story_bible}
+            当前权威状态：${board.story_state_text}
+            本轮只能由白兔说话，第一句必须自然以“白兔说：”开头；只说该角色亲历或已公开的信息，不替旁白或另一角色发言。
+            本轮不得输出章节标题。承接玩家当前选择，推进一个直接后果或线索，最多一个问题。
+            输出2至4个完整中文句子、30至220个Unicode字符，不输出Markdown、列表、emoji、舞台说明或系统字段。
           track_steps: true
-      - id: narrate-challenge
-        type: llm
-        publish: true
-        config:
-          model: flowcraft-story-alice.model
-          max_tokens: 2048
-          output_key: tmp_answer
-          system_prompt: |-
-            ${board.scenario_common_prompt}
-            本轮Graph路径：${board.scenario_route}。
-            本轮用分级提示或反例检验规则，不直接公布答案，并把最终推理留给玩家。已经作废的门色或口令不得再次输出，也不得建议玩家尝试。检验诚实规则时只描述“提出中性问题、比较前后回答是否一致”这一方法，不给出口令，不使用第二人称祈使或建议句，不问玩家是否执行。用户质疑两块表的规则时，只解释当前矛盾和可检验条件，不得凭空增加第三块表、新角色或新道具，也不得指定伸手、摸口袋、开门等固定行动。
-            可核对的长期进度：${board.scenario_memory}
-            Graph状态：${board.scenario_state_text}
-          track_steps: true
-      - id: narrate-conclusion
-        type: llm
-        publish: true
-        config:
-          model: flowcraft-story-alice.model
-          max_tokens: 2048
-          output_key: tmp_answer
-          system_prompt: |-
-            ${board.scenario_common_prompt}
-            本轮Graph路径：${board.scenario_route}。
-            本轮只使用有效门色、口令和已验证规则完成回顾或离场，不恢复作废事实。
-            可核对的长期进度：${board.scenario_memory}
-            Graph状态：${board.scenario_state_text}
-          track_steps: true
-      - id: reduce-state
+      - id: persist-story
         type: script
         config:
           source: |
-            const input = String(board.getVar("input") || "").trim();
-            const phase = String(board.getVar("scenario_phase") || "explore");
-            const prior = board.getVar("scenario_state") || {schema: "raid_scenario_state_v2", revision: 0};
-            const next = Object.assign({}, prior);
-            let changed = false;
-            function set(name, value) {
-              if (value && next[name] !== value) { next[name] = value; changed = true; }
-            }
-            next.phase = phase;
-            next.route = String(board.getVar("scenario_route") || "");
-            if (input.includes("绿色")) set("door_color", "绿色");
-            else if (input.includes("蓝色小门")) set("door_color", "蓝色");
-            if (input.includes("茶杯向右")) set("password", "茶杯向右");
-            if (changed) next.revision = Math.max(0, Number(prior.revision || 0)) + 1;
-            if (phase === "correction") {
-              delete next.last_input;
-              next.last_correction = JSON.stringify({door_color: next.door_color || "", password: next.password || ""});
-            } else {
-              next.last_input = input.slice(0, 160);
-            }
-            board.setVar("scenario_state", next);
-            board.setVar("scenario_state_fact", JSON.stringify(next));
-      - id: observe-progress
+            const state = board.getVar("story_state") || {};
+            state.last_answer = String(board.getVar("answer") || "").slice(0, 320);
+            board.setVar("story_state_fact", JSON.stringify(state));
+      - id: observe-story
         type: memory_observe
         config:
           observations:
           - facts:
-            - text_from: scenario_state_fact
-              attributes:
-                lane: story_progress
-                kind: state
-          wait_for_completion: false
+            - text_from: story_state_fact
+              attributes: {lane: story_progress, kind: state}
+          wait_for_completion: true
     max_iterations: 10
     conversation:
       starts: agent
     voice_adapter:
       asr_model: asr
       default_voice: flowcraft-story-alice.storyteller
+      node_voices:
+        speak-narrator: flowcraft-story-alice.storyteller
+        speak-alice: flowcraft-story-alice.alice
+        speak-white-rabbit: flowcraft-story-alice.white-rabbit
   memory: story-teller

@@ -1,0 +1,154 @@
+# User Story:
+# As a Raids catalog maintainer,
+# I want isolated narrator and character probes for flowcraft-story-water-margin,
+# So that every reachable role path produces text and non-empty synthesized audio.
+version: gizclaw.test/v1alpha1
+name: story-water-margin.flowcraft.roles
+clients:
+  narrator: {identity: ephemeral, connection: webrtc, access_point: "${endpoint}"}
+  lin_chong: {identity: ephemeral, connection: webrtc, access_point: "${endpoint}"}
+  lu_zhishen: {identity: ephemeral, connection: webrtc, access_point: "${endpoint}"}
+variables:
+  endpoint: {direction: input, type: string, env: GIZCLAW_TEST_ENDPOINT}
+  registration_token: {direction: input, type: string, env: GIZCLAW_TEST_REGISTRATION_TOKEN, secret: true}
+  narrator_workspace: {direction: input, type: string, generate: token}
+  lin_chong_workspace: {direction: input, type: string, generate: token}
+  lu_zhishen_workspace: {direction: input, type: string, generate: token}
+repeat: 1
+timeout: 12m
+steps:
+- id: register_narrator
+  client: narrator
+  rpc: {method: server.register, request: {token: "${registration_token}"}}
+- id: create_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.workspace.create
+    request:
+      name: ${narrator_workspace}
+      collection: raidtest-targets
+      workflow_name: flowcraft-story-water-margin
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation: {initiative: FLOWCRAFT_CONVERSATION_PARAMETERS_INITIATIVE_PEER}
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_narrator_workspace
+  client: narrator
+  rpc: {method: server.run.workspace.set, request: {workspace_name: "${narrator_workspace}"}}
+- id: register_lin-chong
+  client: lin_chong
+  rpc: {method: server.register, request: {token: "${registration_token}"}}
+- id: create_lin-chong_workspace
+  client: lin_chong
+  rpc:
+    method: server.workspace.create
+    request:
+      name: ${lin_chong_workspace}
+      collection: raidtest-targets
+      workflow_name: flowcraft-story-water-margin
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation: {initiative: FLOWCRAFT_CONVERSATION_PARAMETERS_INITIATIVE_PEER}
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_lin-chong_workspace
+  client: lin_chong
+  rpc: {method: server.run.workspace.set, request: {workspace_name: "${lin_chong_workspace}"}}
+- id: register_lu-zhishen
+  client: lu_zhishen
+  rpc: {method: server.register, request: {token: "${registration_token}"}}
+- id: create_lu-zhishen_workspace
+  client: lu_zhishen
+  rpc:
+    method: server.workspace.create
+    request:
+      name: ${lu_zhishen_workspace}
+      collection: raidtest-targets
+      workflow_name: flowcraft-story-water-margin
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation: {initiative: FLOWCRAFT_CONVERSATION_PARAMETERS_INITIATIVE_PEER}
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_lu-zhishen_workspace
+  client: lu_zhishen
+  rpc: {method: server.run.workspace.set, request: {workspace_name: "${lu_zhishen_workspace}"}}
+- id: probe_narrator
+  client: narrator
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: "请由旁白承接当前故事，只推进一个可见线索。"
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    /text: {pattern: 旁白}
+    /text_eos: {equals: true}
+    /audio_eos: {equals: true}
+    /audio_bytes: {minimum: 1}
+    /first_text_ms: {maximum: 6000}
+    /first_audio_ms: {maximum: 90000}
+- id: probe_lin-chong
+  client: lin_chong
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: "请让林冲亲自回应，只说这个角色知道的事。"
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    /text: {pattern: 林冲}
+    /text_eos: {equals: true}
+    /audio_eos: {equals: true}
+    /audio_bytes: {minimum: 1}
+    /first_text_ms: {maximum: 6000}
+    /first_audio_ms: {maximum: 90000}
+- id: probe_lu-zhishen
+  client: lu_zhishen
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: "请让鲁智深亲自回应，只说这个角色知道的事。"
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    /text: {pattern: 鲁智深}
+    /text_eos: {equals: true}
+    /audio_eos: {equals: true}
+    /audio_bytes: {minimum: 1}
+    /first_text_ms: {maximum: 6000}
+    /first_audio_ms: {maximum: 90000}
+finally:
+- id: stop_narrator_run
+  client: narrator
+  rpc: {method: server.run.stop, request: {}}
+- id: delete_narrator_workspace
+  client: narrator
+  rpc: {method: server.workspace.delete, request: {name: "${narrator_workspace}"}}
+- id: delete_narrator_peer
+  client: narrator
+  rpc: {method: server.peer.delete, request: {}}
+- id: stop_lin-chong_run
+  client: lin_chong
+  rpc: {method: server.run.stop, request: {}}
+- id: delete_lin-chong_workspace
+  client: lin_chong
+  rpc: {method: server.workspace.delete, request: {name: "${lin_chong_workspace}"}}
+- id: delete_lin-chong_peer
+  client: lin_chong
+  rpc: {method: server.peer.delete, request: {}}
+- id: stop_lu-zhishen_run
+  client: lu_zhishen
+  rpc: {method: server.run.stop, request: {}}
+- id: delete_lu-zhishen_workspace
+  client: lu_zhishen
+  rpc: {method: server.workspace.delete, request: {name: "${lu_zhishen_workspace}"}}
+- id: delete_lu-zhishen_peer
+  client: lu_zhishen
+  rpc: {method: server.peer.delete, request: {}}
+report:
+  redact: [registration_token]

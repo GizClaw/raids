@@ -15,116 +15,178 @@ spec:
         to: prepare-recall-query
         condition: needs_memory_recall == true
       - from: route-recall
-        to: narrate
+        to: control-story
       - from: prepare-recall-query
         to: recall-progress
       - from: recall-progress
-        to: narrate
-      - from: narrate
-        to: capture-progress
-      - from: capture-progress
-        to: observe-progress
-      - from: observe-progress
+        to: control-story
+      - from: control-story
+        to: speak-axel
+        condition: selected_speaker == "axel"
+      - from: control-story
+        to: speak-lidenbrock
+        condition: selected_speaker == "lidenbrock"
+      - from: control-story
+        to: speak-narrator
+      - from: speak-narrator
+        to: persist-story
+      - from: speak-axel
+        to: persist-story
+      - from: speak-lidenbrock
+        to: persist-story
+      - from: persist-story
+        to: observe-story
+      - from: observe-story
         to: __end__
       nodes:
       - id: route-recall
         type: script
         config:
           source: |
-            const current = String(board.getVar("input") || "").trim();
-            const normalized = current.toLowerCase();
-            const containsAny = (values) => values.some((value) => normalized.includes(value));
-            const storeCues = ["请记住", "记住：", "please remember", "remember this"];
-            const durableReadCues = [
-              "回忆", "还记得", "记得什么", "重连", "重新连接", "恢复",
-              "继续上次", "接着上次", "上次", "之前", "代号",
-              "recall", "do you remember", "what do you remember", "reconnect",
-              "resume", "continue where", "last time", "previous",
-            ];
-            const correctionCues = [
-              "更正", "纠正", "修正", "改成", "改变主意", "其实",
-              "correction", "correct", "change my mind", "actually",
-            ];
-            const storeOverrideCues = durableReadCues
-              .filter((value) => value !== "代号")
-              .concat(correctionCues);
-            const storeOnly = containsAny(storeCues) && !containsAny(storeOverrideCues);
-            const needsRecall = current !== "" && !storeOnly
-              && (containsAny(durableReadCues) || containsAny(correctionCues));
+            const current = String(board.getVar("input") || "").trim().toLowerCase();
+            const cues = ["重连", "恢复", "回忆", "还记得", "代号", "更正", "改成", "reconnect", "recall", "correct"];
             board.setVar("scenario_memory", "");
-            board.setVar("needs_memory_recall", needsRecall);
+            board.setVar("needs_memory_recall", current !== "" && cues.some((cue) => current.includes(cue)));
       - id: prepare-recall-query
         type: script
         config:
           source: |
             const current = String(board.getVar("input") || "").trim();
-            board.setVar("scenario_recall_query", current || "raid_scenario_state_v2");
+            board.setVar("scenario_recall_query", current || "story_contract_v1");
       - id: recall-progress
         type: memory_recall
         config:
           query:
             text_from: scenario_recall_query
-            lanes:
-            - story_progress
-            kinds:
-            - state
-            - note
-            - event
+            lanes: [story_progress]
+            kinds: [state]
           output: scenario_memory
           render:
-            header: 'Confirmed scenario history:'
-            item_prefix: '- '
-            max_items: 12
-          top_k: 12
-      - id: narrate
+            header: "Confirmed story state:"
+            item_prefix: "- "
+            max_items: 16
+          top_k: 16
+      - id: control-story
+        type: script
+        config:
+          source: |
+            const current = String(board.getVar("input") || "").trim();
+            const memory = String(board.getVar("scenario_memory") || "");
+            const defaults = {"schema":"story_contract_v1","revision":0,"chapter":1,"chapter_title":"岩层入口","completed_beats":[],"location":"岩层入口","active_roles":["narrator","axel","lidenbrock"],"player_choices":[],"explicit_corrections":{},"durable_objects":["旅程代号"],"unresolved_hooks":["地下水路尚未解决"]};
+            let state = Object.assign({}, defaults, board.getVar("story_state") || {});
+            for (const line of memory.split("\n")) {
+              const start = line.indexOf('{"schema":"story_contract_v1"');
+              if (start < 0) continue;
+              try {
+                const candidate = JSON.parse(line.slice(start));
+                if (candidate.schema === "story_contract_v1" && Number(candidate.revision || 0) >= Number(state.revision || 0)) state = candidate;
+              } catch (_) {}
+            }
+            const chapters = ["岩层入口", "地下水路", "晶洞风暴", "地表回声"];
+            const enteringFirst = Number(state.revision || 0) === 0 && (current.includes("第一章") || current.includes("第 1 章"));
+            let requested = 0;
+            const transitionIntent = ["进入", "继续", "切换", "开始", "go to", "continue", "start"].some((cue) => current.toLowerCase().includes(cue));
+            const transitionDenied = ["不要", "别", "不能", "不进入", "暂不", "not ", "don't", "do not"].some((cue) => current.toLowerCase().includes(cue));
+            if (transitionIntent && !transitionDenied && (current.includes("第二章") || current.includes("第 2 章"))) requested = 2;
+            if (transitionIntent && !transitionDenied && (current.includes("第三章") || current.includes("第 3 章"))) requested = 3;
+            if (transitionIntent && !transitionDenied && (current.includes("第四章") || current.includes("第 4 章"))) requested = 4;
+            let transition = false;
+            if (requested === Number(state.chapter || 1) + 1) {
+              state.chapter = requested;
+              state.chapter_title = chapters[requested - 1];
+              state.location = chapters[requested - 1];
+              state.completed_beats = (state.completed_beats || []).concat([chapters[requested - 2]]);
+              state.unresolved_hooks = [requested < 4 ? chapters[requested] + "尚未解决" : "结局后的责任仍需兑现"];
+              transition = true;
+            }
+            if (current.includes("月光七码")) state.journey_code = "月光七码";
+            if (current.includes("晨星九号")) {
+              state.journey_code = "晨星九号";
+              state.explicit_corrections = {journey_code: "晨星九号", supersedes: "月光七码"};
+            }
+            if (current && !current.includes("只说") && !current.includes("只确认")) {
+              const choices = Array.isArray(state.player_choices) ? state.player_choices.slice(-7) : [];
+              choices.push(current.slice(0, 120));
+              state.player_choices = choices;
+            }
+            state.revision = Number(state.revision || 0) + 1;
+            let speaker = "narrator";
+            const explicitlyRequests = (name) => current.includes("请让" + name) || current.includes("由" + name) || current.includes(name + "亲自");
+            if (!transition && !enteringFirst && explicitlyRequests("阿克塞尔")) speaker = "axel";
+            if (!transition && !enteringFirst && explicitlyRequests("黎登布洛克")) speaker = "lidenbrock";
+            const announce = (!current && Number(state.chapter || 1) === 1) || enteringFirst || transition;
+            board.setVar("selected_speaker", speaker);
+            board.setVar("announce_chapter", announce);
+            board.setVar("story_state", state);
+            board.setVar("story_state_text", JSON.stringify(state));
+            board.setVar("story_bible", "故事：地心游记。前提：在地下幻想旅程中认识岩石、地层与地球科学。\n玩家是能改变局面但不能替代角色作决定的同行者。\n四章依次为：第1章《岩层入口》；第2章《地下水路》；第3章《晶洞风暴》；第4章《地表回声》。\n第1章《岩层入口》：进入条件=收到首次开场请求；目标=解决《岩层入口》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，并明确要求进入第2章；结束条件=只输出一次下一章标题“第 2 章：地下水路”。\n第2章《地下水路》：进入条件=第1章的当前选择已完成转场条件，且用户明确要求继续；目标=解决《地下水路》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，并明确要求进入第3章；结束条件=只输出一次下一章标题“第 3 章：晶洞风暴”。\n第3章《晶洞风暴》：进入条件=第2章的当前选择已完成转场条件，且用户明确要求继续；目标=解决《晶洞风暴》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，并明确要求进入第4章；结束条件=只输出一次下一章标题“第 4 章：地表回声”。\n第4章《地表回声》：进入条件=第3章的当前选择已完成转场条件，且用户明确要求继续；目标=解决《地表回声》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家确认角色的持久选择，并保留一个结局后的责任线索；结束条件=保持第4章，不再创建第五章，并以仍需兑现的责任收束。\n角色表：旁白只陈述可见事实与转场；阿克塞尔坚持自身动机、只知道亲历信息；黎登布洛克提供不同立场、不得知道未公开事实。\n世界规则：每轮只推进一个场景、线索或选择；最多一个问题；当前用户更正覆盖历史旧值。\n事实边界：经典来源、传说与本剧本原创设定必须区分；不得复制完整出版译文。\n安全边界：面向儿童，危险非血腥；现实模仿请求必须明确说“不要模仿”，并建议找可信任的成年人、家长或老师帮助。\n反重复：不得重复确认句、场景开头、上一轮选择、同一个问题、回顾或寓意总结。");
+      - id: speak-narrator
         type: llm
         publish: true
         config:
           model: flowcraft-story-journey-center-earth.model
-          max_tokens: 2048
+          max_tokens: 1024
           output_key: answer
           system_prompt: |-
-            你是儿童友好的互动故事讲述者。
-            如果当前是没有用户输入的新对话，必须逐字输出这一句并立即停止：洞穴墙上出现了三种不同颜色的岩层，你想先观察纹理，还是寻找水流留下的线索？
-            如果当前上下文明确要求英文，或用户要求用英文介绍或重新开始，必须逐字输出这一句并立即停止：Three colored rock layers appear on the cave wall. Will you inspect their texture or follow signs left by water?
-            后续必须承接孩子上一轮的选择，不得重置场景。每轮只推进一个有意义的场景、问题、线索或选择，并且最多问一个清楚的问题。
-            体验要求：Use exploration clues and simple geology, let the listener choose observation tools, and correct impossible fictional geology gently.
-            安全边界：Explicitly distinguish fantasy from the real structure of Earth; avoid unsafe cave-exploration instructions and copied text.
-            明确区分事实、传说与虚构；不确定的信息要说明不确定。现实危险情形应建议孩子停止模仿并寻求可信任成年人帮助。
-            用户询问现实危险或模仿时，直接说明危险、拒绝模仿并建议寻求可信任成年人帮助；该轮不得追加问题。
-            可核对的长期进度：${board.scenario_memory}
-            续写时必须与上面已确认的进度一致，不得推翻或重复其中已经发生的内容。
-            除明确要求英文的开场回合外，回复使用简洁自然中文，写2至4个完整句子、30至180个Unicode字符。只输出适合朗读的正文，不输出Markdown、列表、菜单、emoji、舞台说明、隐藏分析或系统文字。
+            ${board.story_bible}
+            当前权威状态：${board.story_state_text}
+            本轮是旁白路径。只陈述玩家可见的场景、直接后果或转场，不替角色知道秘密；自然以“旁白说：”开头。
+            若 announce_chapter 为 true，第一行必须且只能用“第 N 章：标题”格式写当前章；否则不得输出章节标题。
+            首次进入第一章时，章节标题后必须完整承接这个开场：洞穴墙上出现了三种不同颜色的岩层，你想先观察纹理，还是寻找水流留下的线索？
+            若用户只要求回忆或确认旅程代号，只回答当前代号；存在更正时绝不输出旧值。
+            输出2至4个完整中文句子、30至220个Unicode字符，不输出Markdown、列表、emoji、舞台说明、系统字段或重复问题。
           track_steps: true
-      - id: capture-progress
+      - id: speak-axel
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-story-journey-center-earth.model
+          max_tokens: 1024
+          output_key: answer
+          system_prompt: |-
+            ${board.story_bible}
+            当前权威状态：${board.story_state_text}
+            本轮只能由阿克塞尔说话，第一句必须自然以“阿克塞尔说：”开头；只说该角色亲历或已公开的信息，不替旁白或另一角色发言。
+            本轮不得输出章节标题。承接玩家当前选择，推进一个直接后果或线索，最多一个问题。
+            输出2至4个完整中文句子、30至220个Unicode字符，不输出Markdown、列表、emoji、舞台说明或系统字段。
+          track_steps: true
+      - id: speak-lidenbrock
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-story-journey-center-earth.model
+          max_tokens: 1024
+          output_key: answer
+          system_prompt: |-
+            ${board.story_bible}
+            当前权威状态：${board.story_state_text}
+            本轮只能由黎登布洛克说话，第一句必须自然以“黎登布洛克说：”开头；只说该角色亲历或已公开的信息，不替旁白或另一角色发言。
+            本轮不得输出章节标题。承接玩家当前选择，推进一个直接后果或线索，最多一个问题。
+            输出2至4个完整中文句子、30至220个Unicode字符，不输出Markdown、列表、emoji、舞台说明或系统字段。
+          track_steps: true
+      - id: persist-story
         type: script
         config:
           source: |
-            const input = String(board.getVar("input") || "").trim();
-            const answer = String(board.getVar("answer") || "").trim();
-            if (!input && !answer) {
-              board.setVar("scenario_state_fact", "");
-            } else {
-              board.setVar("scenario_state_fact", JSON.stringify({
-                schema: "raid_scenario_state_v2",
-                last_input: input.slice(0, 160),
-                last_answer: answer.slice(0, 320),
-              }));
-            }
-      - id: observe-progress
+            const state = board.getVar("story_state") || {};
+            state.last_answer = String(board.getVar("answer") || "").slice(0, 320);
+            board.setVar("story_state_fact", JSON.stringify(state));
+      - id: observe-story
         type: memory_observe
         config:
           observations:
           - facts:
-            - text_from: scenario_state_fact
-              attributes:
-                lane: story_progress
-                kind: state
-          wait_for_completion: false
+            - text_from: story_state_fact
+              attributes: {lane: story_progress, kind: state}
+          wait_for_completion: true
     max_iterations: 10
     conversation:
       starts: agent
     voice_adapter:
       asr_model: asr
       default_voice: flowcraft-story-journey-center-earth.storyteller
+      node_voices:
+        speak-narrator: flowcraft-story-journey-center-earth.storyteller
+        speak-axel: flowcraft-story-journey-center-earth.axel
+        speak-lidenbrock: flowcraft-story-journey-center-earth.lidenbrock
   memory: story-teller

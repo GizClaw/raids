@@ -1,0 +1,154 @@
+# User Story:
+# As a Raids catalog maintainer,
+# I want isolated narrator and character probes for flowcraft-story-fengshen,
+# So that every reachable role path produces text and non-empty synthesized audio.
+version: gizclaw.test/v1alpha1
+name: story-fengshen.flowcraft.roles
+clients:
+  narrator: {identity: ephemeral, connection: webrtc, access_point: "${endpoint}"}
+  nezha: {identity: ephemeral, connection: webrtc, access_point: "${endpoint}"}
+  jiang_ziya: {identity: ephemeral, connection: webrtc, access_point: "${endpoint}"}
+variables:
+  endpoint: {direction: input, type: string, env: GIZCLAW_TEST_ENDPOINT}
+  registration_token: {direction: input, type: string, env: GIZCLAW_TEST_REGISTRATION_TOKEN, secret: true}
+  narrator_workspace: {direction: input, type: string, generate: token}
+  nezha_workspace: {direction: input, type: string, generate: token}
+  jiang_ziya_workspace: {direction: input, type: string, generate: token}
+repeat: 1
+timeout: 12m
+steps:
+- id: register_narrator
+  client: narrator
+  rpc: {method: server.register, request: {token: "${registration_token}"}}
+- id: create_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.workspace.create
+    request:
+      name: ${narrator_workspace}
+      collection: raidtest-targets
+      workflow_name: flowcraft-story-fengshen
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation: {initiative: FLOWCRAFT_CONVERSATION_PARAMETERS_INITIATIVE_PEER}
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_narrator_workspace
+  client: narrator
+  rpc: {method: server.run.workspace.set, request: {workspace_name: "${narrator_workspace}"}}
+- id: register_nezha
+  client: nezha
+  rpc: {method: server.register, request: {token: "${registration_token}"}}
+- id: create_nezha_workspace
+  client: nezha
+  rpc:
+    method: server.workspace.create
+    request:
+      name: ${nezha_workspace}
+      collection: raidtest-targets
+      workflow_name: flowcraft-story-fengshen
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation: {initiative: FLOWCRAFT_CONVERSATION_PARAMETERS_INITIATIVE_PEER}
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_nezha_workspace
+  client: nezha
+  rpc: {method: server.run.workspace.set, request: {workspace_name: "${nezha_workspace}"}}
+- id: register_jiang-ziya
+  client: jiang_ziya
+  rpc: {method: server.register, request: {token: "${registration_token}"}}
+- id: create_jiang-ziya_workspace
+  client: jiang_ziya
+  rpc:
+    method: server.workspace.create
+    request:
+      name: ${jiang_ziya_workspace}
+      collection: raidtest-targets
+      workflow_name: flowcraft-story-fengshen
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation: {initiative: FLOWCRAFT_CONVERSATION_PARAMETERS_INITIATIVE_PEER}
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_jiang-ziya_workspace
+  client: jiang_ziya
+  rpc: {method: server.run.workspace.set, request: {workspace_name: "${jiang_ziya_workspace}"}}
+- id: probe_narrator
+  client: narrator
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: "请由旁白承接当前故事，只推进一个可见线索。"
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    /text: {pattern: 旁白}
+    /text_eos: {equals: true}
+    /audio_eos: {equals: true}
+    /audio_bytes: {minimum: 1}
+    /first_text_ms: {maximum: 6000}
+    /first_audio_ms: {maximum: 90000}
+- id: probe_nezha
+  client: nezha
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: "请让哪吒亲自回应，只说这个角色知道的事。"
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    /text: {pattern: 哪吒}
+    /text_eos: {equals: true}
+    /audio_eos: {equals: true}
+    /audio_bytes: {minimum: 1}
+    /first_text_ms: {maximum: 6000}
+    /first_audio_ms: {maximum: 90000}
+- id: probe_jiang-ziya
+  client: jiang_ziya
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: "请让姜子牙亲自回应，只说这个角色知道的事。"
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    /text: {pattern: 姜子牙}
+    /text_eos: {equals: true}
+    /audio_eos: {equals: true}
+    /audio_bytes: {minimum: 1}
+    /first_text_ms: {maximum: 6000}
+    /first_audio_ms: {maximum: 90000}
+finally:
+- id: stop_narrator_run
+  client: narrator
+  rpc: {method: server.run.stop, request: {}}
+- id: delete_narrator_workspace
+  client: narrator
+  rpc: {method: server.workspace.delete, request: {name: "${narrator_workspace}"}}
+- id: delete_narrator_peer
+  client: narrator
+  rpc: {method: server.peer.delete, request: {}}
+- id: stop_nezha_run
+  client: nezha
+  rpc: {method: server.run.stop, request: {}}
+- id: delete_nezha_workspace
+  client: nezha
+  rpc: {method: server.workspace.delete, request: {name: "${nezha_workspace}"}}
+- id: delete_nezha_peer
+  client: nezha
+  rpc: {method: server.peer.delete, request: {}}
+- id: stop_jiang-ziya_run
+  client: jiang_ziya
+  rpc: {method: server.run.stop, request: {}}
+- id: delete_jiang-ziya_workspace
+  client: jiang_ziya
+  rpc: {method: server.workspace.delete, request: {name: "${jiang_ziya_workspace}"}}
+- id: delete_jiang-ziya_peer
+  client: jiang_ziya
+  rpc: {method: server.peer.delete, request: {}}
+report:
+  redact: [registration_token]

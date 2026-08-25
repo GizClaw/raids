@@ -1,0 +1,154 @@
+# User Story:
+# As a Raids catalog maintainer,
+# I want isolated narrator and character probes for flowcraft-story-twenty-thousand-leagues,
+# So that every reachable role path produces text and non-empty synthesized audio.
+version: gizclaw.test/v1alpha1
+name: story-twenty-thousand-leagues.flowcraft.roles
+clients:
+  narrator: {identity: ephemeral, connection: webrtc, access_point: "${endpoint}"}
+  nemo: {identity: ephemeral, connection: webrtc, access_point: "${endpoint}"}
+  aronnax: {identity: ephemeral, connection: webrtc, access_point: "${endpoint}"}
+variables:
+  endpoint: {direction: input, type: string, env: GIZCLAW_TEST_ENDPOINT}
+  registration_token: {direction: input, type: string, env: GIZCLAW_TEST_REGISTRATION_TOKEN, secret: true}
+  narrator_workspace: {direction: input, type: string, generate: token}
+  nemo_workspace: {direction: input, type: string, generate: token}
+  aronnax_workspace: {direction: input, type: string, generate: token}
+repeat: 1
+timeout: 12m
+steps:
+- id: register_narrator
+  client: narrator
+  rpc: {method: server.register, request: {token: "${registration_token}"}}
+- id: create_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.workspace.create
+    request:
+      name: ${narrator_workspace}
+      collection: raidtest-targets
+      workflow_name: flowcraft-story-twenty-thousand-leagues
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation: {initiative: FLOWCRAFT_CONVERSATION_PARAMETERS_INITIATIVE_PEER}
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_narrator_workspace
+  client: narrator
+  rpc: {method: server.run.workspace.set, request: {workspace_name: "${narrator_workspace}"}}
+- id: register_nemo
+  client: nemo
+  rpc: {method: server.register, request: {token: "${registration_token}"}}
+- id: create_nemo_workspace
+  client: nemo
+  rpc:
+    method: server.workspace.create
+    request:
+      name: ${nemo_workspace}
+      collection: raidtest-targets
+      workflow_name: flowcraft-story-twenty-thousand-leagues
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation: {initiative: FLOWCRAFT_CONVERSATION_PARAMETERS_INITIATIVE_PEER}
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_nemo_workspace
+  client: nemo
+  rpc: {method: server.run.workspace.set, request: {workspace_name: "${nemo_workspace}"}}
+- id: register_aronnax
+  client: aronnax
+  rpc: {method: server.register, request: {token: "${registration_token}"}}
+- id: create_aronnax_workspace
+  client: aronnax
+  rpc:
+    method: server.workspace.create
+    request:
+      name: ${aronnax_workspace}
+      collection: raidtest-targets
+      workflow_name: flowcraft-story-twenty-thousand-leagues
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation: {initiative: FLOWCRAFT_CONVERSATION_PARAMETERS_INITIATIVE_PEER}
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_aronnax_workspace
+  client: aronnax
+  rpc: {method: server.run.workspace.set, request: {workspace_name: "${aronnax_workspace}"}}
+- id: probe_narrator
+  client: narrator
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: "请由旁白承接当前故事，只推进一个可见线索。"
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    /text: {pattern: 旁白}
+    /text_eos: {equals: true}
+    /audio_eos: {equals: true}
+    /audio_bytes: {minimum: 1}
+    /first_text_ms: {maximum: 6000}
+    /first_audio_ms: {maximum: 90000}
+- id: probe_nemo
+  client: nemo
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: "请让尼摩亲自回应，只说这个角色知道的事。"
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    /text: {pattern: 尼摩}
+    /text_eos: {equals: true}
+    /audio_eos: {equals: true}
+    /audio_bytes: {minimum: 1}
+    /first_text_ms: {maximum: 6000}
+    /first_audio_ms: {maximum: 90000}
+- id: probe_aronnax
+  client: aronnax
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: "请让阿龙纳斯亲自回应，只说这个角色知道的事。"
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    /text: {pattern: 阿龙纳斯}
+    /text_eos: {equals: true}
+    /audio_eos: {equals: true}
+    /audio_bytes: {minimum: 1}
+    /first_text_ms: {maximum: 6000}
+    /first_audio_ms: {maximum: 90000}
+finally:
+- id: stop_narrator_run
+  client: narrator
+  rpc: {method: server.run.stop, request: {}}
+- id: delete_narrator_workspace
+  client: narrator
+  rpc: {method: server.workspace.delete, request: {name: "${narrator_workspace}"}}
+- id: delete_narrator_peer
+  client: narrator
+  rpc: {method: server.peer.delete, request: {}}
+- id: stop_nemo_run
+  client: nemo
+  rpc: {method: server.run.stop, request: {}}
+- id: delete_nemo_workspace
+  client: nemo
+  rpc: {method: server.workspace.delete, request: {name: "${nemo_workspace}"}}
+- id: delete_nemo_peer
+  client: nemo
+  rpc: {method: server.peer.delete, request: {}}
+- id: stop_aronnax_run
+  client: aronnax
+  rpc: {method: server.run.stop, request: {}}
+- id: delete_aronnax_workspace
+  client: aronnax
+  rpc: {method: server.workspace.delete, request: {name: "${aronnax_workspace}"}}
+- id: delete_aronnax_peer
+  client: aronnax
+  rpc: {method: server.peer.delete, request: {}}
+report:
+  redact: [registration_token]
