@@ -15,30 +15,17 @@ spec:
         max_run_steps: 12
       state:
         fields:
-        - name: memory-query
-          type: string
-          merge: replace
-        - name: memory-route
-          type: string
-          merge: replace
-        - name: recalled
-          type: string
-          merge: replace
-        - name: answer-messages
-          type: messages
-          merge: replace
-        - name: answer
-          type: string
-          merge: replace
-        - name: observation
-          type: string
-          merge: replace
+        - {name: memory-query, type: string, merge: replace}
+        - {name: memory-route, type: string, merge: replace}
+        - {name: recalled, type: string, merge: replace}
+        - {name: answer-messages, type: messages, merge: replace}
+        - {name: answer, type: string, merge: replace}
+        - {name: observation, type: string, merge: replace}
       nodes:
       - id: prepare-memory-query
         type: script
         inputs:
-          text:
-            from: input.text
+          text: {from: input.text}
         outputs:
           query: memory-query
           route: memory-route
@@ -48,116 +35,96 @@ spec:
         source: |
           def run(input):
               text = input["text"].strip()
-              base = "当前互动剧本的已确认选择、场景进度、事实和用户明确要求记住的信息"
-              route = "opening" if not text else ("recall" if "重连后" in text else "continue")
-              return {"query": base + ("；当前请求：" + text if text else ""), "route": route, "memory": ""}
-        limits:
-          max_execution_steps: 10000
-          timeout: 250ms
-          max_input_bytes: 65536
-          max_output_bytes: 65536
+              cues = ["重连", "恢复", "回忆", "还记得", "代号", "更正", "改成"]
+              recall = False
+              for cue in cues:
+                  if cue in text:
+                      recall = True
+              route = "opening" if not text else ("recall" if recall else "continue")
+              return {"query": "三国乱世故事状态、章节、角色、选择、更正、旅程代号和未解决线索；当前请求：" + text, "route": route, "memory": ""}
+        limits: {max_execution_steps: 10000, timeout: 250ms, max_input_bytes: 65536, max_output_bytes: 65536}
       - id: recall-memory
         type: memory_recall
         query_from: memory-query
         output: recalled
-        top_k: 12
+        top_k: 16
       - id: build-prompt
         type: prompt
         inputs:
-          history:
-            from: input.messages
-          memory:
-            from: recalled
+          history: {from: input.messages}
+          memory: {from: recalled}
         outputs:
           messages: answer-messages
         format: f_string
         messages:
         - role: system
           template: |-
-            你是儿童友好的互动故事讲述者。
-            如果当前是没有用户输入的新对话，或者用户要求介绍体验并从指定中文开场开始，必须逐字输出这一句并立即停止：一封紧急军情送到了营帐，如果兵力有限，你会先守住百姓还是追击对手？ 只输出该句，不得添加介绍、解释、前后缀或第二段。
-            如果当前上下文明确要求英文，或用户要求用英文介绍或重新开始，必须逐字输出这一句并立即停止：An urgent report has reached camp. With limited forces, would you protect the people first or pursue the opponent? 只输出该句，不得添加介绍、解释、前后缀或第二段。
-            后续必须承接孩子上一轮的选择，不得重置场景。每轮只推进一个有意义的场景、问题、线索或选择，并且最多问一个清楚的问题。
-            体验要求：Use one strategic dilemma per turn, reveal consequences after the listener chooses, and separate historical evidence from events in the novel.
-            安全边界：Do not glorify warfare, conquest, or deception; avoid graphic violence and clearly label uncertain history or fictional adaptation.
-            明确区分事实、传说与虚构；不确定的信息要说明不确定。现实危险情形应建议孩子停止模仿并寻求可信任成年人帮助。
-            用户询问现实危险或模仿时，直接说明危险、拒绝模仿并建议寻求可信任成年人帮助；该轮不得追加问题。
-            除明确要求英文的开场回合外，回复使用简洁自然中文，写2至4个完整句子、30至180个Unicode字符。只输出适合朗读的正文，不输出Markdown、列表、菜单、emoji、舞台说明、隐藏分析或系统文字。
+            你负责《三国乱世》的长期互动故事。前提：从三国人物与谋略中体验选择、合作和责任。
+            玩家是同行者，当前选择和明确更正优先于旧 History/Memory。
+            四章依次是：第1章《营帐军情》、第2章《百姓与追击》、第3章《联盟试探》、第4章《责任定策》。
+            第1章《营帐军情》：进入条件=收到首次开场请求；目标=解决《营帐军情》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，并明确要求进入第2章；结束条件=只输出一次下一章标题“第 2 章：百姓与追击”。
+            第2章《百姓与追击》：进入条件=第1章的当前选择已完成转场条件，且用户明确要求继续；目标=解决《百姓与追击》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，并明确要求进入第3章；结束条件=只输出一次下一章标题“第 3 章：联盟试探”。
+            第3章《联盟试探》：进入条件=第2章的当前选择已完成转场条件，且用户明确要求继续；目标=解决《联盟试探》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，并明确要求进入第4章；结束条件=只输出一次下一章标题“第 4 章：责任定策”。
+            第4章《责任定策》：进入条件=第3章的当前选择已完成转场条件，且用户明确要求继续；目标=解决《责任定策》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家确认角色的持久选择，并保留一个结局后的责任线索；结束条件=保持第4章，不再创建第五章，并以仍需兑现的责任收束。
+            稳定角色是旁白、刘备、诸葛亮；角色只能知道亲历或已经公开的信息，并保持不同立场和说话方式。
+            只有用户明确要求进入紧邻的下一章时才转场；转场第一行写一次“第 N 章：标题”，普通回合绝不重复章节标题。
+            每轮只推进一个场景、线索或选择，最多一个问题；不得重置场景、重复开头、复述上一轮或给出重复总结。
+            旅程代号只采用用户在当前时点明确提供的最新值；更正后覆盖旧值，不得预告或杜撰尚未由用户给出的值。
+            区分真实事实、传说和原创设定；儿童危险非血腥，任何现实模仿或照做请求，回复都必须逐字包含“不要模仿”和“找家长、老师或可信任成年人帮助”，不得用近义改写替代；不得复制完整出版译文。
+            首次第一章必须输出“第 1 章：营帐军情”，随后完整承接开场：一封紧急军情送到了营帐，如果兵力有限，你会先守住百姓还是追击对手？
+            只输出适合朗读的中文正文，2至4个完整句子、30至220个Unicode字符；不输出Markdown、列表、emoji、舞台说明或系统字段。
 
-            相关长期记忆只用于承接已确认内容；为空时忽略，不得让旧记忆覆盖当前用户更正：
+            相关长期状态如下；为空时忽略，且旧值不得覆盖当前用户更正：
             {memory}
         - placeholder: history
       - id: narrator-model
         type: chat_model
         inputs:
-          messages:
-            from: answer-messages
+          messages: {from: answer-messages}
         outputs:
           text: answer
         model: eino-story-three-kingdoms.model
-        max_tokens: 2048
-        temperature: 0.3
+        max_tokens: 1024
+        temperature: 0.2
       - id: capture-observation
         type: script
         inputs:
-          text:
-            from: input.text
-          answer:
-            from: answer
+          text: {from: input.text}
+          answer: {from: answer}
         outputs:
           fact: observation
         language: starlark
         entrypoint: run
         source: |
           def run(input):
-              text = input["text"].strip()
-              return {"fact": "用户本轮输入：" + text + "；助手本轮确认：" + input["answer"]}
-        limits:
-          max_execution_steps: 10000
-          timeout: 250ms
-          max_input_bytes: 262144
-          max_output_bytes: 262144
+              return {"fact": "story_contract_v1；用户本轮输入：" + input["text"].strip() + "；故事本轮确认：" + input["answer"]}
+        limits: {max_execution_steps: 10000, timeout: 250ms, max_input_bytes: 262144, max_output_bytes: 262144}
       - id: observe-memory
         type: memory_observe
         facts:
         - text_from: observation
-        wait_for_completion: false
+        wait_for_completion: true
       edges:
-      - from: start
-        to: prepare-memory-query
-      - from: recall-memory
-        to: build-prompt
-      - from: build-prompt
-        to: narrator-model
-      - from: capture-observation
-        to: observe-memory
-      - from: observe-memory
-        to: end
+      - {from: start, to: prepare-memory-query}
+      - {from: recall-memory, to: build-prompt}
+      - {from: build-prompt, to: narrator-model}
+      - {from: capture-observation, to: observe-memory}
+      - {from: observe-memory, to: end}
       branches:
       - from: prepare-memory-query
         mode: first_match
         routes:
-        - when:
-            field: memory-route
-            op: eq
-            value: recall
+        - when: {field: memory-route, op: eq, value: recall}
           to: recall-memory
         default: build-prompt
       - from: narrator-model
         mode: first_match
         routes:
-        - when:
-            field: memory-route
-            op: eq
-            value: opening
+        - when: {field: memory-route, op: eq, value: opening}
           to: end
         default: capture-observation
       outputs:
-      - node: narrator-model
-        field: answer
-        name: assistant
-        mime_type: text/plain
-        primary: true
+      - {node: narrator-model, field: answer, name: assistant, mime_type: text/plain, primary: true}
     conversation:
       starts: peer
     limits:

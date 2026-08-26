@@ -2,45 +2,40 @@
 
 Explore a dreamlike world through strange rules, wordplay, and logic puzzles.
 
-- Category: `story`; rating: `6+` (dream-logic); tags: `fantasy`, `wonderland`, `riddles`, `classic`
+## Story contract
 
-## Implementations
+- Premise: 用奇妙规则、语言游戏和逻辑谜题探索梦境世界。
+- Player: an active companion whose current choice and explicit correction override older History or Memory.
+- Chapters: 第1章《迟到的怀表》 → 第2章《缩小之门》 → 第3章《茶会反例》 → 第4章《花园答案》.
+- Cast: narrator (visible facts and transitions), 爱丽丝 (`alice`), and 白兔 (`white-rabbit`); each character keeps a distinct motive, voice, and knowledge boundary.
+- State: current chapter, completed beats, location, active roles, player choices, explicit corrections, durable clues, and unresolved hooks survive the bounded reload.
+- Safety and source boundary: distinguish fact, legend, and original fiction; keep peril child-safe and do not reproduce a published translation.
+- Repetition boundary: do not repeat acknowledgements, openings, choices, questions, recaps, or moral summaries.
 
-| File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |
+| Chapter | Entry condition | Goal | Allowed beats (at least two) | Transition condition | Ending condition |
 | --- | --- | --- | --- | --- | --- |
-| `eino.yaml` | `eino-story-alice` | eino | story-teller | `eino-story-alice.model` | - |
-| `flowcraft.yaml` | `flowcraft-story-alice` | flowcraft | story-teller | `flowcraft-story-alice.model` | `flowcraft-story-alice.storyteller` |
+| 1. 迟到的怀表 | first opening request | resolve this chapter's core tension | observe a concrete consequence; compare the two characters' responses | player resolves the current hook and requests chapter 2 | emit the chapter 2 heading once |
+| 2. 缩小之门 | chapter 1 transition satisfied and player explicitly continues | resolve this chapter's core tension | observe a concrete consequence; compare the two characters' responses | player resolves the current hook and requests chapter 3 | emit the chapter 3 heading once |
+| 3. 茶会反例 | chapter 2 transition satisfied and player explicitly continues | resolve this chapter's core tension | observe a concrete consequence; compare the two characters' responses | player resolves the current hook and requests chapter 4 | emit the chapter 4 heading once |
+| 4. 花园答案 | chapter 3 transition satisfied and player explicitly continues | resolve this chapter's core tension | observe a concrete consequence; compare the two characters' responses | player confirms a durable choice and one remaining responsibility | remain in chapter 4; keep one post-ending responsibility |
 
-Install an implementation into a RuntimeProfile with `raids install story-alice --impl <engine> --profile <file> --collection <name> --set model.<alias>=<model id> --set voice.<alias>=<voice id>`; the slots above are the parameters the installer asks for.
+## Implementations and Voice roles
 
-
-## Testing
-
-Tester: `test.yaml` (`story-alice-test`, eino), shared by every implementation; one Giztest scenario per implementation:
-
-- `tests/giztest/story-alice/eino.giztest.yaml` (relay, with reload, timeout 55m)
-- `tests/giztest/story-alice/flowcraft.giztest.yaml` (relay, with reload, timeout 55m)
-
-The route has 13 target responses:
-
-| # | Checkpoint | Player message | Contract |
+| Workflow | Engine | Output | Voice roles |
 | --- | --- | --- | --- |
-| 1 | `opening` | 开始爱丽丝故事，请简短介绍兔子和两块表的选择。 | 必须含兔子、两块表；不得含###、```、- ；20-120字 |
-| 2 | `choose-question-watch` | 我先看显示问题的那块表，想知道它到底问了什么。 | 必须含问题、表；45-185字 |
-| 3 | `challenge-rule` | 如果答案表总比问题表快一分钟，那它怎么可能回答还没出现的问题？先回应我的质疑。 | 40-180字 |
-| 4 | `ask-small-hint` | 给我一个小提示，不要直接告诉我谜底，也不要替我选下一步。 | 不得含答案就是、正确答案是、你选择；20-110字 |
-| 5 | `propose-solution` | 我猜两块表不是在预测，而是在把同一个问题拆成先后两面。这个解释成立吗？ | 35-170字 |
-| 6 | `establish-door` | 我们来到一扇蓝色小门前，门把手像问号。请记住颜色，不要开门。 | 必须含蓝色、门；不得含你打开了、你推开了、你进入了；15-90字 |
-| 7 | `correct-door` | 更正，小门不是蓝色，是绿色；其他细节不变。只确认正确事实。 | 必须含绿色、问号；不得含蓝色；10-80字 |
-| 8 | `reload-chapter-checkpoint` | 重连后先别开门。用一句话说现在是第几章，并确认门的正确颜色。 | 必须含第三章、绿色；不得含蓝色、第四章、你打开、你进入；15-90字 |
-| 9 | `remember-password` | 先记住门边口令是“茶杯向左”，只简短确认，不要开门。 | 必须含茶杯向左；8-80字 |
-| 10 | `correct-password` | 更正，口令是“茶杯向右”，旧口令作废。只确认新口令。 | 必须含茶杯向右；不得含茶杯向左；8-80字 |
-| 11 | `test-rule-counterexample` | 如果所有会说话的门都诚实，这扇门刚才自相矛盾，该怎样检验规则而不是直接相信？ | 40-190字 |
-| 12 | `recall-password` | 隔了几轮，现在只说有效口令，不要提已经作废的那个。 | 必须含茶杯向右；不得含茶杯向左；4-60字 |
-| 13 | `recap-and-exit` | 用两句完整的话说出我先看的手表和门的正确颜色，再让我自己决定是否开门。 | 必须含问题、绿色；不得含蓝色、你打开、你进入、###、```；25-140字 |
+| `flowcraft-story-alice` | Flowcraft | text + TTS | `storyteller`, `alice`, `white-rabbit` mapped to three distinct public Voices |
+| `eino-story-alice` | Eino | text only | none; GizClaw v0.7.7 cannot dynamically select a Voice for one fixed primary output |
 
-Run:
+Flowcraft selects exactly one published node per external response. Chapter entry/transition and invalid speaker selection fall back to `storyteller`; direct in-scene requests may select `alice` or `white-rabbit`.
+
+## Acceptance
+
+- Paired Flowcraft and Eino relays each require 16 continuous target responses with a reload before response 9.
+- Milestones: 8, 16; intermediate segments end in strict `CHECKPOINT PASS` and the final segment ends in strict `PASS`.
+- `flowcraft.roles.giztest.yaml` creates isolated narrator/alice/white-rabbit Workspaces and requires text EOS, audio EOS, non-empty Opus, timing evidence, and role-specific text.
+- Final live evidence must come from the e2e deployment through `edge-bj-01.e2e.gizclaw.com:9821`; dev evidence is diagnostic only.
 
 ```sh
-make test-e2e RAID=story-alice PARALLEL=2
+GIZCLAW=/absolute/path/to/gizclaw-v0.7.7 GIZCLAW_TEST_CLI=/absolute/path/to/gizclaw-v0.7.7 make test-unit-resources
+GIZCLAW=/absolute/path/to/gizclaw-v0.7.7 GIZCLAW_TEST_CLI=/absolute/path/to/gizclaw-v0.7.7 GIZCLAW_CONTEXT=e2e-server-volc-bj-01 GIZCLAW_TEST_ENDPOINT=edge-bj-01.e2e.gizclaw.com:9821 GIZCLAW_TEST_REGISTRATION_TOKEN=<testing-runtime-token> APPLY=1 RAID=story-alice PARALLEL=3 make test-e2e
 ```

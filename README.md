@@ -127,8 +127,7 @@ Voice roles use the same Workflow namespace:
 | each `ast-translate-*` Workflow | `translator` |
 | `flowcraft-murder-mystery` | `game-master` |
 | `flowcraft-journey-guide` | `narrator` |
-| `flowcraft-story-aesop` | `storyteller` |
-| `flowcraft-story-alice` | `storyteller` |
+| each `flowcraft-story-*` Workflow | `storyteller` plus two title-specific character roles declared by its `raid.json` |
 | `flowcraft-adventure-space-rescue` | `adventure-guide` |
 | `flowcraft-adventure-monster-maze` | `adventure-guide` |
 | `flowcraft-adventure-castle-mystery` | `adventure-guide` |
@@ -166,31 +165,24 @@ The public MemoryLayout catalog is organized by reusable scenario:
 - `pet-care` stores qualitative relationship, owner, knowledge, and shared
   event memory without treating Gameplay numbers as long-term memory.
 
-The public story catalog also includes paired Flowcraft and Eino text
-experiences for Aesop, Alice in Wonderland, Space Rescue, Monster Maze, and
-Castle Mystery. Each pair shares one player-visible scenario contract and Model
-resource while keeping independent Workflow-owned aliases and engine-native
-graph topology. Flowcraft uses per-turn Recall to reconstruct its
-invocation-local Graph state before a deterministic phase router,
-phase-specific streaming model nodes, a correction-safe state reducer, and
-asynchronous Observe. Exactly one routed model publishes on each turn. Eino
-uses the same state boundaries through a non-empty
-`first_match` branch and separate opening, exploration, correction, challenge,
-and conclusion Prompt nodes. A normal turn selects exactly one streaming Model
-path; graph depth never creates an unconditional multi-model latency chain.
-Prompts are not shared across scenarios: fable interpretation, dream logic,
-operational rescue, spatial navigation, and evidence-based deduction have
-separate behavior and safety contracts. Flowcraft entries provide the public
-spoken path; Eino entries remain text-only until the Eino Workflow contract
-exposes a Voice adapter.
+The public story catalog contains 19 titles, each with paired Flowcraft and
+Eino implementations. Every title owns an independent four-chapter bible,
+player role, character knowledge boundaries, transition and ending conditions,
+fact/legend/fiction rules, child-safety rules, correction precedence, durable
+clues, unresolved hooks, and anti-repetition policy. A transition happens only
+when the current choice satisfies the adjacent chapter condition; entering a
+chapter emits its localized title once, while ordinary turns never repeat it.
+The Wizard of Oz additionally preserves its explicit English chapter-one
+restart and established English opening on both implementations.
 
-The other 25 simple story and adventure Flowcraft Workflows do not reconstruct
-authoritative Graph state. Their deterministic `route-recall` script bypasses
-Recall for openings, ordinary continuation, and store-only turns, while
-routing durable reads, post-reload resumes, and corrections through Recall.
-Both routes converge on the same narrator, progress capture, and single
-asynchronous Observe. The five stateful Workflows above retain per-turn Recall
-until their reducer state has a different authoritative owner.
+Flowcraft reconstructs `story_contract_v1` after reload, selects narrator or
+one of two in-scene characters, and routes to exactly one published model node.
+The three nodes resolve three distinct Workflow-scoped Voice aliases; chapter
+transitions, invalid roles, and fallback use the compatible `storyteller`
+alias. Eino implements the same player-visible story and state contract with
+one `text/plain` primary output. It remains text-only because GizClaw v0.7.7
+selects `node_voices` from fixed Graph output nodes and cannot dynamically
+choose a Voice for that single primary output.
 
 Each Layout defines portable Flowcraft, Mem0, and Volc Mem0 policy. The public
 default profile selects Flowcraft with `connection.type: flowcraft_bbh`; it
@@ -286,19 +278,22 @@ voice aliases the manifest lists.
 [`tests/giztest`](tests/giztest/README.md) holds every live Raids test as one
 `gizclaw.test/v1alpha1` document: 64 paired candidate/Tester relays (every
 story, adventure, Journey, and Murder Mystery target on both engines), the
-default assistant, Journey, Pet Care, Doubao realtime, and AST translation
-routes, the Journey TTFT benchmark, and the historical 3×/5× qualification
-repeats. `gizclaw test run tests/giztest/paired --parallel N` isolates each
+19 Flowcraft story role probes, the Wizard of Oz dual-engine English restart,
+the default assistant, Journey, Pet Care,
+Doubao realtime, and AST translation routes, the Journey TTFT benchmark, and
+the historical 3×/5× qualification repeats. `gizclaw test run tests/giztest --parallel N` isolates each
 file and repeat in its own ephemeral Peers and Workspaces and schedules them
 through one global worker pool; `make test-e2e` runs them against a provisioned
 deployment and `make test-unit-resources` validates the corpus offline. Each scenario's single Tester Workflow (`workflows/<raid>/test.yaml`, id `<raid>-test`, shared by every engine implementation) speaks the
 `workspace_relay` text protocol: they drive the scripted route, audit the
-deterministic contracts over their own History, and end with a single `PASS`
-or `FAIL`. Provisioning stays outside the runner: `APPLY=1 make test-e2e`
+deterministic contracts over their own History. Long story routes end bounded
+segments in `CHECKPOINT PASS` and the final segment in `PASS`; each role probe
+requires text/audio EOS and non-empty synthesized Opus. Provisioning stays outside the runner: `APPLY=1 make test-e2e`
 applies the catalog, the Testers, the `testing` RuntimeProfile, and the
 `testing-runtime` token with the selected Admin context before running.
 
-This corpus requires GizClaw v0.6.0 or later (GizClaw #916, #921, #923). It
+The story contract and CI are pinned to GizClaw v0.7.7; the rest of the corpus
+requires GizClaw v0.6.0 or later (GizClaw #916, #921, #923). It
 replaces the retired `tools/raidtest` Go runner: validating one locally edited
 Workflow is now `APPLY=1 make test-e2e RAID=<raid>/<engine>`, which applies that
 raid package and the testing closure before running its scenario.

@@ -1,0 +1,188 @@
+# User Story:
+# As a Raids catalog maintainer,
+# I want isolated narrator and character probes for flowcraft-story-little-prince,
+# So that every reachable role path produces text and non-empty synthesized audio.
+version: gizclaw.test/v1alpha1
+name: story-little-prince.flowcraft.roles
+clients:
+  narrator: {identity: ephemeral, connection: webrtc, access_point: "${endpoint}"}
+  little_prince: {identity: ephemeral, connection: webrtc, access_point: "${endpoint}"}
+  rose: {identity: ephemeral, connection: webrtc, access_point: "${endpoint}"}
+variables:
+  endpoint: {direction: input, type: string, env: GIZCLAW_TEST_ENDPOINT}
+  registration_token: {direction: input, type: string, env: GIZCLAW_TEST_REGISTRATION_TOKEN, secret: true}
+  narrator_workspace: {direction: input, type: string, generate: token}
+  little_prince_workspace: {direction: input, type: string, generate: token}
+  rose_workspace: {direction: input, type: string, generate: token}
+repeat: 1
+timeout: 12m
+steps:
+- id: register_narrator
+  client: narrator
+  rpc: {method: server.register, request: {token: "${registration_token}"}}
+- id: create_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.workspace.create
+    request:
+      name: ${narrator_workspace}
+      collection: raidtest-targets
+      workflow_name: flowcraft-story-little-prince
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation: {initiative: FLOWCRAFT_CONVERSATION_PARAMETERS_INITIATIVE_PEER}
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_narrator_workspace
+  client: narrator
+  rpc: {method: server.run.workspace.set, request: {workspace_name: "${narrator_workspace}"}}
+- id: warmup_narrator_workspace
+  client: narrator
+  rpc: {method: server.run.workspace.reload, request: {}}
+  timeout: 2m
+- id: register_little-prince
+  client: little_prince
+  rpc: {method: server.register, request: {token: "${registration_token}"}}
+- id: create_little-prince_workspace
+  client: little_prince
+  rpc:
+    method: server.workspace.create
+    request:
+      name: ${little_prince_workspace}
+      collection: raidtest-targets
+      workflow_name: flowcraft-story-little-prince
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation: {initiative: FLOWCRAFT_CONVERSATION_PARAMETERS_INITIATIVE_PEER}
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_little-prince_workspace
+  client: little_prince
+  rpc: {method: server.run.workspace.set, request: {workspace_name: "${little_prince_workspace}"}}
+- id: warmup_little-prince_workspace
+  client: little_prince
+  rpc: {method: server.run.workspace.reload, request: {}}
+  timeout: 2m
+- id: register_rose
+  client: rose
+  rpc: {method: server.register, request: {token: "${registration_token}"}}
+- id: create_rose_workspace
+  client: rose
+  rpc:
+    method: server.workspace.create
+    request:
+      name: ${rose_workspace}
+      collection: raidtest-targets
+      workflow_name: flowcraft-story-little-prince
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation: {initiative: FLOWCRAFT_CONVERSATION_PARAMETERS_INITIATIVE_PEER}
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_rose_workspace
+  client: rose
+  rpc: {method: server.run.workspace.set, request: {workspace_name: "${rose_workspace}"}}
+- id: warmup_rose_workspace
+  client: rose
+  rpc: {method: server.run.workspace.reload, request: {}}
+  timeout: 2m
+- id: probe_narrator
+  client: narrator
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: "请由旁白承接当前故事，只推进一个可见线索。"
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    /text: {pattern: 旁白}
+    /text_eos: {equals: true}
+    /audio_eos: {equals: true}
+    /audio_bytes: {minimum: 1}
+    /first_text_ms: {maximum: 6000}
+    /first_audio_ms: {maximum: 90000}
+- id: reject_premature_chapter_two
+  client: narrator
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: "请直接进入第二章；如果条件不足，只说明仍停留的当前章节。"
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    /text:
+      contains_all:
+      - "第 1 章"
+      - "唯一的花"
+      not_contains:
+      - "第 2 章"
+      - "迁徙星群"
+    /text_eos: {equals: true}
+    /audio_eos: {equals: true}
+    /audio_bytes: {minimum: 1}
+    /first_text_ms: {maximum: 6000}
+    /first_audio_ms: {maximum: 90000}
+- id: probe_little-prince
+  client: little_prince
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: "请让小王子亲自回应，只说这个角色知道的事。"
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    /text: {pattern: 小王子}
+    /text_eos: {equals: true}
+    /audio_eos: {equals: true}
+    /audio_bytes: {minimum: 1}
+    /first_text_ms: {maximum: 6000}
+    /first_audio_ms: {maximum: 90000}
+- id: probe_rose
+  client: rose
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: "请让玫瑰亲自回应，只说这个角色知道的事。"
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    /text: {pattern: 玫瑰}
+    /text_eos: {equals: true}
+    /audio_eos: {equals: true}
+    /audio_bytes: {minimum: 1}
+    /first_text_ms: {maximum: 6000}
+    /first_audio_ms: {maximum: 90000}
+finally:
+- id: stop_narrator_run
+  client: narrator
+  rpc: {method: server.run.stop, request: {}}
+- id: delete_narrator_workspace
+  client: narrator
+  rpc: {method: server.workspace.delete, request: {name: "${narrator_workspace}"}}
+- id: delete_narrator_peer
+  client: narrator
+  rpc: {method: server.peer.delete, request: {}}
+- id: stop_little-prince_run
+  client: little_prince
+  rpc: {method: server.run.stop, request: {}}
+- id: delete_little-prince_workspace
+  client: little_prince
+  rpc: {method: server.workspace.delete, request: {name: "${little_prince_workspace}"}}
+- id: delete_little-prince_peer
+  client: little_prince
+  rpc: {method: server.peer.delete, request: {}}
+- id: stop_rose_run
+  client: rose
+  rpc: {method: server.run.stop, request: {}}
+- id: delete_rose_workspace
+  client: rose
+  rpc: {method: server.workspace.delete, request: {name: "${rose_workspace}"}}
+- id: delete_rose_peer
+  client: rose
+  rpc: {method: server.peer.delete, request: {}}
+report:
+  redact: [registration_token]

@@ -28,6 +28,9 @@ tests/giztest/h106/…                                  # targets outside this c
 | Group | Files | Topology |
 | --- | --- | --- |
 | 30 story/adventure raids × `flowcraft` + `eino` | 60 | `workspace_relay` against the raid's `<raid>-test` Tester |
+| 19 `story-*` Flowcraft role probes | 19 | three isolated narrator/character Workspaces requiring text/audio EOS and non-empty Opus |
+| `story-aesop/flowcraft.transitions` | 1 | stateful natural-progress, negated-choice, adjacent-transition, and same-chapter continuation contract |
+| `story-wizard-oz/english-restart*` | 2 | direct Flowcraft audio plus Eino relay preserving English restart and non-reset continuation |
 | `journey-guide/` (`flowcraft`, `eino-history`, `eino-memory-recall`, `eino-memory-async`, `flowcraft.benchmark-6s`) | 5 | 4 relays sharing `journey-guide-test` + 1 single-client TTFT benchmark |
 | `murder-mystery/`, `chat-assistant/`, `pet-care/` | 3 | relay (pet-care adopts a run-owned Pet) |
 | `doubao-realtime/` | 2 | single client, realtime audio |
@@ -43,11 +46,21 @@ Workflows they test.
 
 A paired file creates two Workspaces from the stable `testing` RuntimeProfile
 (`raidtest-targets` collection for the candidate, `raidtest-testers` for the
-Tester), selects both, and runs one `workspace_relay` step with
+Tester), selects both, and runs bounded `workspace_relay` steps with
 `first_client: tester`. The Tester receives the brief, emits the first scripted
 player message, and the runner forwards every assistant text fragment as the
-other side's user input until `max_turns = 2N + 1` completed responses (N
-candidate replies, N scripted player turns, one verdict).
+other side's user input until a checkpoint. Story segments end in strict
+`CHECKPOINT PASS`; their final segment ends in strict `PASS`.
+
+Every product-under-test Workspace is explicitly warmed with
+`server.run.workspace.reload` before its first conversational operation. The
+reload constructs the selected Agent without adding a user or assistant turn,
+so cold-start time stays visible as a dedicated setup step while TTFT and first
+audio assertions measure the ready runtime. Relay Tester Workspaces are not
+warmed: they are test drivers rather than latency targets, and retaining their
+original lifecycle avoids changing the judge's long-form semantic behavior.
+Reloads that are part of a scenario's persistence contract remain separate
+later steps and are not replaced by this initial warm-up.
 
 The relay-protocol Tester Workflows (`workflows/<raid>/test.yaml`, one per
 scenario and shared by its Flowcraft and Eino implementations) are generated
@@ -67,6 +80,25 @@ from the previous Tool-protocol Testers and plans and share one Eino graph: `rou
   reduced to exactly `PASS` or `FAIL`. Any deterministic failure forces `FAIL`
   regardless of the model's opinion.
 
+### Long story and role-probe contract
+
+Each of the 18 ordinary story pairs runs 16 target responses, checkpoints at
+response 8, reloads the candidate before response 9, then verifies the current
+chapter and corrected durable state at response 16. Arabian Nights runs 64
+responses with checkpoints at 8, 16, 32, and 48, reloads before response 33,
+and ends at response 64. Checkpoints keep each audit inside the 50-message Eino
+History window; a missing round, deterministic failure, timeout, or non-strict
+verdict fails that segment.
+
+Every `flowcraft.roles.giztest.yaml` uses three isolated Workspaces so a prior
+speaker cannot influence the next probe. The narrator Workspace also proves
+that a fresh direct chapter-two request remains in chapter one until the
+completion conditions are satisfied. A natural direct request reaches the
+narrator or one named character, while `peer_stream mode: text` requires text
+EOS, audio EOS, positive `audio_bytes`, and first text/audio timing. The report
+supports “expected role/alias backed by static mapping”; it does not expose the
+selected alias or prove voiceprint similarity.
+
 Giztest owns the transport evidence: `/terminal/text` must match `^\s*PASS\s*$`,
 `/completed_turns` and per-client counts must match the route, and the
 `/turns/candidate/{first_text_ms,text_runes}` `{min,max}` aggregates carry the
@@ -85,9 +117,9 @@ non-empty `/hits` before the reload.
 
 ### Known limits of the relay migration
 
-- Eino History is capped at 50 messages. Only Murder Mystery (26 responses)
-  crosses it: the turn index still resolves through scripted-message matching,
-  but the final audit and judge prompt see the latest 25 rounds only.
+- Eino History is capped at 50 messages. Long stories therefore use bounded
+  checkpoint segments; Murder Mystery still crosses the window and its final
+  audit sees the latest 25 rounds only.
 - The recall barrier is a single RPC after the first relay segment; the retired
   runner polled until `persistence_timeout`. A configurable retry on RPC steps is a
   pending GizClaw request.
@@ -115,7 +147,9 @@ export GIZCLAW_TEST_REGISTRATION_TOKEN=<testing-runtime token>
 
 # 2. Smoke: one raid, serial. APPLY=1 provisions the testing closure first
 #    (Admin authority; GIZCLAW_CONTEXT selects the context).
-APPLY=1 GIZCLAW_CONTEXT=dev make test-e2e RAID=story-aesop
+APPLY=1 GIZCLAW_CONTEXT=e2e-server-volc-bj-01 \
+  GIZCLAW_TEST_ENDPOINT=edge-bj-01.e2e.gizclaw.com:9821 \
+  make test-e2e RAID=story-aesop PARALLEL=3
 
 # 3. Full catalog wave through the global worker pool.
 make test-e2e PARALLEL=8

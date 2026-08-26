@@ -1,0 +1,124 @@
+# User Story:
+# As a user of The Wizard of Oz Eino experience,
+# I want English introduction and continuation to stay on the supported language path,
+# So that a negated restart does not reset the story or fall back to Chinese.
+version: gizclaw.test/v1alpha1
+name: story-wizard-oz.english-restart.eino
+clients:
+  candidate: {identity: ephemeral, connection: webrtc, access_point: "${endpoint}"}
+  tester: {identity: ephemeral, connection: webrtc, access_point: "${endpoint}"}
+variables:
+  endpoint: {direction: input, type: string, env: GIZCLAW_TEST_ENDPOINT}
+  registration_token: {direction: input, type: string, env: GIZCLAW_TEST_REGISTRATION_TOKEN, secret: true}
+  candidate_workspace: {direction: input, type: string, generate: token}
+  tester_workspace: {direction: input, type: string, generate: token}
+  verdict: {direction: output, type: string}
+repeat: 1
+timeout: 12m
+steps:
+- id: register_candidate
+  client: candidate
+  rpc: {method: server.register, request: {token: "${registration_token}"}}
+- id: register_tester
+  client: tester
+  rpc: {method: server.register, request: {token: "${registration_token}"}}
+- id: create_candidate_workspace
+  client: candidate
+  rpc:
+    method: server.workspace.create
+    request:
+      name: ${candidate_workspace}
+      collection: raidtest-targets
+      workflow_name: eino-story-wizard-oz
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: create_tester_workspace
+  client: tester
+  rpc:
+    method: server.workspace.create
+    request:
+      name: ${tester_workspace}
+      collection: raidtest-testers
+      workflow_name: story-wizard-oz-test
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_candidate_workspace
+  client: candidate
+  rpc: {method: server.run.workspace.set, request: {workspace_name: "${candidate_workspace}"}}
+- id: warmup_candidate_workspace
+  client: candidate
+  rpc: {method: server.run.workspace.reload, request: {}}
+  timeout: 2m
+- id: select_tester_workspace
+  client: tester
+  rpc: {method: server.run.workspace.set, request: {workspace_name: "${tester_workspace}"}}
+- id: relay_english_restart_before_reload
+  timeout: 8m
+  workspace_relay:
+    first_client: tester
+    second_client: candidate
+    input: "BEGIN story-wizard-oz english-restart"
+    media: text
+    idle_timeout: 90s
+    max_turns: 7
+    terminal_client: tester
+  expect:
+    /terminal/client: {equals: tester}
+    /terminal/text: {equals: "After reconnect, continue in English without restarting, include the phrase journey code, and state the current journey code."}
+    /completed_turns: {equals: 7}
+    /turns/candidate/count: {equals: 3}
+    /turns/tester/count: {equals: 4}
+    /turns/candidate/first_text_ms/max: {maximum: 6000}
+    /turns/candidate/text_runes/min: {minimum: 20}
+- id: reload_candidate_workspace
+  client: candidate
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+- id: relay_english_reconnect_after_reload
+  timeout: 4m
+  workspace_relay:
+    first_client: candidate
+    second_client: tester
+    input: "After reconnect, continue in English without restarting, include the phrase journey code, and state the current journey code."
+    media: text
+    idle_timeout: 90s
+    max_turns: 2
+    terminal_client: tester
+  capture:
+    verdict: /terminal/text
+  expect:
+    /terminal/client: {equals: tester}
+    /terminal/text: {pattern: ^\s*PASS\s*$}
+    /completed_turns: {equals: 2}
+    /turns/candidate/count: {equals: 1}
+    /turns/tester/count: {equals: 1}
+    /turns/candidate/first_text_ms/max: {maximum: 6000}
+    /turns/candidate/text_runes/min: {minimum: 20}
+- id: emit_verdict
+  output: {variable: verdict}
+finally:
+- id: stop_candidate_run
+  client: candidate
+  rpc: {method: server.run.stop, request: {}}
+- id: stop_tester_run
+  client: tester
+  rpc: {method: server.run.stop, request: {}}
+- id: delete_candidate_workspace
+  client: candidate
+  rpc: {method: server.workspace.delete, request: {name: "${candidate_workspace}"}}
+- id: delete_tester_workspace
+  client: tester
+  rpc: {method: server.workspace.delete, request: {name: "${tester_workspace}"}}
+- id: delete_candidate_peer
+  client: candidate
+  rpc: {method: server.peer.delete, request: {}}
+- id: delete_tester_peer
+  client: tester
+  rpc: {method: server.peer.delete, request: {}}
+report:
+  redact: [registration_token]
