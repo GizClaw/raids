@@ -36,6 +36,10 @@ steps:
 - id: select_narrator_workspace
   client: narrator
   rpc: {method: server.run.workspace.set, request: {workspace_name: "${narrator_workspace}"}}
+- id: warmup_narrator_workspace
+  client: narrator
+  rpc: {method: server.run.workspace.reload, request: {}}
+  timeout: 2m
 - id: register_nils
   client: nils
   rpc: {method: server.register, request: {token: "${registration_token}"}}
@@ -55,6 +59,10 @@ steps:
 - id: select_nils_workspace
   client: nils
   rpc: {method: server.run.workspace.set, request: {workspace_name: "${nils_workspace}"}}
+- id: warmup_nils_workspace
+  client: nils
+  rpc: {method: server.run.workspace.reload, request: {}}
+  timeout: 2m
 - id: register_akka
   client: akka
   rpc: {method: server.register, request: {token: "${registration_token}"}}
@@ -74,6 +82,10 @@ steps:
 - id: select_akka_workspace
   client: akka
   rpc: {method: server.run.workspace.set, request: {workspace_name: "${akka_workspace}"}}
+- id: warmup_akka_workspace
+  client: akka
+  rpc: {method: server.run.workspace.reload, request: {}}
+  timeout: 2m
 - id: probe_narrator
   client: narrator
   timeout: 2m

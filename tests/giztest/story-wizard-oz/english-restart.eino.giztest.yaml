@@ -49,6 +49,10 @@ steps:
 - id: select_candidate_workspace
   client: candidate
   rpc: {method: server.run.workspace.set, request: {workspace_name: "${candidate_workspace}"}}
+- id: warmup_candidate_workspace
+  client: candidate
+  rpc: {method: server.run.workspace.reload, request: {}}
+  timeout: 2m
 - id: select_tester_workspace
   client: tester
   rpc: {method: server.run.workspace.set, request: {workspace_name: "${tester_workspace}"}}

@@ -36,6 +36,10 @@ steps:
 - id: select_narrator_workspace
   client: narrator
   rpc: {method: server.run.workspace.set, request: {workspace_name: "${narrator_workspace}"}}
+- id: warmup_narrator_workspace
+  client: narrator
+  rpc: {method: server.run.workspace.reload, request: {}}
+  timeout: 2m
 - id: register_little-prince
   client: little_prince
   rpc: {method: server.register, request: {token: "${registration_token}"}}
@@ -55,6 +59,10 @@ steps:
 - id: select_little-prince_workspace
   client: little_prince
   rpc: {method: server.run.workspace.set, request: {workspace_name: "${little_prince_workspace}"}}
+- id: warmup_little-prince_workspace
+  client: little_prince
+  rpc: {method: server.run.workspace.reload, request: {}}
+  timeout: 2m
 - id: register_rose
   client: rose
   rpc: {method: server.register, request: {token: "${registration_token}"}}
@@ -74,6 +82,10 @@ steps:
 - id: select_rose_workspace
   client: rose
   rpc: {method: server.run.workspace.set, request: {workspace_name: "${rose_workspace}"}}
+- id: warmup_rose_workspace
+  client: rose
+  rpc: {method: server.run.workspace.reload, request: {}}
+  timeout: 2m
 - id: probe_narrator
   client: narrator
   timeout: 2m

@@ -52,6 +52,16 @@ player message, and the runner forwards every assistant text fragment as the
 other side's user input until a checkpoint. Story segments end in strict
 `CHECKPOINT PASS`; their final segment ends in strict `PASS`.
 
+Every product-under-test Workspace is explicitly warmed with
+`server.run.workspace.reload` before its first conversational operation. The
+reload constructs the selected Agent without adding a user or assistant turn,
+so cold-start time stays visible as a dedicated setup step while TTFT and first
+audio assertions measure the ready runtime. Relay Tester Workspaces are not
+warmed: they are test drivers rather than latency targets, and retaining their
+original lifecycle avoids changing the judge's long-form semantic behavior.
+Reloads that are part of a scenario's persistence contract remain separate
+later steps and are not replaced by this initial warm-up.
+
 The relay-protocol Tester Workflows (`workflows/<raid>/test.yaml`, one per
 scenario and shared by its Flowcraft and Eino implementations) are generated
 from the previous Tool-protocol Testers and plans and share one Eino graph: `route-turn` (Starlark) → `build-prompt` → `judge-model` → `finalize`.

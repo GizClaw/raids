@@ -36,6 +36,10 @@ steps:
 - id: select_narrator_workspace
   client: narrator
   rpc: {method: server.run.workspace.set, request: {workspace_name: "${narrator_workspace}"}}
+- id: warmup_narrator_workspace
+  client: narrator
+  rpc: {method: server.run.workspace.reload, request: {}}
+  timeout: 2m
 - id: register_axel
   client: axel
   rpc: {method: server.register, request: {token: "${registration_token}"}}
@@ -55,6 +59,10 @@ steps:
 - id: select_axel_workspace
   client: axel
   rpc: {method: server.run.workspace.set, request: {workspace_name: "${axel_workspace}"}}
+- id: warmup_axel_workspace
+  client: axel
+  rpc: {method: server.run.workspace.reload, request: {}}
+  timeout: 2m
 - id: register_lidenbrock
   client: lidenbrock
   rpc: {method: server.register, request: {token: "${registration_token}"}}
@@ -74,6 +82,10 @@ steps:
 - id: select_lidenbrock_workspace
   client: lidenbrock
   rpc: {method: server.run.workspace.set, request: {workspace_name: "${lidenbrock_workspace}"}}
+- id: warmup_lidenbrock_workspace
+  client: lidenbrock
+  rpc: {method: server.run.workspace.reload, request: {}}
+  timeout: 2m
 - id: probe_narrator
   client: narrator
   timeout: 2m

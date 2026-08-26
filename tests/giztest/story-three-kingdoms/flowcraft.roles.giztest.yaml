@@ -36,6 +36,10 @@ steps:
 - id: select_narrator_workspace
   client: narrator
   rpc: {method: server.run.workspace.set, request: {workspace_name: "${narrator_workspace}"}}
+- id: warmup_narrator_workspace
+  client: narrator
+  rpc: {method: server.run.workspace.reload, request: {}}
+  timeout: 2m
 - id: register_liu-bei
   client: liu_bei
   rpc: {method: server.register, request: {token: "${registration_token}"}}
@@ -55,6 +59,10 @@ steps:
 - id: select_liu-bei_workspace
   client: liu_bei
   rpc: {method: server.run.workspace.set, request: {workspace_name: "${liu_bei_workspace}"}}
+- id: warmup_liu-bei_workspace
+  client: liu_bei
+  rpc: {method: server.run.workspace.reload, request: {}}
+  timeout: 2m
 - id: register_zhuge-liang
   client: zhuge_liang
   rpc: {method: server.register, request: {token: "${registration_token}"}}
@@ -74,6 +82,10 @@ steps:
 - id: select_zhuge-liang_workspace
   client: zhuge_liang
   rpc: {method: server.run.workspace.set, request: {workspace_name: "${zhuge_liang_workspace}"}}
+- id: warmup_zhuge-liang_workspace
+  client: zhuge_liang
+  rpc: {method: server.run.workspace.reload, request: {}}
+  timeout: 2m
 - id: probe_narrator
   client: narrator
   timeout: 2m

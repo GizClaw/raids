@@ -36,6 +36,10 @@ steps:
 - id: select_narrator_workspace
   client: narrator
   rpc: {method: server.run.workspace.set, request: {workspace_name: "${narrator_workspace}"}}
+- id: warmup_narrator_workspace
+  client: narrator
+  rpc: {method: server.run.workspace.reload, request: {}}
+  timeout: 2m
 - id: register_gulliver
   client: gulliver
   rpc: {method: server.register, request: {token: "${registration_token}"}}
@@ -55,6 +59,10 @@ steps:
 - id: select_gulliver_workspace
   client: gulliver
   rpc: {method: server.run.workspace.set, request: {workspace_name: "${gulliver_workspace}"}}
+- id: warmup_gulliver_workspace
+  client: gulliver
+  rpc: {method: server.run.workspace.reload, request: {}}
+  timeout: 2m
 - id: register_local-guide
   client: local_guide
   rpc: {method: server.register, request: {token: "${registration_token}"}}
@@ -74,6 +82,10 @@ steps:
 - id: select_local-guide_workspace
   client: local_guide
   rpc: {method: server.run.workspace.set, request: {workspace_name: "${local_guide_workspace}"}}
+- id: warmup_local-guide_workspace
+  client: local_guide
+  rpc: {method: server.run.workspace.reload, request: {}}
+  timeout: 2m
 - id: probe_narrator
   client: narrator
   timeout: 2m

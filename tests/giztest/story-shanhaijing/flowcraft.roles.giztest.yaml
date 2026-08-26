@@ -36,6 +36,10 @@ steps:
 - id: select_narrator_workspace
   client: narrator
   rpc: {method: server.run.workspace.set, request: {workspace_name: "${narrator_workspace}"}}
+- id: warmup_narrator_workspace
+  client: narrator
+  rpc: {method: server.run.workspace.reload, request: {}}
+  timeout: 2m
 - id: register_young-explorer
   client: young_explorer
   rpc: {method: server.register, request: {token: "${registration_token}"}}
@@ -55,6 +59,10 @@ steps:
 - id: select_young-explorer_workspace
   client: young_explorer
   rpc: {method: server.run.workspace.set, request: {workspace_name: "${young_explorer_workspace}"}}
+- id: warmup_young-explorer_workspace
+  client: young_explorer
+  rpc: {method: server.run.workspace.reload, request: {}}
+  timeout: 2m
 - id: register_spirit-guide
   client: spirit_guide
   rpc: {method: server.register, request: {token: "${registration_token}"}}
@@ -74,6 +82,10 @@ steps:
 - id: select_spirit-guide_workspace
   client: spirit_guide
   rpc: {method: server.run.workspace.set, request: {workspace_name: "${spirit_guide_workspace}"}}
+- id: warmup_spirit-guide_workspace
+  client: spirit_guide
+  rpc: {method: server.run.workspace.reload, request: {}}
+  timeout: 2m
 - id: probe_narrator
   client: narrator
   timeout: 2m
