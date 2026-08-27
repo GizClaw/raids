@@ -12,8 +12,9 @@ Requires GizClaw v0.6.0 or later, the first release containing the declarative
 runner, assertion matchers, and `workspace_relay` operation (GizClaw #916,
 #921, #923). The bounded story-role latency probes additionally require the
 `peer_stream.completion: first_response` contract from GizClaw #991/#992,
-first released in v0.7.13. CI uses the deployed E2E baseline v0.7.17, which
-also contains the RuntimeProfile reload repair from GizClaw #994/#997.
+first released in v0.7.13. CI uses GizClaw v0.7.19, which also contains the
+RuntimeProfile reload repair from GizClaw #994/#997 and the modality-selective
+first-response contract from GizClaw #1003/#1004 for text-only Eino probes.
 `make test-unit-resources` validates the corpus offline.
 
 ## Layout
@@ -33,7 +34,7 @@ tests/giztest/h106/…                                  # targets outside this c
 | Group | Files | Topology |
 | --- | --- | --- |
 | 30 story/adventure raids × `flowcraft` + `eino` | 60 | `workspace_relay` against the raid's `<raid>-test` Tester |
-| 30 story/adventure raids × `flowcraft.realtime` + `eino.realtime` | 60 | warmed, paced-audio RealTime roundtrip; Flowcraft also enforces 2 s text / 3 s audio first response |
+| 30 story/adventure raids × `flowcraft.realtime` + `eino.realtime` | 60 | warmed, paced-audio RealTime roundtrip; Flowcraft enforces 2 s text / 3 s audio first response and Eino enforces 2 s text first response |
 | 19 `story-*` Flowcraft role probes | 19 | three isolated narrator/character Workspaces requiring complete text/audio EOS evidence plus bounded 2 s text / 3 s audio first-response probes |
 | `story-aesop/flowcraft.transitions` | 1 | stateful natural-progress, negated-choice, adjacent-transition, and same-chapter continuation contract |
 | `story-wizard-oz/english-restart*` | 2 | direct Flowcraft audio plus Eino relay preserving English restart and non-reset continuation |
@@ -79,8 +80,10 @@ requires text EOS, audio EOS, and positive audio bytes; a second
 `completion: first_response` turn requires text within 2 seconds and audio
 within 3 seconds. Eino remains text-only: its Workflow declares `asr_model:
 asr` for realtime input, while the test sets `require_audio: false` and requires
-non-empty assistant text plus text EOS. This avoids representing absent Eino
-TTS as an audio pass.
+non-empty assistant text plus text EOS. A second text-only
+`completion: first_response` turn requires Eino text within 2 seconds while
+leaving audio out of the acceptance contract. This avoids representing absent
+Eino TTS as an audio pass.
 
 The relay-protocol Tester Workflows (`workflows/<raid>/test.yaml`, one per
 scenario and shared by its Flowcraft and Eino implementations) are generated

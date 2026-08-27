@@ -61,6 +61,22 @@ steps:
     /text: {non_empty: true}
     /text_eos: {equals: true}
 
+- id: realtime_first_response
+  client: candidate
+  timeout: 2m
+  peer_stream:
+    mode: realtime
+    input: ${input_audio}
+    pacing: 20ms
+    completion: first_response
+    first_text_timeout: 2s
+    require_text: true
+    require_audio: false
+  expect:
+    /events: {non_empty: true}
+    /text: {non_empty: true}
+    /first_text_ms: {maximum: 2000}
+
 finally:
 - id: stop_run
   client: candidate
@@ -73,4 +89,3 @@ finally:
   rpc: {method: server.peer.delete, request: {}}
 report:
   redact: [registration_token]
-

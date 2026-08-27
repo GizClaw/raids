@@ -295,12 +295,14 @@ for the second probe's EOS. Provisioning stays outside the runner: `APPLY=1 make
 applies the catalog, the Testers, the `testing` RuntimeProfile, and the
 `testing-runtime` token with the selected Admin context before running.
 
-The story contract and CI are pinned to GizClaw v0.7.17; the rest of the corpus
+The story contract and CI are pinned to GizClaw v0.7.19; the rest of the corpus
 requires GizClaw v0.6.0 or later (GizClaw #916, #921, #923). The bounded
 story-role first-response gates require the GizClaw #991/#992 contract first
 released in v0.7.13. GizClaw #994/#997 removed reload-time RuntimeProfile
-dependency revalidation in v0.7.16; v0.7.17 is the deployed E2E baseline, and
-reload is reported separately from the measured first-response gates. This corpus
+dependency revalidation in v0.7.16. The modality-selective first-response
+contract from GizClaw #1003/#1004 is first released in v0.7.19 and lets
+text-only Eino scenarios enforce the text gate without inventing an audio
+response. Reload is reported separately from the measured first-response gates. This corpus
 replaces the retired `tools/raidtest` Go runner: validating one locally edited
 Workflow is now `APPLY=1 make test-e2e RAID=<raid>/<engine>`, which applies that
 raid package and the testing closure before running its scenario.
@@ -310,7 +312,8 @@ and sends it at 20 ms pacing through a warmed `WORKSPACE_INPUT_MODE_REALTIME`
 Workspace. Flowcraft requires complete assistant text and audio plus a separate
 2-second text / 3-second audio first-response sample. Eino retains its text-only
 output contract, adds the `asr` voice adapter needed for realtime audio input,
-and requires complete non-empty assistant text without inventing a TTS Voice.
+and requires both a complete non-empty assistant response and a separate
+2-second text-only first-response sample without inventing a TTS Voice.
 
 ## Catalog behavior notes
 
