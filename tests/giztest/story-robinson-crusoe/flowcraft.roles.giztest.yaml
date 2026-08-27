@@ -124,6 +124,22 @@ steps:
     /audio_bytes: {minimum: 1}
     /first_text_ms: {maximum: 6000}
     /first_audio_ms: {maximum: 90000}
+- id: probe_narrator_first_response
+  client: narrator
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: "请直接进入第二章；如果条件不足，只说明仍停留的当前章节。"
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    /events: {non_empty: true}
+    /audio_bytes: {minimum: 1}
+    /first_text_ms: {maximum: 2000}
+    /first_audio_ms: {maximum: 3000}
 - id: probe_robinson
   client: robinson
   timeout: 2m
@@ -140,6 +156,22 @@ steps:
     /audio_bytes: {minimum: 1}
     /first_text_ms: {maximum: 6000}
     /first_audio_ms: {maximum: 90000}
+- id: probe_robinson_first_response
+  client: robinson
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: "请让鲁滨逊亲自回应，只说这个角色知道的事。"
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    /events: {non_empty: true}
+    /audio_bytes: {minimum: 1}
+    /first_text_ms: {maximum: 2000}
+    /first_audio_ms: {maximum: 3000}
 - id: probe_friday
   client: friday
   timeout: 2m
@@ -156,6 +188,22 @@ steps:
     /audio_bytes: {minimum: 1}
     /first_text_ms: {maximum: 6000}
     /first_audio_ms: {maximum: 90000}
+- id: probe_friday_first_response
+  client: friday
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: "请让星期五亲自回应，只说这个角色知道的事。"
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    /events: {non_empty: true}
+    /audio_bytes: {minimum: 1}
+    /first_text_ms: {maximum: 2000}
+    /first_audio_ms: {maximum: 3000}
 finally:
 - id: stop_narrator_run
   client: narrator

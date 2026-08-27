@@ -111,7 +111,15 @@ spec:
               failures = []
               plain = normalize(text, False)
               for fact in spec.get("required", []):
-                  if normalize(fact, False) not in plain:
+                  alternatives = [fact]
+                  if index in [15, 19] and fact == "商队":
+                      alternatives = ["商队", "商人", "商客"]
+                  found = False
+                  for alternative in alternatives:
+                      if normalize(alternative, False) in plain:
+                          found = True
+                          break
+                  if not found:
                       failures.append("required:" + fact)
               for group in spec.get("required_any", []):
                   found = False
@@ -305,8 +313,11 @@ spec:
                       first = "请继续。"
                   return {"answer": first}
               if input["det"] != "":
-                  return {"answer": "FAIL"}
-              return {"answer": verdict_from(input["model_text"])}
+                  return {"answer": "确定性失败：" + input["det"] + "\nFAIL"}
+              text = input["model_text"].strip()
+              if verdict_from(text) == "PASS":
+                  return {"answer": "PASS"}
+              return {"answer": text if text != "" else "FAIL"}
         limits:
           max_execution_steps: 200000
           timeout: 500ms

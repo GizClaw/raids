@@ -15,17 +15,17 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
 
-      - name: Download GizClaw v0.7.7
+      - name: Download GizClaw v0.7.16
         env:
-          GIZCLAW_ASSET: gizclaw_0.7.7_amd64.deb
-          GIZCLAW_SHA256: c3e6e6ebcf0cc430d772ece52762bf32d76bad5d3ea041e55b0bc96fd77783b3
+          GIZCLAW_ASSET: gizclaw_0.7.16_amd64.deb
+          GIZCLAW_SHA256: 48ab80f512f6b8980259b8c0b7ec4699d7d22248f09196bb5d8f4c10babd7e78
         run: |
           set -euo pipefail
           package="$RUNNER_TEMP/$GIZCLAW_ASSET"
-          root="$RUNNER_TEMP/gizclaw-v0.7.7"
+          root="$RUNNER_TEMP/gizclaw-v0.7.16"
           curl --fail --location --retry 3 \
             --output "$package" \
-            "https://github.com/GizClaw/gizclaw/releases/download/v0.7.7/$GIZCLAW_ASSET"
+            "https://github.com/GizClaw/gizclaw/releases/download/v0.7.16/$GIZCLAW_ASSET"
           printf '%s  %s\n' "$GIZCLAW_SHA256" "$package" | sha256sum --check --status
           dpkg-deb --extract "$package" "$root"
           printf 'GIZCLAW=%s\n' "$root/usr/bin/gizclaw" >> "$GITHUB_ENV"
@@ -35,4 +35,3 @@ jobs:
 
       - name: Check catalog Voice invariants
         run: make test-unit-voices
-

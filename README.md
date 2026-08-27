@@ -288,12 +288,18 @@ deployment and `make test-unit-resources` validates the corpus offline. Each sce
 `workspace_relay` text protocol: they drive the scripted route, audit the
 deterministic contracts over their own History. Long story routes end bounded
 segments in `CHECKPOINT PASS` and the final segment in `PASS`; each role probe
-requires text/audio EOS and non-empty synthesized Opus. Provisioning stays outside the runner: `APPLY=1 make test-e2e`
+requires complete text/audio EOS and non-empty synthesized Opus, then applies
+independent 2-second first-text and 3-second first-audio gates without waiting
+for the second probe's EOS. Provisioning stays outside the runner: `APPLY=1 make test-e2e`
 applies the catalog, the Testers, the `testing` RuntimeProfile, and the
 `testing-runtime` token with the selected Admin context before running.
 
-The story contract and CI are pinned to GizClaw v0.7.7; the rest of the corpus
-requires GizClaw v0.6.0 or later (GizClaw #916, #921, #923). It
+The story contract and CI are pinned to GizClaw v0.7.16; the rest of the corpus
+requires GizClaw v0.6.0 or later (GizClaw #916, #921, #923). The bounded
+story-role first-response gates require the GizClaw #991/#992 contract first
+released in v0.7.13. GizClaw #994/#997 removed reload-time RuntimeProfile
+dependency revalidation in v0.7.16; reload is reported separately from the
+measured first-response gates. This corpus
 replaces the retired `tools/raidtest` Go runner: validating one locally edited
 Workflow is now `APPLY=1 make test-e2e RAID=<raid>/<engine>`, which applies that
 raid package and the testing closure before running its scenario.
