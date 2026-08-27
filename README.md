@@ -295,12 +295,12 @@ for the second probe's EOS. Provisioning stays outside the runner: `APPLY=1 make
 applies the catalog, the Testers, the `testing` RuntimeProfile, and the
 `testing-runtime` token with the selected Admin context before running.
 
-The story contract and CI are pinned to GizClaw v0.7.16; the rest of the corpus
+The story contract and CI are pinned to GizClaw v0.7.17; the rest of the corpus
 requires GizClaw v0.6.0 or later (GizClaw #916, #921, #923). The bounded
 story-role first-response gates require the GizClaw #991/#992 contract first
 released in v0.7.13. GizClaw #994/#997 removed reload-time RuntimeProfile
-dependency revalidation in v0.7.16; reload is reported separately from the
-measured first-response gates. This corpus
+dependency revalidation in v0.7.16; v0.7.17 is the deployed E2E baseline, and
+reload is reported separately from the measured first-response gates. This corpus
 replaces the retired `tools/raidtest` Go runner: validating one locally edited
 Workflow is now `APPLY=1 make test-e2e RAID=<raid>/<engine>`, which applies that
 raid package and the testing closure before running its scenario.

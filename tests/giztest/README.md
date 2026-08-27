@@ -12,8 +12,8 @@ Requires GizClaw v0.6.0 or later, the first release containing the declarative
 runner, assertion matchers, and `workspace_relay` operation (GizClaw #916,
 #921, #923). The bounded story-role latency probes additionally require the
 `peer_stream.completion: first_response` contract from GizClaw #991/#992,
-first released in v0.7.13. CI uses v0.7.16, which also contains the
-RuntimeProfile reload repair from GizClaw #994/#997.
+first released in v0.7.13. CI uses the deployed E2E baseline v0.7.17, which
+also contains the RuntimeProfile reload repair from GizClaw #994/#997.
 `make test-unit-resources` validates the corpus offline.
 
 ## Layout

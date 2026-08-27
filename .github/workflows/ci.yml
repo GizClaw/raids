@@ -15,17 +15,17 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
 
-      - name: Download GizClaw v0.7.16
+      - name: Download GizClaw v0.7.17
         env:
-          GIZCLAW_ASSET: gizclaw_0.7.16_amd64.deb
-          GIZCLAW_SHA256: 48ab80f512f6b8980259b8c0b7ec4699d7d22248f09196bb5d8f4c10babd7e78
+          GIZCLAW_ASSET: gizclaw_0.7.17_amd64.deb
+          GIZCLAW_SHA256: 56e11253b30405f8c1da75219b64799799b6e652282c2421040ca36d3c633a51
         run: |
           set -euo pipefail
           package="$RUNNER_TEMP/$GIZCLAW_ASSET"
-          root="$RUNNER_TEMP/gizclaw-v0.7.16"
+          root="$RUNNER_TEMP/gizclaw-v0.7.17"
           curl --fail --location --retry 3 \
             --output "$package" \
-            "https://github.com/GizClaw/gizclaw/releases/download/v0.7.16/$GIZCLAW_ASSET"
+            "https://github.com/GizClaw/gizclaw/releases/download/v0.7.17/$GIZCLAW_ASSET"
           printf '%s  %s\n' "$GIZCLAW_SHA256" "$package" | sha256sum --check --status
           dpkg-deb --extract "$package" "$root"
           printf 'GIZCLAW=%s\n' "$root/usr/bin/gizclaw" >> "$GITHUB_ENV"
