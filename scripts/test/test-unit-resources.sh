@@ -15,6 +15,7 @@ resource_dirs='credentials tenants models voices memory-layouts petdefs workflow
 
 require_command "$GIZCLAW"
 require_command "$GIZCLAW_TEST_CLI"
+require_command jq
 cd "$root"
 
 for dir in $resource_dirs; do
@@ -89,6 +90,15 @@ for package in workflows/adventure-* workflows/story-*; do
 			exit 1
 		}
 		realtime_count=$((realtime_count + 1))
+	done
+	for engine in eino flowcraft; do
+		jq -e --arg engine "$engine" \
+			'.implementations[$engine].input | index("realtime") != null' \
+			"$package/raid.json" >/dev/null || {
+			printf 'raid manifest lacks %s realtime input capability: %s/raid.json\n' \
+				"$engine" "$package" >&2
+			exit 1
+		}
 	done
 	grep -F 'voice_adapter:' "$package/eino.yaml" >/dev/null || {
 		printf 'Eino Workflow lacks realtime voice adapter: %s/eino.yaml\n' "$package" >&2

@@ -111,15 +111,7 @@ spec:
               failures = []
               plain = normalize(text, False)
               for fact in spec.get("required", []):
-                  alternatives = [fact]
-                  if index in [15, 19] and fact == "商队":
-                      alternatives = ["商队", "商人", "商客"]
-                  found = False
-                  for alternative in alternatives:
-                      if normalize(alternative, False) in plain:
-                          found = True
-                          break
-                  if not found:
+                  if normalize(fact, False) not in plain:
                       failures.append("required:" + fact)
               for group in spec.get("required_any", []):
                   found = False
