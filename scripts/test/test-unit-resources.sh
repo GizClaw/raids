@@ -62,4 +62,55 @@ test -d tests/giztest || {
 	printf 'missing Giztest corpus: tests/giztest\n' >&2
 	exit 1
 }
+
+# Every ordinary story/adventure package has one paced-audio RealTime document
+# for each supported engine. Keep this inventory structural rather than a bare
+# count so a future package cannot replace or hide another package's coverage.
+realtime_count=0
+for package in workflows/adventure-* workflows/story-*; do
+	test -d "$package" || continue
+	raid="${package#workflows/}"
+	for engine in eino flowcraft; do
+		test_file="tests/giztest/$raid/$engine.realtime.giztest.yaml"
+		test -f "$test_file" || {
+			printf 'missing RealTime Giztest: %s\n' "$test_file" >&2
+			exit 1
+		}
+		grep -F 'input: WORKSPACE_INPUT_MODE_REALTIME' "$test_file" >/dev/null || {
+			printf 'RealTime Giztest lacks realtime Workspace input: %s\n' "$test_file" >&2
+			exit 1
+		}
+		grep -F 'mode: realtime' "$test_file" >/dev/null || {
+			printf 'RealTime Giztest lacks paced realtime stream: %s\n' "$test_file" >&2
+			exit 1
+		}
+		grep -F "\"file\": \"$test_file\"" "$package/raid.json" >/dev/null || {
+			printf 'raid manifest lacks RealTime Giztest: %s\n' "$test_file" >&2
+			exit 1
+		}
+		realtime_count=$((realtime_count + 1))
+	done
+	grep -F 'voice_adapter:' "$package/eino.yaml" >/dev/null || {
+		printf 'Eino Workflow lacks realtime voice adapter: %s/eino.yaml\n' "$package" >&2
+		exit 1
+	}
+	grep -F 'asr_model: asr' "$package/eino.yaml" >/dev/null || {
+		printf 'Eino Workflow lacks realtime ASR binding: %s/eino.yaml\n' "$package" >&2
+		exit 1
+	}
+	grep -F 'first_text_timeout: 2s' "tests/giztest/$raid/flowcraft.realtime.giztest.yaml" >/dev/null || {
+		printf 'Flowcraft RealTime Giztest lacks 2 s text gate: %s\n' "$raid" >&2
+		exit 1
+	}
+	grep -F 'first_audio_timeout: 3s' "tests/giztest/$raid/flowcraft.realtime.giztest.yaml" >/dev/null || {
+		printf 'Flowcraft RealTime Giztest lacks 3 s audio gate: %s\n' "$raid" >&2
+		exit 1
+	}
+done
+test "$realtime_count" -eq 60 || {
+	printf 'expected 60 story/adventure RealTime Giztests, found %s\n' "$realtime_count" >&2
+	exit 1
+}
+printf 'validated %s story/adventure RealTime Giztests\n' "$realtime_count"
+
 "$GIZCLAW_TEST_CLI" test validate -f tests/giztest

@@ -278,7 +278,8 @@ voice aliases the manifest lists.
 [`tests/giztest`](tests/giztest/README.md) holds every live Raids test as one
 `gizclaw.test/v1alpha1` document: 64 paired candidate/Tester relays (every
 story, adventure, Journey, and Murder Mystery target on both engines), the
-19 Flowcraft story role probes, the Wizard of Oz dual-engine English restart,
+60 paced-audio RealTime roundtrips covering every story/adventure Flowcraft and
+Eino implementation, the 19 Flowcraft story role probes, the Wizard of Oz dual-engine English restart,
 the default assistant, Journey, Pet Care,
 Doubao realtime, and AST translation routes, the Journey TTFT benchmark, and
 the historical 3×/5× qualification repeats. `gizclaw test run tests/giztest --parallel N` isolates each
@@ -303,6 +304,13 @@ measured first-response gates. This corpus
 replaces the retired `tools/raidtest` Go runner: validating one locally edited
 Workflow is now `APPLY=1 make test-e2e RAID=<raid>/<engine>`, which applies that
 raid package and the testing closure before running its scenario.
+
+Each story/adventure RealTime document synthesizes a short Chinese Opus fixture
+and sends it at 20 ms pacing through a warmed `WORKSPACE_INPUT_MODE_REALTIME`
+Workspace. Flowcraft requires complete assistant text and audio plus a separate
+2-second text / 3-second audio first-response sample. Eino retains its text-only
+output contract, adds the `asr` voice adapter needed for realtime audio input,
+and requires complete non-empty assistant text without inventing a TTS Voice.
 
 ## Catalog behavior notes
 

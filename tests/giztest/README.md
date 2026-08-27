@@ -23,6 +23,7 @@ One directory per scenario (raid), mirroring `workflows/<raid>/`, with one
 
 ```text
 tests/giztest/<raid>/<engine>.giztest.yaml            # relay: candidate <engine> vs. workflows/<raid>/test.yaml
+tests/giztest/<raid>/<engine>.realtime.giztest.yaml   # paced-audio RealTime roundtrip for that implementation
 tests/giztest/<raid>/<engine>.<case>.giztest.yaml     # extra scenarios for the same implementation
 tests/giztest/ast-translate/<pair>.<case>.giztest.yaml
 tests/giztest/doubao-realtime/conversation.<case>.giztest.yaml
@@ -32,6 +33,7 @@ tests/giztest/h106/…                                  # targets outside this c
 | Group | Files | Topology |
 | --- | --- | --- |
 | 30 story/adventure raids × `flowcraft` + `eino` | 60 | `workspace_relay` against the raid's `<raid>-test` Tester |
+| 30 story/adventure raids × `flowcraft.realtime` + `eino.realtime` | 60 | warmed, paced-audio RealTime roundtrip; Flowcraft also enforces 2 s text / 3 s audio first response |
 | 19 `story-*` Flowcraft role probes | 19 | three isolated narrator/character Workspaces requiring complete text/audio EOS evidence plus bounded 2 s text / 3 s audio first-response probes |
 | `story-aesop/flowcraft.transitions` | 1 | stateful natural-progress, negated-choice, adjacent-transition, and same-chapter continuation contract |
 | `story-wizard-oz/english-restart*` | 2 | direct Flowcraft audio plus Eino relay preserving English restart and non-reset continuation |
@@ -65,6 +67,20 @@ warmed: they are test drivers rather than latency targets, and retaining their
 original lifecycle avoids changing the judge's long-form semantic behavior.
 Reloads that are part of a scenario's persistence contract remain separate
 later steps and are not replaced by this initial warm-up.
+
+### RealTime roundtrip contract
+
+Every story/adventure implementation has an independent
+`<engine>.realtime.giztest.yaml`. The document synthesizes one short Chinese
+Opus fixture, pushes it through `peer_stream mode: realtime` at 20 ms pacing,
+and verifies a non-empty terminal assistant response after an explicit warm-up.
+Flowcraft already declares an ASR/TTS `voice_adapter`, so its terminal check
+requires text EOS, audio EOS, and positive audio bytes; a second
+`completion: first_response` turn requires text within 2 seconds and audio
+within 3 seconds. Eino remains text-only: its Workflow declares `asr_model:
+asr` for realtime input, while the test sets `require_audio: false` and requires
+non-empty assistant text plus text EOS. This avoids representing absent Eino
+TTS as an audio pass.
 
 The relay-protocol Tester Workflows (`workflows/<raid>/test.yaml`, one per
 scenario and shared by its Flowcraft and Eino implementations) are generated

@@ -1,0 +1,76 @@
+# User Story:
+# As a Raids catalog maintainer,
+# I want to exercise `eino-story-chu-han` with paced audio in a RealTime Workspace,
+# So that its warmed realtime text roundtrip remains deployable.
+version: gizclaw.test/v1alpha1
+name: story-chu-han.eino.realtime
+clients:
+  candidate: {identity: ephemeral, connection: webrtc, access_point: "${endpoint}"}
+variables:
+  endpoint: {direction: input, type: string, env: GIZCLAW_TEST_ENDPOINT}
+  registration_token: {direction: input, type: string, env: GIZCLAW_TEST_REGISTRATION_TOKEN, secret: true}
+  workspace: {direction: input, type: string, generate: token}
+  input_audio: {direction: output, type: audio, max_bytes: 16777216, media_type: audio/ogg, codec: opus}
+repeat: 1
+timeout: 4m
+steps:
+- id: register_candidate
+  client: candidate
+  rpc: {method: server.register, request: {token: "${registration_token}"}}
+- id: create_workspace
+  client: candidate
+  rpc:
+    method: server.workspace.create
+    request:
+      name: ${workspace}
+      collection: raidtest-targets
+      workflow_name: eino-story-chu-han
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          input: WORKSPACE_INPUT_MODE_REALTIME
+- id: select_workspace
+  client: candidate
+  rpc: {method: server.run.workspace.set, request: {workspace_name: "${workspace}"}}
+- id: warmup_workspace
+  client: candidate
+  rpc: {method: server.run.workspace.reload, request: {}}
+  timeout: 2m
+- id: synthesize_input
+  client: candidate
+  speech:
+    method: server.speech.synthesize
+    request:
+      voice_name: giztest-input.zh
+      text: 请简短介绍当前故事，并告诉我现在可以做什么。
+      accepted_content_types: [audio/ogg]
+    cache: run
+  save_as: input_audio
+- id: realtime_roundtrip
+  client: candidate
+  timeout: 2m
+  peer_stream:
+    mode: realtime
+    input: ${input_audio}
+    pacing: 20ms
+    idle_timeout: 90s
+    require_text: true
+    require_audio: false
+  expect:
+    /events: {non_empty: true}
+    /text: {non_empty: true}
+    /text_eos: {equals: true}
+
+finally:
+- id: stop_run
+  client: candidate
+  rpc: {method: server.run.stop, request: {}}
+- id: delete_workspace
+  client: candidate
+  rpc: {method: server.workspace.delete, request: {name: "${workspace}"}}
+- id: delete_peer
+  client: candidate
+  rpc: {method: server.peer.delete, request: {}}
+report:
+  redact: [registration_token]
+
