@@ -118,7 +118,7 @@ speaker cannot influence the next probe. The narrator Workspace also proves
 that a fresh direct chapter-two request remains in chapter one until the
 completion conditions are satisfied. A natural direct request reaches the
 narrator or one named character, while `peer_stream mode: text` requires text
-EOS, audio EOS, positive `audio_bytes`, and role-specific text. After each
+EOS, audio EOS, positive `audio_bytes`, and direct, speaker-label-free role text. After each
 role's complete semantic response, a final
 `peer_stream.completion: first_response` step on that isolated Workspace
 requires the first non-empty assistant text within 2 seconds and the first

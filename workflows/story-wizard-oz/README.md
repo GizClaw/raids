@@ -33,7 +33,7 @@ Flowcraft selects exactly one published node per external response. Chapter entr
 
 - Paired Flowcraft and Eino relays each require 16 continuous target responses with a reload before response 9.
 - Milestones: 8, 16; intermediate segments end in strict `CHECKPOINT PASS` and the final segment ends in strict `PASS`.
-- `flowcraft.roles.giztest.yaml` creates isolated narrator/dorothy/scarecrow Workspaces and requires text EOS, audio EOS, non-empty Opus, timing evidence, and role-specific text.
+- `flowcraft.roles.giztest.yaml` creates isolated narrator/dorothy/scarecrow Workspaces and requires text EOS, audio EOS, non-empty Opus, timing evidence, and direct, speaker-label-free role text.
 - `english-restart.giztest.yaml` checks Flowcraft text/audio directly; `english-restart.eino.giztest.yaml` checks English restart, named-character continuation, negated English selection, and English reconnect recall through the stable relay transport.
 - Final live evidence must come from the e2e deployment through `edge-bj-01.e2e.gizclaw.com:9821`; dev evidence is diagnostic only.
 

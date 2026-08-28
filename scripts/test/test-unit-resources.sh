@@ -140,4 +140,37 @@ test "$realtime_count" -eq 60 || {
 }
 printf 'validated %s story/adventure RealTime Giztests\n' "$realtime_count"
 
+# Published node Voices already identify the active speaker. Spoken labels such
+# as "旁白说" or "角色名：" make the synthesized story sound like a test
+# fixture, so every multi-voice story must instruct direct speech and its live
+# role probes must reject those labels.
+role_count=0
+for role_test in tests/giztest/story-*/flowcraft.roles.giztest.yaml; do
+	test -f "$role_test" || continue
+	raid="${role_test#tests/giztest/}"
+	raid="${raid%%/*}"
+	workflow="workflows/$raid/flowcraft.yaml"
+	test -f "$workflow" || {
+		printf 'role Giztest lacks Flowcraft Workflow: %s\n' "$role_test" >&2
+		exit 1
+	}
+	label_guard_count="$(grep -Fc '等说话人标签' "$workflow" || true)"
+	test "$label_guard_count" -eq 3 || {
+		printf 'multi-voice Workflow must guard all three outputs against speaker labels: %s\n' "$workflow" >&2
+		exit 1
+	}
+	spoken_label_count="$(grep -Ec '^[[:space:]]+- .+说$' "$role_test" || true)"
+	colon_label_count="$(grep -Ec '^[[:space:]]+- .+：$' "$role_test" || true)"
+	test "$spoken_label_count" -eq 3 && test "$colon_label_count" -eq 3 || {
+		printf 'role Giztest must reject narrator and character speaker labels: %s\n' "$role_test" >&2
+		exit 1
+	}
+	role_count=$((role_count + 1))
+done
+test "$role_count" -eq 19 || {
+	printf 'expected 19 multi-voice role Giztests, found %s\n' "$role_count" >&2
+	exit 1
+}
+printf 'validated %s speaker-label-free multi-voice story Giztests\n' "$role_count"
+
 "$GIZCLAW_TEST_CLI" test validate -f tests/giztest
