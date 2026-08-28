@@ -10,7 +10,12 @@ package layout.
 
 Requires GizClaw v0.6.0 or later, the first release containing the declarative
 runner, assertion matchers, and `workspace_relay` operation (GizClaw #916,
-#921, #923). `make test-unit-resources` validates the corpus offline.
+#921, #923). The bounded story-role latency probes additionally require the
+`peer_stream.completion: first_response` contract from GizClaw #991/#992,
+first released in v0.7.13. CI uses GizClaw v0.7.19, which also contains the
+RuntimeProfile reload repair from GizClaw #994/#997 and the modality-selective
+first-response contract from GizClaw #1003/#1004 for text-only Eino probes.
+`make test-unit-resources` validates the corpus offline.
 
 ## Layout
 
@@ -19,6 +24,7 @@ One directory per scenario (raid), mirroring `workflows/<raid>/`, with one
 
 ```text
 tests/giztest/<raid>/<engine>.giztest.yaml            # relay: candidate <engine> vs. workflows/<raid>/test.yaml
+tests/giztest/<raid>/<engine>.realtime.giztest.yaml   # paced-audio RealTime roundtrip for that implementation
 tests/giztest/<raid>/<engine>.<case>.giztest.yaml     # extra scenarios for the same implementation
 tests/giztest/ast-translate/<pair>.<case>.giztest.yaml
 tests/giztest/doubao-realtime/conversation.<case>.giztest.yaml
@@ -28,7 +34,8 @@ tests/giztest/h106/…                                  # targets outside this c
 | Group | Files | Topology |
 | --- | --- | --- |
 | 30 story/adventure raids × `flowcraft` + `eino` | 60 | `workspace_relay` against the raid's `<raid>-test` Tester |
-| 19 `story-*` Flowcraft role probes | 19 | three isolated narrator/character Workspaces requiring text/audio EOS and non-empty Opus |
+| 30 story/adventure raids × `flowcraft.realtime` + `eino.realtime` | 60 | warmed, paced-audio RealTime roundtrip; Flowcraft enforces 2 s text / 3 s audio first response and Eino enforces 2 s text first response |
+| 19 `story-*` Flowcraft role probes | 19 | three isolated narrator/character Workspaces requiring complete text/audio EOS evidence plus bounded 2 s text / 3 s audio first-response probes |
 | `story-aesop/flowcraft.transitions` | 1 | stateful natural-progress, negated-choice, adjacent-transition, and same-chapter continuation contract |
 | `story-wizard-oz/english-restart*` | 2 | direct Flowcraft audio plus Eino relay preserving English restart and non-reset continuation |
 | `journey-guide/` (`flowcraft`, `eino-history`, `eino-memory-recall`, `eino-memory-async`, `flowcraft.benchmark-6s`) | 5 | 4 relays sharing `journey-guide-test` + 1 single-client TTFT benchmark |
@@ -61,6 +68,22 @@ warmed: they are test drivers rather than latency targets, and retaining their
 original lifecycle avoids changing the judge's long-form semantic behavior.
 Reloads that are part of a scenario's persistence contract remain separate
 later steps and are not replaced by this initial warm-up.
+
+### RealTime roundtrip contract
+
+Every story/adventure implementation has an independent
+`<engine>.realtime.giztest.yaml`. The document synthesizes one short Chinese
+Opus fixture, pushes it through `peer_stream mode: realtime` at 20 ms pacing,
+and verifies a non-empty terminal assistant response after an explicit warm-up.
+Flowcraft already declares an ASR/TTS `voice_adapter`, so its terminal check
+requires text EOS, audio EOS, and positive audio bytes; a second
+`completion: first_response` turn requires text within 2 seconds and audio
+within 3 seconds. Eino remains text-only: its Workflow declares `asr_model:
+asr` for realtime input, while the test sets `require_audio: false` and requires
+non-empty assistant text plus text EOS. A second text-only
+`completion: first_response` turn requires Eino text within 2 seconds while
+leaving audio out of the acceptance contract. This avoids representing absent
+Eino TTS as an audio pass.
 
 The relay-protocol Tester Workflows (`workflows/<raid>/test.yaml`, one per
 scenario and shared by its Flowcraft and Eino implementations) are generated
@@ -95,9 +118,14 @@ speaker cannot influence the next probe. The narrator Workspace also proves
 that a fresh direct chapter-two request remains in chapter one until the
 completion conditions are satisfied. A natural direct request reaches the
 narrator or one named character, while `peer_stream mode: text` requires text
-EOS, audio EOS, positive `audio_bytes`, and first text/audio timing. The report
-supports “expected role/alias backed by static mapping”; it does not expose the
-selected alias or prove voiceprint similarity.
+EOS, audio EOS, positive `audio_bytes`, and direct, speaker-label-free role text. After each
+role's complete semantic response, a final
+`peer_stream.completion: first_response` step on that isolated Workspace
+requires the first non-empty assistant text within 2 seconds and the first
+non-empty assistant audio within 3 seconds. The runner closes that latency-only
+stream after both signals; it does not replace or weaken the preceding terminal
+semantic check. The report supports “expected role/alias backed by static
+mapping”; it does not expose the selected alias or prove voiceprint similarity.
 
 Giztest owns the transport evidence: `/terminal/text` must match `^\s*PASS\s*$`,
 `/completed_turns` and per-client counts must match the route, and the

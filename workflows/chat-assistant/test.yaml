@@ -305,8 +305,11 @@ spec:
                       first = "请继续。"
                   return {"answer": first}
               if input["det"] != "":
-                  return {"answer": "FAIL"}
-              return {"answer": verdict_from(input["model_text"])}
+                  return {"answer": "确定性失败：" + input["det"] + "\nFAIL"}
+              text = input["model_text"].strip()
+              if verdict_from(text) == "PASS":
+                  return {"answer": "PASS"}
+              return {"answer": text if text != "" else "FAIL"}
         limits:
           max_execution_steps: 200000
           timeout: 500ms

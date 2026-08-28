@@ -142,7 +142,7 @@ steps:
     method: server.speech.synthesize
     request:
       voice_name: giztest-input.zh
-      text: 诊所在朝阳路，项目是洗牙，也请一起记住。
+      text: 诊所在朝阳路，项目是口腔洁治，也就是洗牙，也请一起记住。
       accepted_content_types:
       - audio/ogg
     cache: run
@@ -184,7 +184,10 @@ steps:
       contains_all:
       - 四点
       not_contains:
-      - 三点
+      - 还是下午三点
+      - 仍是下午三点
+      - 三点没问题
+      - 三点是对的
 - id: synthesize_4_immediate-recall
   client: peer
   speech:
@@ -208,10 +211,12 @@ steps:
     /text:
       contains_all:
       - 周五
-      - 四点
       - 陈医生
       - 朝阳路
       - 洗牙
+      contains_any:
+      - 四点
+      - 4点
       not_contains:
       - 三点
       max_length: 200
@@ -291,7 +296,9 @@ steps:
       contains_all:
       - 四点
       not_contains:
-      - 还是下午三点
+      - 仍是下午三点
+      - 三点是对的
+      - 下午三点没问题
       - 对的
       - 没错
       max_length: 200

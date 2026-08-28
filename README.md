@@ -278,7 +278,8 @@ voice aliases the manifest lists.
 [`tests/giztest`](tests/giztest/README.md) holds every live Raids test as one
 `gizclaw.test/v1alpha1` document: 64 paired candidate/Tester relays (every
 story, adventure, Journey, and Murder Mystery target on both engines), the
-19 Flowcraft story role probes, the Wizard of Oz dual-engine English restart,
+60 paced-audio RealTime roundtrips covering every story/adventure Flowcraft and
+Eino implementation, the 19 Flowcraft story role probes, the Wizard of Oz dual-engine English restart,
 the default assistant, Journey, Pet Care,
 Doubao realtime, and AST translation routes, the Journey TTFT benchmark, and
 the historical 3×/5× qualification repeats. `gizclaw test run tests/giztest --parallel N` isolates each
@@ -288,15 +289,31 @@ deployment and `make test-unit-resources` validates the corpus offline. Each sce
 `workspace_relay` text protocol: they drive the scripted route, audit the
 deterministic contracts over their own History. Long story routes end bounded
 segments in `CHECKPOINT PASS` and the final segment in `PASS`; each role probe
-requires text/audio EOS and non-empty synthesized Opus. Provisioning stays outside the runner: `APPLY=1 make test-e2e`
+requires complete text/audio EOS and non-empty synthesized Opus, then applies
+independent 2-second first-text and 3-second first-audio gates without waiting
+for the second probe's EOS. Provisioning stays outside the runner: `APPLY=1 make test-e2e`
 applies the catalog, the Testers, the `testing` RuntimeProfile, and the
 `testing-runtime` token with the selected Admin context before running.
 
-The story contract and CI are pinned to GizClaw v0.7.7; the rest of the corpus
-requires GizClaw v0.6.0 or later (GizClaw #916, #921, #923). It
+The story contract and CI are pinned to GizClaw v0.7.19; the rest of the corpus
+requires GizClaw v0.6.0 or later (GizClaw #916, #921, #923). The bounded
+story-role first-response gates require the GizClaw #991/#992 contract first
+released in v0.7.13. GizClaw #994/#997 removed reload-time RuntimeProfile
+dependency revalidation in v0.7.16. The modality-selective first-response
+contract from GizClaw #1003/#1004 is first released in v0.7.19 and lets
+text-only Eino scenarios enforce the text gate without inventing an audio
+response. Reload is reported separately from the measured first-response gates. This corpus
 replaces the retired `tools/raidtest` Go runner: validating one locally edited
 Workflow is now `APPLY=1 make test-e2e RAID=<raid>/<engine>`, which applies that
 raid package and the testing closure before running its scenario.
+
+Each story/adventure RealTime document synthesizes a short Chinese Opus fixture
+and sends it at 20 ms pacing through a warmed `WORKSPACE_INPUT_MODE_REALTIME`
+Workspace. Flowcraft requires complete assistant text and audio plus a separate
+2-second text / 3-second audio first-response sample. Eino retains its text-only
+output contract, adds the `asr` voice adapter needed for realtime audio input,
+and requires both a complete non-empty assistant response and a separate
+2-second text-only first-response sample without inventing a TTS Voice.
 
 ## Catalog behavior notes
 
