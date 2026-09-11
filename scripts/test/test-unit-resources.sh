@@ -173,4 +173,45 @@ test "$role_count" -eq 19 || {
 }
 printf 'validated %s speaker-label-free multi-voice story Giztests\n' "$role_count"
 
+# A chapter heading spoken on its own leaves the child waiting in silence, so
+# every story Workflow must continue into the new chapter's opening, and each
+# implementation has a live contract that checks the guided opening, the
+# "进入下一章" prompt, and story text after the chapter 2 heading.
+transition_count=0
+for package in workflows/story-*; do
+	test -d "$package" || continue
+	raid="${package#workflows/}"
+	for engine in eino flowcraft; do
+		grep -F '并紧接新章开场' "$package/$engine.yaml" >/dev/null || {
+			printf 'story Workflow lacks chapter-opening continuation: %s/%s.yaml\n' "$package" "$engine" >&2
+			exit 1
+		}
+		test_file="tests/giztest/$raid/$engine.transitions.giztest.yaml"
+		test -f "$test_file" || {
+			printf 'missing story transition Giztest: %s\n' "$test_file" >&2
+			exit 1
+		}
+		for step in opening_with_guidance choice_prompts_next_chapter enter_next_chapter_with_story; do
+			grep -F "id: $step" "$test_file" >/dev/null || {
+				printf 'story transition Giztest lacks %s: %s\n' "$step" "$test_file" >&2
+				exit 1
+			}
+		done
+		grep -F 'pattern: "第 2 章[：:]' "$test_file" >/dev/null || {
+			printf 'story transition Giztest does not require story text after the heading: %s\n' "$test_file" >&2
+			exit 1
+		}
+		grep -F "\"file\": \"$test_file\"" "$package/raid.json" >/dev/null || {
+			printf 'raid manifest lacks story transition Giztest: %s\n' "$test_file" >&2
+			exit 1
+		}
+		transition_count=$((transition_count + 1))
+	done
+done
+test "$transition_count" -eq 38 || {
+	printf 'expected 38 story transition Giztests, found %s\n' "$transition_count" >&2
+	exit 1
+}
+printf 'validated %s story transition Giztests\n' "$transition_count"
+
 "$GIZCLAW_TEST_CLI" test validate -f tests/giztest
