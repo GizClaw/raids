@@ -1,7 +1,7 @@
 # User Story:
-# As a long-form story player,
-# I want natural progress and explicit non-choices to control chapter transitions,
-# So that the controller neither blocks ordinary play nor advances without a decision.
+# As a child playing `flowcraft-story-aesop`,
+# I want a guided opening, a "进入下一章" prompt after my choice, and story text right after each new chapter heading,
+# So that I never have to guess what to say or speak again after a bare chapter title.
 version: gizclaw.test/v1alpha1
 name: story-aesop.flowcraft.transitions
 clients:
@@ -11,7 +11,7 @@ variables:
   registration_token: {direction: input, type: string, env: GIZCLAW_TEST_REGISTRATION_TOKEN, secret: true}
   workspace: {direction: input, type: string, generate: token}
 repeat: 1
-timeout: 12m
+timeout: 14m
 steps:
 - id: register_player
   client: player
@@ -36,6 +36,22 @@ steps:
   client: player
   rpc: {method: server.run.workspace.reload, request: {}}
   timeout: 2m
+- id: opening_with_guidance
+  client: player
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: "请从第一章开始《伊索寓言》。"
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    /text:
+      contains_all: ["第 1 章", "种子的选择", "乌龟", "小鸟", "进入下一章"]
+    /text_eos: {equals: true}
+    /audio_eos: {equals: true}
+    /audio_bytes: {minimum: 1}
+    /first_text_ms: {maximum: 6000}
 - id: natural_consequence
   client: player
   timeout: 2m
@@ -46,6 +62,9 @@ steps:
     require_text: true
     require_audio: true
   expect:
+    /text:
+      not_contains: ["第 2 章", "等待与分歧"]
+      min_length: 4
     /text_eos: {equals: true}
     /audio_eos: {equals: true}
     /audio_bytes: {minimum: 1}
@@ -55,12 +74,14 @@ steps:
   timeout: 2m
   peer_stream:
     mode: text
-    input: "请让乌龟亲自回应当前结果，说出他的不同立场。"
+    input: "请让乌龟亲自回应当前结果，说出不同的立场。"
     idle_timeout: 90s
     require_text: true
     require_audio: true
   expect:
-    /text: {pattern: 乌龟}
+    /text:
+      not_contains: ["第 2 章", "等待与分歧"]
+      min_length: 4
     /text_eos: {equals: true}
     /audio_eos: {equals: true}
     /audio_bytes: {minimum: 1}
@@ -82,7 +103,7 @@ steps:
     /audio_eos: {equals: true}
     /audio_bytes: {minimum: 1}
     /first_text_ms: {maximum: 6000}
-- id: accept_natural_choice
+- id: choice_prompts_next_chapter
   client: player
   timeout: 2m
   peer_stream:
@@ -93,18 +114,18 @@ steps:
     require_audio: true
   expect:
     /text:
+      contains: "下一章"
       not_contains: ["第 2 章", "等待与分歧"]
-      min_length: 4
     /text_eos: {equals: true}
     /audio_eos: {equals: true}
     /audio_bytes: {minimum: 1}
     /first_text_ms: {maximum: 6000}
-- id: enter_after_option_only_choice
+- id: enter_next_chapter_with_story
   client: player
   timeout: 2m
   peer_stream:
     mode: text
-    input: "请进入第二章。"
+    input: "进入下一章。"
     idle_timeout: 90s
     require_text: true
     require_audio: true
@@ -112,6 +133,7 @@ steps:
     /text:
       contains_all: ["第 2 章", "等待与分歧"]
       not_contains: ["第 1 章", "种子的选择"]
+      pattern: "第 2 章[：:]\\s*等待与分歧[\\s\\S]{20,}[。！？]"
     /text_eos: {equals: true}
     /audio_eos: {equals: true}
     /audio_bytes: {minimum: 1}

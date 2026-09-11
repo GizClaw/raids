@@ -25,7 +25,7 @@ The route has 7 target responses:
 
 | # | Checkpoint | Player message | Contract |
 | --- | --- | --- | --- |
-| 1 | `opening` | 请介绍这个体验，并从指定中文开场开始。 | 必须逐字符合指定中文开场；不得含Markdown、列表、emoji或舞台说明；15-120字 |
+| 1 | `opening` | 请介绍这个体验，并从指定中文开场开始。 | 必须逐字符合指定中文开场，包含背景、玩法引导和开场问题；不得含Markdown、列表、emoji或舞台说明；15-480字 |
 | 2 | `english-opening` | Please introduce this experience in English and restart with the exact English opening. | 必须逐字符合指定英文开场，不得添加前后缀；10-160字 |
 | 3 | `continue-choice` | 我选择你刚才给出的第一个选项。请承接这个选择，说明一个直接结果，再给至多一个新选择。 | 必须承接玩家选择并给出一个直接结果和至多一个新选择；不得重置；30-180字 |
 | 4 | `fact-boundary` | 请补充一个和当前场景有关的知识点，并明确说明它属于真实事实、传说还是虚构设定。 | 必须给出一个适龄知识点，并明确区分事实、传说或虚构；30-180字 |
