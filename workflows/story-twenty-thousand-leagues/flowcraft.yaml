@@ -151,12 +151,13 @@ spec:
             if (countProgress && (speaker !== "narrator" || requestsPerspective) && !beatsAfterTurn.includes("perspective")) beatsAfterTurn.push("perspective");
             const nextChapterHint = countProgress && speaker === "narrator" && Number(state.chapter || 1) < 4 && state.chapter_choice_made === true && beatsAfterTurn.length >= 2 && state.next_chapter_hinted !== true;
             if (nextChapterHint) state.next_chapter_hinted = true;
+            const nextChapterInstruction = nextChapterHint ? "本轮必须完成：孩子刚刚做出了本章的选择。先用旁白讲出这个选择带来的直接结果，不要用任何角色的第一人称，不再提问，回复最后一句必须逐字是“这一章的选择完成啦，想继续听就说‘进入下一章’。”" : "";
             board.setVar("selected_speaker", speaker);
             board.setVar("announce_chapter", announce);
             board.setVar("transition_blocked", transitionBlocked);
             board.setVar("safety_request", current.includes("现实中模仿") || current.includes("现实模仿"));
             board.setVar("count_progress_response", countProgress);
-            board.setVar("next_chapter_hint", nextChapterHint);
+            board.setVar("next_chapter_instruction", nextChapterInstruction);
             board.setVar("response_requests_outcome", requestsOutcome);
             board.setVar("response_requests_perspective", requestsPerspective);
             board.setVar("story_state", state);
@@ -172,13 +173,13 @@ spec:
           system_prompt: |-
             ${board.story_bible}
             当前权威状态：${board.story_state_text}
-            本轮是旁白路径。只陈述玩家可见的场景、直接后果或转场，不替角色知道秘密；直接叙述，不得添加“旁白说”“旁白：”等说话人标签。
+            本轮是旁白路径。只陈述玩家可见的场景、直接后果或转场，不替角色知道秘密；直接叙述，不得添加“旁白说”“旁白：”等说话人标签，也不得用任何角色的第一人称说话；孩子只说出一个角色名或选项时，把它当作孩子的选择来叙述结果。
             本轮安全请求：${board.safety_request}。若该值为 true，回复中必须明确包含“不要模仿”和“找家长、老师或可信任成年人帮助”，并承接玩家所选安全替代带来的一个直接结果。
-            本轮转场阻塞：${board.transition_blocked}。若该值为 true，必须明确说明当前章的选择或节拍尚未满足转场条件，用“第 N 章：标题”格式写出当前章节及标题，并且绝不输出用户请求的下一章标题。
-            若 announce_chapter 为 true，第一行只写一次“第 N 章：标题”，标题后必须在同一条回复里紧接着讲这一章的开场：先用一两句话交代新场景在哪里、谁在场、发生了什么，再用一个问题说出孩子可以选的两三个具体选项；绝不能只输出章节标题就结束。若 announce_chapter 和 transition_blocked 均为 false，则不得输出章节标题。
-            首次进入第一章时，章节标题后必须依次完整说出这段开场，先交代背景，再说明玩法，最后提出开场问题：你登上了尼摩船长的鹦鹉螺号潜艇，和海洋学家阿龙纳斯教授一起探索深海。你可以直接说出你的选择，也可以说“请让尼摩说说”或“请让阿龙纳斯说说”，听他们自己讲；这一章的选择做完后，说“进入下一章”就能继续听下去。潜艇声呐发现了会发光的巨大影子，你想先降低灯光安静观察，还是查看海洋资料？
-            本轮下一章提示：${board.next_chapter_hint}。若该值为 true，说明本章的选择和结果都已完成：先承接当前结果，不再追加新问题，最后用一句话告诉孩子“这一章的选择完成啦，想继续听就说‘进入下一章’”。
+            本轮转场阻塞：${board.transition_blocked}。若该值为 true，用“第 N 章：标题”格式写出当前章节及标题，再用孩子听得懂的话说明这一章还差孩子自己的选择或还没看到选择的结果，所以暂时还不能去下一章，最后用一个问题说出本章问题的具体选项；不得说“节拍”“转场条件”“悬念”等内部用语，也不要把“先听某个角色说说”当作选项，并且绝不输出用户请求的下一章标题。
+            若 announce_chapter 为 true，第一行只写一次“第 N 章：标题”，其中“第”与数字、数字与“章”之间各有一个空格，标题后必须在同一条回复里紧接着讲这一章的开场：先用一两句话交代新场景在哪里、谁在场、发生了什么，再用一个问题说出孩子可以选的两三个具体选项；绝不能只输出章节标题就结束。若 announce_chapter 和 transition_blocked 均为 false，则不得输出章节标题。
+            首次进入第一章时，章节标题后必须依次完整说出这段开场，先交代背景，再说明玩法，最后提出开场问题：你登上了尼摩船长的鹦鹉螺号潜艇，和海洋学家阿龙纳斯教授一起探索深海。你可以直接说出你的选择，也可以说“请让尼摩说说”或“请让阿龙纳斯说说”，听他们自己讲；这一章的选择做完后，说“进入下一章”就能继续听下去。潜艇声呐发现了会发光的巨大影子，你想先降低灯光安静观察，还是查看海洋资料？（玩法说明里“说‘进入下一章’就能继续听下去”这一句不得省略）
             若用户只要求回忆或确认旅程代号，只回答当前代号；存在更正时绝不输出旧值。
+            ${board.next_chapter_instruction}
             普通回合输出2至4个完整中文句子、30至220个Unicode字符；首次开场和进入新章的回合可以写到6个句子、320个Unicode字符以内。不输出Markdown、列表、emoji、舞台说明、系统字段或重复问题。
           track_steps: true
       - id: speak-nemo
