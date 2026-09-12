@@ -36,7 +36,7 @@ tests/giztest/h106/…                                  # targets outside this c
 | 50 story/adventure/learn raids × `flowcraft` + `eino` | 100 | `workspace_relay` against the raid's `<raid>-test` Tester |
 | 50 story/adventure/learn raids × `flowcraft.realtime` + `eino.realtime` | 100 | warmed, paced-audio RealTime roundtrip; Flowcraft enforces 2 s text / 3 s audio first response and Eino enforces 2 s text first response |
 | 19 `story-*` Flowcraft role probes | 19 | three isolated narrator/character Workspaces requiring complete text/audio EOS evidence plus bounded 2 s text / 3 s audio first-response probes |
-| `story-aesop/flowcraft.transitions` | 1 | stateful natural-progress, negated-choice, adjacent-transition, and same-chapter continuation contract |
+| 19 `story-*` × `flowcraft.transitions` + `eino.transitions` | 38 | single-client stateful contract: guided opening, natural progress, negated choice, choice that prompts “进入下一章”, adjacent transition whose heading is followed by story text, and same-chapter continuation |
 | `story-wizard-oz/english-restart*` | 2 | direct Flowcraft audio plus Eino relay preserving English restart and non-reset continuation |
 | `journey-guide/` (`flowcraft`, `eino-history`, `eino-memory-recall`, `eino-memory-async`, `flowcraft.benchmark-6s`) | 5 | 4 relays sharing `journey-guide-test` + 1 single-client TTFT benchmark |
 | `murder-mystery/`, `chat-assistant/` | 2 | relay |

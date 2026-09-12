@@ -206,7 +206,15 @@ player role, character knowledge boundaries, transition and ending conditions,
 fact/legend/fiction rules, child-safety rules, correction precedence, durable
 clues, unresolved hooks, and anti-repetition policy. A transition happens only
 when the current choice satisfies the adjacent chapter condition; entering a
-chapter emits its localized title once, while ordinary turns never repeat it.
+chapter emits its localized title once and continues straight into that
+chapter's opening scene in the same reply, while ordinary turns never repeat
+it. Every chapter-one opening states the setting, the child's role, and the
+two characters, and explains how to play: answer with a choice, ask a named
+character to speak, and say “进入下一章” once the chapter's choice is made.
+Whenever a story asks the child to choose, the question names the concrete
+options. After the chapter's choice and its consequences, the narrator tells
+the child once that “进入下一章” continues; Flowcraft also accepts that phrase
+as a request for the adjacent chapter.
 The Wizard of Oz additionally preserves its explicit English chapter-one
 restart and established English opening on both implementations.
 
@@ -308,7 +316,8 @@ voice aliases the manifest lists.
 `gizclaw.test/v1alpha1` document: 104 paired candidate/Tester relays (every
 story, adventure, learn, Journey, and Murder Mystery target on both engines), the
 100 paced-audio RealTime roundtrips covering every story/adventure/learn Flowcraft and
-Eino implementation, the 19 Flowcraft story role probes, the Wizard of Oz dual-engine English restart,
+Eino implementation, the 19 Flowcraft story role probes, the 38 story transition
+contracts (every story on both engines), the Wizard of Oz dual-engine English restart,
 the default assistant, Journey,
 Doubao realtime, and AST translation routes, the Journey TTFT benchmark, and
 the historical 3×/5× qualification repeats. `gizclaw test run tests/giztest --parallel N` isolates each
