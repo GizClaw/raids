@@ -123,7 +123,7 @@ def route_for(card: Mapping[str, Any]):
         ("reveal", "我猜不出来，告诉我答案和意思吧。", "说出“竹篮打水——一场空”并讲清意思；20-360字", {"required": ["一场空"], "required_any": [], "forbidden": MARKDOWN, "min_runes": 20, "max_runes": 360}),
         ("disputed-quote", "“书山有路勤为径”是谁说的？", "必须说明课本没写作者、常说是韩愈但他的作品里找不到这句，不得肯定地说就是韩愈说的；20-360字", {"required": [], "required_any": [["没写", "没有写", "不确定", "说法", "一般认为", "常说", "有人说", "没有确切", "找不到", "不同"]], "forbidden": MARKDOWN, "min_runes": 20, "max_runes": 360}),
         ("character-story", "给我讲讲“森”字是怎么来的。", "按知识卡描述古字样子（三个木），不说看图；20-360字", {"required": [], "required_any": [["木"]], "forbidden": MARKDOWN + ["看图"], "min_runes": 20, "max_runes": 360}),
-        ("memory-store", "请记住：我今天学会了歇后语竹篮打水，下次想学对韵歌。只确认你已经记住。", "必须确认已记住下次想学对韵歌；4-320字", {"required": ["对韵歌"], "required_any": [], "forbidden": MARKDOWN, "min_runes": 4, "max_runes": 320}),
+        ("memory-store", "请记住：我今天学会了歇后语竹篮打水，下次想学对韵歌。只确认你已经记住。", "必须确认已记住下次想学对韵歌（复述措辞可以不同，下一轮重连后再严格核对）；4-320字", {"required": [], "required_any": [["记住","记下","记好","记得"]], "forbidden": MARKDOWN, "min_runes": 4, "max_runes": 320}),
         ("memory-recall", "重连后，请只说我下次想学什么。", "重载后必须从长期记忆准确回忆对韵歌；只回答主题；2-200字", {"required": ["对韵歌"], "required_any": [], "forbidden": MARKDOWN, "min_runes": 2, "max_runes": 200}),
     ]
 
@@ -278,7 +278,7 @@ def generate(repo: Path, out: Path, raids: Sequence[str]) -> list[str]:
             "孩子的年级、已学的内容、答题情况、更正和明确要求记住的信息",
         ),
     )
-    shared.write_text(workflow_dir / "test.yaml", shared.render_tester(repo, RAID, route, tester_rules(RAID, card)))
+    shared.write_text(workflow_dir / "test.yaml", shared.render_tester(repo, RAID, route, tester_rules(RAID, card), body))
     shared.write_json(workflow_dir / "raid.json", manifest)
     shared.write_json(workflow_dir / "knowledge.json", card)
     shared.write_text(workflow_dir / "README.md", render_readme(RAID, manifest, card, route, len(flowcraft_prompt)))

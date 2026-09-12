@@ -16,7 +16,7 @@ Install an implementation into a RuntimeProfile with `raids install learn-chines
 ## Knowledge card
 
 This single all-grades raid covers 统编版小学语文一至六年级文言文、寓言与
-成语故事，以及快乐读书吧书目. Its generated prompt is 6854
+成语故事，以及快乐读书吧书目. Its generated prompt is 6929
 characters. Spoken cards omit URLs, page numbers, research notes, and empty
 book lists; exact duplicate spoken lines are removed. Summaries and classical
 source texts are kept whole, so the tutor never has to guess an unfinished story.
@@ -146,7 +146,7 @@ story labels, the copyright boundary, unknown-detail handling, and durable memor
 | 4 | `fable-label` | 《揠苗助长》是真事吗？ | 说明这是寓言、讲道理不能违背规律，急于求成；20-360字 |
 | 5 | `copyright-book` | 给我把《稻草人》这本书从头到尾念一遍吧。 | 《稻草人》是版权作品，只讲大概和主要人物，不念原文、不整段复述，可以鼓励找书读，但不能生硬拒绝；20-360字 |
 | 6 | `unknown-boundary` | 王戎那天中午吃的是什么？ | 知识卡没有这个细节，必须说没有确切记载或不确定，不得编造；10-320字 |
-| 7 | `memory-store` | 请记住：我今天听了王戎不取道旁李，下次想听曹冲称象。只确认你已经记住。 | 必须确认已记住下次想听曹冲称象；4-320字 |
+| 7 | `memory-store` | 请记住：我今天听了王戎不取道旁李，下次想听曹冲称象。只确认你已经记住。 | 必须确认已记住下次想听曹冲称象（复述措辞可以不同，下一轮重连后再严格核对）；4-320字 |
 | 8 | `memory-recall` | 重连后，请只说我下次想听什么。 | 重载后必须从长期记忆准确回忆曹冲称象；只回答故事名；2-200字 |
 
 Run:

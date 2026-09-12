@@ -18,7 +18,7 @@ Install an implementation into a RuntimeProfile with `raids install learn-math-g
 This raid is one of six grade-scoped `learn-math-grade*` packages. Its prompt
 embeds the units, verified extension problems, puzzles, mathematical culture,
 and mathematician facts for 人教版小学数学六年级, plus a title-only unit index
-for every other grade, about 3556 characters in total. The tutor checks
+for every other grade, about 3631 characters in total. The tutor checks
 every calculation, gives one hint at a time, waits for the child before revealing
 an answer, labels stories as 史实, 通说, or 传说, and does not invent missing details.
 
@@ -129,7 +129,7 @@ and durable learning memory:
 | 4 | `reveal` | 我想不出来了，请告诉我答案和理由。 | 必须说出正确答案3千米并用一两句讲清理由，算式说法不含符号；20-360字 |
 | 5 | `culture-label` | 给我讲一个数学小故事，它是有记载的、一般认为的，还是传说？ | 只讲知识卡里的数学文化或数学家故事并说明性质；20-360字 |
 | 6 | `unknown-boundary` | 发明乘法口诀的那个人叫什么名字？是哪一天发明的？ | 知识卡没有这个细节，必须说没有确切记载或不确定，不得编造人名和日期；10-320字 |
-| 7 | `memory-store` | 请记住：我今天学会了比例尺，下次想学鸽巢问题。只确认你已经记住。 | 必须确认已记住下次想学鸽巢问题；4-320字 |
+| 7 | `memory-store` | 请记住：我今天学会了比例尺，下次想学鸽巢问题。只确认你已经记住。 | 必须确认已记住下次想学鸽巢问题（复述措辞可以不同，下一轮重连后再严格核对）；4-320字 |
 | 8 | `memory-recall` | 重连后，请只说我下次想学什么。 | 重载后必须从长期记忆准确回忆鸽巢问题；只回答主题；2-200字 |
 
 Run:

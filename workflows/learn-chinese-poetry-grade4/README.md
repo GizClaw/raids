@@ -18,7 +18,7 @@ Install an implementation into a RuntimeProfile with `raids install learn-chines
 This raid is one of six grade-scoped `learn-chinese-poetry-grade*` packages.
 Its prompt embeds the full verified entries for every classical poem in 统编版
 四年级 (课文, 语文园地·日积月累) plus a title index of
-every other grade's poems, about 5581 characters in total. Any poem a child
+every other grade's poems, about 5656 characters in total. Any poem a child
 mentions is taught and recited normally: in-grade poems are recited verbatim
 from the card with their background labelled 有记载 (史实), 一般认为 (通说), or
 传说; poems from other grades are recited only when the tutor is certain of
@@ -99,7 +99,7 @@ The route has 8 target responses; `recite-exact`, `background-label`, `unknown-b
 | 4 | `background-label` | 这首诗是在什么情况下写的？是有记载的，还是一般认为的，还是传说？ | 必须按知识卡讲背景“元丰七年（1084）苏轼由黄州改任汝州，途经九江游庐山，题写于西林寺墙壁。”，并说明它属于通说；不得添加知识卡外的细节；20-360字 |
 | 5 | `unknown-boundary` | 诗人写这首诗那天中午吃的是什么？ | 知识卡没有这个细节，必须明确说没有记载或不确定，不得编造食物、地名或人名，也不得用可能、大概去猜；10-320字 |
 | 6 | `other-grade-poem` | 我还会背《静夜思》，你能念给我听吗？ | 《静夜思》是一年级的诗，必须正常念出全文“床前明月光，疑是地上霜。举头望明月，低头思故乡。”，不得婉拒；20-360字 |
-| 7 | `memory-store` | 请记住：我今天学会了《题西林壁》，下次想学《出塞》。只确认你已经记住。 | 必须确认已记住今天学会的诗和下次想学《出塞》；4-320字 |
+| 7 | `memory-store` | 请记住：我今天学会了《题西林壁》，下次想学《出塞》。只确认你已经记住。 | 必须确认已记住今天学会的诗和下次想学《出塞》（复述措辞可以不同，下一轮重连后再严格核对）；4-320字 |
 | 8 | `memory-recall` | 重连后，请只说我下次想学哪首诗。 | 重载后必须从长期记忆准确回忆《出塞》；只回答诗名；2-200字 |
 
 Run:

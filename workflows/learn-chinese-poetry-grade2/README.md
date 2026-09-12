@@ -18,7 +18,7 @@ Install an implementation into a RuntimeProfile with `raids install learn-chines
 This raid is one of six grade-scoped `learn-chinese-poetry-grade*` packages.
 Its prompt embeds the full verified entries for every classical poem in 统编版
 二年级 (课文, 语文园地·日积月累) plus a title index of
-every other grade's poems, about 4956 characters in total. Any poem a child
+every other grade's poems, about 5031 characters in total. Any poem a child
 mentions is taught and recited normally: in-grade poems are recited verbatim
 from the card with their background labelled 有记载 (史实), 一般认为 (通说), or
 传说; poems from other grades are recited only when the tutor is certain of
@@ -95,7 +95,7 @@ The route has 8 target responses; `recite-exact`, `background-label`, `unknown-b
 | 4 | `background-label` | 这首诗是在什么情况下写的？是有记载的，还是一般认为的，还是传说？ | 必须按知识卡讲背景“登上蒲州鹳雀楼（今山西永济）远望时所作，具体写作年份史料不详。”，并说明它属于通说；不得添加知识卡外的细节；20-360字 |
 | 5 | `unknown-boundary` | 诗人写这首诗那天中午吃的是什么？ | 知识卡没有这个细节，必须明确说没有记载或不确定，不得编造食物、地名或人名，也不得用可能、大概去猜；10-320字 |
 | 6 | `other-grade-poem` | 我还会背《咏鹅》，你能念给我听吗？ | 《咏鹅》是一年级的诗，必须正常念出全文“鹅，鹅，鹅，曲项向天歌。白毛浮绿水，红掌拨清波。”，不得婉拒；20-360字 |
-| 7 | `memory-store` | 请记住：我今天学会了《登鹳雀楼》，下次想学《村居》。只确认你已经记住。 | 必须确认已记住今天学会的诗和下次想学《村居》；4-320字 |
+| 7 | `memory-store` | 请记住：我今天学会了《登鹳雀楼》，下次想学《村居》。只确认你已经记住。 | 必须确认已记住今天学会的诗和下次想学《村居》（复述措辞可以不同，下一轮重连后再严格核对）；4-320字 |
 | 8 | `memory-recall` | 重连后，请只说我下次想学哪首诗。 | 重载后必须从长期记忆准确回忆《村居》；只回答诗名；2-200字 |
 
 Run:

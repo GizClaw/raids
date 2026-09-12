@@ -40,7 +40,16 @@ def grade_name(grade: int) -> str:
     return GRADE_NUMERALS[grade - 1] + "年级"
 
 
+# Live runs showed tutors volunteering true-sounding extras (a scientist, a year,
+# a weather detail) that the card never held; every subject forbids that.
+NO_EMBELLISHMENT = (
+    "讲解、讲背景和讲故事时只用知识卡里的内容，不额外补充知识卡以外的人物、年代、历史、数字或情节，"
+    "哪怕你认为那是对的；想多说一点时，换成问孩子一个问题。"
+)
+
+
 def learning_prompts(rules: str, body: str, index: str) -> tuple[str, str]:
+    rules = rules + "\n" + NO_EMBELLISHMENT
     flowcraft = "\n".join([
         rules, "知识卡：", body, index,
         "可核对的长期学习进度：${board.scenario_memory}",
@@ -125,7 +134,12 @@ def render_tester(
     raid: str,
     route: Sequence[tuple[str, str, str, Mapping[str, Any]]],
     rules: str,
+    card: str = "",
 ) -> str:
+    if card:
+        # The judge must know the whole card; otherwise a true card fact the
+        # tutor volunteers looks like an invention outside the route facts.
+        rules += " 目标可用的完整知识卡如下，其中任何内容都不算编造，知识卡以外的人物、年代、历史、数字和情节才算：" + card.replace("\n", " ")
     text = read_text(repo / "workflows" / ADVENTURE / "test.yaml")
     text = text.replace(ADVENTURE, raid)
     dumps = lambda value: json.dumps(value, ensure_ascii=False)
@@ -140,6 +154,17 @@ def render_tester(
         "          RULES = " + dumps(rules) + "\n"
     )
     text = text[:start] + block + text[end:]
+    # Report why a run failed instead of a bare FAIL; only an exact PASS passes.
+    text = replace_once(
+        text,
+        '              if input["det"] != "":\n                  return {"answer": "FAIL"}\n'
+        '              return {"answer": verdict_from(input["model_text"])}',
+        '              if input["det"] != "":\n                  return {"answer": "FAIL 确定性检查：" + input["det"]}\n'
+        '              verdict = verdict_from(input["model_text"])\n'
+        '              if verdict == "PASS":\n                  return {"answer": "PASS"}\n'
+        '              return {"answer": "FAIL 裁判：" + input["model_text"].strip()[:400]}',
+        label="Tester finalize verdict",
+    )
     text, count = re.subn(r"\n          N = \d+\n", f"\n          N = {len(route)}\n", text)
     if count != 1:
         raise ValueError(f"expected one Tester route length, found {count}")

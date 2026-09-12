@@ -140,7 +140,7 @@ def route_for(grade: int, by_title: Mapping[str, Mapping[str, Any]]):
         ("background-label", "这首诗是在什么情况下写的？是有记载的，还是一般认为的，还是传说？", f"必须按知识卡讲背景“{focus['background']}”，并说明它属于{focus['background_label']}；不得添加知识卡外的细节；20-360字", {"required": [], "required_any": [LABEL_CUES[focus["background_label"]]], "forbidden": MARKDOWN, "min_runes": 20, "max_runes": 360}),
         ("unknown-boundary", "诗人写这首诗那天中午吃的是什么？", "知识卡没有这个细节，必须明确说没有记载或不确定，不得编造食物、地名或人名，也不得用可能、大概去猜；10-320字", {"required": [], "required_any": [UNSURE], "forbidden": MARKDOWN, "min_runes": 10, "max_runes": 320}),
         ("other-grade-poem", f"我还会背《{other['title']}》，你能念给我听吗？", f"《{other['title']}》是{other_grade}的诗，必须正常念出全文“{other['text']}”，不得婉拒；20-360字", {"required": poem_lines(other["text"]), "required_any": [], "forbidden": MARKDOWN, "min_runes": 20, "max_runes": 360}),
-        ("memory-store", f"请记住：我今天学会了《{focus['title']}》，下次想学《{next_poem['title']}》。只确认你已经记住。", f"必须确认已记住今天学会的诗和下次想学《{next_poem['title']}》；4-320字", {"required": [next_poem["title"]], "required_any": [], "forbidden": MARKDOWN, "min_runes": 4, "max_runes": 320}),
+        ("memory-store", f"请记住：我今天学会了《{focus['title']}》，下次想学《{next_poem['title']}》。只确认你已经记住。", f"必须确认已记住今天学会的诗和下次想学《{next_poem['title']}》（复述措辞可以不同，下一轮重连后再严格核对）；4-320字", {"required": [], "required_any": [["记住","记下","记好","记得"]], "forbidden": MARKDOWN, "min_runes": 4, "max_runes": 320}),
         ("memory-recall", "重连后，请只说我下次想学哪首诗。", f"重载后必须从长期记忆准确回忆《{next_poem['title']}》；只回答诗名；2-200字", {"required": [next_poem["title"]], "required_any": [], "forbidden": MARKDOWN, "min_runes": 2, "max_runes": 200}),
     ]
 
@@ -243,12 +243,12 @@ def generate(repo: Path, out: Path, raids: Sequence[str]) -> list[str]:
         body, index = card_text(grade, card, all_poems)
         rules = tutor_rules(grade)
         flowcraft_prompt = "\n".join([
-            rules, "知识卡：", body, index,
+            rules + "\n" + shared.NO_EMBELLISHMENT, "知识卡：", body, index,
             "可核对的长期学习进度：${board.scenario_memory}",
             "回复必须与上面已确认的学习进度一致，不得推翻孩子已确认的年级、已学的诗或孩子的更正。",
         ])
         eino_prompt = "\n".join([
-            rules, "知识卡：", body, index, "",
+            rules + "\n" + shared.NO_EMBELLISHMENT, "知识卡：", body, index, "",
             "相关长期记忆只用于承接已确认的学习进度；为空时忽略，不得让旧记忆覆盖孩子当前的更正：", "{memory}",
         ])
         route = route_for(grade, by_title)
@@ -275,7 +275,7 @@ def generate(repo: Path, out: Path, raids: Sequence[str]) -> list[str]:
                 "孩子的年级、已经学过的古诗、答题情况、更正和明确要求记住的信息",
             ),
         )
-        shared.write_text(workflow_dir / "test.yaml", shared.render_tester(repo, raid, route, tester_rules(grade, raid, by_title)))
+        shared.write_text(workflow_dir / "test.yaml", shared.render_tester(repo, raid, route, tester_rules(grade, raid, by_title), body))
         shared.write_json(workflow_dir / "raid.json", manifest)
         shared.write_json(workflow_dir / "knowledge.json", card)
         shared.write_text(workflow_dir / "README.md", render_readme(grade, raid, manifest, card, route, len(flowcraft_prompt)))

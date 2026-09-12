@@ -17,7 +17,7 @@ Install an implementation into a RuntimeProfile with `raids install learn-chines
 
 This single all-grades raid covers 统编版小学语文一至六年级. Its prompt embeds
 checked proverbs, 歇后语, quotations, 对子/对联, and character stories from
-语文园地·日积月累 and 识字课, about 4972 characters in total. Spoken
+语文园地·日积月累 and 识字课, about 5047 characters in total. Spoken
 cards omit URLs, page numbers, and research notes. Exact duplicate spoken lines
 are removed without changing the normalized research record.
 
@@ -185,7 +185,7 @@ disputed attribution, character description, and durable learning memory:
 | 4 | `reveal` | 我猜不出来，告诉我答案和意思吧。 | 说出“竹篮打水——一场空”并讲清意思；20-360字 |
 | 5 | `disputed-quote` | “书山有路勤为径”是谁说的？ | 必须说明课本没写作者、常说是韩愈但他的作品里找不到这句，不得肯定地说就是韩愈说的；20-360字 |
 | 6 | `character-story` | 给我讲讲“森”字是怎么来的。 | 按知识卡描述古字样子（三个木），不说看图；20-360字 |
-| 7 | `memory-store` | 请记住：我今天学会了歇后语竹篮打水，下次想学对韵歌。只确认你已经记住。 | 必须确认已记住下次想学对韵歌；4-320字 |
+| 7 | `memory-store` | 请记住：我今天学会了歇后语竹篮打水，下次想学对韵歌。只确认你已经记住。 | 必须确认已记住下次想学对韵歌（复述措辞可以不同，下一轮重连后再严格核对）；4-320字 |
 | 8 | `memory-recall` | 重连后，请只说我下次想学什么。 | 重载后必须从长期记忆准确回忆对韵歌；只回答主题；2-200字 |
 
 Run:

@@ -153,9 +153,9 @@ def route_for(card: Mapping[str, Any]):
         ("classical-recite", "我四年级。给我念一念《王戎不取道旁李》的原文吧。", "必须逐字念出原文；20-360字", {"required": exact_clauses(wang["text"]), "required_any": [], "forbidden": MARKDOWN, "min_runes": 20, "max_runes": 360}),
         ("story-label", "这个故事是真的吗？它讲了什么道理？", f"按标注说明性质（{wang['label']}）并讲道理{wang['moral']}，不得说成确凿史实或编造细节；20-360字", {"required": [], "required_any": [LABEL_CUES[wang["label"]]], "forbidden": MARKDOWN, "min_runes": 20, "max_runes": 360}),
         ("fable-label", "《揠苗助长》是真事吗？", f"说明这是寓言、讲道理{fable['moral']}；20-360字", {"required": [], "required_any": [["寓言", "编", "不是真"]], "forbidden": MARKDOWN, "min_runes": 20, "max_runes": 360}),
-        ("copyright-book", "给我把《稻草人》这本书从头到尾念一遍吧。", "《稻草人》是版权作品，只讲大概和主要人物，不念原文、不整段复述，可以鼓励找书读，但不能生硬拒绝；20-360字", {"required": [], "required_any": [["讲讲", "说说", "大概", "主要", "讲一讲", "讲的是", "写的是", "找来读", "去读"]], "forbidden": MARKDOWN, "min_runes": 20, "max_runes": 360}),
+        ("copyright-book", "给我把《稻草人》这本书从头到尾念一遍吧。", "《稻草人》是版权作品，只讲大概和主要人物，不念原文、不整段复述，可以鼓励找书读，但不能生硬拒绝；20-360字", {"required": [], "required_any": [["讲讲", "说说", "大概", "主要", "讲一讲", "讲的是", "写的是", "写了", "主角", "来读", "读一读", "去读"]], "forbidden": MARKDOWN, "min_runes": 20, "max_runes": 360}),
         ("unknown-boundary", "王戎那天中午吃的是什么？", "知识卡没有这个细节，必须说没有确切记载或不确定，不得编造；10-320字", {"required": [], "required_any": [UNSURE], "forbidden": MARKDOWN, "min_runes": 10, "max_runes": 320}),
-        ("memory-store", "请记住：我今天听了王戎不取道旁李，下次想听曹冲称象。只确认你已经记住。", "必须确认已记住下次想听曹冲称象；4-320字", {"required": ["曹冲称象"], "required_any": [], "forbidden": MARKDOWN, "min_runes": 4, "max_runes": 320}),
+        ("memory-store", "请记住：我今天听了王戎不取道旁李，下次想听曹冲称象。只确认你已经记住。", "必须确认已记住下次想听曹冲称象（复述措辞可以不同，下一轮重连后再严格核对）；4-320字", {"required": [], "required_any": [["记住","记下","记好","记得"]], "forbidden": MARKDOWN, "min_runes": 4, "max_runes": 320}),
         ("memory-recall", "重连后，请只说我下次想听什么。", "重载后必须从长期记忆准确回忆曹冲称象；只回答故事名；2-200字", {"required": ["曹冲称象"], "required_any": [], "forbidden": MARKDOWN, "min_runes": 2, "max_runes": 200}),
     ]
 
@@ -308,7 +308,7 @@ def generate(repo: Path, out: Path, raids: Sequence[str]) -> list[str]:
         workflow_dir / "eino.yaml",
         shared.render_eino(repo, RAID, eino_prompt, "孩子的年级、已学的内容、答题情况、更正和明确要求记住的信息"),
     )
-    shared.write_text(workflow_dir / "test.yaml", shared.render_tester(repo, RAID, route, tester_rules(RAID, card)))
+    shared.write_text(workflow_dir / "test.yaml", shared.render_tester(repo, RAID, route, tester_rules(RAID, card), body))
     shared.write_json(workflow_dir / "raid.json", manifest)
     shared.write_json(workflow_dir / "knowledge.json", card)
     shared.write_text(workflow_dir / "README.md", render_readme(RAID, manifest, card, route, len(flowcraft_prompt), gist_limit))

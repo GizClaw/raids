@@ -187,8 +187,8 @@ def route_for(grade: int, card: Mapping[str, Any]):
         ("reveal", "我想不出来了，请告诉我答案和理由。", f"必须说出正确答案{config['answer']}并用一两句讲清理由，算式说法不含符号；20-360字", {"required": [], "required_any": config["reveal"], "forbidden": MARKDOWN, "min_runes": 20, "max_runes": 360}),
         ("culture-label", "给我讲一个数学小故事，它是有记载的、一般认为的，还是传说？", "只讲知识卡里的数学文化或数学家故事并说明性质；20-360字", {"required": [], "required_any": [["记载", "一般认为", "传说", "相传", "据说"]], "forbidden": MARKDOWN, "min_runes": 20, "max_runes": 360}),
         ("unknown-boundary", "发明乘法口诀的那个人叫什么名字？是哪一天发明的？", "知识卡没有这个细节，必须说没有确切记载或不确定，不得编造人名和日期；10-320字", {"required": [], "required_any": [UNSURE], "forbidden": MARKDOWN, "min_runes": 10, "max_runes": 320}),
-        ("memory-store", f"请记住：我今天学会了{config['today']}，下次想学{config['next']}。只确认你已经记住。", f"必须确认已记住下次想学{config['next']}；4-320字", {"required": [config["next"]], "required_any": [], "forbidden": MARKDOWN, "min_runes": 4, "max_runes": 320}),
-        ("memory-recall", "重连后，请只说我下次想学什么。", f"重载后必须从长期记忆准确回忆{config['next']}；只回答主题；2-200字", {"required": [config["next"]], "required_any": [], "forbidden": MARKDOWN, "min_runes": 2, "max_runes": 200}),
+        ("memory-store", f"请记住：我今天学会了{config['today']}，下次想学{config['next']}。只确认你已经记住。", f"必须确认已记住下次想学{config['next']}（复述措辞可以不同，下一轮重连后再严格核对）；4-320字", {"required": [], "required_any": [["记住","记下","记好","记得"]], "forbidden": MARKDOWN, "min_runes": 4, "max_runes": 320}),
+        ("memory-recall", "重连后，请只说我下次想学什么。", f"重载后必须从长期记忆准确回忆{config['next']}；只回答主题；2-200字", {"required": [], "required_any": [sorted({config["next"], config["next"].replace("的", "")})], "forbidden": MARKDOWN, "min_runes": 2, "max_runes": 200}),
     ]
 
 
@@ -359,7 +359,7 @@ def generate(repo: Path, out: Path, raids: Sequence[str]) -> list[str]:
             workflow_dir / "eino.yaml",
             shared.render_eino(repo, raid, eino_prompt, "孩子的年级、已经学过的数学主题、答题情况、更正和明确要求记住的信息"),
         )
-        shared.write_text(workflow_dir / "test.yaml", shared.render_tester(repo, raid, route, tester_rules(grade, raid)))
+        shared.write_text(workflow_dir / "test.yaml", shared.render_tester(repo, raid, route, tester_rules(grade, raid), body))
         shared.write_json(workflow_dir / "raid.json", manifest)
         shared.write_json(workflow_dir / "knowledge.json", card)
         shared.write_text(workflow_dir / "README.md", render_readme(grade, raid, manifest, card, route, len(flowcraft_prompt)))
