@@ -2,16 +2,15 @@
 # - This file is not discovered or applied as a catalog resource.
 # - runtime-profiles/default.yaml is the canonical public RuntimeProfile published by Raids.
 # - Consumers may adapt this example when defining product-specific profiles.
-# - System Workflow IDs and resource aliases below illustrate one possible composition.
+# - Resource aliases below illustrate one possible composition.
 # - Workflow-owned Model and Voice aliases use `<Workflow metadata.id>.<role>`.
 # - MemoryLayout-owned extraction aliases use `<MemoryLayout metadata.id>.extract`.
 #
 # Example maintenance guide:
-# - Keep system Workflow IDs and Model, Voice, and PetDef aliases aligned with
+# - Keep Model and Voice aliases aligned with
 #   the resources published by this repository.
 # - Add, rename, or remove an alias whenever the corresponding Workflow reference changes.
-# - Set each Model and PetDef resource_id to a matching metadata.id from models/
-#   and petdefs/.
+# - Set each Model resource_id to a matching metadata.id from models/.
 # - Voice placeholders are intentionally unbound. Replace them with Voice metadata.id
 #   values selected by the consuming product when adapting this example.
 # - Keep Workflow collections empty here; each consuming product owns its collections
@@ -23,11 +22,6 @@ metadata:
   id: raids
 spec:
   workflows:
-    # System Workflows are resolved by role and are not exposed as selectable aliases.
-    system:
-      friend_chatroom: chatroom
-      group_chatroom: chatroom
-      pet: pet-care
     # Workflow collections are defined by each consuming product.
     collections: {}
   resources:
@@ -42,9 +36,6 @@ spec:
         resource_id: deepseek-v4-flash
         i18n: {en: {display_name: Extraction}, zh-CN: {display_name: 信息提取}}
       adventure.extract:
-        resource_id: deepseek-v4-flash
-        i18n: {en: {display_name: Extraction}, zh-CN: {display_name: 信息提取}}
-      pet-care.extract:
         resource_id: deepseek-v4-flash
         i18n: {en: {display_name: Extraction}, zh-CN: {display_name: 信息提取}}
       doubao-realtime-conversation.model:
@@ -161,9 +152,6 @@ spec:
       flowcraft-murder-mystery-test.model:
         resource_id: doubao-seed-2-0-lite
         i18n: {en: {display_name: Tester}, zh-CN: {display_name: 验收}}
-      pet-care.model:
-        resource_id: doubao-seed-2-0-lite
-        i18n: {en: {display_name: Pet Chat}, zh-CN: {display_name: 宠物对话}}
     voices:
       # Replace each placeholder with a Voice metadata.id selected by the consuming product.
 
@@ -228,54 +216,3 @@ spec:
       flowcraft-murder-mystery.game-master:
         resource_id: <voice-resource-id>
         i18n: {en: {display_name: Game Master}, zh-CN: {display_name: 游戏主持人}}
-
-      # workflows/pet/pet-care.yaml
-      pet-care.pet:
-        resource_id: <voice-resource-id>
-        i18n: {en: {display_name: Cute Pet}, zh-CN: {display_name: 奶气萌宠}}
-    pet_defs:
-      bsod:
-        resource_id: petdef-bsod
-        i18n:
-          en: {display_name: BSOD, description: A native Codex animated pet.}
-          zh-CN: {display_name: BSOD, description: Codex 原生动画宠物。}
-      codex:
-        resource_id: petdef-codex
-        i18n:
-          en: {display_name: Codex, description: A native Codex animated pet.}
-          zh-CN: {display_name: Codex, description: Codex 原生动画宠物。}
-      dewey:
-        resource_id: petdef-dewey
-        i18n:
-          en: {display_name: Dewey, description: A native Codex animated pet.}
-          zh-CN: {display_name: Dewey, description: Codex 原生动画宠物。}
-      fireball:
-        resource_id: petdef-fireball
-        i18n:
-          en: {display_name: Fireball, description: A native Codex animated pet.}
-          zh-CN: {display_name: Fireball, description: Codex 原生动画宠物。}
-      hoots:
-        resource_id: petdef-hoots
-        i18n:
-          en: {display_name: Hoots, description: A native Codex animated pet.}
-          zh-CN: {display_name: Hoots, description: Codex 原生动画宠物。}
-      null-signal:
-        resource_id: petdef-null-signal
-        i18n:
-          en: {display_name: Null Signal, description: A native Codex animated pet.}
-          zh-CN: {display_name: Null Signal, description: Codex 原生动画宠物。}
-      rocky:
-        resource_id: petdef-rocky
-        i18n:
-          en: {display_name: Rocky, description: A native Codex animated pet.}
-          zh-CN: {display_name: Rocky, description: Codex 原生动画宠物。}
-      seedy:
-        resource_id: petdef-seedy
-        i18n:
-          en: {display_name: Seedy, description: A native Codex animated pet.}
-          zh-CN: {display_name: Seedy, description: Codex 原生动画宠物。}
-      stacky:
-        resource_id: petdef-stacky
-        i18n:
-          en: {display_name: Stacky, description: A native Codex animated pet.}
-          zh-CN: {display_name: Stacky, description: Codex 原生动画宠物。}

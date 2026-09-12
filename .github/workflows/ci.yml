@@ -15,23 +15,26 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
 
-      - name: Download GizClaw v0.7.19
+      - name: Download GizClaw v0.18.2
         env:
-          GIZCLAW_ASSET: gizclaw_0.7.19_amd64.deb
-          GIZCLAW_SHA256: 65337e0080828d55e9e90c39533c69edb3244a8caed21f77c8e7157059355234
+          GIZCLAW_ASSET: gizclaw_0.18.2_amd64.deb
+          GIZCLAW_SHA256: e55c719dc9c2f79bf5216e576ad7f971fd781cb18ce909a1201643c294f582a2
         run: |
           set -euo pipefail
           package="$RUNNER_TEMP/$GIZCLAW_ASSET"
-          root="$RUNNER_TEMP/gizclaw-v0.7.19"
+          root="$RUNNER_TEMP/gizclaw-v0.18.2"
           curl --fail --location --retry 3 \
             --output "$package" \
-            "https://github.com/GizClaw/gizclaw/releases/download/v0.7.19/$GIZCLAW_ASSET"
+            "https://github.com/GizClaw/gizclaw/releases/download/v0.18.2/$GIZCLAW_ASSET"
           printf '%s  %s\n' "$GIZCLAW_SHA256" "$package" | sha256sum --check --status
           dpkg-deb --extract "$package" "$root"
           printf 'GIZCLAW=%s\n' "$root/usr/bin/gizclaw" >> "$GITHUB_ENV"
 
       - name: Validate Resources and Giztest documents
         run: make test-unit-resources
+
+      - name: Check generated learn raid packages
+        run: make test-unit-learn
 
       - name: Check catalog Voice invariants
         run: make test-unit-voices

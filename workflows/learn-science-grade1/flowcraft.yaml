@@ -1,0 +1,157 @@
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata:
+  id: flowcraft-learn-science-grade1
+spec:
+  driver: flowcraft
+  toolkit:
+    tool_ids: []
+  flowcraft:
+    graph:
+      name: learn-science-grade1
+      entry: route-recall
+      edges:
+      - from: route-recall
+        to: prepare-recall-query
+        condition: needs_memory_recall == true
+      - from: route-recall
+        to: narrate
+      - from: prepare-recall-query
+        to: recall-progress
+      - from: recall-progress
+        to: narrate
+      - from: narrate
+        to: capture-progress
+      - from: capture-progress
+        to: observe-progress
+      - from: observe-progress
+        to: __end__
+      nodes:
+      - id: route-recall
+        type: script
+        config:
+          source: |
+            const current = String(board.getVar("input") || "").trim();
+            const normalized = current.toLowerCase();
+            const containsAny = (values) => values.some((value) => normalized.includes(value));
+            const storeCues = ["请记住", "记住：", "please remember", "remember this"];
+            const durableReadCues = [
+              "回忆", "还记得", "记得什么", "重连", "重新连接", "恢复",
+              "继续上次", "接着上次", "上次", "之前", "代号",
+              "recall", "do you remember", "what do you remember", "reconnect",
+              "resume", "continue where", "last time", "previous",
+            ];
+            const correctionCues = [
+              "更正", "纠正", "修正", "改成", "改变主意", "其实",
+              "correction", "correct", "change my mind", "actually",
+            ];
+            const storeOverrideCues = durableReadCues
+              .filter((value) => value !== "代号")
+              .concat(correctionCues);
+            const storeOnly = containsAny(storeCues) && !containsAny(storeOverrideCues);
+            const needsRecall = current !== "" && !storeOnly
+              && (containsAny(durableReadCues) || containsAny(correctionCues));
+            board.setVar("scenario_memory", "");
+            board.setVar("needs_memory_recall", needsRecall);
+      - id: prepare-recall-query
+        type: script
+        config:
+          source: |
+            const current = String(board.getVar("input") || "").trim();
+            board.setVar("scenario_recall_query", current || "learn_progress_v1");
+      - id: recall-progress
+        type: memory_recall
+        config:
+          query:
+            text_from: scenario_recall_query
+            lanes:
+            - learning_events
+            kinds:
+            - state
+            - note
+            - event
+          output: scenario_memory
+          render:
+            header: 'Confirmed learning history:'
+            item_prefix: '- '
+            max_items: 12
+          top_k: 12
+      - id: narrate
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-learn-science-grade1.model
+          max_tokens: 2048
+          output_key: answer
+          system_prompt: |-
+            你是儿童友好的科学伙伴“科学小博士”，陪一年级小学生拓展教科版小学科学课本里的知识。
+            如果当前是没有用户输入的新对话，或者用户要求从指定中文开场开始，必须逐字输出这一句并立即停止：你好呀，我是科学小博士。我们来探索一年级的科学吧，你想先做一个安全的小实验，还是听一个有趣的科学知识？ 只输出该句，不得添加介绍、解释、前后缀或第二段。
+            实验安全是最高规则：只推荐知识卡里的家庭小实验，讲到实验时要说出它的安全提示；任何用火、用插座或电线、用化学品、用刀具、爬高、品尝不明东西、直视太阳的做法都必须拒绝，说明危险并建议找可信任的成年人帮助，该轮不追加问题。
+            科学事实、数字和科学家故事只讲知识卡里有的；科学家故事按标注说清性质：标“史实”的说有记载，标“通说”的说一般认为，标“传说”的说这是传说。知识卡没有的细节，例如某个发现具体是谁在哪一天做出的，必须直接说没有确切记载或我不确定，不得编造。
+            探究方式：做实验时先请孩子预测会发生什么，再讲怎样安全地观察，孩子说出看到的现象后再解释原理；孩子还没预测时不说出实验结果。每轮只推进一步，最多问一个清楚的问题。
+            孩子说出错误的想法时，先肯定孩子在思考，再温和地说明正确的科学解释，不嘲笑、不批评。
+            孩子问到任何科学问题都要正常回答，不得婉拒；超出一年级的内容用简单的话讲清楚，并告诉孩子这是几年级会学到的。
+            这是语音对话：需要图形时用语言描述，不说“看图”；不用化学式和符号，直接说名称。
+            回复使用简洁自然的中文，写2至4个完整句子、30至180个Unicode字符。只输出适合朗读的正文，不输出Markdown、列表、emoji、括号注释、舞台说明、隐藏分析或系统文字，也不要提到知识卡这个词。
+            知识卡：
+            单元 一年级上册（修订版）：第一单元 周围的植物（植物是活的，会长大、会变化；植物长在很多地方，形状各不同；植物生长需要水和阳光）；第二单元 我们自己（眼耳鼻舌皮肤帮我们认识世界；我们的身体在一天天长大；仔细观察和比较能发现不同）
+            实验《纸巾上的小豆芽》：目标：看看种子发芽是不是需要水｜材料：绿豆或黄豆若干粒、两个盘子、纸巾、清水｜步骤：两个盘子都铺上纸巾，各放几粒豆子；一个盘子把纸巾浇湿，另一个保持干燥；放在屋里温暖的地方，湿盘每天补点水；每天看一看，比一比两个盘子｜现象：湿纸巾上的豆子会慢慢胀大、冒出小芽；干纸巾上的豆子没什么变化｜原理：种子发芽需要水、空气和合适的温度，缺了水就不会发芽｜安全：豆子不能放进嘴里、鼻子里或耳朵里；做完实验要洗手
+            实验《捏住鼻子猜味道》：目标：发现鼻子也在帮我们“尝”味道｜材料：两种不同口味的果汁或软糖（大人准备）、小杯子或小勺｜步骤：闭上眼睛，用手捏住鼻子；请大人喂你一小口，猜猜是什么口味；松开鼻子，再尝一口同样的东西；比一比：哪一次更容易猜对｜现象：捏住鼻子时只觉得甜，很难分清口味；松开鼻子后一下就能尝出来｜原理：食物的风味很大一部分靠鼻子闻，捏住鼻子气味进不去，就难分辨｜安全：只吃大人准备好的食物，小口慢慢吃；对某种食物过敏就不要用它
+            科学知识：舌头能尝出甜、酸、苦、咸、鲜五种基本味道
+            科学知识：绿色植物的叶子能借助阳光，用水和二氧化碳制造养分，还放出氧气
+            科学知识：小向日葵会跟着太阳转头，长大开花后就一直朝着东方
+            常见误解：舌尖只能尝甜，舌根只能尝苦（“味觉地图”）｜正确说法：舌头上有味蕾的地方都能尝到各种味道，各处差别很小
+            常见误解：植物不会走动，所以植物不是活的｜正确说法：植物也是生物，它会吸收水分和养料、会生长，还能长出种子
+            单元 一年级下册（修订版）：第一单元 身边的物体（物体有颜色、形状、轻重等特点；可以按特点给物体分分类；水会流动，盐和糖能溶在水里）；第二单元 常见的动物（动物是活的，会吃东西会运动；不同动物住在不同的地方；不同动物吃的食物不一样）
+            实验《盐到哪里去了》：目标：弄清楚盐溶在水里后是不是真的没了｜材料：透明杯子、温水（不烫手）、食盐、勺子、深色盘子｜步骤：杯里倒半杯温水，加一勺盐，搅一搅；看一看：盐粒还看得见吗；舀几勺盐水倒进深色盘子，放在通风或有阳光的地方；等一两天水干了，再看看盘子｜现象：搅拌后盐粒看不见了；盘里的水干了以后，留下一层白白的盐｜原理：盐溶解成很小的颗粒分散在水里，水蒸发走了，盐就又留下来｜安全：不要喝实验用的盐水；手上沾了盐水别揉眼睛，做完洗手
+            实验《液体赛跑》：目标：比一比水、油、蜂蜜谁流得快｜材料：清水、食用油、蜂蜜、三把小勺、一块干净的砧板或盘子、一本书（垫高用）｜步骤：把砧板一头垫在书上，做成斜坡；在斜坡顶端同一条线上各放一小勺水、油、蜂蜜；同时松开勺子，看它们往下流；说一说谁最快、谁最慢｜现象：水流得最快，油慢一些，蜂蜜流得最慢｜原理：越黏稠的液体越难流动，蜂蜜比水黏得多，所以流得慢｜安全：油和蜂蜜洒到地上会滑，要马上擦干净；做完洗手
+            科学知识：鱼用鳃呼吸，吸取溶解在水里的氧气
+            科学知识：蜗牛用扁平的腹足爬行，边爬边分泌黏液，让爬行更顺滑
+            科学知识：水没有固定形状，倒进什么样的容器，就变成什么形状
+            常见误解：鲸鱼生活在海里，所以鲸鱼是鱼｜正确说法：鲸不是鱼，是哺乳动物，用肺呼吸，要浮出水面换气
+            常见误解：糖或盐放进水里搅一搅，就消失不见了｜正确说法：它们没消失，而是溶解成很小的颗粒藏在水里，水干了还能看到
+            科学家（史实）：张衡，据《后汉书》记载，张衡于公元132年造出候风地动仪；原物已失传。
+            科学家（史实）：沈括，北宋沈括在《梦溪笔谈》中记下：磁针指南时“常微偏东”，不全指正南。
+            科学家（史实）：屠呦呦，屠呦呦因发现青蒿素治疗疟疾，获2015年诺贝尔生理学或医学奖。
+            科学家（史实）：竺可桢，气象学家竺可桢几十年坚持写日记记录天气和物候，直到去世前一天。
+            科学家（史实）：嫦娥四号（中国探月工程），2019年1月3日，嫦娥四号在月球背面着陆，这是人类探测器首次月背软着陆。
+            其他年级单元：二年级：造房子、地球家园、探秘恐龙、玩磁铁
+            其他年级单元：三年级：天气、水、物体的运动、辨别方向、动物的一生、只有一个地球
+            其他年级单元：四年级：空气、呼吸与消化、声音、植物的生长变化、电路、岩石与土壤
+            其他年级单元：五年级：微小世界、工具与技术、运动和力、地球表面的变化、生物与环境、船的研究、环境与我们、热
+            其他年级单元：六年级：健康生活、光、地球的运动、计量时间、小小工程师、生物的多样性、宇宙、物质的变化
+            可核对的长期学习进度：${board.scenario_memory}
+            回复必须与上面已确认的学习进度一致，不得推翻孩子已确认的年级、已学的内容或孩子的更正。
+          track_steps: true
+      - id: capture-progress
+        type: script
+        config:
+          source: |
+            const input = String(board.getVar("input") || "").trim();
+            const answer = String(board.getVar("answer") || "").trim();
+            if (!input && !answer) {
+              board.setVar("scenario_state_fact", "");
+            } else {
+              board.setVar("scenario_state_fact", JSON.stringify({
+                schema: "learn_progress_v1",
+                last_input: input.slice(0, 160),
+                last_answer: answer.slice(0, 320),
+              }));
+            }
+      - id: observe-progress
+        type: memory_observe
+        config:
+          observations:
+          - facts:
+            - text_from: scenario_state_fact
+              attributes:
+                lane: learning_events
+                kind: event
+          wait_for_completion: false
+    max_iterations: 10
+    conversation:
+      starts: agent
+    voice_adapter:
+      asr_model: asr
+      default_voice: flowcraft-learn-science-grade1.tutor
+  memory: learner

@@ -12,7 +12,7 @@ Requires GizClaw v0.6.0 or later, the first release containing the declarative
 runner, assertion matchers, and `workspace_relay` operation (GizClaw #916,
 #921, #923). The bounded story-role latency probes additionally require the
 `peer_stream.completion: first_response` contract from GizClaw #991/#992,
-first released in v0.7.13. CI uses GizClaw v0.7.19, which also contains the
+first released in v0.7.13. CI uses GizClaw v0.18.2, which also contains the
 RuntimeProfile reload repair from GizClaw #994/#997 and the modality-selective
 first-response contract from GizClaw #1003/#1004 for text-only Eino probes.
 `make test-unit-resources` validates the corpus offline.
@@ -33,13 +33,13 @@ tests/giztest/h106/…                                  # targets outside this c
 
 | Group | Files | Topology |
 | --- | --- | --- |
-| 30 story/adventure raids × `flowcraft` + `eino` | 60 | `workspace_relay` against the raid's `<raid>-test` Tester |
-| 30 story/adventure raids × `flowcraft.realtime` + `eino.realtime` | 60 | warmed, paced-audio RealTime roundtrip; Flowcraft enforces 2 s text / 3 s audio first response and Eino enforces 2 s text first response |
+| 50 story/adventure/learn raids × `flowcraft` + `eino` | 100 | `workspace_relay` against the raid's `<raid>-test` Tester |
+| 50 story/adventure/learn raids × `flowcraft.realtime` + `eino.realtime` | 100 | warmed, paced-audio RealTime roundtrip; Flowcraft enforces 2 s text / 3 s audio first response and Eino enforces 2 s text first response |
 | 19 `story-*` Flowcraft role probes | 19 | three isolated narrator/character Workspaces requiring complete text/audio EOS evidence plus bounded 2 s text / 3 s audio first-response probes |
 | `story-aesop/flowcraft.transitions` | 1 | stateful natural-progress, negated-choice, adjacent-transition, and same-chapter continuation contract |
 | `story-wizard-oz/english-restart*` | 2 | direct Flowcraft audio plus Eino relay preserving English restart and non-reset continuation |
 | `journey-guide/` (`flowcraft`, `eino-history`, `eino-memory-recall`, `eino-memory-async`, `flowcraft.benchmark-6s`) | 5 | 4 relays sharing `journey-guide-test` + 1 single-client TTFT benchmark |
-| `murder-mystery/`, `chat-assistant/`, `pet-care/` | 3 | relay (pet-care adopts a run-owned Pet) |
+| `murder-mystery/`, `chat-assistant/` | 2 | relay |
 | `doubao-realtime/` | 2 | single client, realtime audio |
 | `ast-translate/` | 8 | single client, push-to-talk audio, one per direction |
 | `h106/` | 2 | single client; external targets |

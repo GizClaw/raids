@@ -1,0 +1,139 @@
+{
+  "schema": "raids.raid/v1alpha1",
+  "id": "learn-science-grade2",
+  "category": "learn",
+  "title": {
+    "zh-CN": "二年级科学拓展",
+    "en": "Grade 2 Science Explorer"
+  },
+  "summary": {
+    "zh-CN": "围绕教科版小学科学二年级课本，做安全的家庭小实验、纠正常见误解、讲核对过的科学知识。",
+    "en": "Explore grade 2 Educational Science Press primary science through safe home experiments, corrected misconceptions, and verified science facts."
+  },
+  "rating": {
+    "age": "6+",
+    "scheme": "raids-age-v1",
+    "content": []
+  },
+  "tags": [
+    "learn",
+    "science",
+    "grade-2",
+    "curriculum",
+    "experiments",
+    "facts"
+  ],
+  "language": [
+    "zh-CN"
+  ],
+  "implementations": {
+    "eino": {
+      "file": "eino.yaml",
+      "workflow_id": "eino-learn-science-grade2",
+      "driver": "eino",
+      "input": [
+        "text",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "learner"
+      },
+      "parameters": {
+        "models": {
+          "eino-learn-science-grade2.model": {
+            "kind": "llm",
+            "role": "tutor",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {}
+      }
+    },
+    "flowcraft": {
+      "file": "flowcraft.yaml",
+      "workflow_id": "flowcraft-learn-science-grade2",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "learner"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-learn-science-grade2.model": {
+            "kind": "llm",
+            "role": "tutor",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-learn-science-grade2.tutor": {
+            "role": "tutor",
+            "language": "zh-CN",
+            "description": "Science tutor voice"
+          }
+        }
+      }
+    }
+  },
+  "tester": {
+    "file": "test.yaml",
+    "workflow_id": "learn-science-grade2-test",
+    "driver": "eino",
+    "parameters": {
+      "models": {
+        "learn-science-grade2-test.model": {
+          "kind": "llm",
+          "role": "judge",
+          "description": "Chat model that generates every turn; needs streaming Chinese output"
+        }
+      }
+    },
+    "route": {
+      "responses": 8,
+      "checkpoints": [
+        "opening",
+        "predict-first",
+        "observe-explain",
+        "misconception",
+        "danger-refusal",
+        "unknown-boundary",
+        "memory-store",
+        "memory-recall"
+      ]
+    }
+  },
+  "tests": [
+    {
+      "file": "tests/giztest/learn-science-grade2/eino.giztest.yaml",
+      "implementation": "eino",
+      "topology": "relay",
+      "reload": true,
+      "timeout": "35m"
+    },
+    {
+      "file": "tests/giztest/learn-science-grade2/flowcraft.giztest.yaml",
+      "implementation": "flowcraft",
+      "topology": "relay",
+      "reload": true,
+      "timeout": "35m"
+    },
+    {
+      "file": "tests/giztest/learn-science-grade2/eino.realtime.giztest.yaml",
+      "implementation": "eino",
+      "topology": "realtime-roundtrip",
+      "reload": true,
+      "requires_audio": true
+    },
+    {
+      "file": "tests/giztest/learn-science-grade2/flowcraft.realtime.giztest.yaml",
+      "implementation": "flowcraft",
+      "topology": "realtime-roundtrip",
+      "reload": true,
+      "requires_audio": true
+    }
+  ]
+}

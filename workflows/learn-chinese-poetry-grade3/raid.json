@@ -1,0 +1,139 @@
+{
+  "schema": "raids.raid/v1alpha1",
+  "id": "learn-chinese-poetry-grade3",
+  "category": "learn",
+  "title": {
+    "zh-CN": "三年级古诗拓展",
+    "en": "Grade 3 Classical Poetry"
+  },
+  "summary": {
+    "zh-CN": "围绕统编版小学语文三年级课本里的古诗，讲作者、背景和拓展知识，只用核对过的资料。",
+    "en": "Explore every classical poem in China's grade 3 primary Chinese textbooks — authors, backgrounds, and extensions — using verified facts."
+  },
+  "rating": {
+    "age": "6+",
+    "scheme": "raids-age-v1",
+    "content": []
+  },
+  "tags": [
+    "learn",
+    "chinese",
+    "poetry",
+    "grade-3",
+    "curriculum",
+    "facts"
+  ],
+  "language": [
+    "zh-CN"
+  ],
+  "implementations": {
+    "eino": {
+      "file": "eino.yaml",
+      "workflow_id": "eino-learn-chinese-poetry-grade3",
+      "driver": "eino",
+      "input": [
+        "text",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "learner"
+      },
+      "parameters": {
+        "models": {
+          "eino-learn-chinese-poetry-grade3.model": {
+            "kind": "llm",
+            "role": "tutor",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {}
+      }
+    },
+    "flowcraft": {
+      "file": "flowcraft.yaml",
+      "workflow_id": "flowcraft-learn-chinese-poetry-grade3",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "learner"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-learn-chinese-poetry-grade3.model": {
+            "kind": "llm",
+            "role": "tutor",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-learn-chinese-poetry-grade3.tutor": {
+            "role": "tutor",
+            "language": "zh-CN",
+            "description": "Poetry tutor voice"
+          }
+        }
+      }
+    }
+  },
+  "tester": {
+    "file": "test.yaml",
+    "workflow_id": "learn-chinese-poetry-grade3-test",
+    "driver": "eino",
+    "parameters": {
+      "models": {
+        "learn-chinese-poetry-grade3-test.model": {
+          "kind": "llm",
+          "role": "judge",
+          "description": "Chat model that generates every turn; needs streaming Chinese output"
+        }
+      }
+    },
+    "route": {
+      "responses": 8,
+      "checkpoints": [
+        "opening",
+        "poem-intro",
+        "recite-exact",
+        "background-label",
+        "unknown-boundary",
+        "other-grade-poem",
+        "memory-store",
+        "memory-recall"
+      ]
+    }
+  },
+  "tests": [
+    {
+      "file": "tests/giztest/learn-chinese-poetry-grade3/eino.giztest.yaml",
+      "implementation": "eino",
+      "topology": "relay",
+      "reload": true,
+      "timeout": "35m"
+    },
+    {
+      "file": "tests/giztest/learn-chinese-poetry-grade3/flowcraft.giztest.yaml",
+      "implementation": "flowcraft",
+      "topology": "relay",
+      "reload": true,
+      "timeout": "35m"
+    },
+    {
+      "file": "tests/giztest/learn-chinese-poetry-grade3/eino.realtime.giztest.yaml",
+      "implementation": "eino",
+      "topology": "realtime-roundtrip",
+      "reload": true,
+      "requires_audio": true
+    },
+    {
+      "file": "tests/giztest/learn-chinese-poetry-grade3/flowcraft.realtime.giztest.yaml",
+      "implementation": "flowcraft",
+      "topology": "realtime-roundtrip",
+      "reload": true,
+      "requires_audio": true
+    }
+  ]
+}
