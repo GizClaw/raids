@@ -1,0 +1,139 @@
+{
+  "schema": "raids.raid/v1alpha1",
+  "id": "learn-chinese-stories",
+  "category": "learn",
+  "title": {
+    "zh-CN": "语文故事",
+    "en": "Chinese Story Time"
+  },
+  "summary": {
+    "zh-CN": "围绕统编版小学语文课本，讲文言文、寓言、成语故事和快乐读书吧里的书，原文和出处都经过核对。",
+    "en": "Explore verified primary Chinese textbook stories through classical texts, fables, idiom origins, and Happy Reading selections."
+  },
+  "rating": {
+    "age": "6+",
+    "scheme": "raids-age-v1",
+    "content": []
+  },
+  "tags": [
+    "learn",
+    "chinese",
+    "stories",
+    "classical",
+    "curriculum",
+    "facts"
+  ],
+  "language": [
+    "zh-CN"
+  ],
+  "implementations": {
+    "eino": {
+      "file": "eino.yaml",
+      "workflow_id": "eino-learn-chinese-stories",
+      "driver": "eino",
+      "input": [
+        "text",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "learner"
+      },
+      "parameters": {
+        "models": {
+          "eino-learn-chinese-stories.model": {
+            "kind": "llm",
+            "role": "tutor",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {}
+      }
+    },
+    "flowcraft": {
+      "file": "flowcraft.yaml",
+      "workflow_id": "flowcraft-learn-chinese-stories",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "learner"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-learn-chinese-stories.model": {
+            "kind": "llm",
+            "role": "tutor",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-learn-chinese-stories.tutor": {
+            "role": "tutor",
+            "language": "zh-CN",
+            "description": "Story tutor voice"
+          }
+        }
+      }
+    }
+  },
+  "tester": {
+    "file": "test.yaml",
+    "workflow_id": "learn-chinese-stories-test",
+    "driver": "eino",
+    "parameters": {
+      "models": {
+        "learn-chinese-stories-test.model": {
+          "kind": "llm",
+          "role": "judge",
+          "description": "Chat model that generates every turn; needs streaming Chinese output"
+        }
+      }
+    },
+    "route": {
+      "responses": 8,
+      "checkpoints": [
+        "opening",
+        "classical-recite",
+        "story-label",
+        "fable-label",
+        "copyright-book",
+        "unknown-boundary",
+        "memory-store",
+        "memory-recall"
+      ]
+    }
+  },
+  "tests": [
+    {
+      "file": "tests/giztest/learn-chinese-stories/eino.giztest.yaml",
+      "implementation": "eino",
+      "topology": "relay",
+      "reload": true,
+      "timeout": "35m"
+    },
+    {
+      "file": "tests/giztest/learn-chinese-stories/flowcraft.giztest.yaml",
+      "implementation": "flowcraft",
+      "topology": "relay",
+      "reload": true,
+      "timeout": "35m"
+    },
+    {
+      "file": "tests/giztest/learn-chinese-stories/eino.realtime.giztest.yaml",
+      "implementation": "eino",
+      "topology": "realtime-roundtrip",
+      "reload": true,
+      "requires_audio": true
+    },
+    {
+      "file": "tests/giztest/learn-chinese-stories/flowcraft.realtime.giztest.yaml",
+      "implementation": "flowcraft",
+      "topology": "realtime-roundtrip",
+      "reload": true,
+      "requires_audio": true
+    }
+  ]
+}

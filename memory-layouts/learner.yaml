@@ -1,0 +1,68 @@
+---
+apiVersion: gizclaw.admin/v1alpha1
+kind: MemoryLayout
+metadata:
+  id: learner
+spec:
+  flowcraft:
+    extraction:
+      enabled: true
+      model: learner.extract
+      mode: single_pass
+      schema_name: learner_memory
+      temperature: 0
+      system_prompt: |
+        Extract only durable learning facts visible in the conversation: the child's stated grade and
+        textbook, topics and items actually taught, questions the child answered and whether the answer
+        was right, open questions the child still has, and explicit child corrections. Keep titles, names,
+        numbers, negation, and uncertainty. A newest explicit correction supersedes its older conflicting
+        value. Do not store proposed topics, assistant speculation, flavor text, or an item that was only
+        mentioned but not actually taught.
+    bbh:
+      search_overfetch: 24
+      bleve: {analyzer: standard}
+    lanes:
+      - name: learner_profile
+        kind: state
+        description: The child's stated grade, textbook edition, and current unit.
+        extract: Keep only the newest explicitly stated grade, edition, and unit.
+        recall: Use to pitch difficulty and pick in-curriculum items; newest statement wins.
+      - name: learned_items
+        kind: note
+        description: Knowledge items actually taught or reviewed with the child.
+        extract: Store each taught item with its title and the one fact covered; do not store unmentioned details.
+        recall: Use to avoid repeating the same item and to build on what was already covered.
+      - name: learning_events
+        kind: event
+        description: Questions the child answered, results, and open questions left for later.
+        extract: Store the question, the child's answer, and whether it was right, without grading beyond what was said.
+        recall: Resume open questions and review previous mistakes gently.
+      - name: learner_corrections
+        kind: state
+        description: Explicit corrections and current authoritative values supplied by the child.
+        extract: Store the new value and what it supersedes; newest correction wins.
+        recall: Apply before any older profile, item, or event.
+    graph_enabled: true
+    write:
+      # Conversation History carries same-stream continuity. Durable semantic
+      # extraction may complete off the response path before a reload barrier.
+      mode: async_semantic
+      tier: general
+  mem0:
+    custom_instructions: |
+      Store only learning facts visible to the child. Preserve titles, names, numbers, negation, and
+      uncertainty. New explicit corrections replace older conflicting values. Do not store items that
+      were only proposed, speculation, or assistant reasoning.
+    custom_categories:
+      learner_profile: Newest stated grade, textbook edition, and unit.
+      learned_items: Knowledge items actually taught, with the fact covered.
+      learning_events: Questions answered, results, and open questions.
+      learner_corrections: Newest explicit correction and the older value it supersedes.
+    multilingual: true
+    decay: false
+  volc_mem0:
+    strategies:
+      - {name: learner_profile, type: summary, custom_instructions: 'Keep only the newest stated grade, edition, and unit.'}
+      - {name: learned_items, type: semantic, custom_instructions: 'Store taught items with the fact covered; newest explicit correction replaces an older value.'}
+      - {name: learning_events, type: semantic, custom_instructions: 'Store questions answered, results, and open questions.'}
+      - {name: learner_corrections, type: summary, custom_instructions: 'Keep explicit corrections as authoritative and retire superseded values.'}

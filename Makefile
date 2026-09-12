@@ -9,13 +9,16 @@ APPLY ?= 0
 export GIZCLAW GIZCLAW_TEST_CLI
 export RAID PARALLEL APPLY GIZCLAW_CONTEXT REPORT
 
-.PHONY: help test-unit-resources test-unit-voices test-e2e
+.PHONY: help test-unit-resources test-unit-learn test-unit-voices test-e2e
 
 help:
 	@scripts/config/help.sh
 
 test-unit-resources:
 	@scripts/test/test-unit-resources.sh
+
+test-unit-learn:
+	@scripts/test/test-unit-learn.sh
 
 test-unit-voices:
 	@scripts/test/test-unit-voices.sh

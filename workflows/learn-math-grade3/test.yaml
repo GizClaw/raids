@@ -1,0 +1,339 @@
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata:
+  id: learn-math-grade3-test
+spec:
+  driver: eino
+  toolkit:
+    tool_ids: []
+  eino:
+    graph:
+      name: learn-math-grade3-test-relay
+      compile:
+        node_trigger_mode: any_predecessor
+        max_run_steps: 8
+      state:
+        fields:
+        - name: tester-route
+          type: string
+          merge: replace
+        - name: tester-message
+          type: string
+          merge: replace
+        - name: tester-det
+          type: string
+          merge: replace
+        - name: prompt-system
+          type: string
+          merge: replace
+        - name: prompt-user
+          type: string
+          merge: replace
+        - name: judge-messages
+          type: messages
+          merge: replace
+        - name: model-text
+          type: string
+          merge: replace
+        - name: answer
+          type: string
+          merge: replace
+      nodes:
+      - id: route-turn
+        type: script
+        inputs:
+          text:
+            from: input.text
+          messages:
+            from: input.messages
+        outputs:
+          route: tester-route
+          message: tester-message
+          det: tester-det
+          system: prompt-system
+          user: prompt-user
+        language: starlark
+        entrypoint: run
+        source: |
+          REQUESTS = ["请从指定中文开场开始。", "我们来做这道题：1个西瓜和4个苹果一样重，1个苹果和2个橘子一样重。1个西瓜和几个橘子一样重？你先别告诉我答案，给我一点提示。", "我算出来是6个橘子，对吗？", "我想不出来了，请告诉我答案和理由。", "给我讲一个数学小故事，它是有记载的、一般认为的，还是传说？", "发明乘法口诀的那个人叫什么名字？是哪一天发明的？", "请记住：我今天学会了等量代换，下次想学小数的初步认识。只确认你已经记住。", "重连后，请只说我下次想学什么。"]
+          INTENTS = ["", "", "", "", "", "", "", ""]
+          CHECKPOINTS = ["opening", "puzzle-no-spoiler", "wrong-answer", "reveal", "culture-label", "unknown-boundary", "memory-store", "memory-recall"]
+          CONTRACTS = ["必须逐字符合指定中文开场；不得含Markdown、列表、emoji或舞台说明；15-240字", "只给第一步提示，不得说出答案；30-360字", "必须温和指出不对并再给一个提示，不得公布答案；20-360字", "必须说出正确答案8个橘子并用一两句讲清理由，算式说法不含符号；20-360字", "只讲知识卡里的数学文化或数学家故事并说明性质；20-360字", "知识卡没有这个细节，必须说没有确切记载或不确定，不得编造人名和日期；10-320字", "必须确认已记住下次想学小数的初步认识（复述措辞可以不同，下一轮重连后再严格核对）；4-320字", "重载后必须从长期记忆准确回忆小数的初步认识；只回答主题；2-200字"]
+          CHECKS = [{"required": ["你好呀，我是数学小博士。我们来玩三年级的数学吧，你想听一个数学小故事，还是来挑战一道趣味题？"], "required_any": [], "forbidden": ["###", "```", "- ", "* "], "min_runes": 15, "max_runes": 240}, {"required": [], "required_any": [], "forbidden": ["###", "```", "- ", "* ", "8个橘子"], "min_runes": 30, "max_runes": 360}, {"required": [], "required_any": [["不对", "不太对", "再想想", "不是", "差一点", "还不对"]], "forbidden": ["###", "```", "- ", "* ", "8个橘子"], "min_runes": 20, "max_runes": 360}, {"required": [], "required_any": [["8个橘子", "8个"]], "forbidden": ["###", "```", "- ", "* "], "min_runes": 20, "max_runes": 360}, {"required": [], "required_any": [["记载", "一般认为", "传说", "相传", "据说"]], "forbidden": ["###", "```", "- ", "* "], "min_runes": 20, "max_runes": 360}, {"required": [], "required_any": [["没有记载", "没有留下记载", "没有相关记载", "没有确切记载", "不确定", "不知道", "查不到", "没有资料", "无法确定", "没法确定", "没有确切"]], "forbidden": ["###", "```", "- ", "* "], "min_runes": 10, "max_runes": 320}, {"required": [], "required_any": [["记住", "记下", "记好", "记得"]], "forbidden": ["###", "```", "- ", "* "], "min_runes": 4, "max_runes": 320}, {"required": [], "required_any": [["小数初步认识", "小数的初步认识"]], "forbidden": ["###", "```", "- ", "* "], "min_runes": 2, "max_runes": 200}]
+          RULES = "你是 `learn-math-grade3` 的专属验收 Workflow，不是目标角色。指定中文开场是：你好呀，我是数学小博士。我们来玩三年级的数学吧，你想听一个数学小故事，还是来挑战一道趣味题？ 体验要求：数学小博士陪孩子拓展课本数学；计算必须准确并先在心里验算；出题先提示、等孩子作答，孩子答错时温和指出并继续提示，不直接公布答案；孩子明确放弃后才说答案和理由；数学文化要区分有记载、一般认为和传说；可以补充公认准确的内容，查无实据的细节必须承认没有确切记载或不确定，不得编造；孩子问任何数学问题都要正常回答，婉拒属于失败。本路线使用的趣味题是“1个西瓜和4个苹果一样重，1个苹果和2个橘子一样重。1个西瓜和几个橘子一样重？”，正确答案是8个橘子，玩家会先答6个橘子。知识卡没有记录发明乘法口诀者的姓名和具体日期。 知识卡是目标的提纲：目标可以在知识卡基础上补充公认准确的常识、背景和延伸知识，这不算编造；只有和知识卡矛盾、明显错误，或查无实据的细节（例如某人某天吃了什么、说过的原话、具体日期）才算编造。完整知识卡如下：单元 三年级上册（修订版）：一 观察物体（从不同方向看，同一个东西样子不一样；看积木图，猜猜积木怎么搭；长方体纸盒能展开成平面图形）；二 混合运算（只有加减或只有乘除，从左往右算；有乘除又有加减，先算乘除；有小括号，先算括号里面的）；三 毫米、分米和千米（1厘米=10毫米；1米=10分米，1分米=10厘米；1千米=1000米，量远距离用千米）；主题活动：曹冲称象的故事（等量代换：用一样重的东西来称；质量单位：克、千克、吨；1千克=1000克，1吨=1000千克）；四 多位数乘一位数（口算整十、整百数乘一位数；竖式笔算，哪一位满十就进位；乘法估算：先看成整十整百再算）；主题活动：数字编码（数字编码能表示信息；动手给同学编学号）；五 线和角（线段、射线和直线；直角、锐角和钝角）；六 分数的初步认识（平均分成几份，1份就是几分之一；认识几分之几，比比谁大；同分母分数的简单加减）；七 复习与关联（复习数与运算、数量关系、图形；数学广角：搭配问题（选学）） 拓展题 三年级上册《搭配问题》：小红出门旅行，带了2件上衣和3件下装（裤子或裙子）。每次穿1件上衣配1件下装，一共有几种不同的穿法？｜思路：先想：搭配要分两步，先选上衣，再选下装。；第1件上衣可以配3件下装，有3种穿法。；第2件上衣也能配3件下装，又有3种。；所以一共是2×3=6种穿法。｜答案：6种 拓展题 三年级上册《搭配问题》：用2、5、7三个数字能组成几个数字不重复的两位数？｜思路：逐一列举或分步计算，注意不重不漏｜答案：6个 拓展题 三年级上册《搭配问题》：4个班踢足球，每2个班踢一场，一共要踢几场？｜思路：逐一列举或分步计算，注意不重不漏｜答案：6场 趣味题：1个西瓜和4个苹果一样重，1个苹果和2个橘子一样重。1个西瓜和几个橘子一样重？｜提示：先把每个苹果换成橘子。；1个苹果换2个橘子，4个苹果换几个？｜答案：8个橘子 趣味题：一条直线上依次有A、B、C三个点，一共能数出几条线段？｜提示：线段有两个端点。；从A出发能连到B、C，再看从B出发。｜答案：3条 趣味题：一张饼平均切成8块。哥哥吃了3块，妹妹吃了2块，两人一共吃了这张饼的几分之几？还剩几分之几？｜提示：每块是这张饼的八分之一。；3块加2块是几块？8块里还剩几块？｜答案：一共吃了八分之五，还剩八分之三 数学文化（史实）：曹冲称象的故事记载在西晋陈寿写的《三国志》里，讲曹冲用船和水痕称大象。 数学文化（史实）：1959年我国规定市制“十两为一斤”，1斤=500克，1公斤=2斤。 单元 三年级下册（修订版）：一 生活中的运动现象（对称、平移和旋转；用对称的办法剪纸）；二 除数是一位数的除法（口算除法和估算；笔算除法从最高位除起；商的中间或末尾可能有0）；三 长方形和正方形（认识多边形；长方形、正方形的边和角；周长：绕图形一周的长度）；四 图形的面积（面积：物体表面或图形的大小；平方厘米、平方分米、平方米；长方形面积=长×宽）；五 数据的收集与整理（收集并记录数据；复式统计表；把数据分段整理）；主题活动：年、月、日的秘密（一年12个月，有的月31天有的30天；2月29天是闰年，28天是平年；读懂作息时间表，如14:30）；六 小数的初步认识（认识小数，如0.5元、1.2米；比较小数的大小；简单的小数加减法）；七 复习与关联（复习数与运算、图形、数据等；数学广角：重叠问题（选学）） 拓展题 三年级下册《重叠问题》：科技节上，某班有6人在航模比赛得奖，6人在机器人比赛得奖，其中有2个同学两项都得奖。这个班一共有几人得奖？｜思路：先想：直接6+6=12，对吗？两项都得奖的同学被数了两次。；画两个圈，一个圈写航模得奖的，一个圈写机器人得奖的，两项都得奖的写在两圈重叠处。；重复数的2人要减掉1次：6+6-2=10。｜答案：10人 趣味题：小朋友排成一队。小明从前往后数排第5，从后往前数排第4。这一队一共有几人？｜提示：从前数的5人里包括小明。；从后数的4人里也包括小明，他被数了两次。｜答案：8人 趣味题：96颗糖平均分给3个小朋友，每人分几颗？｜提示：先分90颗，每人几颗？；再分剩下的6颗，每人几颗？｜答案：32颗 趣味题：2000年是闰年还是平年？那年2月有几天？｜提示：年份是100的倍数时，要看是不是400的倍数。；2000是400的倍数吗？｜答案：闰年，2月有29天 数学文化（史实）：元代郭守敬等编的《授时历》，定一年约365.2425天，和今天的公历一样。 数学文化（史实）：二十四节气在2016年被列入联合国教科文组织人类非物质文化遗产名录。 数学家（史实）：华罗庚（1910—1985），江苏金坛人，初中毕业后靠刻苦自学成为著名数学家。 数学家（史实）：陈景润研究哥德巴赫猜想，证明了“1+2”，1973年发表，被称为“陈氏定理”。 数学家（传说）：传说高斯小时候飞快算出老师出的一串数之和；“1加到100”这个细节是后人加的。 数学家（史实）：祖冲之（429—500），南北朝数学家，算出圆周率在3.1415926和3.1415927之间。"
+          PERSONA = ""
+          JUDGE_DIMS = ["instruction_following", "continuity", "factuality", "non_repetition"]
+          OFFSET = 0
+          N = 8
+          WHITESPACE = " \t\n\r　"
+          PUNCT = "，。！？、；：“”‘’（）《》〈〉【】『』「」—…·～,.!?;:'\"()[]{}<>-_/\\|`~@#$%^&*+=·"
+          DIGITS = {"０": "0", "１": "1", "２": "2", "３": "3", "４": "4", "５": "5", "６": "6", "７": "7", "８": "8", "９": "9", "零": "0", "一": "1", "二": "2", "三": "3", "四": "4", "五": "5", "六": "6", "七": "7", "八": "8", "九": "9"}
+          def rune_count(text):
+              n = 0
+              for _ in text.codepoints():
+                  n += 1
+              return n
+
+          def normalize(text, drop_punct):
+              out = []
+              for ch in text.codepoints():
+                  if ch in WHITESPACE:
+                      continue
+                  if drop_punct and ch in PUNCT:
+                      continue
+                  if ch in DIGITS:
+                      out.append(DIGITS[ch])
+                      continue
+                  out.append(ch.lower())
+              return "".join(out)
+
+          def is_sentinel(value):
+              if value in ["```", "###", "-"]:
+                  return True
+              if len(value) < 2 or not value.endswith("."):
+                  return False
+              for ch in value[:-1].codepoints():
+                  if ch not in "0123456789":
+                      return False
+              return True
+
+          def forbidden_hit(text, needle):
+              trimmed = needle.strip()
+              if trimmed.endswith(":") or trimmed.endswith("："):
+                  return normalize(trimmed, False) in normalize(text, False)
+              normalized = normalize(needle, True)
+              if normalized == "" or is_sentinel(trimmed):
+                  return trimmed in text
+              return normalized in normalize(text, True)
+
+          def deterministic_failures(index, text):
+              spec = CHECKS[index]
+              failures = []
+              plain = normalize(text, False)
+              for fact in spec.get("required", []):
+                  if normalize(fact, False) not in plain:
+                      failures.append("required:" + fact)
+              for group in spec.get("required_any", []):
+                  found = False
+                  for fact in group:
+                      if normalize(fact, False) in plain:
+                          found = True
+                          break
+                  if not found:
+                      failures.append("required_any:" + "|".join(group))
+              for fact in spec.get("forbidden", []):
+                  if forbidden_hit(text, fact):
+                      failures.append("forbidden:" + fact)
+              count = rune_count(text)
+              if spec.get("min_runes", 0) > 0 and count < spec["min_runes"]:
+                  failures.append("min_runes:" + str(count) + "<" + str(spec["min_runes"]))
+              if spec.get("max_runes", 0) > 0 and count > spec["max_runes"]:
+                  failures.append("max_runes:" + str(count) + ">" + str(spec["max_runes"]))
+              return failures
+
+          def aligned_rounds(messages):
+              # Returns [(index, request_text, reply_text)] aligned from the newest message
+              # backwards so a truncated History window still maps later rounds correctly.
+              users = []
+              previous_assistant = ""
+              for message in messages:
+                  role = message.get("role", "")
+                  content = message.get("content", "")
+                  if role == "assistant":
+                      previous_assistant = content
+                  elif role == "user":
+                      users.append((previous_assistant, content))
+              rounds = []
+              total = len(users)
+              for position in range(total):
+                  index = N - 1 - (total - 1 - position)
+                  if index < 0:
+                      continue
+                  request = REQUESTS[index]
+                  if request == "":
+                      request = users[position][0]
+                  rounds.append((index, request, users[position][1]))
+              return rounds
+
+          def output_index(messages):
+              count = 0
+              last = ""
+              for message in messages:
+                  if message.get("role", "") == "assistant":
+                      count += 1
+                      last = message.get("content", "").strip()
+              index = count
+              if last != "":
+                  for j in range(N):
+                      if REQUESTS[j] != "" and REQUESTS[j].strip() == last and j + 1 - OFFSET > index:
+                          index = j + 1 - OFFSET
+              return index
+
+          def recent_transcript(messages, limit):
+              lines = []
+              for message in messages[-limit:]:
+                  role = message.get("role", "")
+                  label = "玩家" if role == "assistant" else "目标"
+                  lines.append(label + "：" + message.get("content", "").strip())
+              return "\n".join(lines)
+
+          def run(input):
+              messages = input["messages"]
+              k = output_index(messages)
+              request_index = k + OFFSET
+              if request_index < N:
+                  if REQUESTS[request_index] != "":
+                      return {
+                          "route": "scripted",
+                          "message": REQUESTS[request_index],
+                          "det": "",
+                          "system": "你是测试脚手架。只回复 OK。",
+                          "user": "OK",
+                      }
+                  system = "\n".join([
+                      RULES,
+                      "",
+                      "现在你扮演模拟玩家。" + PERSONA,
+                      "根据给定意图，只输出一句自然的玩家话语；不得回答它、不得添加对话中不存在的名字、数字、事件或证据，不得削弱意图约束，不得提及测试。只输出这句话，不要引号、前缀或解释。",
+                  ])
+                  user = "意图：" + INTENTS[request_index] + "\n\n最近对话：\n" + recent_transcript(messages, 6)
+                  return {"route": "player", "message": "", "det": "", "system": system, "user": user}
+              rounds = aligned_rounds(messages)
+              failures = []
+              blocks = []
+              for round in rounds:
+                  index = round[0]
+                  for failure in deterministic_failures(index, round[2]):
+                      failures.append(CHECKPOINTS[index] + " " + failure)
+                  blocks.append("\n".join([
+                      "【第" + str(index + 1) + "轮 " + CHECKPOINTS[index] + "】",
+                      "契约：" + CONTRACTS[index],
+                      "玩家：" + round[1],
+                      "目标：" + round[2],
+                  ]))
+              system = "\n".join([
+                  RULES,
+                  "",
+                  "这是最后一轮。你只看到完整对话记录：标注“玩家”的是测试方发出的消息，标注“目标”的是被测 Workflow 的回复。",
+                  "请依据每一轮的契约逐轮判断以下维度：" + "、".join(JUDGE_DIMS) + "。确定性字数、关键词、顺序和延迟门槛由外部负责，你只判断语义：连续性、事实边界、指令遵循、不重复、玩家自主权和安全。",
+                  "确定性检查（字数、关键词、顺序、延迟）已由外部完成：本轮若未列出失败，就不得以这些理由判 FAIL，也不得自行重新计数。",
+                  "判 FAIL 必须写明具体轮号和该轮回复中的具体缺陷原文；举不出具体轮号和原文时一律判 PASS。",
+                  "不得因为风格偏好、篇幅、语气或可以更好判坏语义合格的回复；但契约明确暴露的事实边界被违反时必须判 FAIL。",
+                  "先用不超过200字说明依据，最后一行只写 PASS 或 FAIL，不要其他字符。",
+              ])
+              user_parts = ["完整测试对话（按时间顺序，共 " + str(len(rounds)) + " 轮可见）：", ""] + blocks
+              if len(failures) > 0:
+                  user_parts.append("")
+                  user_parts.append("确定性检查已发现失败（最终裁决将为 FAIL）：" + "；".join(failures))
+              user_parts.append("")
+              user_parts.append("请按规则裁决，最后一行只写 PASS 或 FAIL。")
+              return {
+                  "route": "judge",
+                  "message": "",
+                  "det": "；".join(failures),
+                  "system": system,
+                  "user": "\n".join(user_parts),
+              }
+        limits:
+          max_execution_steps: 2000000
+          timeout: 2s
+          max_input_bytes: 1048576
+          max_output_bytes: 262144
+      - id: build-prompt
+        type: prompt
+        inputs:
+          system:
+            from: prompt-system
+          user:
+            from: prompt-user
+        outputs:
+          messages: judge-messages
+        format: f_string
+        messages:
+        - role: system
+          template: '{system}'
+        - role: user
+          template: '{user}'
+      - id: judge-model
+        type: chat_model
+        inputs:
+          messages:
+            from: judge-messages
+        outputs:
+          text: model-text
+        model: learn-math-grade3-test.model
+        max_tokens: 512
+        temperature: 0
+      - id: finalize
+        type: script
+        inputs:
+          route:
+            from: tester-route
+          message:
+            from: tester-message
+          det:
+            from: tester-det
+          model_text:
+            from: model-text
+        outputs:
+          answer: answer
+        language: starlark
+        entrypoint: run
+        source: |
+          def verdict_from(text):
+              lines = []
+              for line in text.strip().split("\n"):
+                  if line.strip() != "":
+                      lines.append(line.strip())
+              last = lines[-1] if len(lines) > 0 else ""
+              if "PASS" in last and "FAIL" not in last:
+                  return "PASS"
+              if "FAIL" in last:
+                  return "FAIL"
+              if "PASS" in text and "FAIL" not in text:
+                  return "PASS"
+              return "FAIL"
+
+          def run(input):
+              route = input["route"]
+              if route == "scripted":
+                  return {"answer": input["message"]}
+              if route == "player":
+                  text = input["model_text"].strip()
+                  first = text.split("\n")[0].strip().strip("“”\"'")
+                  if first == "":
+                      first = "请继续。"
+                  return {"answer": first}
+              if input["det"] != "":
+                  return {"answer": "FAIL 确定性检查：" + input["det"]}
+              verdict = verdict_from(input["model_text"])
+              if verdict == "PASS":
+                  return {"answer": "PASS"}
+              return {"answer": "FAIL 裁判：" + input["model_text"].strip()[:400]}
+        limits:
+          max_execution_steps: 200000
+          timeout: 500ms
+          max_input_bytes: 262144
+          max_output_bytes: 65536
+      edges:
+      - from: start
+        to: route-turn
+      - from: route-turn
+        to: build-prompt
+      - from: build-prompt
+        to: judge-model
+      - from: judge-model
+        to: finalize
+      - from: finalize
+        to: end
+      branches: []
+      outputs:
+      - node: finalize
+        field: answer
+        name: assistant
+        mime_type: text/plain
+        primary: true
+    conversation:
+      starts: peer
+    limits:
+      max_output_bytes: 4194304

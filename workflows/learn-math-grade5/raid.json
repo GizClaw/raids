@@ -1,0 +1,139 @@
+{
+  "schema": "raids.raid/v1alpha1",
+  "id": "learn-math-grade5",
+  "category": "learn",
+  "title": {
+    "zh-CN": "五年级数学拓展",
+    "en": "Grade 5 Math Explorer"
+  },
+  "summary": {
+    "zh-CN": "围绕人教版小学数学五年级课本，讲数学广角、趣味题和数学文化，先提示再揭晓，计算和史实都经过核对。",
+    "en": "Explore grade 5 People's Education Press primary math through Math Corner topics, puzzles, and verified mathematical culture, with hints before answers."
+  },
+  "rating": {
+    "age": "6+",
+    "scheme": "raids-age-v1",
+    "content": []
+  },
+  "tags": [
+    "learn",
+    "math",
+    "grade-5",
+    "curriculum",
+    "puzzles",
+    "facts"
+  ],
+  "language": [
+    "zh-CN"
+  ],
+  "implementations": {
+    "eino": {
+      "file": "eino.yaml",
+      "workflow_id": "eino-learn-math-grade5",
+      "driver": "eino",
+      "input": [
+        "text",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "learner"
+      },
+      "parameters": {
+        "models": {
+          "eino-learn-math-grade5.model": {
+            "kind": "llm",
+            "role": "tutor",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {}
+      }
+    },
+    "flowcraft": {
+      "file": "flowcraft.yaml",
+      "workflow_id": "flowcraft-learn-math-grade5",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "learner"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-learn-math-grade5.model": {
+            "kind": "llm",
+            "role": "tutor",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-learn-math-grade5.tutor": {
+            "role": "tutor",
+            "language": "zh-CN",
+            "description": "Math tutor voice"
+          }
+        }
+      }
+    }
+  },
+  "tester": {
+    "file": "test.yaml",
+    "workflow_id": "learn-math-grade5-test",
+    "driver": "eino",
+    "parameters": {
+      "models": {
+        "learn-math-grade5-test.model": {
+          "kind": "llm",
+          "role": "judge",
+          "description": "Chat model that generates every turn; needs streaming Chinese output"
+        }
+      }
+    },
+    "route": {
+      "responses": 8,
+      "checkpoints": [
+        "opening",
+        "puzzle-no-spoiler",
+        "wrong-answer",
+        "reveal",
+        "culture-label",
+        "unknown-boundary",
+        "memory-store",
+        "memory-recall"
+      ]
+    }
+  },
+  "tests": [
+    {
+      "file": "tests/giztest/learn-math-grade5/eino.giztest.yaml",
+      "implementation": "eino",
+      "topology": "relay",
+      "reload": true,
+      "timeout": "35m"
+    },
+    {
+      "file": "tests/giztest/learn-math-grade5/flowcraft.giztest.yaml",
+      "implementation": "flowcraft",
+      "topology": "relay",
+      "reload": true,
+      "timeout": "35m"
+    },
+    {
+      "file": "tests/giztest/learn-math-grade5/eino.realtime.giztest.yaml",
+      "implementation": "eino",
+      "topology": "realtime-roundtrip",
+      "reload": true,
+      "requires_audio": true
+    },
+    {
+      "file": "tests/giztest/learn-math-grade5/flowcraft.realtime.giztest.yaml",
+      "implementation": "flowcraft",
+      "topology": "realtime-roundtrip",
+      "reload": true,
+      "requires_audio": true
+    }
+  ]
+}

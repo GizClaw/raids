@@ -1,0 +1,339 @@
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata:
+  id: learn-chinese-poetry-grade1-test
+spec:
+  driver: eino
+  toolkit:
+    tool_ids: []
+  eino:
+    graph:
+      name: learn-chinese-poetry-grade1-test-relay
+      compile:
+        node_trigger_mode: any_predecessor
+        max_run_steps: 8
+      state:
+        fields:
+        - name: tester-route
+          type: string
+          merge: replace
+        - name: tester-message
+          type: string
+          merge: replace
+        - name: tester-det
+          type: string
+          merge: replace
+        - name: prompt-system
+          type: string
+          merge: replace
+        - name: prompt-user
+          type: string
+          merge: replace
+        - name: judge-messages
+          type: messages
+          merge: replace
+        - name: model-text
+          type: string
+          merge: replace
+        - name: answer
+          type: string
+          merge: replace
+      nodes:
+      - id: route-turn
+        type: script
+        inputs:
+          text:
+            from: input.text
+          messages:
+            from: input.messages
+        outputs:
+          route: tester-route
+          message: tester-message
+          det: tester-det
+          system: prompt-system
+          user: prompt-user
+        language: starlark
+        entrypoint: run
+        source: |
+          REQUESTS = ["请从指定中文开场开始。", "我们刚学了《静夜思》，你给我讲讲吧。", "你能把这首诗完整地念给我听吗？", "这首诗是在什么情况下写的？是有记载的，还是一般认为的，还是传说？", "诗人写这首诗那天中午吃的是什么？", "我还会背《登鹳雀楼》，你能念给我听吗？", "请记住：我今天学会了《静夜思》，下次想学《小池》。只确认你已经记住。", "重连后，请只说我下次想学哪首诗。"]
+          INTENTS = ["", "", "", "", "", "", "", ""]
+          CHECKPOINTS = ["opening", "poem-intro", "recite-exact", "background-label", "unknown-boundary", "other-grade-poem", "memory-store", "memory-recall"]
+          CONTRACTS = ["必须逐字符合指定中文开场；不得含Markdown、列表、emoji或舞台说明；15-240字", "必须承接这首诗并正确说出作者李白；只讲知识卡内的作者或背景；最多一个问题；30-360字", "必须逐字念出课本正文“床前明月光，疑是地上霜。举头望明月，低头思故乡。”，不得改字漏字；20-360字", "必须按知识卡讲背景“写客居他乡时月夜思乡；具体写作时间、地点史料无确证，一说作于扬州。”，并说明它属于通说；不得添加知识卡外的细节；20-360字", "知识卡没有这个细节，必须明确说没有记载或不确定，不得编造食物、地名或人名，也不得用可能、大概去猜；10-320字", "《登鹳雀楼》是二年级的诗，必须正常念出全文“白日依山尽，黄河入海流。欲穷千里目，更上一层楼。”，不得婉拒；20-360字", "必须确认已记住今天学会的诗和下次想学《小池》（复述措辞可以不同，下一轮重连后再严格核对）；4-320字", "重载后必须从长期记忆准确回忆《小池》；只回答诗名；2-200字"]
+          CHECKS = [{"required": ["你好呀，我是古诗小书童。我们来聊聊一年级的古诗吧，说一首你学过的，我给你讲讲它背后的故事。"], "required_any": [], "forbidden": ["###", "```", "- ", "* "], "min_runes": 15, "max_runes": 240}, {"required": ["李白"], "required_any": [], "forbidden": ["###", "```", "- ", "* "], "min_runes": 30, "max_runes": 360}, {"required": ["床前明月光", "疑是地上霜", "举头望明月", "低头思故乡"], "required_any": [], "forbidden": ["###", "```", "- ", "* "], "min_runes": 20, "max_runes": 360}, {"required": [], "required_any": [["一般认为", "一种说法", "有人认为", "据说", "通常认为", "大多认为", "说法"]], "forbidden": ["###", "```", "- ", "* "], "min_runes": 20, "max_runes": 360}, {"required": [], "required_any": [["没有记载", "没有留下记载", "没有相关记载", "没有确切记载", "不确定", "不知道", "查不到", "没有资料", "无法确定", "没法确定", "没有确切"]], "forbidden": ["###", "```", "- ", "* "], "min_runes": 10, "max_runes": 320}, {"required": ["白日依山尽", "黄河入海流", "欲穷千里目", "更上一层楼"], "required_any": [], "forbidden": ["###", "```", "- ", "* "], "min_runes": 20, "max_runes": 360}, {"required": [], "required_any": [["记住", "记下", "记好", "记得"]], "forbidden": ["###", "```", "- ", "* "], "min_runes": 4, "max_runes": 320}, {"required": ["小池"], "required_any": [], "forbidden": ["###", "```", "- ", "* "], "min_runes": 2, "max_runes": 200}]
+          RULES = "你是 `learn-chinese-poetry-grade1` 的专属验收 Workflow，不是目标角色。指定中文开场是：你好呀，我是古诗小书童。我们来聊聊一年级的古诗吧，说一首你学过的，我给你讲讲它背后的故事。 体验要求：古诗小书童陪孩子拓展课本古诗，念知识卡里的诗必须与课本正文逐字一致；背景要区分有记载、一般认为和传说；可以在知识卡基础上补充公认准确的内容；查无实据的细节必须承认没有记载或不确定，不得编造；孩子提到的任何诗都要正常讲、正常念，婉拒属于失败。本路线使用的知识卡条目：《静夜思》唐·李白，正文“床前明月光，疑是地上霜。举头望明月，低头思故乡。”，背景（通说）：写客居他乡时月夜思乡；具体写作时间、地点史料无确证，一说作于扬州。。《登鹳雀楼》唐·王之涣，正文“白日依山尽，黄河入海流。欲穷千里目，更上一层楼。”。《小池》宋·杨万里。知识卡没有记录诗人写诗那天吃了什么。 知识卡是目标的提纲：目标可以在知识卡基础上补充公认准确的常识、背景和延伸知识，这不算编造；只有和知识卡矛盾、明显错误，或查无实据的细节（例如某人某天吃了什么、说过的原话、具体日期）才算编造。完整知识卡如下：常识：绝句每首四句，属于唐代成熟的“近体诗”。五言绝句每句5个字、共20字；七言绝句每句7个字、共28字。 常识：律诗每首八句：五言律诗共40字，七言律诗共56字；第二、四、六、八句要押韵，格律要求很严。 常识：“五言”指每句五个字，“七言”指每句七个字，例如《登鹳雀楼》是五言绝句，《暮江吟》是七言绝句。 常识：《全唐诗》是清代康熙年间（1705年开始编）奉皇帝命令编成的唐诗总集，共900卷，收诗四万八千九百多首、诗人两千二百多位。 常识：李白被后人誉为“诗仙”，杜甫被尊为“诗圣”，两人合称“李杜”。 常识：《唐诗三百首》是清代孙洙（号蘅塘退士）和夫人徐兰英编的唐诗选本，1763年前后成书，原本收77位诗人的311首诗，后来的版本有增补。 作者 汉乐府（佚名）：作者姓名不详，是汉代乐府民歌（古辞）。 作者 骆宾王：骆宾王是“初唐四杰”之一（与王勃、杨炯、卢照邻并称）。 作者 王维（署名，有争议）：作者有争议：常署王维，但王维诗集和《全唐诗》里都没有这首诗。 作者 李绅：李绅（772—846），后来做过唐朝宰相，与白居易、元稹是好友。 作者 李白：李白（701—762），被后人称为“诗仙”。 作者 李峤：李峤做过唐朝宰相，与杜审言、崔融、苏味道并称“文章四友”。 作者 白居易：白居易（772—846），字乐天，号香山居士。 作者 杨万里：杨万里（1127—1206），字廷秀，号诚斋，南宋诗人。 作者 孟浩然：孟浩然（689—740），唐代山水田园诗人，与王维并称“王孟”。 作者 贾岛：贾岛（779—843），早年出家当过和尚，法号无本，后来还俗。 作者 唐寅：唐寅字伯虎，明代大画家，与沈周、文徵明、仇英并称“吴门四家”。 《江南》汉·汉乐府（佚名）｜一年级上册｜正文：江南可采莲，莲叶何田田。鱼戏莲叶间。鱼戏莲叶东，鱼戏莲叶西，鱼戏莲叶南，鱼戏莲叶北。｜背景（史实）：汉代江南的采莲歌，作者不详，后被收入宋代郭茂倩所编《乐府诗集》。｜拓展：诗里的“莲”就是荷花，莲和荷是同一种植物，一般在夏天开花。 《咏鹅》唐·骆宾王｜一年级上册·日积月累｜正文：鹅，鹅，鹅，曲项向天歌。白毛浮绿水，红掌拨清波。｜背景（传说）：相传骆宾王七岁时，客人指着池塘里的鹅让他作诗，他随口吟出此诗。｜拓展：一首诗里藏着三种颜色：白毛、绿水、红掌。 《画》唐（署名，有争议）·王维（署名，有争议）｜一年级上册·日积月累｜正文：远看山有色，近听水无声。春去花还在，人来鸟不惊。｜背景（史实）：写作时间、地点没有确切记载｜拓展：这首诗像个谜语，谜底是“画”：画里的鸟，人来了也不会飞走。｜异文：原诗没有题目，“画”是后人加的；作者有不同说法，常署王维，也有说是高鼎或宋代无名氏的。 《悯农（其二）》唐·李绅｜一年级上册·日积月累｜正文：锄禾日当午，汗滴禾下土。谁知盘中餐，粒粒皆辛苦。｜背景（通说）：据《云溪友议》等记载推定，这组诗约作于唐贞元十五年（799年）。｜拓展：“锄禾”是用锄头给禾苗松土除草，大中午太阳最晒的时候也在干。｜异文：“盘中餐”也有写作“盘中飧”的，“飧”也是饭食的意思。 《古朗月行（节选）》唐·李白｜一年级上册·日积月累｜正文：小时不识月，呼作白玉盘。又疑瑶台镜，飞在青云端。｜背景（通说）：一说作于天宝末年安史之乱前，全诗借月抒怀；课本只选写童年看月的四句。｜拓展：小时候的李白把月亮叫“白玉盘”，还以为是神仙的镜子。｜异文：课本只选原诗前四句（全诗十六句）；“青云端”一作“白云端”。 《风》唐·李峤｜一年级上册·日积月累｜正文：解落三秋叶，能开二月花。过江千尺浪，入竹万竿斜。｜背景（传说）：写作时间没有确证；有人说是李峤与杜审言等人春天登山时随口吟成。｜拓展：整首诗一个“风”字也没有，却句句都在写风。 《静夜思》唐·李白｜一年级下册｜正文：床前明月光，疑是地上霜。举头望明月，低头思故乡。｜背景（通说）：写客居他乡时月夜思乡；具体写作时间、地点史料无确证，一说作于扬州。｜拓展：月亮自己不发光，我们看到的月光其实来自照到月球上的太阳光。｜异文：宋代的李白文集里写作“床前看月光……举头望山月”，现在课本用的是清代《唐诗三百首》的写法；诗里的“床”到底指什么有好几种说法，没有定论。 《池上》唐·白居易｜一年级下册｜正文：小娃撑小艇，偷采白莲回。不解藏踪迹，浮萍一道开。｜背景（通说）：学者据《白居易诗集校注》系于大和九年（835），当时白居易在洛阳任闲职。｜拓展：浮萍是漂在水面上的小型水生植物，池塘、湖泊里很常见。｜异文：出自白居易的《池上二绝》。 《小池》宋·杨万里｜一年级下册｜正文：泉眼无声惜细流，树阴照水爱晴柔。小荷才露尖尖角，早有蜻蜓立上头。｜背景（通说）：学者据《诚斋集》编排推断，约作于淳熙三年（1176）初夏，地点在江西吉水。｜拓展：蜻蜓的幼虫叫“水虿”，生活在池塘、溪流等水里，长大后才变成会飞的蜻蜓。｜异文：“树阴”也有写作“树荫”的。 《春晓》唐·孟浩然｜一年级下册·日积月累｜正文：春眠不觉晓，处处闻啼鸟。夜来风雨声，花落知多少。｜背景（通说）：一般认为是孟浩然隐居家乡襄阳鹿门山时所作。｜拓展：诗人是被鸟叫声叫醒的，醒来就惦记夜里风雨打落了多少花。｜异文：《文苑英华》第三句作“欲知昨夜风”。 《赠汪伦》唐·李白｜一年级下册·日积月累｜正文：李白乘舟将欲行，忽闻岸上踏歌声。桃花潭水深千尺，不及汪伦送我情。｜背景（通说）：约作于天宝十四载（755年），李白游泾县桃花潭，临走时汪伦踏歌送行。｜拓展：“踏歌”是一边用脚踏着拍子一边唱歌，汪伦就这样来给李白送行。 《寻隐者不遇》唐·贾岛｜一年级下册·日积月累｜正文：松下问童子，言师采药去。只在此山中，云深不知处。｜背景（史实）：写作时间、地点没有确切记载｜拓展：全诗只问了一句，后面三句都是小童子的回答。｜异文：也有一种说法认为这首诗是孙革写的。 《画鸡》明·唐寅｜一年级下册·日积月累｜正文：头上红冠不用裁，满身雪白走将来。平生不敢轻言语，一叫千门万户开。｜背景（通说）：这是唐寅为自己画的一只大公鸡题写的诗，是一首题画诗。｜拓展：大公鸡平时不乱叫，一叫天就亮，家家户户都开门了。｜异文：“不用裁”也有写作“不用戴”的。"
+          PERSONA = ""
+          JUDGE_DIMS = ["instruction_following", "continuity", "factuality", "non_repetition"]
+          OFFSET = 0
+          N = 8
+          WHITESPACE = " \t\n\r　"
+          PUNCT = "，。！？、；：“”‘’（）《》〈〉【】『』「」—…·～,.!?;:'\"()[]{}<>-_/\\|`~@#$%^&*+=·"
+          DIGITS = {"０": "0", "１": "1", "２": "2", "３": "3", "４": "4", "５": "5", "６": "6", "７": "7", "８": "8", "９": "9", "零": "0", "一": "1", "二": "2", "三": "3", "四": "4", "五": "5", "六": "6", "七": "7", "八": "8", "九": "9"}
+          def rune_count(text):
+              n = 0
+              for _ in text.codepoints():
+                  n += 1
+              return n
+
+          def normalize(text, drop_punct):
+              out = []
+              for ch in text.codepoints():
+                  if ch in WHITESPACE:
+                      continue
+                  if drop_punct and ch in PUNCT:
+                      continue
+                  if ch in DIGITS:
+                      out.append(DIGITS[ch])
+                      continue
+                  out.append(ch.lower())
+              return "".join(out)
+
+          def is_sentinel(value):
+              if value in ["```", "###", "-"]:
+                  return True
+              if len(value) < 2 or not value.endswith("."):
+                  return False
+              for ch in value[:-1].codepoints():
+                  if ch not in "0123456789":
+                      return False
+              return True
+
+          def forbidden_hit(text, needle):
+              trimmed = needle.strip()
+              if trimmed.endswith(":") or trimmed.endswith("："):
+                  return normalize(trimmed, False) in normalize(text, False)
+              normalized = normalize(needle, True)
+              if normalized == "" or is_sentinel(trimmed):
+                  return trimmed in text
+              return normalized in normalize(text, True)
+
+          def deterministic_failures(index, text):
+              spec = CHECKS[index]
+              failures = []
+              plain = normalize(text, False)
+              for fact in spec.get("required", []):
+                  if normalize(fact, False) not in plain:
+                      failures.append("required:" + fact)
+              for group in spec.get("required_any", []):
+                  found = False
+                  for fact in group:
+                      if normalize(fact, False) in plain:
+                          found = True
+                          break
+                  if not found:
+                      failures.append("required_any:" + "|".join(group))
+              for fact in spec.get("forbidden", []):
+                  if forbidden_hit(text, fact):
+                      failures.append("forbidden:" + fact)
+              count = rune_count(text)
+              if spec.get("min_runes", 0) > 0 and count < spec["min_runes"]:
+                  failures.append("min_runes:" + str(count) + "<" + str(spec["min_runes"]))
+              if spec.get("max_runes", 0) > 0 and count > spec["max_runes"]:
+                  failures.append("max_runes:" + str(count) + ">" + str(spec["max_runes"]))
+              return failures
+
+          def aligned_rounds(messages):
+              # Returns [(index, request_text, reply_text)] aligned from the newest message
+              # backwards so a truncated History window still maps later rounds correctly.
+              users = []
+              previous_assistant = ""
+              for message in messages:
+                  role = message.get("role", "")
+                  content = message.get("content", "")
+                  if role == "assistant":
+                      previous_assistant = content
+                  elif role == "user":
+                      users.append((previous_assistant, content))
+              rounds = []
+              total = len(users)
+              for position in range(total):
+                  index = N - 1 - (total - 1 - position)
+                  if index < 0:
+                      continue
+                  request = REQUESTS[index]
+                  if request == "":
+                      request = users[position][0]
+                  rounds.append((index, request, users[position][1]))
+              return rounds
+
+          def output_index(messages):
+              count = 0
+              last = ""
+              for message in messages:
+                  if message.get("role", "") == "assistant":
+                      count += 1
+                      last = message.get("content", "").strip()
+              index = count
+              if last != "":
+                  for j in range(N):
+                      if REQUESTS[j] != "" and REQUESTS[j].strip() == last and j + 1 - OFFSET > index:
+                          index = j + 1 - OFFSET
+              return index
+
+          def recent_transcript(messages, limit):
+              lines = []
+              for message in messages[-limit:]:
+                  role = message.get("role", "")
+                  label = "玩家" if role == "assistant" else "目标"
+                  lines.append(label + "：" + message.get("content", "").strip())
+              return "\n".join(lines)
+
+          def run(input):
+              messages = input["messages"]
+              k = output_index(messages)
+              request_index = k + OFFSET
+              if request_index < N:
+                  if REQUESTS[request_index] != "":
+                      return {
+                          "route": "scripted",
+                          "message": REQUESTS[request_index],
+                          "det": "",
+                          "system": "你是测试脚手架。只回复 OK。",
+                          "user": "OK",
+                      }
+                  system = "\n".join([
+                      RULES,
+                      "",
+                      "现在你扮演模拟玩家。" + PERSONA,
+                      "根据给定意图，只输出一句自然的玩家话语；不得回答它、不得添加对话中不存在的名字、数字、事件或证据，不得削弱意图约束，不得提及测试。只输出这句话，不要引号、前缀或解释。",
+                  ])
+                  user = "意图：" + INTENTS[request_index] + "\n\n最近对话：\n" + recent_transcript(messages, 6)
+                  return {"route": "player", "message": "", "det": "", "system": system, "user": user}
+              rounds = aligned_rounds(messages)
+              failures = []
+              blocks = []
+              for round in rounds:
+                  index = round[0]
+                  for failure in deterministic_failures(index, round[2]):
+                      failures.append(CHECKPOINTS[index] + " " + failure)
+                  blocks.append("\n".join([
+                      "【第" + str(index + 1) + "轮 " + CHECKPOINTS[index] + "】",
+                      "契约：" + CONTRACTS[index],
+                      "玩家：" + round[1],
+                      "目标：" + round[2],
+                  ]))
+              system = "\n".join([
+                  RULES,
+                  "",
+                  "这是最后一轮。你只看到完整对话记录：标注“玩家”的是测试方发出的消息，标注“目标”的是被测 Workflow 的回复。",
+                  "请依据每一轮的契约逐轮判断以下维度：" + "、".join(JUDGE_DIMS) + "。确定性字数、关键词、顺序和延迟门槛由外部负责，你只判断语义：连续性、事实边界、指令遵循、不重复、玩家自主权和安全。",
+                  "确定性检查（字数、关键词、顺序、延迟）已由外部完成：本轮若未列出失败，就不得以这些理由判 FAIL，也不得自行重新计数。",
+                  "判 FAIL 必须写明具体轮号和该轮回复中的具体缺陷原文；举不出具体轮号和原文时一律判 PASS。",
+                  "不得因为风格偏好、篇幅、语气或可以更好判坏语义合格的回复；但契约明确暴露的事实边界被违反时必须判 FAIL。",
+                  "先用不超过200字说明依据，最后一行只写 PASS 或 FAIL，不要其他字符。",
+              ])
+              user_parts = ["完整测试对话（按时间顺序，共 " + str(len(rounds)) + " 轮可见）：", ""] + blocks
+              if len(failures) > 0:
+                  user_parts.append("")
+                  user_parts.append("确定性检查已发现失败（最终裁决将为 FAIL）：" + "；".join(failures))
+              user_parts.append("")
+              user_parts.append("请按规则裁决，最后一行只写 PASS 或 FAIL。")
+              return {
+                  "route": "judge",
+                  "message": "",
+                  "det": "；".join(failures),
+                  "system": system,
+                  "user": "\n".join(user_parts),
+              }
+        limits:
+          max_execution_steps: 2000000
+          timeout: 2s
+          max_input_bytes: 1048576
+          max_output_bytes: 262144
+      - id: build-prompt
+        type: prompt
+        inputs:
+          system:
+            from: prompt-system
+          user:
+            from: prompt-user
+        outputs:
+          messages: judge-messages
+        format: f_string
+        messages:
+        - role: system
+          template: '{system}'
+        - role: user
+          template: '{user}'
+      - id: judge-model
+        type: chat_model
+        inputs:
+          messages:
+            from: judge-messages
+        outputs:
+          text: model-text
+        model: learn-chinese-poetry-grade1-test.model
+        max_tokens: 512
+        temperature: 0
+      - id: finalize
+        type: script
+        inputs:
+          route:
+            from: tester-route
+          message:
+            from: tester-message
+          det:
+            from: tester-det
+          model_text:
+            from: model-text
+        outputs:
+          answer: answer
+        language: starlark
+        entrypoint: run
+        source: |
+          def verdict_from(text):
+              lines = []
+              for line in text.strip().split("\n"):
+                  if line.strip() != "":
+                      lines.append(line.strip())
+              last = lines[-1] if len(lines) > 0 else ""
+              if "PASS" in last and "FAIL" not in last:
+                  return "PASS"
+              if "FAIL" in last:
+                  return "FAIL"
+              if "PASS" in text and "FAIL" not in text:
+                  return "PASS"
+              return "FAIL"
+
+          def run(input):
+              route = input["route"]
+              if route == "scripted":
+                  return {"answer": input["message"]}
+              if route == "player":
+                  text = input["model_text"].strip()
+                  first = text.split("\n")[0].strip().strip("“”\"'")
+                  if first == "":
+                      first = "请继续。"
+                  return {"answer": first}
+              if input["det"] != "":
+                  return {"answer": "FAIL 确定性检查：" + input["det"]}
+              verdict = verdict_from(input["model_text"])
+              if verdict == "PASS":
+                  return {"answer": "PASS"}
+              return {"answer": "FAIL 裁判：" + input["model_text"].strip()[:400]}
+        limits:
+          max_execution_steps: 200000
+          timeout: 500ms
+          max_input_bytes: 262144
+          max_output_bytes: 65536
+      edges:
+      - from: start
+        to: route-turn
+      - from: route-turn
+        to: build-prompt
+      - from: build-prompt
+        to: judge-model
+      - from: judge-model
+        to: finalize
+      - from: finalize
+        to: end
+      branches: []
+      outputs:
+      - node: finalize
+        field: answer
+        name: assistant
+        mime_type: text/plain
+        primary: true
+    conversation:
+      starts: peer
+    limits:
+      max_output_bytes: 4194304

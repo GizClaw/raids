@@ -11,7 +11,7 @@ root="$(repo_root)"
 : "${GIZCLAW:=gizclaw}"
 : "${GIZCLAW_TEST_CLI:=$GIZCLAW}"
 
-resource_dirs='credentials tenants models voices memory-layouts petdefs workflows runtime-profiles registration-tokens'
+resource_dirs='credentials tenants models voices memory-layouts workflows runtime-profiles registration-tokens'
 
 require_command "$GIZCLAW"
 require_command "$GIZCLAW_TEST_CLI"
@@ -56,7 +56,7 @@ test -n "$files" || {
 }
 printf '%s\n' "$files" | while IFS= read -r file; do
 	printf 'validate %s\n' "$file"
-	"$GIZCLAW" admin validate -f "$file"
+	"$GIZCLAW" admin validate -f "$file" </dev/null
 done
 
 test -d tests/giztest || {
@@ -64,11 +64,11 @@ test -d tests/giztest || {
 	exit 1
 }
 
-# Every ordinary story/adventure package has one paced-audio RealTime document
+# Every ordinary story/adventure/learn package has one paced-audio RealTime document
 # for each supported engine. Keep this inventory structural rather than a bare
 # count so a future package cannot replace or hide another package's coverage.
 realtime_count=0
-for package in workflows/adventure-* workflows/story-*; do
+for package in workflows/adventure-* workflows/story-* workflows/learn-*; do
 	test -d "$package" || continue
 	raid="${package#workflows/}"
 	for engine in eino flowcraft; do
@@ -134,11 +134,11 @@ for package in workflows/adventure-* workflows/story-*; do
 		exit 1
 	}
 done
-test "$realtime_count" -eq 60 || {
-	printf 'expected 60 story/adventure RealTime Giztests, found %s\n' "$realtime_count" >&2
+test "$realtime_count" -eq 100 || {
+	printf 'expected 100 story/adventure/learn RealTime Giztests, found %s\n' "$realtime_count" >&2
 	exit 1
 }
-printf 'validated %s story/adventure RealTime Giztests\n' "$realtime_count"
+printf 'validated %s story/adventure/learn RealTime Giztests\n' "$realtime_count"
 
 # Published node Voices already identify the active speaker. Spoken labels such
 # as "旁白说" or "角色名：" make the synthesized story sound like a test

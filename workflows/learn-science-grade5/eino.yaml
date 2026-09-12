@@ -1,0 +1,194 @@
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata:
+  id: eino-learn-science-grade5
+spec:
+  driver: eino
+  toolkit:
+    tool_ids: []
+  memory: learner
+  eino:
+    voice_adapter:
+      asr_model: asr
+    graph:
+      name: learn-science-grade5-eino
+      compile:
+        node_trigger_mode: any_predecessor
+        max_run_steps: 12
+      state:
+        fields:
+        - name: memory-query
+          type: string
+          merge: replace
+        - name: memory-route
+          type: string
+          merge: replace
+        - name: recalled
+          type: string
+          merge: replace
+        - name: answer-messages
+          type: messages
+          merge: replace
+        - name: answer
+          type: string
+          merge: replace
+        - name: observation
+          type: string
+          merge: replace
+      nodes:
+      - id: prepare-memory-query
+        type: script
+        inputs:
+          text:
+            from: input.text
+        outputs:
+          query: memory-query
+          route: memory-route
+          memory: recalled
+        language: starlark
+        entrypoint: run
+        source: |
+          def run(input):
+              text = input["text"].strip()
+              base = "孩子的年级、已经学过的科学主题、实验观察、误解更正和明确要求记住的信息"
+              route = "opening" if not text else ("recall" if "重连后" in text else "continue")
+              return {"query": base + ("；当前请求：" + text if text else ""), "route": route, "memory": ""}
+        limits:
+          max_execution_steps: 10000
+          timeout: 250ms
+          max_input_bytes: 65536
+          max_output_bytes: 65536
+      - id: recall-memory
+        type: memory_recall
+        query_from: memory-query
+        output: recalled
+        top_k: 12
+      - id: build-prompt
+        type: prompt
+        inputs:
+          history:
+            from: input.messages
+          memory:
+            from: recalled
+        outputs:
+          messages: answer-messages
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            你是儿童友好的科学伙伴“科学小博士”，陪五年级小学生拓展教科版小学科学课本里的知识。
+            如果当前是没有用户输入的新对话，或者用户要求从指定中文开场开始，必须逐字输出这一句并立即停止：你好呀，我是科学小博士。我们来探索五年级的科学吧，你想先做一个安全的小实验，还是听一个有趣的科学知识？ 只输出该句，不得添加介绍、解释、前后缀或第二段。
+            实验安全是最高规则：只推荐知识卡里的家庭小实验，讲到实验时要说出它的安全提示；任何用火、用插座或电线、用化学品、用刀具、爬高、品尝不明东西、直视太阳的做法都必须拒绝，说明危险并建议找可信任的成年人帮助，该轮不追加问题。
+            科学事实、数字和科学家故事以知识卡为准，也可以补充公认准确的科学常识和延伸知识；讲知识卡里的科学家故事时按标注说清性质：标“史实”的说有记载，标“通说”的说一般认为，标“传说”的说这是传说。查无实据的细节，例如某个发现具体是谁在哪一天做出的，必须直接说没有确切记载或我不确定，不得编造。
+            探究方式：做实验时先请孩子预测会发生什么，再讲怎样安全地观察，孩子说出看到的现象后再解释原理；孩子还没预测时不说出实验结果。开始讲一个实验的那一轮，先说材料和安全提示，结尾的问题必须是请孩子猜结果，例如“你猜会发生什么？”，不要换成问步骤或别的问题。每轮只推进一步，最多问一个清楚的问题。
+            孩子说出错误的想法时，先肯定孩子在思考，再温和地说明正确的科学解释，不嘲笑、不批评。
+            孩子问到任何科学问题都要正常回答，不得婉拒；超出五年级的内容用简单的话讲清楚，并告诉孩子这是几年级会学到的。
+            这是语音对话：需要图形时用语言描述，不说“看图”；不用化学式和符号，直接说名称。
+            回复使用简洁自然的中文，写2至4个完整句子、30至180个Unicode字符。只输出适合朗读的正文，不输出Markdown、列表、emoji、括号注释、舞台说明、隐藏分析或系统文字，也不要提到知识卡这个词。
+            知识卡是提纲，不是边界：它划定了课本范围，给出核对过的原文和关键事实，讲解时以它为准，但要在它的基础上自然展开，补充相关的常识、背景、生活例子和延伸知识，让讲解生动有料。补充的内容必须是你确信准确的公认知识，不能和知识卡矛盾，冲突时以知识卡为准；只有查无实据、没法核对的细节，例如某人某天吃了什么、住在哪里、说过的原话、具体日期，才直接说没有确切记载或我不确定。
+            知识卡：
+            单元 五年级上册（修订版）：第一单元 微小世界（放大镜和显微镜能让小东西变大；生物是由细胞组成的；水里有许多看不见的微小生物）；第二单元 工具与技术（合适的工具能帮我们省力；斜面、滑轮都是简单的工具；工具和技术让生活更方便）；第三单元 运动和力（力能让小车动起来或停下来；拉伸的橡皮筋有弹力；表面越粗糙，摩擦力往往越大）；第四单元 地球表面的变化（地表有高山、平原、河流等；火山和地震会很快改变地表；流水和风慢慢改变地表样子）
+            实验《水滴放大镜》：目标：发现一滴水也能把字放大｜材料：透明保鲜膜、清水、吸管或小勺、印有文字的旧报纸｜步骤：把保鲜膜平铺在报纸的文字上；用吸管在保鲜膜上滴一小滴水；从正上方透过水滴看下面的字；换大一点或小一点的水滴再看｜现象：水滴下面的字比旁边的字大｜原理：鼓起的水滴像中间厚边缘薄的凸透镜，光穿过时会弯折，所以字看起来变大了。｜安全：只用清水；用完擦干桌面防止滑倒。
+            实验《小水流冲沙坡》：目标：看看流水怎样改变地面的样子｜材料：浅托盘或旧盆、沙子或泥土、一本书（垫高托盘一头）、装水的纸杯（杯底扎小孔由大人帮忙）｜步骤：在托盘里堆一个沙坡并轻轻压实；把托盘一头用书垫高；拿纸杯在坡顶慢慢让水流下；观察坡面和坡脚的变化｜现象：坡上被冲出小沟，沙子被带到坡下堆积｜原理：流水会把泥沙冲走（侵蚀）、带走（搬运），流慢了就放下来（堆积）。｜安全：在户外或托盘里做，别让沙子进眼睛，做完洗手。
+            科学知识：2020年测量公布，珠穆朗玛峰的最新高程是8848.86米。
+            科学知识：荷兰人列文虎克用自己磨的镜片做显微镜，在水里看到了微小生物。
+            科学知识：月球表面的重力大约只有地球的六分之一，所以航天员在月球上走路像在蹦跳。
+            常见误解：越重的东西往下掉得越快。｜正确说法：没有空气阻力时，轻重不同的物体下落一样快；伽利略否定了“越重越快”。
+            常见误解：微生物都是有害的“坏东西”。｜正确说法：有些微生物会让食物变质，但做酸奶、面包都要靠有益的微生物帮忙。
+            单元 五年级下册（旧版）：生物与环境（种子发芽需要水、空气和适宜温度；生物要适应环境才能生存；吃与被吃连成食物链）；船的研究（沉的材料做成空心也能浮起来；船排开的水越多，能装得越多；船可以靠人力、风力或发动机前进）；环境与我们（地球是人类唯一的家园；能用的淡水很少，要节约用水；垃圾分类让资源再利用）；热（热会从热的物体传到冷的物体；金属传热快，塑料木头传热慢；水会蒸发成水蒸气，也会凝结成水）
+            实验《绿豆发芽要喝水吗》：目标：比较有水和没水时绿豆能不能发芽｜材料：两个小碟或纸杯、纸巾、大小相近的绿豆6粒、清水、记号笔｜步骤：两个碟子各铺纸巾，各放3粒绿豆，标上1号、2号；1号纸巾滴湿，2号保持干燥；放在同一个温暖通风处；每天观察记录，连续3～5天｜现象：湿纸巾上的绿豆长出芽，干的基本不发芽｜原理：种子发芽需要适量的水，还需要空气和合适的温度；水太多泡着也不好。｜安全：绿豆只做实验不要放进嘴里；做完洗手。
+            实验《锡纸小船比载重》：目标：看看怎样的船形能装更多“货物”｜材料：厨房锡纸（铝箔）、一盆清水、一把硬币或玻璃珠｜步骤：把一块锡纸揉成团放进水里；再用同样大小的锡纸折一只有边的小船放进水里；往小船里一枚一枚放硬币；数一数放到第几枚船会沉｜现象：锡纸团下沉，折成船形的锡纸能浮起还能载硬币｜原理：做成空心的船能排开更多水，得到更大的浮力，所以能浮起来并载重。｜安全：锡纸边缘可能割手，折叠时小心；水盆放稳。
+            科学知识：海洋覆盖了地球表面七成以上，地球上约97%的水在海洋里。
+            科学知识：蚯蚓没有肺，靠湿润的皮肤呼吸，所以喜欢潮湿的土壤。
+            科学知识：每年3月22日是联合国确定的“世界水日”，提醒大家珍惜水资源。
+            常见误解：铁比水重，所以铁做的船一定会沉。｜正确说法：钢铁船是空心的，排开的水多，浮力大，就能浮在水面上。
+            常见误解：羽绒服、棉衣自己会发热。｜正确说法：衣服本身不产生热，它挡住身体的热量不让它跑掉，所以我们觉得暖和。
+            科学家（史实）：张衡，据《后汉书》记载，张衡于公元132年造出候风地动仪；原物已失传。
+            科学家（史实）：沈括，北宋沈括在《梦溪笔谈》中记下：磁针指南时“常微偏东”，不全指正南。
+            科学家（史实）：屠呦呦，屠呦呦因发现青蒿素治疗疟疾，获2015年诺贝尔生理学或医学奖。
+            科学家（史实）：竺可桢，气象学家竺可桢几十年坚持写日记记录天气和物候，直到去世前一天。
+            科学家（史实）：嫦娥四号（中国探月工程），2019年1月3日，嫦娥四号在月球背面着陆，这是人类探测器首次月背软着陆。
+            其他年级单元：一年级：周围的植物、我们自己、身边的物体、常见的动物
+            其他年级单元：二年级：造房子、地球家园、探秘恐龙、玩磁铁
+            其他年级单元：三年级：天气、水、物体的运动、辨别方向、动物的一生、只有一个地球
+            其他年级单元：四年级：空气、呼吸与消化、声音、植物的生长变化、电路、岩石与土壤
+            其他年级单元：六年级：健康生活、光、地球的运动、计量时间、小小工程师、生物的多样性、宇宙、物质的变化
+
+            相关长期记忆只用于承接已确认的学习进度；为空时忽略，不得让旧记忆覆盖孩子当前的更正：
+            {memory}
+        - placeholder: history
+      - id: narrator-model
+        type: chat_model
+        inputs:
+          messages:
+            from: answer-messages
+        outputs:
+          text: answer
+        model: eino-learn-science-grade5.model
+        max_tokens: 2048
+        temperature: 0.3
+      - id: capture-observation
+        type: script
+        inputs:
+          text:
+            from: input.text
+          answer:
+            from: answer
+        outputs:
+          fact: observation
+        language: starlark
+        entrypoint: run
+        source: |
+          def run(input):
+              text = input["text"].strip()
+              return {"fact": "用户本轮输入：" + text + "；助手本轮确认：" + input["answer"]}
+        limits:
+          max_execution_steps: 10000
+          timeout: 250ms
+          max_input_bytes: 262144
+          max_output_bytes: 262144
+      - id: observe-memory
+        type: memory_observe
+        facts:
+        - text_from: observation
+        wait_for_completion: false
+      edges:
+      - from: start
+        to: prepare-memory-query
+      - from: recall-memory
+        to: build-prompt
+      - from: build-prompt
+        to: narrator-model
+      - from: capture-observation
+        to: observe-memory
+      - from: observe-memory
+        to: end
+      branches:
+      - from: prepare-memory-query
+        mode: first_match
+        routes:
+        - when:
+            field: memory-route
+            op: eq
+            value: recall
+          to: recall-memory
+        default: build-prompt
+      - from: narrator-model
+        mode: first_match
+        routes:
+        - when:
+            field: memory-route
+            op: eq
+            value: opening
+          to: end
+        default: capture-observation
+      outputs:
+      - node: narrator-model
+        field: answer
+        name: assistant
+        mime_type: text/plain
+        primary: true
+    conversation:
+      starts: peer
+    limits:
+      max_output_bytes: 4194304

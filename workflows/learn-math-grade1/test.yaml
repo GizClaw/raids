@@ -1,0 +1,339 @@
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata:
+  id: learn-math-grade1-test
+spec:
+  driver: eino
+  toolkit:
+    tool_ids: []
+  eino:
+    graph:
+      name: learn-math-grade1-test-relay
+      compile:
+        node_trigger_mode: any_predecessor
+        max_run_steps: 8
+      state:
+        fields:
+        - name: tester-route
+          type: string
+          merge: replace
+        - name: tester-message
+          type: string
+          merge: replace
+        - name: tester-det
+          type: string
+          merge: replace
+        - name: prompt-system
+          type: string
+          merge: replace
+        - name: prompt-user
+          type: string
+          merge: replace
+        - name: judge-messages
+          type: messages
+          merge: replace
+        - name: model-text
+          type: string
+          merge: replace
+        - name: answer
+          type: string
+          merge: replace
+      nodes:
+      - id: route-turn
+        type: script
+        inputs:
+          text:
+            from: input.text
+          messages:
+            from: input.messages
+        outputs:
+          route: tester-route
+          message: tester-message
+          det: tester-det
+          system: prompt-system
+          user: prompt-user
+        language: starlark
+        entrypoint: run
+        source: |
+          REQUESTS = ["请从指定中文开场开始。", "我们来做这道题：小朋友排成一队，小明前面有3个人，后面有2个人。这一队一共有几个人？你先别告诉我答案，给我一点提示。", "我算出来是5个人，对吗？", "我想不出来了，请告诉我答案和理由。", "给我讲一个数学小故事，它是有记载的、一般认为的，还是传说？", "发明乘法口诀的那个人叫什么名字？是哪一天发明的？", "请记住：我今天学会了排队问题，下次想学认识平面图形。只确认你已经记住。", "重连后，请只说我下次想学什么。"]
+          INTENTS = ["", "", "", "", "", "", "", ""]
+          CHECKPOINTS = ["opening", "puzzle-no-spoiler", "wrong-answer", "reveal", "culture-label", "unknown-boundary", "memory-store", "memory-recall"]
+          CONTRACTS = ["必须逐字符合指定中文开场；不得含Markdown、列表、emoji或舞台说明；15-240字", "只给第一步提示，不得说出答案；30-360字", "必须温和指出不对并再给一个提示，不得公布答案；20-360字", "必须说出正确答案6个人并用一两句讲清理由，算式说法不含符号；20-360字", "只讲知识卡里的数学文化或数学家故事并说明性质；20-360字", "知识卡没有这个细节，必须说没有确切记载或不确定，不得编造人名和日期；10-320字", "必须确认已记住下次想学认识平面图形（复述措辞可以不同，下一轮重连后再严格核对）；4-320字", "重载后必须从长期记忆准确回忆认识平面图形；只回答主题；2-200字"]
+          CHECKS = [{"required": ["你好呀，我是数学小博士。我们来玩一年级的数学吧，你想听一个数学小故事，还是来挑战一道趣味题？"], "required_any": [], "forbidden": ["###", "```", "- ", "* "], "min_runes": 15, "max_runes": 240}, {"required": [], "required_any": [], "forbidden": ["###", "```", "- ", "* ", "6个人", "6人"], "min_runes": 30, "max_runes": 360}, {"required": [], "required_any": [["不对", "不太对", "再想想", "不是", "差一点", "还不对"]], "forbidden": ["###", "```", "- ", "* ", "6个人", "6人"], "min_runes": 20, "max_runes": 360}, {"required": [], "required_any": [["6个", "6人"]], "forbidden": ["###", "```", "- ", "* "], "min_runes": 20, "max_runes": 360}, {"required": [], "required_any": [["记载", "一般认为", "传说", "相传", "据说"]], "forbidden": ["###", "```", "- ", "* "], "min_runes": 20, "max_runes": 360}, {"required": [], "required_any": [["没有记载", "没有留下记载", "没有相关记载", "没有确切记载", "不确定", "不知道", "查不到", "没有资料", "无法确定", "没法确定", "没有确切"]], "forbidden": ["###", "```", "- ", "* "], "min_runes": 10, "max_runes": 320}, {"required": [], "required_any": [["记住", "记下", "记好", "记得"]], "forbidden": ["###", "```", "- ", "* "], "min_runes": 4, "max_runes": 320}, {"required": [], "required_any": [["认识平面图形"]], "forbidden": ["###", "```", "- ", "* "], "min_runes": 2, "max_runes": 200}]
+          RULES = "你是 `learn-math-grade1` 的专属验收 Workflow，不是目标角色。指定中文开场是：你好呀，我是数学小博士。我们来玩一年级的数学吧，你想听一个数学小故事，还是来挑战一道趣味题？ 体验要求：数学小博士陪孩子拓展课本数学；计算必须准确并先在心里验算；出题先提示、等孩子作答，孩子答错时温和指出并继续提示，不直接公布答案；孩子明确放弃后才说答案和理由；数学文化要区分有记载、一般认为和传说；可以补充公认准确的内容，查无实据的细节必须承认没有确切记载或不确定，不得编造；孩子问任何数学问题都要正常回答，婉拒属于失败。本路线使用的趣味题是“小朋友排成一队，小明前面有3个人，后面有2个人。这一队一共有几个人？”，正确答案是6个人，玩家会先答5个人。知识卡没有记录发明乘法口诀者的姓名和具体日期。 知识卡是目标的提纲：目标可以在知识卡基础上补充公认准确的常识、背景和延伸知识，这不算编造；只有和知识卡矛盾、明显错误，或查无实据的细节（例如某人某天吃了什么、说过的原话、具体日期）才算编造。完整知识卡如下：单元 一年级上册（修订版）：数学游戏（在校园里找数、找形状；分清前后、左右）；一 5以内数的认识和加、减法（认识1到5，比比谁大谁小；0表示一个也没有；5以内的分与合、加减法）；二 6~10的认识和加、减法（认识6到10和它们的组成；10以内加减法，连加连减；用加减法解决问题）；三 认识立体图形（长方体、正方体、圆柱和球；球能向四面八方滚，长方体有平平的面）；四 11~20的认识（10个一是1个十；十位和个位；11到20的数怎么读写）；五 20以内的进位加法（9加几，用凑十法；8、7、6加几也能凑十）；六 复习与关联（复习数、计算和图形） 拓展题 一年级上册《排队问题：两个人中间有几人》：排队时，小悦排第10个，小宇排第15个。他们两个人中间夹着几个人？｜思路：“中间”不算小悦和小宇自己。；从第10往后数到第15前面：11、12、13、14。；数一数这些号，一共4个。｜答案：中间有4人。 趣味题：小朋友排成一队，小明前面有3个人，后面有2个人。这一队一共有几个人？｜提示：别忘了小明自己也在队里。；前面的人加后面的人，再加上小明。｜答案：6个人 趣味题：我心里想了一个数，它比5大，又比7小。这个数是几？｜提示：从5往后数：5、6、7。；夹在5和7中间的只有一个数。｜答案：6 趣味题：盘子里有8个苹果，吃掉了3个，妈妈又放进去2个。现在盘子里有几个苹果？｜提示：先算吃掉以后还剩几个：8减3。；再加上妈妈放进去的2个。｜答案：7个 数学文化（史实）：我国古代用算筹摆数，算筹是用竹子、木头、骨头等做成的小棍。 数学文化（史实）：古埃及人用象形文字记数：一竖表示1，一个像拱门的符号表示10。 单元 一年级下册（修订版）：一 认识平面图形（长方形、正方形、平行四边形；三角形和圆；用七巧板拼出新图形）；二 20以内的退位减法（十几减9、8、7…；想加法算减法：9+4=13，13-9=4）；三 100以内数的认识（10个十是一百；读数、写数、比大小；“大得多”和“大一些”）；四 100以内的口算加、减法（两位数加减一位数和整十数；个位满十进1，不够减退1）；五 100以内的笔算加、减法（列竖式，相同数位要对齐；从个位算起）；六 数量间的加减关系（求一个数比另一个数多几、少几；比多少的问题）；欢乐购物街（人民币单位：元、角、分；1元=10角，1角=10分；买东西会付钱、找零）；七 复习与关联（复习数、计算和图形） 拓展题 一年级下册《欢乐购物街：用13元正好买两本书》：有四本书，价钱分别是5元、6元、7元、8元。用13元正好买两本，可能买的是哪两本？｜思路：从最便宜的5元想起：13减5等于8，正好有8元的书。；再想6元：13减6等于7，正好有7元的书。；7元配6元、8元配5元是重复的，所以只有两种买法。｜答案：5元和8元的两本，或者6元和7元的两本。 趣味题：一支铅笔1元，一块橡皮5角。买一支铅笔和一块橡皮，一共要多少钱？｜提示：1元就是10角。；10角加5角是多少角？再换成几元几角。｜答案：1元5角 趣味题：有一个两位数，十位上是3，个位上的数比十位上的数多2。这个数是多少？｜提示：十位上是3，表示3个十。；个位上比3多2，是几？；把十位和个位合起来读。｜答案：35 趣味题：小红有15颗糖，小明比小红少6颗。小明有几颗？两人一共有几颗？｜提示：“少6颗”用减法：15减6。；再把两个人的糖合起来。｜答案：小明有9颗，两人一共24颗 数学文化（史实）：七巧板是我国传统的益智玩具，由7块板组成，能拼出很多图案。 数学文化（史实）：人民币的单位是元、角、分：1元等于10角，1角等于10分。 数学文化（史实）：1948年12月1日，中国人民银行在石家庄成立，并开始发行第一套人民币。 数学家（史实）：华罗庚（1910—1985），江苏金坛人，初中毕业后靠刻苦自学成为著名数学家。 数学家（史实）：陈景润研究哥德巴赫猜想，证明了“1+2”，1973年发表，被称为“陈氏定理”。 数学家（传说）：传说高斯小时候飞快算出老师出的一串数之和；“1加到100”这个细节是后人加的。 数学家（史实）：祖冲之（429—500），南北朝数学家，算出圆周率在3.1415926和3.1415927之间。"
+          PERSONA = ""
+          JUDGE_DIMS = ["instruction_following", "continuity", "factuality", "non_repetition"]
+          OFFSET = 0
+          N = 8
+          WHITESPACE = " \t\n\r　"
+          PUNCT = "，。！？、；：“”‘’（）《》〈〉【】『』「」—…·～,.!?;:'\"()[]{}<>-_/\\|`~@#$%^&*+=·"
+          DIGITS = {"０": "0", "１": "1", "２": "2", "３": "3", "４": "4", "５": "5", "６": "6", "７": "7", "８": "8", "９": "9", "零": "0", "一": "1", "二": "2", "三": "3", "四": "4", "五": "5", "六": "6", "七": "7", "八": "8", "九": "9"}
+          def rune_count(text):
+              n = 0
+              for _ in text.codepoints():
+                  n += 1
+              return n
+
+          def normalize(text, drop_punct):
+              out = []
+              for ch in text.codepoints():
+                  if ch in WHITESPACE:
+                      continue
+                  if drop_punct and ch in PUNCT:
+                      continue
+                  if ch in DIGITS:
+                      out.append(DIGITS[ch])
+                      continue
+                  out.append(ch.lower())
+              return "".join(out)
+
+          def is_sentinel(value):
+              if value in ["```", "###", "-"]:
+                  return True
+              if len(value) < 2 or not value.endswith("."):
+                  return False
+              for ch in value[:-1].codepoints():
+                  if ch not in "0123456789":
+                      return False
+              return True
+
+          def forbidden_hit(text, needle):
+              trimmed = needle.strip()
+              if trimmed.endswith(":") or trimmed.endswith("："):
+                  return normalize(trimmed, False) in normalize(text, False)
+              normalized = normalize(needle, True)
+              if normalized == "" or is_sentinel(trimmed):
+                  return trimmed in text
+              return normalized in normalize(text, True)
+
+          def deterministic_failures(index, text):
+              spec = CHECKS[index]
+              failures = []
+              plain = normalize(text, False)
+              for fact in spec.get("required", []):
+                  if normalize(fact, False) not in plain:
+                      failures.append("required:" + fact)
+              for group in spec.get("required_any", []):
+                  found = False
+                  for fact in group:
+                      if normalize(fact, False) in plain:
+                          found = True
+                          break
+                  if not found:
+                      failures.append("required_any:" + "|".join(group))
+              for fact in spec.get("forbidden", []):
+                  if forbidden_hit(text, fact):
+                      failures.append("forbidden:" + fact)
+              count = rune_count(text)
+              if spec.get("min_runes", 0) > 0 and count < spec["min_runes"]:
+                  failures.append("min_runes:" + str(count) + "<" + str(spec["min_runes"]))
+              if spec.get("max_runes", 0) > 0 and count > spec["max_runes"]:
+                  failures.append("max_runes:" + str(count) + ">" + str(spec["max_runes"]))
+              return failures
+
+          def aligned_rounds(messages):
+              # Returns [(index, request_text, reply_text)] aligned from the newest message
+              # backwards so a truncated History window still maps later rounds correctly.
+              users = []
+              previous_assistant = ""
+              for message in messages:
+                  role = message.get("role", "")
+                  content = message.get("content", "")
+                  if role == "assistant":
+                      previous_assistant = content
+                  elif role == "user":
+                      users.append((previous_assistant, content))
+              rounds = []
+              total = len(users)
+              for position in range(total):
+                  index = N - 1 - (total - 1 - position)
+                  if index < 0:
+                      continue
+                  request = REQUESTS[index]
+                  if request == "":
+                      request = users[position][0]
+                  rounds.append((index, request, users[position][1]))
+              return rounds
+
+          def output_index(messages):
+              count = 0
+              last = ""
+              for message in messages:
+                  if message.get("role", "") == "assistant":
+                      count += 1
+                      last = message.get("content", "").strip()
+              index = count
+              if last != "":
+                  for j in range(N):
+                      if REQUESTS[j] != "" and REQUESTS[j].strip() == last and j + 1 - OFFSET > index:
+                          index = j + 1 - OFFSET
+              return index
+
+          def recent_transcript(messages, limit):
+              lines = []
+              for message in messages[-limit:]:
+                  role = message.get("role", "")
+                  label = "玩家" if role == "assistant" else "目标"
+                  lines.append(label + "：" + message.get("content", "").strip())
+              return "\n".join(lines)
+
+          def run(input):
+              messages = input["messages"]
+              k = output_index(messages)
+              request_index = k + OFFSET
+              if request_index < N:
+                  if REQUESTS[request_index] != "":
+                      return {
+                          "route": "scripted",
+                          "message": REQUESTS[request_index],
+                          "det": "",
+                          "system": "你是测试脚手架。只回复 OK。",
+                          "user": "OK",
+                      }
+                  system = "\n".join([
+                      RULES,
+                      "",
+                      "现在你扮演模拟玩家。" + PERSONA,
+                      "根据给定意图，只输出一句自然的玩家话语；不得回答它、不得添加对话中不存在的名字、数字、事件或证据，不得削弱意图约束，不得提及测试。只输出这句话，不要引号、前缀或解释。",
+                  ])
+                  user = "意图：" + INTENTS[request_index] + "\n\n最近对话：\n" + recent_transcript(messages, 6)
+                  return {"route": "player", "message": "", "det": "", "system": system, "user": user}
+              rounds = aligned_rounds(messages)
+              failures = []
+              blocks = []
+              for round in rounds:
+                  index = round[0]
+                  for failure in deterministic_failures(index, round[2]):
+                      failures.append(CHECKPOINTS[index] + " " + failure)
+                  blocks.append("\n".join([
+                      "【第" + str(index + 1) + "轮 " + CHECKPOINTS[index] + "】",
+                      "契约：" + CONTRACTS[index],
+                      "玩家：" + round[1],
+                      "目标：" + round[2],
+                  ]))
+              system = "\n".join([
+                  RULES,
+                  "",
+                  "这是最后一轮。你只看到完整对话记录：标注“玩家”的是测试方发出的消息，标注“目标”的是被测 Workflow 的回复。",
+                  "请依据每一轮的契约逐轮判断以下维度：" + "、".join(JUDGE_DIMS) + "。确定性字数、关键词、顺序和延迟门槛由外部负责，你只判断语义：连续性、事实边界、指令遵循、不重复、玩家自主权和安全。",
+                  "确定性检查（字数、关键词、顺序、延迟）已由外部完成：本轮若未列出失败，就不得以这些理由判 FAIL，也不得自行重新计数。",
+                  "判 FAIL 必须写明具体轮号和该轮回复中的具体缺陷原文；举不出具体轮号和原文时一律判 PASS。",
+                  "不得因为风格偏好、篇幅、语气或可以更好判坏语义合格的回复；但契约明确暴露的事实边界被违反时必须判 FAIL。",
+                  "先用不超过200字说明依据，最后一行只写 PASS 或 FAIL，不要其他字符。",
+              ])
+              user_parts = ["完整测试对话（按时间顺序，共 " + str(len(rounds)) + " 轮可见）：", ""] + blocks
+              if len(failures) > 0:
+                  user_parts.append("")
+                  user_parts.append("确定性检查已发现失败（最终裁决将为 FAIL）：" + "；".join(failures))
+              user_parts.append("")
+              user_parts.append("请按规则裁决，最后一行只写 PASS 或 FAIL。")
+              return {
+                  "route": "judge",
+                  "message": "",
+                  "det": "；".join(failures),
+                  "system": system,
+                  "user": "\n".join(user_parts),
+              }
+        limits:
+          max_execution_steps: 2000000
+          timeout: 2s
+          max_input_bytes: 1048576
+          max_output_bytes: 262144
+      - id: build-prompt
+        type: prompt
+        inputs:
+          system:
+            from: prompt-system
+          user:
+            from: prompt-user
+        outputs:
+          messages: judge-messages
+        format: f_string
+        messages:
+        - role: system
+          template: '{system}'
+        - role: user
+          template: '{user}'
+      - id: judge-model
+        type: chat_model
+        inputs:
+          messages:
+            from: judge-messages
+        outputs:
+          text: model-text
+        model: learn-math-grade1-test.model
+        max_tokens: 512
+        temperature: 0
+      - id: finalize
+        type: script
+        inputs:
+          route:
+            from: tester-route
+          message:
+            from: tester-message
+          det:
+            from: tester-det
+          model_text:
+            from: model-text
+        outputs:
+          answer: answer
+        language: starlark
+        entrypoint: run
+        source: |
+          def verdict_from(text):
+              lines = []
+              for line in text.strip().split("\n"):
+                  if line.strip() != "":
+                      lines.append(line.strip())
+              last = lines[-1] if len(lines) > 0 else ""
+              if "PASS" in last and "FAIL" not in last:
+                  return "PASS"
+              if "FAIL" in last:
+                  return "FAIL"
+              if "PASS" in text and "FAIL" not in text:
+                  return "PASS"
+              return "FAIL"
+
+          def run(input):
+              route = input["route"]
+              if route == "scripted":
+                  return {"answer": input["message"]}
+              if route == "player":
+                  text = input["model_text"].strip()
+                  first = text.split("\n")[0].strip().strip("“”\"'")
+                  if first == "":
+                      first = "请继续。"
+                  return {"answer": first}
+              if input["det"] != "":
+                  return {"answer": "FAIL 确定性检查：" + input["det"]}
+              verdict = verdict_from(input["model_text"])
+              if verdict == "PASS":
+                  return {"answer": "PASS"}
+              return {"answer": "FAIL 裁判：" + input["model_text"].strip()[:400]}
+        limits:
+          max_execution_steps: 200000
+          timeout: 500ms
+          max_input_bytes: 262144
+          max_output_bytes: 65536
+      edges:
+      - from: start
+        to: route-turn
+      - from: route-turn
+        to: build-prompt
+      - from: build-prompt
+        to: judge-model
+      - from: judge-model
+        to: finalize
+      - from: finalize
+        to: end
+      branches: []
+      outputs:
+      - node: finalize
+        field: answer
+        name: assistant
+        mime_type: text/plain
+        primary: true
+    conversation:
+      starts: peer
+    limits:
+      max_output_bytes: 4194304

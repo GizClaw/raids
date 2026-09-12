@@ -11,8 +11,8 @@ voices, credentials, and provider definitions needed for an AI scenario.
 
 ## Layout
 
-Resources are grouped by kind. Credential, Tenant, Model, MemoryLayout, and
-PetDef resources are flat because their `metadata.id` already provides the
+Resources are grouped by kind. Credential, Tenant, Model, and MemoryLayout
+resources are flat because their `metadata.id` already provides the
 stable identity. Voice catalogs keep one grouping level per Tenant; Workflows are grouped by
 scenario (raid), with one file per engine implementation plus the scenario's
 Tester, metadata, and README:
@@ -22,7 +22,6 @@ credentials/<credential-name>.yaml
 tenants/<tenant-name>.yaml
 models/<model-name>.yaml
 memory-layouts/<layout-name>.yaml
-petdefs/<petdef-name>.yaml
 voices/<tenant-name>/<voice-id>.yaml
 workflows/<raid-name>/<engine>.yaml        # one directory per scenario: flowcraft.yaml, eino.yaml, ...
 workflows/<raid-name>/test.yaml            # the scenario's single Tester Workflow (id <raid-name>-test)
@@ -49,16 +48,14 @@ whitespace or be the standalone URI dot segments `.` and `..`.
 Current drivers:
 
 - `ast-translate`
-- `chatroom`
 - `doubao-realtime`
 - `eino`
 - `flowcraft`
-- `pet`
 
 [`runtime-profiles/default.yaml`](runtime-profiles/default.yaml) is the
 canonical, applyable public `RuntimeProfile/default`. It selects every public
-Workflow in this repository and binds the Model, Voice, MemoryLayout, and
-PetDef aliases needed by that catalog.
+Workflow in this repository and binds the Model, Voice, and MemoryLayout
+aliases needed by that catalog.
 [`registration-tokens/default.yaml`](registration-tokens/default.yaml)
 publishes the matching `RegistrationToken/default-runtime`; its stable public
 client value is `28c4e4e9-a05f-5a7e-815e-9cf9afb6878f`.
@@ -85,7 +82,7 @@ Model resource while remaining independently configurable.
 | `user-chat-with-assistant` | `user-chat-with-assistant.extract` |
 | `story-teller` | `story-teller.extract` |
 | `adventure` | `adventure.extract` |
-| `pet-care` | `pet-care.extract` |
+| `learner` | `learner.extract` |
 
 Each Raid can otherwise select its own Model independently, even when several
 slots currently bind the same Model resource:
@@ -116,7 +113,14 @@ slots currently bind the same Model resource:
 | `eino-adventure-monster-maze` | `eino-adventure-monster-maze.model` |
 | `flowcraft-adventure-castle-mystery` | `flowcraft-adventure-castle-mystery.model` |
 | `eino-adventure-castle-mystery` | `eino-adventure-castle-mystery.model` |
-| `pet-care` | `pet-care.model` |
+| each `flowcraft-learn-chinese-poetry-grade*` Workflow | `flowcraft-learn-chinese-poetry-grade<N>.model` |
+| each `eino-learn-chinese-poetry-grade*` Workflow | `eino-learn-chinese-poetry-grade<N>.model` |
+| each `flowcraft-learn-math-grade*` Workflow | `flowcraft-learn-math-grade<N>.model` |
+| each `eino-learn-math-grade*` Workflow | `eino-learn-math-grade<N>.model` |
+| each `flowcraft-learn-science-grade*` Workflow | `flowcraft-learn-science-grade<N>.model` |
+| each `eino-learn-science-grade*` Workflow | `eino-learn-science-grade<N>.model` |
+| `flowcraft-learn-chinese-stories` / `eino-learn-chinese-stories` | `<Workflow>.model` |
+| `flowcraft-learn-chinese-words` / `eino-learn-chinese-words` | `<Workflow>.model` |
 
 Voice roles use the same Workflow namespace:
 
@@ -131,10 +135,14 @@ Voice roles use the same Workflow namespace:
 | `flowcraft-adventure-space-rescue` | `adventure-guide` |
 | `flowcraft-adventure-monster-maze` | `adventure-guide` |
 | `flowcraft-adventure-castle-mystery` | `adventure-guide` |
-| `pet-care` | `pet` |
+| each `flowcraft-learn-chinese-poetry-grade*` Workflow | `tutor` |
+| each `flowcraft-learn-math-grade*` Workflow | `tutor` |
+| each `flowcraft-learn-science-grade*` Workflow | `tutor` |
+| `flowcraft-learn-chinese-stories` | `tutor` |
+| `flowcraft-learn-chinese-words` | `tutor` |
 
-For example, Journey resolves `flowcraft-journey-guide.narrator` exactly, and
-Pet Care resolves `pet-care.pet` exactly. Different scoped aliases may bind the
+For example, Journey resolves `flowcraft-journey-guide.narrator` exactly.
+Different scoped aliases may bind the
 same canonical Voice without becoming interchangeable. Catalog resources that
 have no current Workflow or MemoryLayout role remain available but are not
 published as unowned RuntimeProfile aliases.
@@ -162,8 +170,35 @@ The public MemoryLayout catalog is organized by reusable scenario:
 - `story-teller` separates Graph-written progress from narrated continuity.
 - `adventure` stores player-visible investigation state, discoveries,
   interviews, and explicit corrections.
-- `pet-care` stores qualitative relationship, owner, knowledge, and shared
-  event memory without treating Gameplay numbers as long-term memory.
+- `learner` stores the child's stated grade, items actually taught, answered
+  and open questions, and explicit corrections for `learn-*` raids.
+
+Knowledge-extension raids use the `learn-<subject>-<topic>` naming scheme and
+the `learn` collection. Each one embeds a verified knowledge card in its
+prompt, keeps the sources in its package `knowledge.json`, teaches anything
+the child brings up, and must say "没有确切记载" instead of inventing details
+the card does not hold. The poetry set is `learn-chinese-poetry-grade1` through
+`learn-chinese-poetry-grade6`, one package per 统编版 grade so each prompt
+carries only that grade's poems plus a title index of the rest. The math set is
+`learn-math-grade1` through `learn-math-grade6`, one package per 人教版 grade
+with its units, verified extension problems, puzzles, mathematical culture,
+and a title-only index of the other grades. The science set is
+`learn-science-grade1` through `learn-science-grade6`, one package per 教科版
+grade with its units, safe home experiments, checked facts, common
+misconceptions, shared scientist facts, and a title-only index of the other
+grades. Two all-grades Chinese packages round out 语文: `learn-chinese-stories`
+(文言文, 寓言, 成语故事, and 快乐读书吧 books, telling copyrighted books only by
+gist) and `learn-chinese-words` (谚语, 歇后语, 名言 with disputed attributions
+flagged, 对子, and 汉字小故事).
+
+### Maintaining knowledge-extension raids
+
+Each learn package's `knowledge.json` is its source of truth. Edit the card,
+then run `python3 scripts/learn/generate.py` to refresh every generated
+Workflow, Tester, manifest, README, and Giztest, or pass one or more raid IDs
+to refresh only those packages. `make test-unit-learn` regenerates all
+`learn-*` packages in a temporary directory and fails on drift. Runtime
+profiles remain hand-written and are never generated by this tool.
 
 The public story catalog contains 19 titles, each with paired Flowcraft and
 Eino implementations. Every title owns an independent four-chapter bible,
@@ -219,19 +254,13 @@ guard.
 documentation-only composition example with unresolved Voice placeholders. It
 is not discovered or applied as a catalog resource.
 
-The `pet-care` resource keeps Pet domain integration in its outer `pet` driver
-and declares a complete, replaceable Flowcraft Workflow beneath `spec.pet`.
-Its outer `spec.memory` selects `pet-care`; the nested Workflow does not own a
-second Memory alias.
-The `friend_chatroom` and `group_chatroom` system roles share the same
-`chatroom` Workflow; direct and group mode remains Workspace state.
-These definitions require a GizClaw build containing the MemoryLayout contract
+The MemoryLayout definitions require a GizClaw build containing the MemoryLayout contract
 merged by [GizClaw #590](https://github.com/GizClaw/gizclaw/pull/590).
 
 ## Static resource validation
 
 Raids uses the released GizClaw binary as the only authority for declarative
-Resource format validation. With GizClaw v0.7.0 or later on `PATH`, validate
+Resource format validation. With GizClaw v0.18.2 or later on `PATH`, validate
 every applyable catalog Resource with:
 
 ```sh
@@ -248,7 +277,7 @@ resources.
 Every public Make target dispatches to the same-named script under
 `scripts/<group>/<target>.sh`; the Makefile itself only declares targets,
 default variables, and exports. `make help` lists the complete surface:
-`test-unit-resources`, `test-unit-voices`, and `test-e2e`. CI runs each
+`test-unit-resources`, `test-unit-learn`, `test-unit-voices`, and `test-e2e`. CI runs each
 `test-unit-*` target as its own step; there is no aggregate target.
 
 For static schema validation, the target exports a fixed non-secret placeholder
@@ -258,12 +287,12 @@ allowed Credential and Tenant placeholders and validation fails if that file
 contains a populated value.
 
 Passing this check means each file conforms to the Resource schema embedded in
-that GizClaw release. CI pins the immutable v0.7.0 Linux package and verifies
+that GizClaw release. CI pins the immutable v0.18.2 Linux package and verifies
 its published SHA-256 digest before validation. `make test-unit-voices`
 separately requires exactly 635 MiniMax Voice files and exactly one
 `model: speech-2.6-turbo` field in each. Per-file schema validation alone does
 not prove other runtime-only requirements such as cross-resource references or
-aliases resolve, PIXA assets exist, provider credentials work, or a live Server
+aliases resolve, provider credentials work, or a live Server
 will accept and run the complete catalog. Apply, runtime, `make test-e2e`,
 release, and Beijing Default E2E remain separate evidence.
 
@@ -284,12 +313,12 @@ voice aliases the manifest lists.
 ## Declarative live tests
 
 [`tests/giztest`](tests/giztest/README.md) holds every live Raids test as one
-`gizclaw.test/v1alpha1` document: 64 paired candidate/Tester relays (every
-story, adventure, Journey, and Murder Mystery target on both engines), the
-60 paced-audio RealTime roundtrips covering every story/adventure Flowcraft and
+`gizclaw.test/v1alpha1` document: 104 paired candidate/Tester relays (every
+story, adventure, learn, Journey, and Murder Mystery target on both engines), the
+100 paced-audio RealTime roundtrips covering every story/adventure/learn Flowcraft and
 Eino implementation, the 19 Flowcraft story role probes, the 38 story transition
 contracts (every story on both engines), the Wizard of Oz dual-engine English restart,
-the default assistant, Journey, Pet Care,
+the default assistant, Journey,
 Doubao realtime, and AST translation routes, the Journey TTFT benchmark, and
 the historical 3×/5× qualification repeats. `gizclaw test run tests/giztest --parallel N` isolates each
 file and repeat in its own ephemeral Peers and Workspaces and schedules them
@@ -304,7 +333,10 @@ for the second probe's EOS. Provisioning stays outside the runner: `APPLY=1 make
 applies the catalog, the Testers, the `testing` RuntimeProfile, and the
 `testing-runtime` token with the selected Admin context before running.
 
-The story contract and CI are pinned to GizClaw v0.7.19; the rest of the corpus
+CI is pinned to GizClaw v0.18.2, which drops the retired gameplay surface
+(PetDefs, the `pet` driver, and RuntimeProfile system Workflow roles) and
+names the Workspace initiative enum `CONVERSATION_PARAMETERS_INITIATIVE_*`. The
+story contract requires GizClaw v0.7.19 or later; the rest of the corpus
 requires GizClaw v0.6.0 or later (GizClaw #916, #921, #923). The bounded
 story-role first-response gates require the GizClaw #991/#992 contract first
 released in v0.7.13. GizClaw #994/#997 removed reload-time RuntimeProfile
@@ -326,7 +358,7 @@ and requires both a complete non-empty assistant response and a separate
 
 ## Catalog behavior notes
 
-Default Pet Care and General Assistant intentionally keep Memory extraction
+Default General Assistant intentionally keep Memory extraction
 asynchronous. Same-Workspace turn continuity and reload recall come from the
 GizClaw Flowcraft History store; deployments must configure
 `services.agent_host.flowcraft.history_store`. Memory supplies longer-lived
@@ -427,7 +459,7 @@ dependency order without changing identities or references:
 
 1. Apply Credential definitions with deployment-owned values.
 2. Apply Tenant definitions.
-3. Apply Models, Voices, PetDefs, and MemoryLayouts.
+3. Apply Models, Voices, and MemoryLayouts.
 4. Apply Workflows.
 5. Apply `RuntimeProfile/default`.
 6. Apply `RegistrationToken/default-runtime`.
@@ -440,25 +472,10 @@ apply result may be checked against the submitted ID but is never used to edit
 another manifest. Products may omit or override the public defaults and may
 install additional product- or hardware-specific profiles and tokens.
 
-Raids owns the public PetDef manifests and their stable
-`asset://codex/pets/<name>.pixa` references, but it does not distribute the PIXA
-bytes. The corresponding bundles are maintained by `GizClaw/pixa` under
-`assets/codex-pets/`; GizClaw bootstrap or the consuming deployment resolves
-and uploads those assets to the Server for the declared PetDef IDs. A missing
-PIXA attachment is therefore a consumer resource-closure failure and must not
-be hidden by removing that PetDef from the Raids adoption pool.
-
-The versioned Desktop consumer contract is documented by the
-[GizClaw local Server bootstrap guide](https://github.com/GizClaw/gizclaw/blob/ecdb381ea05b629d3a8e5140510ae6e16643f55e/guides/en/developing/apps/wails.md),
-which pins the nine bundles from
-[`GizClaw/pixa@5fed581`](https://github.com/GizClaw/pixa/tree/5fed581ae87ac3cf4a5a05952d43edebbbed8d9f/assets/codex-pets).
-Other consumers must provide an equivalent immutable mapping and upload every
-selected PetDef attachment before treating the RuntimeProfile as ready.
-
 ## Scope
 
 This repository contains public Credential, Tenant, Model, MemoryLayout,
-PetDef, Voice, Workflow, RuntimeProfile, and RegistrationToken source
+Voice, Workflow, RuntimeProfile, and RegistrationToken source
 resources. It publishes the default runtime bootstrap contract while leaving
 every applied resource instance under the ownership of its Server and
 deployment tooling.
@@ -496,13 +513,6 @@ Each Voice directory name matches its Tenant `metadata.id`, so catalogs with
 different providers, endpoints, or regions remain separate. For example,
 `voices/minimax-cn/`, `voices/minimax-global/`, and
 `voices/volc-cn-beijing/` correspond to those three Tenant resources.
-
-PetDef resources contain only machine-readable character, voice, and visual
-configuration. Their localized display names and descriptions belong to the
-corresponding `spec.resources.pet_defs.<alias>.i18n` binding in the consuming
-RuntimeProfile. A PetDef alias does not make the PetDef eligible for adoption;
-the RuntimeProfile pool does that explicitly, while the consuming bootstrap or
-deployment owns PIXA attachment closure.
 
 Workspace instances, real credential values, secrets, private Workflows,
 product- or hardware-specific RuntimeProfiles and RegistrationTokens, and other

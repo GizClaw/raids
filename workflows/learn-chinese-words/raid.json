@@ -1,0 +1,139 @@
+{
+  "schema": "raids.raid/v1alpha1",
+  "id": "learn-chinese-words",
+  "category": "learn",
+  "title": {
+    "zh-CN": "语文积累",
+    "en": "Chinese Word Treasury"
+  },
+  "summary": {
+    "zh-CN": "围绕统编版小学语文日积月累和识字课，猜谚语歇后语、讲名言出处和汉字来历，原文和出处都经过核对。",
+    "en": "Explore verified primary Chinese textbook treasures through proverb and two-part-allegorical-saying riddles, quotation attributions, couplets, and character stories."
+  },
+  "rating": {
+    "age": "6+",
+    "scheme": "raids-age-v1",
+    "content": []
+  },
+  "tags": [
+    "learn",
+    "chinese",
+    "proverbs",
+    "characters",
+    "curriculum",
+    "facts"
+  ],
+  "language": [
+    "zh-CN"
+  ],
+  "implementations": {
+    "eino": {
+      "file": "eino.yaml",
+      "workflow_id": "eino-learn-chinese-words",
+      "driver": "eino",
+      "input": [
+        "text",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "learner"
+      },
+      "parameters": {
+        "models": {
+          "eino-learn-chinese-words.model": {
+            "kind": "llm",
+            "role": "tutor",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {}
+      }
+    },
+    "flowcraft": {
+      "file": "flowcraft.yaml",
+      "workflow_id": "flowcraft-learn-chinese-words",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "learner"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-learn-chinese-words.model": {
+            "kind": "llm",
+            "role": "tutor",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-learn-chinese-words.tutor": {
+            "role": "tutor",
+            "language": "zh-CN",
+            "description": "Chinese tutor voice"
+          }
+        }
+      }
+    }
+  },
+  "tester": {
+    "file": "test.yaml",
+    "workflow_id": "learn-chinese-words-test",
+    "driver": "eino",
+    "parameters": {
+      "models": {
+        "learn-chinese-words-test.model": {
+          "kind": "llm",
+          "role": "judge",
+          "description": "Chat model that generates every turn; needs streaming Chinese output"
+        }
+      }
+    },
+    "route": {
+      "responses": 8,
+      "checkpoints": [
+        "opening",
+        "riddle-no-spoiler",
+        "wrong-guess",
+        "reveal",
+        "disputed-quote",
+        "character-story",
+        "memory-store",
+        "memory-recall"
+      ]
+    }
+  },
+  "tests": [
+    {
+      "file": "tests/giztest/learn-chinese-words/eino.giztest.yaml",
+      "implementation": "eino",
+      "topology": "relay",
+      "reload": true,
+      "timeout": "35m"
+    },
+    {
+      "file": "tests/giztest/learn-chinese-words/flowcraft.giztest.yaml",
+      "implementation": "flowcraft",
+      "topology": "relay",
+      "reload": true,
+      "timeout": "35m"
+    },
+    {
+      "file": "tests/giztest/learn-chinese-words/eino.realtime.giztest.yaml",
+      "implementation": "eino",
+      "topology": "realtime-roundtrip",
+      "reload": true,
+      "requires_audio": true
+    },
+    {
+      "file": "tests/giztest/learn-chinese-words/flowcraft.realtime.giztest.yaml",
+      "implementation": "flowcraft",
+      "topology": "realtime-roundtrip",
+      "reload": true,
+      "requires_audio": true
+    }
+  ]
+}
