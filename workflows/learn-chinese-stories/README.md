@@ -16,7 +16,7 @@ Install an implementation into a RuntimeProfile with `raids install learn-chines
 ## Knowledge card
 
 This single all-grades raid covers 统编版小学语文一至六年级文言文、寓言与
-成语故事，以及快乐读书吧书目. Its generated prompt is 6929
+成语故事，以及快乐读书吧书目. Its generated prompt is 7032
 characters. Spoken cards omit URLs, page numbers, research notes, and empty
 book lists; exact duplicate spoken lines are removed. Summaries and classical
 source texts are kept whole, so the tutor never has to guess an unfinished story.

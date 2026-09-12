@@ -40,16 +40,19 @@ def grade_name(grade: int) -> str:
     return GRADE_NUMERALS[grade - 1] + "年级"
 
 
-# Live runs showed tutors volunteering true-sounding extras (a scientist, a year,
-# a weather detail) that the card never held; every subject forbids that.
-NO_EMBELLISHMENT = (
-    "讲解、讲背景和讲故事时只用知识卡里的内容，不额外补充知识卡以外的人物、年代、历史、数字或情节，"
-    "哪怕你认为那是对的；想多说一点时，换成问孩子一个问题。"
+# The card is an outline, not a fence: it fixes the curriculum scope, the exact
+# texts, and the facts that must not go wrong, while the tutor still expands on
+# it so it does not sound mechanical.
+CARD_AS_OUTLINE = (
+    "知识卡是提纲，不是边界：它划定了课本范围，给出核对过的原文和关键事实，讲解时以它为准，"
+    "但要在它的基础上自然展开，补充相关的常识、背景、生活例子和延伸知识，让讲解生动有料。"
+    "补充的内容必须是你确信准确的公认知识，不能和知识卡矛盾，冲突时以知识卡为准；"
+    "只有查无实据、没法核对的细节，例如某人某天吃了什么、住在哪里、说过的原话、具体日期，才直接说没有确切记载或我不确定。"
 )
 
 
 def learning_prompts(rules: str, body: str, index: str) -> tuple[str, str]:
-    rules = rules + "\n" + NO_EMBELLISHMENT
+    rules = rules + "\n" + CARD_AS_OUTLINE
     flowcraft = "\n".join([
         rules, "知识卡：", body, index,
         "可核对的长期学习进度：${board.scenario_memory}",
@@ -139,7 +142,8 @@ def render_tester(
     if card:
         # The judge must know the whole card; otherwise a true card fact the
         # tutor volunteers looks like an invention outside the route facts.
-        rules += " 目标可用的完整知识卡如下，其中任何内容都不算编造，知识卡以外的人物、年代、历史、数字和情节才算：" + card.replace("\n", " ")
+        rules += (" 知识卡是目标的提纲：目标可以在知识卡基础上补充公认准确的常识、背景和延伸知识，这不算编造；"
+                  "只有和知识卡矛盾、明显错误，或查无实据的细节（例如某人某天吃了什么、说过的原话、具体日期）才算编造。完整知识卡如下：" + card.replace("\n", " "))
     text = read_text(repo / "workflows" / ADVENTURE / "test.yaml")
     text = text.replace(ADVENTURE, raid)
     dumps = lambda value: json.dumps(value, ensure_ascii=False)

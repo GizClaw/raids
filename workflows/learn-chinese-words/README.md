@@ -17,7 +17,7 @@ Install an implementation into a RuntimeProfile with `raids install learn-chines
 
 This single all-grades raid covers 统编版小学语文一至六年级. Its prompt embeds
 checked proverbs, 歇后语, quotations, 对子/对联, and character stories from
-语文园地·日积月累 and 识字课, about 5047 characters in total. Spoken
+语文园地·日积月累 and 识字课, about 5149 characters in total. Spoken
 cards omit URLs, page numbers, and research notes. Exact duplicate spoken lines
 are removed without changing the normalized research record.
 

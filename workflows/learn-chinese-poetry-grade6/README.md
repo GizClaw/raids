@@ -18,7 +18,7 @@ Install an implementation into a RuntimeProfile with `raids install learn-chines
 This raid is one of six grade-scoped `learn-chinese-poetry-grade*` packages.
 Its prompt embeds the full verified entries for every classical poem in 统编版
 六年级 (课文, 语文园地·日积月累, 古诗词诵读) plus a title index of
-every other grade's poems, about 6636 characters in total. Any poem a child
+every other grade's poems, about 6716 characters in total. Any poem a child
 mentions is taught and recited normally: in-grade poems are recited verbatim
 from the card with their background labelled 有记载 (史实), 一般认为 (通说), or
 传说; poems from other grades are recited only when the tutor is certain of

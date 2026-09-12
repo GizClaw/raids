@@ -18,7 +18,7 @@ Install an implementation into a RuntimeProfile with `raids install learn-scienc
 This raid is one of six grade-scoped `learn-science-grade*` packages. Its prompt
 embeds the units, safe home experiments, checked facts, common misconceptions,
 and scientist facts for 教科版小学科学五年级, plus a title-only unit index for
-every other grade, about 3033 characters in total. Every experiment
+every other grade, about 3164 characters in total. Every experiment
 includes its safety rule. The tutor asks for a prediction before revealing an
 observation, corrects misconceptions gently, labels scientist stories, and does
 not invent missing details.

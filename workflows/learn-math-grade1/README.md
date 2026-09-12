@@ -18,7 +18,7 @@ Install an implementation into a RuntimeProfile with `raids install learn-math-g
 This raid is one of six grade-scoped `learn-math-grade*` packages. Its prompt
 embeds the units, verified extension problems, puzzles, mathematical culture,
 and mathematician facts for 人教版小学数学一年级, plus a title-only unit index
-for every other grade, about 3445 characters in total. The tutor checks
+for every other grade, about 3572 characters in total. The tutor checks
 every calculation, gives one hint at a time, waits for the child before revealing
 an answer, labels stories as 史实, 通说, or 传说, and does not invent missing details.
 
