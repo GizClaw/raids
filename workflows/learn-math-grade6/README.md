@@ -8,7 +8,7 @@ Explore grade 6 People's Education Press primary math through Math Corner topics
 
 | File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |
 | --- | --- | --- | --- | --- | --- |
-| `eino.yaml` | `eino-learn-math-grade6` | eino | learner | `eino-learn-math-grade6.model` | - |
+| `eino.yaml` | `eino-learn-math-grade6` | eino | learner | `eino-learn-math-grade6.model` | `eino-learn-math-grade6.tutor` |
 | `flowcraft.yaml` | `flowcraft-learn-math-grade6` | flowcraft | learner | `flowcraft-learn-math-grade6.model` | `flowcraft-learn-math-grade6.tutor` |
 
 Install an implementation into a RuntimeProfile with `raids install learn-math-grade6 --impl <engine> --profile <file> --collection <name> --set model.<alias>=<model id> --set voice.<alias>=<voice id>`; the slots above are the parameters the installer asks for.

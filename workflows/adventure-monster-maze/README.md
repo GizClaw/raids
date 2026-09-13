@@ -8,7 +8,7 @@ Escape a friendly monster maze using direction, shape, and logic puzzles.
 
 | File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |
 | --- | --- | --- | --- | --- | --- |
-| `eino.yaml` | `eino-adventure-monster-maze` | eino | adventure | `eino-adventure-monster-maze.model` | - |
+| `eino.yaml` | `eino-adventure-monster-maze` | eino | adventure | `eino-adventure-monster-maze.model` | `eino-adventure-monster-maze.adventure-guide` |
 | `flowcraft.yaml` | `flowcraft-adventure-monster-maze` | flowcraft | adventure | `flowcraft-adventure-monster-maze.model` | `flowcraft-adventure-monster-maze.adventure-guide` |
 
 Install an implementation into a RuntimeProfile with `raids install adventure-monster-maze --impl <engine> --profile <file> --collection <name> --set model.<alias>=<model id> --set voice.<alias>=<voice id>`; the slots above are the parameters the installer asks for.

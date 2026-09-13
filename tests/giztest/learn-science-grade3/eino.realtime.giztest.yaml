@@ -1,7 +1,7 @@
 # User Story:
 # As a Raids catalog maintainer,
 # I want to exercise `eino-learn-science-grade3` with paced audio in a RealTime Workspace,
-# So that its warmed realtime text roundtrip remains deployable.
+# So that its warmed realtime text/audio roundtrip remains deployable.
 version: gizclaw.test/v1alpha1
 name: learn-science-grade3.eino.realtime
 clients:
@@ -55,11 +55,13 @@ steps:
     pacing: 20ms
     idle_timeout: 90s
     require_text: true
-    require_audio: false
+    require_audio: true
   expect:
     /events: {non_empty: true}
     /text: {non_empty: true}
     /text_eos: {equals: true}
+    /audio_bytes: {minimum: 1}
+    /audio_eos: {equals: true}
 
 - id: realtime_first_response
   client: candidate
@@ -70,12 +72,15 @@ steps:
     pacing: 20ms
     completion: first_response
     first_text_timeout: 2s
+    first_audio_timeout: 3s
     require_text: true
-    require_audio: false
+    require_audio: true
   expect:
     /events: {non_empty: true}
     /text: {non_empty: true}
     /first_text_ms: {maximum: 2000}
+    /audio_bytes: {minimum: 1}
+    /first_audio_ms: {maximum: 3000}
 
 finally:
 - id: stop_run

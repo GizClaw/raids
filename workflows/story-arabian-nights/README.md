@@ -24,7 +24,7 @@ Enter an Arabian Nights journey filled with travel, riddles, and wise choices.
 | Workflow | Engine | Output | Voice roles |
 | --- | --- | --- | --- |
 | `flowcraft-story-arabian-nights` | Flowcraft | text + TTS | `storyteller`, `shahrazad`, `shahryar` mapped to three distinct public Voices |
-| `eino-story-arabian-nights` | Eino | text only | none; GizClaw v0.7.7 cannot dynamically select a Voice for one fixed primary output |
+| `eino-story-arabian-nights` | Eino | text + audio | `eino-story-arabian-nights.storyteller` (single default Voice) |
 
 Flowcraft selects exactly one published node per external response. Chapter entry/transition and invalid speaker selection fall back to `storyteller`; direct in-scene requests may select `shahrazad` or `shahryar`.
 

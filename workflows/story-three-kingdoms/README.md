@@ -24,7 +24,7 @@ Explore choices, cooperation, and responsibility through Three Kingdoms characte
 | Workflow | Engine | Output | Voice roles |
 | --- | --- | --- | --- |
 | `flowcraft-story-three-kingdoms` | Flowcraft | text + TTS | `storyteller`, `liu-bei`, `zhuge-liang` mapped to three distinct public Voices |
-| `eino-story-three-kingdoms` | Eino | text only | none; GizClaw v0.7.7 cannot dynamically select a Voice for one fixed primary output |
+| `eino-story-three-kingdoms` | Eino | text + audio | `eino-story-three-kingdoms.storyteller` (single default Voice) |
 
 Flowcraft selects exactly one published node per external response. Chapter entry/transition and invalid speaker selection fall back to `storyteller`; direct in-scene requests may select `liu-bei` or `zhuge-liang`.
 

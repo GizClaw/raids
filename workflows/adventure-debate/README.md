@@ -8,7 +8,7 @@ Practice expressing, listening to, and responding to viewpoints on age-appropria
 
 | File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |
 | --- | --- | --- | --- | --- | --- |
-| `eino.yaml` | `eino-adventure-debate` | eino | adventure | `eino-adventure-debate.model` | - |
+| `eino.yaml` | `eino-adventure-debate` | eino | adventure | `eino-adventure-debate.model` | `eino-adventure-debate.adventure-guide` |
 | `flowcraft.yaml` | `flowcraft-adventure-debate` | flowcraft | adventure | `flowcraft-adventure-debate.model` | `flowcraft-adventure-debate.adventure-guide` |
 
 Install an implementation into a RuntimeProfile with `raids install adventure-debate --impl <engine> --profile <file> --collection <name> --set model.<alias>=<model id> --set voice.<alias>=<voice id>`; the slots above are the parameters the installer asks for.

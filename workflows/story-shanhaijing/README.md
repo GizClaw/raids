@@ -24,7 +24,7 @@ Explore the imagined lands and creatures of the Classic of Mountains and Seas in
 | Workflow | Engine | Output | Voice roles |
 | --- | --- | --- | --- |
 | `flowcraft-story-shanhaijing` | Flowcraft | text + TTS | `storyteller`, `young-explorer`, `spirit-guide` mapped to three distinct public Voices |
-| `eino-story-shanhaijing` | Eino | text only | none; GizClaw v0.7.7 cannot dynamically select a Voice for one fixed primary output |
+| `eino-story-shanhaijing` | Eino | text + audio | `eino-story-shanhaijing.storyteller` (single default Voice) |
 
 Flowcraft selects exactly one published node per external response. Chapter entry/transition and invalid speaker selection fall back to `storyteller`; direct in-scene requests may select `young-explorer` or `spirit-guide`.
 

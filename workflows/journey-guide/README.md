@@ -6,9 +6,9 @@
 
 | File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |
 | --- | --- | --- | --- | --- | --- |
-| `eino-history.yaml` | `eino-journey-history` | eino | - | `eino-journey-history.model` | - |
-| `eino-memory-async.yaml` | `eino-journey-memory-async` | eino | story-teller | `eino-journey-memory-async.model` | - |
-| `eino-memory-recall.yaml` | `eino-journey-memory-recall` | eino | story-teller | `eino-journey-memory-recall.model` | - |
+| `eino-history.yaml` | `eino-journey-history` | eino | - | `eino-journey-history.model` | `eino-journey-history.narrator` |
+| `eino-memory-async.yaml` | `eino-journey-memory-async` | eino | story-teller | `eino-journey-memory-async.model` | `eino-journey-memory-async.narrator` |
+| `eino-memory-recall.yaml` | `eino-journey-memory-recall` | eino | story-teller | `eino-journey-memory-recall.model` | `eino-journey-memory-recall.narrator` |
 | `flowcraft.yaml` | `flowcraft-journey-guide` | flowcraft | story-teller | `flowcraft-journey-guide.model` | `flowcraft-journey-guide.narrator` |
 
 Install an implementation into a RuntimeProfile with `raids install journey-guide --impl <engine> --profile <file> --collection <name> --set model.<alias>=<model id> --set voice.<alias>=<voice id>`; the slots above are the parameters the installer asks for.

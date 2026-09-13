@@ -25,7 +25,7 @@ Discover courage, wisdom, kindness, and friendship on a journey through Oz.
 | Workflow | Engine | Output | Voice roles |
 | --- | --- | --- | --- |
 | `flowcraft-story-wizard-oz` | Flowcraft | text + TTS | `storyteller`, `dorothy`, `scarecrow` mapped to three distinct public Voices |
-| `eino-story-wizard-oz` | Eino | text only | none; GizClaw v0.7.7 cannot dynamically select a Voice for one fixed primary output |
+| `eino-story-wizard-oz` | Eino | text + audio | `eino-story-wizard-oz.storyteller` (single default Voice) |
 
 Flowcraft selects exactly one published node per external response. Chapter entry/transition and invalid speaker selection fall back to `storyteller`; direct in-scene requests may select `dorothy` or `scarecrow`.
 

@@ -24,7 +24,7 @@ Explore curiosity, honesty, friendship, and consequences through a childhood adv
 | Workflow | Engine | Output | Voice roles |
 | --- | --- | --- | --- |
 | `flowcraft-story-tom-sawyer` | Flowcraft | text + TTS | `storyteller`, `tom`, `becky` mapped to three distinct public Voices |
-| `eino-story-tom-sawyer` | Eino | text only | none; GizClaw v0.7.7 cannot dynamically select a Voice for one fixed primary output |
+| `eino-story-tom-sawyer` | Eino | text + audio | `eino-story-tom-sawyer.storyteller` (single default Voice) |
 
 Flowcraft selects exactly one published node per external response. Chapter entry/transition and invalid speaker selection fall back to `storyteller`; direct in-scene requests may select `tom` or `becky`.
 

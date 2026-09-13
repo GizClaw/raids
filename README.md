@@ -141,6 +141,20 @@ Voice roles use the same Workflow namespace:
 | `flowcraft-learn-chinese-stories` | `tutor` |
 | `flowcraft-learn-chinese-words` | `tutor` |
 
+Eino spoken implementations declare these additional Voice roles:
+
+| Workflow `metadata.id` | Voice role |
+| --- | --- |
+| each `eino-story-*` Workflow | `storyteller` |
+| each `eino-adventure-*` Workflow | `adventure-guide` |
+| each `eino-learn-*` Workflow | `tutor` |
+| `eino-journey-history`, `eino-journey-memory-async`, `eino-journey-memory-recall` | `narrator` |
+
+Each alias is `<Workflow metadata.id>.<role>`. Both public RuntimeProfiles
+bind it to the same Voice resource as the corresponding Flowcraft default.
+Journey's three Eino variants accept text input and synthesize spoken output;
+their default-only adapters do not add ASR input support.
+
 For example, Journey resolves `flowcraft-journey-guide.narrator` exactly.
 Different scoped aliases may bind the
 same canonical Voice without becoming interchangeable. Catalog resources that
@@ -223,9 +237,9 @@ one of two in-scene characters, and routes to exactly one published model node.
 The three nodes resolve three distinct Workflow-scoped Voice aliases; chapter
 transitions, invalid roles, and fallback use the compatible `storyteller`
 alias. Eino implements the same player-visible story and state contract with
-one `text/plain` primary output. It remains text-only because GizClaw v0.7.7
-selects `node_voices` from fixed Graph output nodes and cannot dynamically
-choose a Voice for that single primary output.
+one `text/plain` primary output, synthesized with its Workflow-scoped
+`storyteller` default Voice. Character-dependent Voice switching remains a
+Flowcraft capability; Eino uses one Voice for the entire primary output.
 
 Each Layout defines portable Flowcraft, Mem0, and Volc Mem0 policy. The public
 default profile selects Flowcraft with `connection.type: flowcraft_bbh`; it
@@ -290,8 +304,10 @@ Passing this check means each file conforms to the Resource schema embedded in
 that GizClaw release. CI pins the immutable v0.18.2 Linux package and verifies
 its published SHA-256 digest before validation. `make test-unit-voices`
 separately requires exactly 635 MiniMax Voice files and exactly one
-`model: speech-2.6-turbo` field in each. Per-file schema validation alone does
-not prove other runtime-only requirements such as cross-resource references or
+`model: speech-2.6-turbo` field in each. It also checks that spoken Eino
+Voice slots match Flowcraft roles, are declared in package manifests, and
+resolve to existing Voices in both public RuntimeProfiles. Per-file schema
+validation alone does not prove other runtime-only requirements such as cross-resource references or
 aliases resolve, provider credentials work, or a live Server
 will accept and run the complete catalog. Apply, runtime, `make test-e2e`,
 release, and Beijing Default E2E remain separate evidence.
@@ -341,20 +357,18 @@ requires GizClaw v0.6.0 or later (GizClaw #916, #921, #923). The bounded
 story-role first-response gates require the GizClaw #991/#992 contract first
 released in v0.7.13. GizClaw #994/#997 removed reload-time RuntimeProfile
 dependency revalidation in v0.7.16. The modality-selective first-response
-contract from GizClaw #1003/#1004 is first released in v0.7.19 and lets
-text-only Eino scenarios enforce the text gate without inventing an audio
-response. Reload is reported separately from the measured first-response gates. This corpus
-replaces the retired `tools/raidtest` Go runner: validating one locally edited
+contract from GizClaw #1003/#1004 is first released in v0.7.19 and supports
+independent text and audio first-response gates. Reload is reported separately
+from the measured first-response gates. This corpus replaces the retired `tools/raidtest` Go runner: validating one locally edited
 Workflow is now `APPLY=1 make test-e2e RAID=<raid>/<engine>`, which applies that
 raid package and the testing closure before running its scenario.
 
 Each story/adventure RealTime document synthesizes a short Chinese Opus fixture
 and sends it at 20 ms pacing through a warmed `WORKSPACE_INPUT_MODE_REALTIME`
-Workspace. Flowcraft requires complete assistant text and audio plus a separate
-2-second text / 3-second audio first-response sample. Eino retains its text-only
-output contract, adds the `asr` voice adapter needed for realtime audio input,
-and requires both a complete non-empty assistant response and a separate
-2-second text-only first-response sample without inventing a TTS Voice.
+Workspace. Both engines require complete assistant text and audio plus a separate
+2-second text / 3-second audio first-response sample. Their voice adapters
+select `asr` for audio input and a Workflow-owned default Voice for synthesis.
+Raids declares the Voice slot; consuming RuntimeProfiles bind its Voice resource.
 
 ## Catalog behavior notes
 

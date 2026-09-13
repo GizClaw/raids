@@ -8,7 +8,7 @@ Learn safety priorities, rescue signaling, and resource planning on a fictional 
 
 | File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |
 | --- | --- | --- | --- | --- | --- |
-| `eino.yaml` | `eino-adventure-desert-island` | eino | adventure | `eino-adventure-desert-island.model` | - |
+| `eino.yaml` | `eino-adventure-desert-island` | eino | adventure | `eino-adventure-desert-island.model` | `eino-adventure-desert-island.adventure-guide` |
 | `flowcraft.yaml` | `flowcraft-adventure-desert-island` | flowcraft | adventure | `flowcraft-adventure-desert-island.model` | `flowcraft-adventure-desert-island.adventure-guide` |
 
 Install an implementation into a RuntimeProfile with `raids install adventure-desert-island --impl <engine> --profile <file> --collection <name> --set model.<alias>=<model id> --set voice.<alias>=<voice id>`; the slots above are the parameters the installer asks for.

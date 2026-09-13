@@ -14,7 +14,7 @@ runner, assertion matchers, and `workspace_relay` operation (GizClaw #916,
 `peer_stream.completion: first_response` contract from GizClaw #991/#992,
 first released in v0.7.13. CI uses GizClaw v0.18.2, which also contains the
 RuntimeProfile reload repair from GizClaw #994/#997 and the modality-selective
-first-response contract from GizClaw #1003/#1004 for text-only Eino probes.
+first-response contract from GizClaw #1003/#1004 for independent text/audio probes.
 `make test-unit-resources` validates the corpus offline.
 
 ## Layout
@@ -75,15 +75,11 @@ Every story/adventure implementation has an independent
 `<engine>.realtime.giztest.yaml`. The document synthesizes one short Chinese
 Opus fixture, pushes it through `peer_stream mode: realtime` at 20 ms pacing,
 and verifies a non-empty terminal assistant response after an explicit warm-up.
-Flowcraft already declares an ASR/TTS `voice_adapter`, so its terminal check
-requires text EOS, audio EOS, and positive audio bytes; a second
+Both engines declare ASR/TTS voice adapters. Their terminal checks require
+non-empty text, text EOS, audio EOS, and positive audio bytes; a second
 `completion: first_response` turn requires text within 2 seconds and audio
-within 3 seconds. Eino remains text-only: its Workflow declares `asr_model:
-asr` for realtime input, while the test sets `require_audio: false` and requires
-non-empty assistant text plus text EOS. A second text-only
-`completion: first_response` turn requires Eino text within 2 seconds while
-leaving audio out of the acceptance contract. This avoids representing absent
-Eino TTS as an audio pass.
+within 3 seconds. Eino uses the single default Voice declared by its Workflow
+and bound by the testing RuntimeProfile.
 
 The relay-protocol Tester Workflows (`workflows/<raid>/test.yaml`, one per
 scenario and shared by its Flowcraft and Eino implementations) are generated

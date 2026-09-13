@@ -24,7 +24,7 @@ Learn perspective-taking through worlds with different scales and social rules.
 | Workflow | Engine | Output | Voice roles |
 | --- | --- | --- | --- |
 | `flowcraft-story-gulliver` | Flowcraft | text + TTS | `storyteller`, `gulliver`, `local-guide` mapped to three distinct public Voices |
-| `eino-story-gulliver` | Eino | text only | none; GizClaw v0.7.7 cannot dynamically select a Voice for one fixed primary output |
+| `eino-story-gulliver` | Eino | text + audio | `eino-story-gulliver.storyteller` (single default Voice) |
 
 Flowcraft selects exactly one published node per external response. Chapter entry/transition and invalid speaker selection fall back to `storyteller`; direct in-scene requests may select `gulliver` or `local-guide`.
 

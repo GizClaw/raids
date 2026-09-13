@@ -8,7 +8,7 @@ Explore historical settings as a time observer and understand cause and effect.
 
 | File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |
 | --- | --- | --- | --- | --- | --- |
-| `eino.yaml` | `eino-adventure-history` | eino | adventure | `eino-adventure-history.model` | - |
+| `eino.yaml` | `eino-adventure-history` | eino | adventure | `eino-adventure-history.model` | `eino-adventure-history.adventure-guide` |
 | `flowcraft.yaml` | `flowcraft-adventure-history` | flowcraft | adventure | `flowcraft-adventure-history.model` | `flowcraft-adventure-history.adventure-guide` |
 
 Install an implementation into a RuntimeProfile with `raids install adventure-history --impl <engine> --profile <file> --collection <name> --set model.<alias>=<model id> --set voice.<alias>=<voice id>`; the slots above are the parameters the installer asks for.

@@ -24,7 +24,7 @@ Complete a world journey through route, time-zone, and transport choices.
 | Workflow | Engine | Output | Voice roles |
 | --- | --- | --- | --- |
 | `flowcraft-story-around-world-80-days` | Flowcraft | text + TTS | `storyteller`, `fogg`, `aouda` mapped to three distinct public Voices |
-| `eino-story-around-world-80-days` | Eino | text only | none; GizClaw v0.7.7 cannot dynamically select a Voice for one fixed primary output |
+| `eino-story-around-world-80-days` | Eino | text + audio | `eino-story-around-world-80-days.storyteller` (single default Voice) |
 
 Flowcraft selects exactly one published node per external response. Chapter entry/transition and invalid speaker selection fall back to `storyteller`; direct in-scene requests may select `fogg` or `aouda`.
 
