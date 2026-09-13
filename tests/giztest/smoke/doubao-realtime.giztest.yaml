@@ -38,6 +38,18 @@ steps:
     method: server.register
     request:
       token: "${registration_token}"
+- id: doubao_create_realtime
+  client: doubao
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${doubao_realtime_workspace}"
+      collection: assistants
+      workflow_name: doubao-realtime
+      parameters:
+        doubao_realtime_workspace_parameters:
+          agent_type: DOUBAO_REALTIME_WORKSPACE_PARAMETERS_AGENT_TYPE_DOUBAO_REALTIME
+          input: WORKSPACE_INPUT_MODE_REALTIME
 - id: doubao_select_realtime
   client: doubao
   rpc:
@@ -61,18 +73,6 @@ steps:
       - audio/ogg
     cache: run
   save_as: input_audio
-- id: doubao_create_realtime
-  client: doubao
-  rpc:
-    method: server.workspace.create
-    request:
-      name: "${doubao_realtime_workspace}"
-      collection: assistants
-      workflow_name: doubao-realtime
-      parameters:
-        doubao_realtime_workspace_parameters:
-          agent_type: DOUBAO_REALTIME_WORKSPACE_PARAMETERS_AGENT_TYPE_DOUBAO_REALTIME
-          input: WORKSPACE_INPUT_MODE_REALTIME
 - id: doubao_turn_1_establish-context
   client: doubao
   timeout: 2m

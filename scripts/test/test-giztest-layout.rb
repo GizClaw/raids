@@ -18,6 +18,15 @@ class GiztestCapabilityTest < Minitest::Test
     capture_io { assert_raises(SystemExit, &block) }
   end
 
+  def test_workspace_must_exist_before_selection
+    create = {'id' => 'create', 'client' => 'doubao', 'rpc' => {
+      'method' => 'server.workspace.create', 'request' => {'name' => '${workspace}'}}}
+    select = {'id' => 'select', 'client' => 'doubao', 'rpc' => {
+      'method' => 'server.run.workspace.set', 'request' => {'workspace_name' => '${workspace}'}}}
+    GiztestLayout.check_workspace_order({'steps' => [create, select]}, 'fixture')
+    rejected { GiztestLayout.check_workspace_order({'steps' => [select, create]}, 'fixture') }
+  end
+
   def test_live_workflow_capabilities
     Dir['workflows/learn-*/raid.json'].each do |file|
       raid = File.basename(File.dirname(file))

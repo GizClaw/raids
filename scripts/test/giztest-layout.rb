@@ -31,6 +31,23 @@ module GiztestLayout
             "#{file}: #{step['id']} non-TTS implementation must not require audio")
     end
   end
+  def self.check_workspace_order(doc, file)
+    # Generated Workspace names must be created on that client before selection.
+    created = []
+    local_names = steps(doc).map do |step|
+      [step['client'], step.dig('rpc', 'request', 'name')] if step.dig('rpc', 'method') == 'server.workspace.create'
+    end.compact
+    steps(doc).each do |step|
+      method = step.dig('rpc', 'method')
+      if method == 'server.workspace.create'
+        created << [step['client'], step.dig('rpc', 'request', 'name')]
+      elsif method == 'server.run.workspace.set'
+        key = [step['client'], step.dig('rpc', 'request', 'workspace_name')]
+        check(!local_names.include?(key) || created.include?(key),
+              "#{file}: #{step['id']} selects a local Workspace before creation")
+      end
+    end
+  end
   def self.without_audio(sequence)
     sequence.map do |step|
       copy = Marshal.load(Marshal.dump(step))
@@ -112,6 +129,7 @@ module GiztestLayout
       files.each do |file|
         doc = YAML.load_file(file)
         check(File.readlines(file).first(4).map { |s| s.split[0,2].join(' ') } == ['# User', '# As', '# I', '# So'], "#{file}: missing User Story")
+        check_workspace_order(doc, file)
         capabilities = tts_capabilities(File.basename(file, '.giztest.yaml'))
         steps(doc).each do |step|
           implementation = step.fetch('client', '').split('__').first
