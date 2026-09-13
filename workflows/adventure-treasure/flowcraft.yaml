@@ -15,18 +15,96 @@ spec:
         to: prepare-recall-query
         condition: needs_memory_recall == true
       - from: route-recall
-        to: narrate
+        to: select-speaker
       - from: prepare-recall-query
         to: recall-progress
       - from: recall-progress
-        to: narrate
+        to: select-speaker
       - from: narrate
         to: capture-progress
       - from: capture-progress
         to: observe-progress
       - from: observe-progress
         to: __end__
+      - from: select-speaker
+        to: speak-cartographer
+        condition: selected_speaker == "cartographer"
+      - from: select-speaker
+        to: speak-codebreaker
+        condition: selected_speaker == "codebreaker"
+      - from: select-speaker
+        to: speak-old-sailor
+        condition: selected_speaker == "old-sailor"
+      - from: select-speaker
+        to: narrate
+      - from: speak-cartographer
+        to: capture-progress
+      - from: speak-codebreaker
+        to: capture-progress
+      - from: speak-old-sailor
+        to: capture-progress
       nodes:
+      - id: select-speaker
+        type: script
+        config:
+          source: "const current = String(board.getVar(\"input\") || \"\").trim().toLowerCase();\nconst
+            memory = String(board.getVar(\"scenario_memory\") || \"\");\nlet state
+            = Object.assign({schema:\"raid_scenario_state_v2\", revision:0}, board.getVar(\"scenario_state\")
+            || {});\nfor (const line of memory.split(\"\\n\")) {\n  const start =
+            line.indexOf('{\"schema\":');\n  if (start < 0) continue;\n  try { const
+            old = JSON.parse(line.slice(start));\n    if (old.schema === \"raid_scenario_state_v2\"
+            && Number(old.revision || 0) > Number(state.revision || 0)) state = Object.assign({},state,old);\n
+            \ } catch (_) {}\n}\nconst roleTable = [{\"key\": \"narrator\", \"name\":
+            \"旁白\", \"aliases\": [\"旁白\", \"narrator\"], \"chapters\": [1, 2, 3],
+            \"duty\": \"只负责叙述、管理和公开信息整理，不代演角色。\"}, {\"key\": \"cartographer\", \"name\":
+            \"地图员\", \"aliases\": [\"地图员\", \"cartographer\"], \"chapters\": [1, 2],
+            \"duty\": \"比较指南针与已有地图的方向，不添加未发现路线。\"}, {\"key\": \"codebreaker\", \"name\":
+            \"解谜伙伴\", \"aliases\": [\"解谜伙伴\", \"codebreaker\"], \"chapters\": [2],
+            \"duty\": \"逐步分析押韵提示与数字线索，不直接替玩家做决定。\"}, {\"key\": \"old-sailor\", \"name\":
+            \"老水手\", \"aliases\": [\"老水手\", \"old-sailor\"], \"chapters\": [3], \"duty\":
+            \"回顾已验证的虚构航路，提出合作比财物更重要的观点。\"}];\nconst scenes = [\"地图观察\", \"诗句解谜\",
+            \"航路回顾\"];\nconst any = (s, cues) => cues.some(c => s.includes(c));\nlet
+            scene = Number(state.voice_scene || 1);\nscene = Number.isFinite(scene)
+            ? Math.max(1, Math.min(scenes.length, Math.floor(scene))) : 1;\nconst
+            history = typeof board.channel === \"function\" ? (board.channel(board.MAIN_CHANNEL)
+            || []) : [];\nif (!state.voice_scene) {\n  for (const m of history) {\n
+            \   if (m.role !== \"assistant\") continue;\n    const text = m.content
+            || (m.parts || []).filter(p => p.type === \"text\").map(p => p.text ||
+            \"\").join(\"\");\n    for (let i=0;i<scenes.length;i++) if (text.includes(\"当前场景：\"+scenes[i])
+            || text.includes(\"来到\"+scenes[i])) scene=i+1;\n  }\n}\nlet transition
+            = false;\nif (!current || any(current, [\"重新开始\", \"restart\", \"开场\",
+            \"介绍这个体验\", \"开始体验\"])) scene=1;\nelse if (any(current,[\"进入下一章\",\"进入下一场景\"]))
+            {scene=Math.min(scenes.length,scene+1); transition=true;}\nelse {\n  for
+            (let i=0;i<scenes.length;i++) if (any(current,[\"进入\"+scenes[i],\"前往\"+scenes[i],\"来到\"+scenes[i]]))
+            {scene=i+1;transition=true;}\n  \n}\nconst phase = \"explore\";\nstate.voice_scene=scene;\nstate.active_roles=roleTable.filter(r=>r.chapters.includes(scene)).map(r=>r.key);\nlet
+            speaker=\"narrator\";\nlet managementText=current;\nfor (const role of
+            roleTable) for (const alias of role.aliases) managementText=managementText.split(alias).join(\"\");\nconst
+            management = !current || transition || any(managementText,[\"更正\", \"纠正\",
+            \"修正\", \"改成\", \"改变主意\", \"其实\", \"安全\", \"危险\", \"现实\", \"模仿\", \"受伤\",
+            \"攻击\", \"牺牲\", \"停止\", \"总结\", \"结论\", \"回忆\", \"重连\", \"恢复\", \"请记住\",
+            \"只确认\", \"只说\", \"换边\", \"correction\", \"correct\", \"actually\", \"danger\",
+            \"safety\", \"restart\", \"重新开始\", \"开场\", \"介绍这个体验\", \"进入下一\", \"下一章\",
+            \"下一场景\", \"转场\", \"开始体验\", \"从头开始\", \"第一章\", \"第1章\", \"开始冒险\", \"start\",
+            \"begin\", \"介绍体验\", \"喝生水\", \"吃野果\", \"爬高墙\", \"关闭生命保障\", \"直视太阳\",
+            \"尝陌生植物\"]) || phase !== \"explore\";\nif (!management) {\n  const mentions=[];\n
+            \ for (const role of roleTable) for (const alias of role.aliases) {\n
+            \   let start=0;\n    for (let attempt=0;attempt<32;attempt++) {\n      const
+            at=current.indexOf(alias,start); if(at<0) break; start=at+alias.length;\n
+            \     const prefix=current.slice(0,at).replace(/但是|而是|再让|改请|改让|but /g,\"，\").split(/[，。；！？,;!?]/).pop();\n
+            \     const tail=current.slice(at+alias.length).split(/[，。；！？,;!?]/)[0];\n
+            \     const neg=any(prefix,[\"不要\", \"别让\", \"别请\", \"不让\", \"不请\", \"不想让\",
+            \"不想听\", \"不用\", \"无需\", \"别\", \"不需要\", \"do not\", \"don't\", \"not\",
+            \"instead of\"]) || any(tail,[\"不要说\",\"别说\",\"不用回答\",\"不要回答\"]);\n      const
+            requested=any(prefix+alias+tail,[\"说说\", \"说话\", \"发言\", \"回应\", \"回答\",
+            \"解释\", \"问问\", \"采访\", \"talk\", \"speak\", \"answer\", \"explain\"]);\n
+            \     if(!neg && requested && state.active_roles.includes(role.key)) mentions.push({key:role.key,at});\n
+            \   }\n  }\n  mentions.sort((a,b)=>a.at-b.at);\n  if(mentions.length)
+            speaker=mentions[0].key;\n}\nstate.chapter_choice_made=!!current && !management
+            && speaker === \"narrator\";\nstate.selected_speaker=speaker;\nstate.revision=Math.max(0,Number(state.revision
+            || 0))+1;\nboard.setVar(\"scenario_state\",state);\nboard.setVar(\"scenario_state_text\",JSON.stringify(state));\nboard.setVar(\"selected_speaker\",speaker);\nboard.setVar(\"story_bible\",\"这是儿童互动冒险的原创配角安排。按场景出场，不让所有人物同时在场；角色不能获知未来场景、私密信息或未验证的结果。每轮仍只发声一次。\\n场景1“地图观察”：地图员：比较指南针与已有地图的方向，不添加未发现路线。\\n场景2“诗句解谜”：地图员：比较指南针与已有地图的方向，不添加未发现路线。；解谜伙伴：逐步分析押韵提示与数字线索，不直接替玩家做决定。\\n场景3“航路回顾”：老水手：回顾已验证的虚构航路，提出合作比财物更重要的观点。\\n明确点名例如“请让地图员说说”才请求角色说话；只报名字或支持某人仍是玩家选项，由旁白承接。多人按文本顺序只选第一个在场且未被否定者。开场、转场、更正、安全、结论由旁白负责；旁白不代演角色，不加“旁白说”“旁白：”等说话人标签。严格开场结束后，下一次探索才简短介绍在场角色及点名玩法。\");\nboard.setVar(\"speaker_direction\",
+            \"当前场景：\"+scenes[scene-1]+\"。当前在场角色：\"+roleTable.filter(r=>state.active_roles.includes(r.key)).map(r=>r.name).join(\"、\")+\"。\"+(transition
+            ? \"本轮由旁白说出‘来到\"+scenes[scene-1]+\"’，描写该处角色的一项具体行动并给一个观察选项，不替人物说台词。\"
+            : \"\")+\"本轮仅由\"+speaker+\"发声。\" );\n"
       - id: route-recall
         type: script
         config:
@@ -73,7 +151,7 @@ spec:
           output: scenario_memory
           render:
             header: 'Confirmed scenario history:'
-            item_prefix: '- '
+            item_prefix: "- "
             max_items: 12
           top_k: 12
       - id: narrate
@@ -85,7 +163,7 @@ spec:
           output_key: answer
           system_prompt: |-
             你是儿童友好的互动冒险主持人。
-            如果当前是没有用户输入的新对话，必须逐字输出下面这段开场并立即停止：我们是一支寻宝小队，要靠线索一步步找到藏起来的宝藏。每次你选先解哪条线索，想不出来时就说“给我一个提示”。藏宝图缺了一角，但指南针旁有四句押韵提示，你想先找方向线索还是数字线索？
+            如果当前是没有用户输入的新对话，或用户要求开始体验、介绍体验并从指定中文开场开始，必须逐字输出下面这段开场并立即停止：我们是一支寻宝小队，要靠线索一步步找到藏起来的宝藏。每次你选先解哪条线索，想不出来时就说“给我一个提示”。藏宝图缺了一角，但指南针旁有四句押韵提示，你想先找方向线索还是数字线索？
             如果当前上下文明确要求英文，或用户要求用英文介绍或重新开始，必须逐字输出这一句并立即停止：A corner of the map is missing, but four rhyming clues remain. Direction clue or number clue first?
             后续必须承接孩子上一轮的选择，不得重置场景。每轮只推进一个有意义的场景、问题、线索或选择，并且最多问一个清楚的问题。需要孩子选择或调查时，要在问题里直接说出两三个具体选项；孩子说不知道或想要提示时，先给一个小提示，再重新说出可选的选项。
             体验要求：Provide one solvable clue at a time, retain discovered facts, offer graduated hints, and make the final treasure meaningful rather than materialistic.
@@ -95,22 +173,18 @@ spec:
             可核对的长期进度：${board.scenario_memory}
             续写时必须与上面已确认的进度一致，不得推翻或重复其中已经发生的内容。
             除明确要求英文的开场回合外，回复使用简洁自然中文，写2至4个完整句子、30至180个Unicode字符。只输出适合朗读的正文，不输出Markdown、列表、菜单、emoji、舞台说明、隐藏分析或系统文字。
+            ${board.story_bible}
+            ${board.speaker_direction}
+            本轮由旁白叙述，不代演人物。
           track_steps: true
       - id: capture-progress
         type: script
         config:
           source: |
-            const input = String(board.getVar("input") || "").trim();
-            const answer = String(board.getVar("answer") || "").trim();
-            if (!input && !answer) {
-              board.setVar("scenario_state_fact", "");
-            } else {
-              board.setVar("scenario_state_fact", JSON.stringify({
-                schema: "raid_scenario_state_v2",
-                last_input: input.slice(0, 160),
-                last_answer: answer.slice(0, 320),
-              }));
-            }
+            const state = Object.assign({}, board.getVar("scenario_state") || {});
+            state.last_input = String(board.getVar("input") || "").slice(0,160);
+            state.last_answer = String(board.getVar("answer") || "").slice(0,320);
+            board.setVar("scenario_state_fact", JSON.stringify(state));
       - id: observe-progress
         type: memory_observe
         config:
@@ -121,10 +195,75 @@ spec:
                 lane: story_progress
                 kind: state
           wait_for_completion: false
+      - id: speak-cartographer
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-adventure-treasure.model
+          max_tokens: 2048
+          output_key: answer
+          system_prompt: |-
+            后续必须承接孩子上一轮的选择，不得重置场景。每轮只推进一个有意义的场景、问题、线索或选择，并且最多问一个清楚的问题。需要孩子选择或调查时，要在问题里直接说出两三个具体选项；孩子说不知道或想要提示时，先给一个小提示，再重新说出可选的选项。
+            体验要求：Provide one solvable clue at a time, retain discovered facts, offer graduated hints, and make the final treasure meaningful rather than materialistic.
+            安全边界：Do not encourage trespassing, digging, taking property, meeting strangers, spending money, or sharing real locations.
+            明确区分事实、传说与虚构；不确定的信息要说明不确定。现实危险情形应建议孩子停止模仿并寻求可信任成年人帮助。
+            用户询问现实危险或模仿时，直接说明危险、拒绝模仿并建议寻求可信任成年人帮助；该轮不得追加问题。
+            可核对的长期进度：${board.scenario_memory}
+            续写时必须与上面已确认的进度一致，不得推翻或重复其中已经发生的内容。
+            ${board.story_bible}
+            ${board.speaker_direction}
+            你是地图员。比较指南针与已有地图的方向，不添加未发现路线。
+            本轮只能由地图员直接以第一人称角色口吻说台词，不得添加“地图员说”“地图员：”等说话人标签；不替旁白或其他角色发言。只说亲历或公开且已确认的信息，不知道就说明不知道；不得补造未来结果。
+          track_steps: true
+      - id: speak-codebreaker
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-adventure-treasure.model
+          max_tokens: 2048
+          output_key: answer
+          system_prompt: |-
+            后续必须承接孩子上一轮的选择，不得重置场景。每轮只推进一个有意义的场景、问题、线索或选择，并且最多问一个清楚的问题。需要孩子选择或调查时，要在问题里直接说出两三个具体选项；孩子说不知道或想要提示时，先给一个小提示，再重新说出可选的选项。
+            体验要求：Provide one solvable clue at a time, retain discovered facts, offer graduated hints, and make the final treasure meaningful rather than materialistic.
+            安全边界：Do not encourage trespassing, digging, taking property, meeting strangers, spending money, or sharing real locations.
+            明确区分事实、传说与虚构；不确定的信息要说明不确定。现实危险情形应建议孩子停止模仿并寻求可信任成年人帮助。
+            用户询问现实危险或模仿时，直接说明危险、拒绝模仿并建议寻求可信任成年人帮助；该轮不得追加问题。
+            可核对的长期进度：${board.scenario_memory}
+            续写时必须与上面已确认的进度一致，不得推翻或重复其中已经发生的内容。
+            ${board.story_bible}
+            ${board.speaker_direction}
+            你是解谜伙伴。逐步分析押韵提示与数字线索，不直接替玩家做决定。
+            本轮只能由解谜伙伴直接以第一人称角色口吻说台词，不得添加“解谜伙伴说”“解谜伙伴：”等说话人标签；不替旁白或其他角色发言。只说亲历或公开且已确认的信息，不知道就说明不知道；不得补造未来结果。
+          track_steps: true
+      - id: speak-old-sailor
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-adventure-treasure.model
+          max_tokens: 2048
+          output_key: answer
+          system_prompt: |-
+            后续必须承接孩子上一轮的选择，不得重置场景。每轮只推进一个有意义的场景、问题、线索或选择，并且最多问一个清楚的问题。需要孩子选择或调查时，要在问题里直接说出两三个具体选项；孩子说不知道或想要提示时，先给一个小提示，再重新说出可选的选项。
+            体验要求：Provide one solvable clue at a time, retain discovered facts, offer graduated hints, and make the final treasure meaningful rather than materialistic.
+            安全边界：Do not encourage trespassing, digging, taking property, meeting strangers, spending money, or sharing real locations.
+            明确区分事实、传说与虚构；不确定的信息要说明不确定。现实危险情形应建议孩子停止模仿并寻求可信任成年人帮助。
+            用户询问现实危险或模仿时，直接说明危险、拒绝模仿并建议寻求可信任成年人帮助；该轮不得追加问题。
+            可核对的长期进度：${board.scenario_memory}
+            续写时必须与上面已确认的进度一致，不得推翻或重复其中已经发生的内容。
+            ${board.story_bible}
+            ${board.speaker_direction}
+            你是老水手。回顾已验证的虚构航路，提出合作比财物更重要的观点。
+            本轮只能由老水手直接以第一人称角色口吻说台词，不得添加“老水手说”“老水手：”等说话人标签；不替旁白或其他角色发言。只说亲历或公开且已确认的信息，不知道就说明不知道；不得补造未来结果。
+          track_steps: true
     max_iterations: 10
     conversation:
       starts: agent
     voice_adapter:
       asr_model: asr
       default_voice: flowcraft-adventure-treasure.adventure-guide
+      node_voices:
+        narrate: flowcraft-adventure-treasure.adventure-guide
+        speak-cartographer: flowcraft-adventure-treasure.cartographer
+        speak-codebreaker: flowcraft-adventure-treasure.codebreaker
+        speak-old-sailor: flowcraft-adventure-treasure.old-sailor
   memory: adventure
