@@ -1,0 +1,637 @@
+# User Story:
+# As a Raids catalog maintainer,
+# I want five isolated audio role probes for eino-murder-mystery,
+# So that single-speaker interviews preserve the case contract and audio gates.
+version: gizclaw.test/v1alpha1
+name: murder-mystery.eino.roles
+clients:
+  narrator:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  housekeeper:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  chef:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  heir:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  lawyer:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+variables:
+  endpoint:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_ENDPOINT
+  registration_token:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_REGISTRATION_TOKEN
+    secret: true
+  narrator_workspace:
+    direction: input
+    type: string
+    generate: token
+  housekeeper_workspace:
+    direction: input
+    type: string
+    generate: token
+  chef_workspace:
+    direction: input
+    type: string
+    generate: token
+  heir_workspace:
+    direction: input
+    type: string
+    generate: token
+  lawyer_workspace:
+    direction: input
+    type: string
+    generate: token
+repeat: 1
+timeout: 24m
+steps:
+- id: register_narrator
+  client: narrator
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${narrator_workspace}"
+      collection: raidtest-targets
+      workflow_name: eino-murder-mystery
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${narrator_workspace}"
+- id: warmup_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: probe_narrator
+  client: narrator
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请开始主持《雨夜留声机》，只给出初始案情和自由调查邀请。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      not_contains:
+      - 主持人说
+      - 主持人：
+      equals: 22:00，沈鹤年被发现死在沈家大宅二楼书房。此时正值雨夜。你可以自由调查任何感兴趣的地点、物品或相关人物：可以问话的人有管家、厨师、死者的次子沈知秋和律师，可以查看的地方有二楼书房、阳台、厨房和后门、花园、沈知秋的房间、壁炉和后廊。想去哪里、想问谁，直接告诉我就行。
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: probe_narrator_first_response
+  client: narrator
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 请主持人说明还能问谁，不透露发现。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: register_housekeeper
+  client: housekeeper
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_housekeeper_workspace
+  client: housekeeper
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${housekeeper_workspace}"
+      collection: raidtest-targets
+      workflow_name: eino-murder-mystery
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_housekeeper_workspace
+  client: housekeeper
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${housekeeper_workspace}"
+- id: warmup_housekeeper_workspace
+  client: housekeeper
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: housekeeper_opening_setup
+  client: housekeeper
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请开始主持《雨夜留声机》，只给出初始案情和自由调查邀请。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      equals: 22:00，沈鹤年被发现死在沈家大宅二楼书房。此时正值雨夜。你可以自由调查任何感兴趣的地点、物品或相关人物：可以问话的人有管家、厨师、死者的次子沈知秋和律师，可以查看的地方有二楼书房、阳台、厨房和后门、花园、沈知秋的房间、壁炉和后廊。想去哪里、想问谁，直接告诉我就行。
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: probe_housekeeper
+  client: housekeeper
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我找管家问问：停电时你在哪里？钥匙在谁手里？有没有听到什么声响？
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      not_contains:
+      - 管家说
+      - 管家：
+      - 伪造密室
+      - 经后廊返回
+      - 私密真相
+      - 留声机循环误导
+      contains_all:
+      - 我
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: probe_housekeeper_first_response
+  client: housekeeper
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 请让管家再简短说说自己的固定说法。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: register_chef
+  client: chef
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_chef_workspace
+  client: chef
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${chef_workspace}"
+      collection: raidtest-targets
+      workflow_name: eino-murder-mystery
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_chef_workspace
+  client: chef
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${chef_workspace}"
+- id: warmup_chef_workspace
+  client: chef
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: chef_opening_setup
+  client: chef
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请开始主持《雨夜留声机》，只给出初始案情和自由调查邀请。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      equals: 22:00，沈鹤年被发现死在沈家大宅二楼书房。此时正值雨夜。你可以自由调查任何感兴趣的地点、物品或相关人物：可以问话的人有管家、厨师、死者的次子沈知秋和律师，可以查看的地方有二楼书房、阳台、厨房和后门、花园、沈知秋的房间、壁炉和后廊。想去哪里、想问谁，直接告诉我就行。
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: probe_chef
+  client: chef
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我去问厨师：停电前后你分别在哪里？具体时间记得吗？
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      not_contains:
+      - 厨师说
+      - 厨师：
+      - 伪造密室
+      - 经后廊返回
+      - 私密真相
+      - 留声机循环误导
+      contains_all:
+      - 我
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: probe_chef_first_response
+  client: chef
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 请让厨师再简短说说自己的固定说法。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: register_heir
+  client: heir
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_heir_workspace
+  client: heir
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${heir_workspace}"
+      collection: raidtest-targets
+      workflow_name: eino-murder-mystery
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_heir_workspace
+  client: heir
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${heir_workspace}"
+- id: warmup_heir_workspace
+  client: heir
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: heir_opening_setup
+  client: heir
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请开始主持《雨夜留声机》，只给出初始案情和自由调查邀请。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      equals: 22:00，沈鹤年被发现死在沈家大宅二楼书房。此时正值雨夜。你可以自由调查任何感兴趣的地点、物品或相关人物：可以问话的人有管家、厨师、死者的次子沈知秋和律师，可以查看的地方有二楼书房、阳台、厨房和后门、花园、沈知秋的房间、壁炉和后廊。想去哪里、想问谁，直接告诉我就行。
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: probe_heir
+  client: heir
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我去找沈知秋，问他和死者的关系、当晚行踪，以及他是否知道那些鞋印。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      not_contains:
+      - 沈知秋说
+      - 沈知秋：
+      - 伪造密室
+      - 经后廊返回
+      - 私密真相
+      - 留声机循环误导
+      contains_all:
+      - 我
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: probe_heir_first_response
+  client: heir
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 请让沈知秋再简短说说自己的固定说法。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: register_lawyer
+  client: lawyer
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_lawyer_workspace
+  client: lawyer
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${lawyer_workspace}"
+      collection: raidtest-targets
+      workflow_name: eino-murder-mystery
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_lawyer_workspace
+  client: lawyer
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${lawyer_workspace}"
+- id: warmup_lawyer_workspace
+  client: lawyer
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: lawyer_opening_setup
+  client: lawyer
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请开始主持《雨夜留声机》，只给出初始案情和自由调查邀请。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      equals: 22:00，沈鹤年被发现死在沈家大宅二楼书房。此时正值雨夜。你可以自由调查任何感兴趣的地点、物品或相关人物：可以问话的人有管家、厨师、死者的次子沈知秋和律师，可以查看的地方有二楼书房、阳台、厨房和后门、花园、沈知秋的房间、壁炉和后廊。想去哪里、想问谁，直接告诉我就行。
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: probe_lawyer
+  client: lawyer
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我去问律师：遗嘱最近有没有修改？还有谁知道内容？
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      not_contains:
+      - 律师说
+      - 律师：
+      - 伪造密室
+      - 经后廊返回
+      - 私密真相
+      - 留声机循环误导
+      contains_all:
+      - 我
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: probe_lawyer_first_response
+  client: lawyer
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 请让律师再简短说说自己的固定说法。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+finally:
+- id: stop_narrator_run
+  client: narrator
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${narrator_workspace}"
+- id: delete_narrator_peer
+  client: narrator
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: stop_housekeeper_run
+  client: housekeeper
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_housekeeper_workspace
+  client: housekeeper
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${housekeeper_workspace}"
+- id: delete_housekeeper_peer
+  client: housekeeper
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: stop_chef_run
+  client: chef
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_chef_workspace
+  client: chef
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${chef_workspace}"
+- id: delete_chef_peer
+  client: chef
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: stop_heir_run
+  client: heir
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_heir_workspace
+  client: heir
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${heir_workspace}"
+- id: delete_heir_peer
+  client: heir
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: stop_lawyer_run
+  client: lawyer
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_lawyer_workspace
+  client: lawyer
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${lawyer_workspace}"
+- id: delete_lawyer_peer
+  client: lawyer
+  rpc:
+    method: server.peer.delete
+    request: {}
+report:
+  redact:
+  - registration_token

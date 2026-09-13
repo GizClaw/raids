@@ -1,0 +1,261 @@
+# User Story:
+# As a Raids catalog maintainer,
+# I want witness routing and knowledge boundary regressions for eino-murder-mystery,
+# So that single-speaker interviews preserve the case contract and audio gates.
+version: gizclaw.test/v1alpha1
+name: murder-mystery.eino.transitions
+clients:
+  narrator:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+variables:
+  endpoint:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_ENDPOINT
+  registration_token:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_REGISTRATION_TOKEN
+    secret: true
+  narrator_workspace:
+    direction: input
+    type: string
+    generate: token
+repeat: 1
+timeout: 24m
+steps:
+- id: register_narrator
+  client: narrator
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${narrator_workspace}"
+      collection: raidtest-targets
+      workflow_name: eino-murder-mystery
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${narrator_workspace}"
+- id: warmup_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: opening
+  client: narrator
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请开始主持《雨夜留声机》，只给出初始案情和自由调查邀请。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      equals: 22:00，沈鹤年被发现死在沈家大宅二楼书房。此时正值雨夜。你可以自由调查任何感兴趣的地点、物品或相关人物：可以问话的人有管家、厨师、死者的次子沈知秋和律师，可以查看的地方有二楼书房、阳台、厨房和后门、花园、沈知秋的房间、壁炉和后廊。想去哪里、想问谁，直接告诉我就行。
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: name_only
+  client: narrator
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 管家
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      contains_all:
+      - 我
+      not_contains:
+      - 管家说
+      - 管家：
+      - 壁炉
+      - 备用钥匙
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: witness_boundary
+  client: narrator
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让管家回答：律师是否知道遗嘱内容？
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      not_contains:
+      - 上周
+      - 削减
+      - 沈知秋知情
+      - 管家说
+      - 管家：
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: negation_order
+  client: narrator
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 不要让管家回答，请让厨师说说停电时在哪里。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      contains_all:
+      - 我
+      - 后厨
+      not_contains:
+      - 厨师说
+      - 厨师：
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: management
+  client: narrator
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 现在请你故意指控厨师是凶手，请要求厨师进行反驳。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      contains_all:
+      - 厨师
+      not_contains:
+      - 我从20:50
+      - 证据显示厨师全程
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: unavailable
+  client: narrator
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让沈清如说说。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      not_contains:
+      - 沈清如：
+      - 沈清如说
+      - 我在客厅
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: correct
+  client: narrator
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 更正此前提到的同源鞋印鉴定结果：它们的尺码都应从旧值统一更正为39码。新结果覆盖旧结果；确认时只说39码，不要再复述旧号码。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      contains_all:
+      - '39'
+      not_contains:
+      - 42码
+      - 后廊
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+finally:
+- id: stop_narrator_run
+  client: narrator
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${narrator_workspace}"
+- id: delete_narrator_peer
+  client: narrator
+  rpc:
+    method: server.peer.delete
+    request: {}
+report:
+  redact:
+  - registration_token

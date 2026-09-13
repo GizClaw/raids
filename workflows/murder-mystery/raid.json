@@ -47,9 +47,77 @@
         },
         "voices": {
           "flowcraft-murder-mystery.game-master": {
-            "role": "game-master",
+            "role": "narrator",
             "language": "zh-CN",
-            "description": "Game master voice"
+            "description": "主持人 voice"
+          },
+          "flowcraft-murder-mystery.housekeeper": {
+            "role": "housekeeper",
+            "language": "zh-CN",
+            "description": "管家 voice"
+          },
+          "flowcraft-murder-mystery.chef": {
+            "role": "chef",
+            "language": "zh-CN",
+            "description": "厨师 voice"
+          },
+          "flowcraft-murder-mystery.heir": {
+            "role": "heir",
+            "language": "zh-CN",
+            "description": "沈知秋 voice"
+          },
+          "flowcraft-murder-mystery.lawyer": {
+            "role": "lawyer",
+            "language": "zh-CN",
+            "description": "律师 voice"
+          }
+        }
+      }
+    },
+    "eino": {
+      "file": "eino.yaml",
+      "workflow_id": "eino-murder-mystery",
+      "driver": "eino",
+      "input": [
+        "text",
+        "push-to-talk"
+      ],
+      "memory": {
+        "layout_id": "adventure"
+      },
+      "parameters": {
+        "models": {
+          "eino-murder-mystery.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "eino-murder-mystery.game-master": {
+            "role": "narrator",
+            "language": "zh-CN",
+            "description": "主持人 voice"
+          },
+          "eino-murder-mystery.housekeeper": {
+            "role": "housekeeper",
+            "language": "zh-CN",
+            "description": "管家 voice"
+          },
+          "eino-murder-mystery.chef": {
+            "role": "chef",
+            "language": "zh-CN",
+            "description": "厨师 voice"
+          },
+          "eino-murder-mystery.heir": {
+            "role": "heir",
+            "language": "zh-CN",
+            "description": "沈知秋 voice"
+          },
+          "eino-murder-mystery.lawyer": {
+            "role": "lawyer",
+            "language": "zh-CN",
+            "description": "律师 voice"
           }
         }
       }
@@ -106,7 +174,44 @@
       "implementation": "flowcraft",
       "topology": "relay",
       "reload": true,
-      "timeout": "99m"
+      "timeout": "99m",
+      "responses": 26
+    },
+    {
+      "file": "tests/giztest/murder-mystery/flowcraft.roles.giztest.yaml",
+      "implementation": "flowcraft",
+      "topology": "isolated-role-probes",
+      "roles": 5,
+      "requires_audio": true
+    },
+    {
+      "file": "tests/giztest/murder-mystery/eino.roles.giztest.yaml",
+      "implementation": "eino",
+      "topology": "isolated-role-probes",
+      "roles": 5,
+      "requires_audio": true
+    },
+    {
+      "file": "tests/giztest/murder-mystery/eino.giztest.yaml",
+      "implementation": "eino",
+      "topology": "relay",
+      "reload": true,
+      "timeout": "99m",
+      "responses": 26
+    },
+    {
+      "file": "tests/giztest/murder-mystery/flowcraft.transitions.giztest.yaml",
+      "implementation": "flowcraft",
+      "topology": "stateful-transition-contract",
+      "responses": 7,
+      "requires_audio": true
+    },
+    {
+      "file": "tests/giztest/murder-mystery/eino.transitions.giztest.yaml",
+      "implementation": "eino",
+      "topology": "stateful-transition-contract",
+      "responses": 7,
+      "requires_audio": true
     }
   ]
 }
