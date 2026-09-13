@@ -152,8 +152,9 @@ Eino spoken implementations declare these additional Voice roles:
 
 Each alias is `<Workflow metadata.id>.<role>`. Both public RuntimeProfiles
 bind it to the same Voice resource as the corresponding Flowcraft default.
-Journey's three Eino variants accept text input and synthesize spoken output;
-their default-only adapters do not add ASR input support.
+Journey's three Eino variants accept text and push-to-talk input and synthesize
+spoken output. Like every Eino/Flowcraft voice adapter, they select the shared
+`asr` Model alias; custom RuntimeProfiles must bind it alongside their Voice aliases.
 
 For example, Journey resolves `flowcraft-journey-guide.narrator` exactly.
 Different scoped aliases may bind the
