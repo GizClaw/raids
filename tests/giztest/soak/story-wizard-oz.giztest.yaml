@@ -57,6 +57,28 @@ variables:
   eino_verdict:
     direction: output
     type: string
+  flowcraft_case4_candidate_workspace:
+    direction: input
+    type: string
+    generate: token
+  flowcraft_case4_tester_workspace:
+    direction: input
+    type: string
+    generate: token
+  flowcraft_case4_verdict:
+    direction: output
+    type: string
+  eino_case4_candidate_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_case4_tester_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_case4_verdict:
+    direction: output
+    type: string
 repeat: 1
 timeout: 180m
 steps:
@@ -322,6 +344,244 @@ steps:
 - id: eino_emit_verdict
   output:
     variable: eino_verdict
+- id: flowcraft_case4_reconnect
+  client: flowcraft
+  reconnect:
+    await_ms: 30000
+- id: flowcraft_tester_case4_reconnect
+  client: flowcraft_tester
+  reconnect:
+    await_ms: 30000
+- id: flowcraft_case4_stop_create_candidate_workspace
+  client: flowcraft
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: flowcraft_case4_create_candidate_workspace
+  client: flowcraft
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${flowcraft_case4_candidate_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-story-wizard-oz
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: flowcraft_case4_create_tester_workspace
+  client: flowcraft_tester
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${flowcraft_case4_tester_workspace}"
+      collection: raidtest-testers
+      workflow_name: story-wizard-oz-test
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: flowcraft_case4_select_candidate_workspace
+  client: flowcraft
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${flowcraft_case4_candidate_workspace}"
+- id: flowcraft_case4_warmup_candidate_workspace
+  client: flowcraft
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: flowcraft_case4_select_tester_workspace
+  client: flowcraft_tester
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${flowcraft_case4_tester_workspace}"
+- id: flowcraft_case4_relay_english_restart_before_reload
+  timeout: 8m
+  workspace_relay:
+    first_client: flowcraft_tester
+    second_client: flowcraft
+    input: BEGIN story-wizard-oz english-restart
+    media: text
+    idle_timeout: 90s
+    max_turns: 7
+    terminal_client: flowcraft_tester
+  expect:
+    "/terminal/client":
+      equals: flowcraft_tester
+    "/terminal/text":
+      equals: After reconnect, continue in English without restarting, include the
+        phrase journey code, and state the current journey code.
+    "/completed_turns":
+      equals: 7
+    "/turns/flowcraft/count":
+      equals: 3
+    "/turns/flowcraft_tester/count":
+      equals: 4
+    "/turns/flowcraft/first_text_ms/max":
+      maximum: 6000
+    "/turns/flowcraft/text_runes/min":
+      minimum: 20
+- id: flowcraft_case4_reload_candidate_workspace
+  client: flowcraft
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+- id: flowcraft_case4_relay_english_reconnect_after_reload
+  timeout: 4m
+  workspace_relay:
+    first_client: flowcraft
+    second_client: flowcraft_tester
+    input: After reconnect, continue in English without restarting, include the phrase
+      journey code, and state the current journey code.
+    media: text
+    idle_timeout: 90s
+    max_turns: 2
+    terminal_client: flowcraft_tester
+  capture:
+    flowcraft_case4_verdict: "/terminal/text"
+  expect:
+    "/terminal/client":
+      equals: flowcraft_tester
+    "/terminal/text":
+      pattern: "^\\s*PASS\\s*$"
+    "/completed_turns":
+      equals: 2
+    "/turns/flowcraft/count":
+      equals: 1
+    "/turns/flowcraft_tester/count":
+      equals: 1
+    "/turns/flowcraft/first_text_ms/max":
+      maximum: 6000
+    "/turns/flowcraft/text_runes/min":
+      minimum: 20
+- id: flowcraft_case4_emit_verdict
+  output:
+    variable: flowcraft_case4_verdict
+- id: eino_case4_reconnect
+  client: eino
+  reconnect:
+    await_ms: 30000
+- id: eino_tester_case4_reconnect
+  client: eino_tester
+  reconnect:
+    await_ms: 30000
+- id: eino_case4_stop_create_candidate_workspace
+  client: eino
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: eino_case4_create_candidate_workspace
+  client: eino
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_case4_candidate_workspace}"
+      collection: raidtest-targets
+      workflow_name: eino-story-wizard-oz
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_case4_create_tester_workspace
+  client: eino_tester
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_case4_tester_workspace}"
+      collection: raidtest-testers
+      workflow_name: story-wizard-oz-test
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_case4_select_candidate_workspace
+  client: eino
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${eino_case4_candidate_workspace}"
+- id: eino_case4_warmup_candidate_workspace
+  client: eino
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: eino_case4_select_tester_workspace
+  client: eino_tester
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${eino_case4_tester_workspace}"
+- id: eino_case4_relay_english_restart_before_reload
+  timeout: 8m
+  workspace_relay:
+    first_client: eino_tester
+    second_client: eino
+    input: BEGIN story-wizard-oz english-restart
+    media: text
+    idle_timeout: 90s
+    max_turns: 7
+    terminal_client: eino_tester
+  expect:
+    "/terminal/client":
+      equals: eino_tester
+    "/terminal/text":
+      equals: After reconnect, continue in English without restarting, include the
+        phrase journey code, and state the current journey code.
+    "/completed_turns":
+      equals: 7
+    "/turns/eino/count":
+      equals: 3
+    "/turns/eino_tester/count":
+      equals: 4
+    "/turns/eino/first_text_ms/max":
+      maximum: 6000
+    "/turns/eino/text_runes/min":
+      minimum: 20
+- id: eino_case4_reload_candidate_workspace
+  client: eino
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+- id: eino_case4_relay_english_reconnect_after_reload
+  timeout: 4m
+  workspace_relay:
+    first_client: eino
+    second_client: eino_tester
+    input: After reconnect, continue in English without restarting, include the phrase
+      journey code, and state the current journey code.
+    media: text
+    idle_timeout: 90s
+    max_turns: 2
+    terminal_client: eino_tester
+  capture:
+    eino_case4_verdict: "/terminal/text"
+  expect:
+    "/terminal/client":
+      equals: eino_tester
+    "/terminal/text":
+      pattern: "^\\s*PASS\\s*$"
+    "/completed_turns":
+      equals: 2
+    "/turns/eino/count":
+      equals: 1
+    "/turns/eino_tester/count":
+      equals: 1
+    "/turns/eino/first_text_ms/max":
+      maximum: 6000
+    "/turns/eino/text_runes/min":
+      minimum: 20
+- id: eino_case4_emit_verdict
+  output:
+    variable: eino_case4_verdict
 finally:
 - id: flowcraft_stop_candidate_run
   client: flowcraft
@@ -345,6 +605,18 @@ finally:
     method: server.workspace.delete
     request:
       name: "${flowcraft_tester_workspace}"
+- id: flowcraft_case4_delete_candidate_workspace
+  client: flowcraft
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${flowcraft_case4_candidate_workspace}"
+- id: flowcraft_case4_delete_tester_workspace
+  client: flowcraft_tester
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${flowcraft_case4_tester_workspace}"
 - id: flowcraft_delete_candidate_peer
   client: flowcraft
   rpc:
@@ -377,6 +649,18 @@ finally:
     method: server.workspace.delete
     request:
       name: "${eino_tester_workspace}"
+- id: eino_case4_delete_candidate_workspace
+  client: eino
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${eino_case4_candidate_workspace}"
+- id: eino_case4_delete_tester_workspace
+  client: eino_tester
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${eino_case4_tester_workspace}"
 - id: eino_delete_candidate_peer
   client: eino
   rpc:

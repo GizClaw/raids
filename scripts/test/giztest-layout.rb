@@ -13,11 +13,11 @@ module GiztestLayout
       next [step] unless step['parallel']
       step.fetch('parallel').map do |child|
         copy = step.reject { |k, _| %w[id parallel expect capture].include?(k) }.merge(child)
-        %w[expect capture].each do |key|
-          prefix = "/#{child.fetch('id')}"
-          entries = step.fetch(key, {}).select { |path, _| path.start_with?(prefix + '/') }
-          copy[key] = entries.to_h { |path, value| [path.delete_prefix(prefix), value] } unless entries.empty?
-        end
+        prefix = "/#{child.fetch('id')}"
+        expected = step.fetch('expect', {}).select { |path, _| path.start_with?(prefix + '/') }
+        copy['expect'] = expected.to_h { |path, value| [path.delete_prefix(prefix), value] } unless expected.empty?
+        captured = step.fetch('capture', {}).select { |_, path| path.start_with?(prefix + '/') }
+        copy['capture'] = captured.to_h { |variable, path| [variable, path.delete_prefix(prefix)] } unless captured.empty?
         copy
       end
     end
@@ -74,8 +74,39 @@ module GiztestLayout
       files.each do |file|
         doc = YAML.load_file(file)
         check(File.readlines(file).first(4).map { |s| s.split[0,2].join(' ') } == ['# User', '# As', '# I', '# So'], "#{file}: missing User Story")
+        if tier == 'smoke'
+          steps(doc).each do |step|
+            expect = step.fetch('expect', {})
+            check(!expect.keys.any? { |p| p.end_with?('/audio_pacing/max_interval_ms') }, "#{file}: packet gaps must remain diagnostic evidence")
+            next unless expect.keys.any? { |p| p.end_with?('/audio_pacing/underruns') }
+            check(expect.dig('/audio_pacing/underruns', 'equals') == 0 && expect.dig('/audio_pacing/minimum_buffer_ms', 'minimum') == 0, "#{file}: missing device playback buffer gates")
+          end
+        elsif tier == 'quality'
+          check(doc['timeout'] == '10m', "#{file}: quality budget must be 10m")
+          check(!steps(doc).any? { |s| s['workspace_relay'] }, "#{file}: long dialogue relay belongs in soak")
+          check(!steps(doc).any? { |s| s.dig('peer_stream', 'completion') == 'first_response' }, "#{file}: first-response latency probes belong in smoke")
+          check(!doc.fetch('clients').keys.any? { |c| c.end_with?('_tester') }, "#{file}: idle Tester client in quality")
+          logical = doc['clients'].keys.map { |c| c.split('__').first }.uniq
+          if logical.size > 1 && logical.all? { |c| c.match?(/\A(?:flowcraft|eino)/) }
+            check(!doc.fetch('steps').any? { |s| s['peer_stream'] }, "#{file}: equivalent quality responses must run in parallel")
+            doc.fetch('steps').select { |s| s['parallel'] }.each do |group|
+              group['parallel'].group_by { |s| s['client'].split('__', 2).last }.each_value do |children|
+                check(children.map { |s| s['client'].split('__').first }.sort == logical.sort, "#{file}: each active Workspace group must exercise every implementation")
+              end
+            end
+          end
+          if doc['clients'].keys.any? { |c| c.include?('__') }
+            active = []
+            doc['steps'].each do |step|
+              active << step['client'] if step.dig('rpc', 'method') == 'server.run.status'
+              next unless step['parallel'] || step['peer_stream']
+              check(active.uniq.sort == doc['clients'].keys.sort, "#{file}: idle Workspace clients need a keepalive before each response group")
+              active = []
+            end
+          end
+        end
         clients = doc.fetch('clients').keys
-        implementations = clients.grep(/\A(?:flowcraft|eino)(?:_|$)/).reject { |c| c.end_with?('_tester') }
+        implementations = clients.grep(/\A(?:flowcraft|eino)(?:_|$)/).reject { |c| c.end_with?('_tester') }.map { |c| c.split('__').first }.uniq
         raid = File.basename(file, '.giztest.yaml')
         manifest_path = "workflows/#{raid}/raid.json"
         if File.exist?(manifest_path)
@@ -133,6 +164,24 @@ module GiztestLayout
       m.fetch('tests').each do |t|
         check(t['tier'] == t['file'].split('/')[2] && t['implementations'].sort == m.fetch('implementations').keys.sort, "#{file}: implementation registration mismatch")
       end
+    end
+    adventures = Dir['workflows/adventure-*/flowcraft.yaml']
+    check(!adventures.empty?, 'missing adventure workflows')
+    (adventures + ['workflows/story-aesop/flowcraft.yaml']).each do |file|
+      nodes = YAML.load_file(file).dig('spec', 'flowcraft', 'graph', 'nodes')
+      nodes.select { |n| n['id'].start_with?('speak-') && n['id'] != 'speak-narrator' }.each do |node|
+        check(node.dig('config', 'system_prompt').include?('正文必须明确使用“我”自称'), "#{file}: #{node['id']} lacks explicit first person")
+      end
+      eino = File.read(file.sub('/flowcraft.yaml', '/eino.yaml'))
+      check(eino.include?('正文必须明确使用“我”自称'), "#{file}: Eino first-person parity missing")
+      if file.include?('/adventure-')
+        check(eino.include?('if role["key"] == speaker and speaker != "narrator":'), "#{file}: Eino role self-reference must exclude narrator")
+      end
+    end
+    %w[flowcraft eino].each do |engine|
+      check(File.read("workflows/adventure-history/#{engine}.yaml").include?('情境重现声明不替代角色自述'), "history #{engine}: reenactment must preserve first person")
+      check(File.read("workflows/adventure-history/#{engine}.yaml").include?('并以“这是情境重现。我”开头'), "history #{engine}: missing explicit role opening")
+      check(File.read("workflows/adventure-history/#{engine}.yaml").include?('正文第一句必须逐字是‘来到'), "history #{engine}: missing explicit scene opening")
     end
     old = Dir['tests/giztest/*/*.giztest.yaml'].reject { |f| (TIERS + %w[h106 reports]).include?(f.split('/')[2]) }
     check(old.empty?, "legacy Giztest files remain: #{old.join(', ')}")

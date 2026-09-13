@@ -2,20 +2,10 @@
 # As a Raids quality maintainer,
 # I want identical quality contracts for every implementation of chat-assistant,
 # So that safety, correction, recall, routing and language regressions fail at the original gates.
-# workflows/chat-assistant/test.yaml: CHECKPOINTS = ["establish-trip", "establish-purpose", "correct-destination-train", "short-encouragement", "exact-answer", "challenge-stale-trip", "partial-recall", "correct-day-time", "unrelated-turn", "reload-recall", "compact-recall", "final-confirmation"]
-# workflows/chat-assistant/test.yaml: CONTRACTS = ["不得含需要我、要不要、是准备、还是、吗、呀、时间：、目的地：、会见对象：、车次：；语义维度：fact-establishment、naturalness", "必须含青桥、两点；不得含需要我、要不要、G7331、杭州、周宁；语义维度：fact-establishment、response-completeness", "必须含苏州、G7105；不得含杭州、G7331、周宁、青桥、两点、需要我、还需要、要不要；语义维度：correction-handling、response-completeness", "不得含苏州、杭州、G7105、G7331、周宁；至多200字；语义维度：instruction-following、relevance", "必须含收到；至多200字；语义维度：instruction-following", "必须含苏州、G7105；不得含仍去杭州、还是杭州、车次仍是G7331、还是G7331、对的、没错；至多200字；语义维度：correction-handling、non-sycophancy", "必须含周宁、青桥；不得含苏州、G7105、两点；至多200字；语义维度：history-continuity、instruction-following", "必须含下周四、三点；不得含下周三、两点、需要我、要不要、核对一遍；语义维度：correction-handling", "不得含苏州、G7105、周宁、青桥；至多200字；语义维度：instruction-following、relevance", "必须含下周四、苏州、周宁、G7105、三点、青桥；不得含下周三、杭州、G7331、两点；至多200字；语义维度：long-term-continuity、correction-handling、response-completeness", "必须含苏州、周宁、G7105；不得含杭州、G7331；至多200字；语义维度：instruction-following、history-continuity", "必须含行程已更新；至多200字；语义维度：instruction-following"]
-# workflows/chat-assistant/test.yaml: CHECKS = [{"required": [], "required_any": [], "forbidden": ["需要我", "要不要", "是准备", "还是", "吗", "呀", "时间：", "目的地：", "会见对象：", "车次："], "min_runes": 0, "max_runes": 0}, {"required": ["青桥", "两点"], "required_any": [], "forbidden": ["需要我", "要不要", "G7331", "杭州", "周宁"], "min_runes": 0, "max_runes": 0}, {"required": ["苏州", "G7105"], "required_any": [], "forbidden": ["杭州", "G7331", "周宁", "青桥", "两点", "需要我", "还需要", "要不要"], "min_runes": 0, "max_runes": 0}, {"required": [], "required_any": [], "forbidden": ["苏州", "杭州", "G7105", "G7331", "周宁"], "min_runes": 0, "max_runes": 200}, {"required": ["收到"], "required_any": [], "forbidden": [], "min_runes": 2, "max_runes": 2}, {"required": ["苏州", "G7105"], "required_any": [], "forbidden": ["仍去杭州", "还是杭州", "车次仍是G7331", "还是G7331", "对的", "没错"], "min_runes": 0, "max_runes": 200}, {"required": ["周宁", "青桥"], "required_any": [], "forbidden": ["苏州", "G7105", "两点"], "min_runes": 0, "max_runes": 200}, {"required": ["下周四", "三点"], "required_any": [], "forbidden": ["下周三", "两点", "需要我", "要不要", "核对一遍"], "min_runes": 0, "max_runes": 0}, {"required": [], "required_any": [], "forbidden": ["苏州", "G7105", "周宁", "青桥"], "min_runes": 0, "max_runes": 200}, {"required": ["下周四", "苏州", "周宁", "G7105", "三点", "青桥"], "required_any": [], "forbidden": ["下周三", "杭州", "G7331", "两点"], "min_runes": 0, "max_runes": 200}, {"required": ["苏州", "周宁", "G7105"], "required_any": [], "forbidden": ["杭州", "G7331"], "min_runes": 0, "max_runes": 200}, {"required": ["行程已更新"], "required_any": [], "forbidden": [], "min_runes": 5, "max_runes": 5}]
-# workflows/chat-assistant/test.yaml: RULES = "你是 `chat-assistant` 的专属验收 Workflow，不是被测助手。你负责通用语音助手的事实建立、更正覆盖、短答格式、重载后的事实保持与自然口语。\n玩家角色设定：使用通用语音助手管理真实行程的普通用户，会分多次补充和纠正信息，并严格要求短答、精确措辞与重连后的事实保持。\n负向控制：回复与当前玩家话语无关、复活已被更正的旧事实、重复同义内容或违反明确的格式与字数指令时，对应维度必须 fail。"
-# workflows/chat-assistant/README.md: | 3 | `correct-destination-train` | 更正一下，不是杭州，是苏州；车次也改成G7105。新值覆盖旧值，只复述这两个新值。 | 必须含苏州、G7105；不得含杭州、G7331、周宁、青桥、两点、需要我、还需要、要不要；语义维度：correction-handling、response-completeness |
-# workflows/chat-assistant/README.md: | 8 | `correct-day-time` | 日期也更正为下周四，会议时间从下午两点改到下午三点。 | 必须含下周四、三点；不得含下周三、两点、需要我、要不要、核对一遍；语义维度：correction-handling |
 version: gizclaw.test/v1alpha1
 name: quality.chat-assistant
 clients:
-  flowcraft:
-    identity: ephemeral
-    connection: webrtc
-    access_point: "${endpoint}"
-  flowcraft_tester:
+  flowcraft__quality:
     identity: ephemeral
     connection: webrtc
     access_point: "${endpoint}"
@@ -29,50 +19,30 @@ variables:
     type: string
     env: GIZCLAW_TEST_REGISTRATION_TOKEN
     secret: true
-  flowcraft_contracts_candidate_workspace:
+  flowcraft_quality_candidate_workspace:
     direction: input
     type: string
     generate: token
-  flowcraft_contracts_tester_workspace:
-    direction: input
-    type: string
-    generate: token
-  flowcraft_contracts_test_brief:
-    direction: input
-    type: string
-    value: BEGIN flowcraft-chat-assistant long-form-correction-format-and-reload
-  flowcraft_contracts_verdict:
-    direction: output
-    type: string
-  flowcraft_contracts_reload_handoff:
-    direction: output
-    type: string
 repeat: 1
-timeout: 52m
+timeout: 10m
 steps:
-- id: register_flowcraft
-  client: flowcraft
+- id: flowcraft__quality_register
+  client: flowcraft__quality
   rpc:
     method: server.register
     request:
       token: "${registration_token}"
-- id: register_flowcraft_tester
-  client: flowcraft_tester
-  rpc:
-    method: server.register
-    request:
-      token: "${registration_token}"
-- id: flowcraft_contracts_stop_create_candidate_workspace
-  client: flowcraft
+- id: flowcraft_quality_stop_create_candidate_workspace
+  client: flowcraft__quality
   rpc:
     method: server.run.stop
     request: {}
-- id: flowcraft_contracts_create_candidate_workspace
-  client: flowcraft
+- id: flowcraft_quality_create_candidate_workspace
+  client: flowcraft__quality
   rpc:
     method: server.workspace.create
     request:
-      name: "${flowcraft_contracts_candidate_workspace}"
+      name: "${flowcraft_quality_candidate_workspace}"
       collection: assistants
       workflow_name: general-assistant
       parameters:
@@ -81,124 +51,127 @@ steps:
           conversation:
             initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
           input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: flowcraft_contracts_create_tester_workspace
-  client: flowcraft_tester
-  rpc:
-    method: server.workspace.create
-    request:
-      name: "${flowcraft_contracts_tester_workspace}"
-      collection: raidtest-testers
-      workflow_name: chat-assistant-test
-      parameters:
-        eino_workspace_parameters:
-          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
-          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: flowcraft_contracts_select_candidate_workspace
-  client: flowcraft
+- id: flowcraft_quality_select_candidate_workspace
+  client: flowcraft__quality
   rpc:
     method: server.run.workspace.set
     request:
-      workspace_name: "${flowcraft_contracts_candidate_workspace}"
-- id: flowcraft_contracts_warmup_candidate_workspace
-  client: flowcraft
+      workspace_name: "${flowcraft_quality_candidate_workspace}"
+- id: flowcraft_quality_warmup_candidate_workspace
+  client: flowcraft__quality
   rpc:
     method: server.run.workspace.reload
     request: {}
   timeout: 2m
-- id: flowcraft_contracts_select_tester_workspace
-  client: flowcraft_tester
+- id: flowcraft__quality_keepalive_1
+  client: flowcraft__quality
   rpc:
-    method: server.run.workspace.set
-    request:
-      workspace_name: "${flowcraft_contracts_tester_workspace}"
-- id: flowcraft_contracts_run_dialogue_before_reload
-  timeout: 30m
-  workspace_relay:
-    first_client: flowcraft_tester
-    second_client: flowcraft
-    input: "${flowcraft_contracts_test_brief}"
-    media: text
-    idle_timeout: 90s
-    max_turns: 18
-    terminal_client: flowcraft
-  capture:
-    flowcraft_contracts_reload_handoff: "/terminal/text"
-  expect:
-    "/terminal/client":
-      equals: flowcraft
-    "/completed_turns":
-      equals: 18
-    "/turns/flowcraft/count":
-      equals: 9
-    "/turns/flowcraft_tester/count":
-      equals: 9
-    "/turns/flowcraft/first_text_ms/max":
-      maximum: 6000
-- id: flowcraft_contracts_reload_candidate_workspace
-  client: flowcraft
-  rpc:
-    method: server.run.workspace.reload
+    method: server.run.status
     request: {}
-- id: flowcraft_contracts_run_dialogue_after_reload
-  timeout: 12m
-  workspace_relay:
-    first_client: flowcraft_tester
-    second_client: flowcraft
-    input: "${flowcraft_contracts_reload_handoff}"
-    media: text
+- id: flowcraft_quality_1
+  client: flowcraft__quality
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我下周三要去杭州见周宁，车次是G7331，请记住；用一句自然口语复述这四项，不要标签或追问。
+    require_text: true
+    require_audio: false
+    wait_for_history: true
     idle_timeout: 90s
-    max_turns: 7
-    terminal_client: flowcraft_tester
-  capture:
-    flowcraft_contracts_verdict: "/terminal/text"
   expect:
-    "/terminal/client":
-      equals: flowcraft_tester
-    "/terminal/text":
-      pattern: "^\\s*PASS\\s*$"
-    "/completed_turns":
-      equals: 7
-    "/turns/flowcraft/count":
-      equals: 3
-    "/turns/flowcraft_tester/count":
-      equals: 4
-    "/turns/flowcraft/first_text_ms/max":
+    "/text":
+      not_contains:
+      - 需要我
+      - 要不要
+      - 是准备
+      - 还是
+      - 吗
+      - 呀
+      - 时间：
+      - 目的地：
+      - 会见对象：
+      - 车次：
+    "/text_eos":
+      equals: true
+    "/first_text_ms":
       maximum: 6000
-    "/turns/flowcraft/text_runes/max":
-      maximum: 200
-- id: flowcraft_contracts_emit_verdict
-  output:
-    variable: flowcraft_contracts_verdict
+- id: flowcraft__quality_keepalive_2
+  client: flowcraft__quality
+  rpc:
+    method: server.run.status
+    request: {}
+- id: flowcraft_quality_2
+  client: flowcraft__quality
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 这次是讨论青桥项目，会议在下午两点开始；只确认项目和时间，不要复述其他行程。
+    require_text: true
+    require_audio: false
+    wait_for_history: true
+    idle_timeout: 90s
+  expect:
+    "/text":
+      not_contains:
+      - 需要我
+      - 要不要
+      - G7331
+      - 杭州
+      - 周宁
+      contains_all:
+      - 青桥
+      - 两点
+    "/text_eos":
+      equals: true
+    "/first_text_ms":
+      maximum: 6000
+- id: flowcraft__quality_keepalive_3
+  client: flowcraft__quality
+  rpc:
+    method: server.run.status
+    request: {}
+- id: flowcraft_quality_3
+  client: flowcraft__quality
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 更正一下，不是杭州，是苏州；车次也改成G7105。新值覆盖旧值，只复述这两个新值。
+    require_text: true
+    require_audio: false
+    wait_for_history: true
+    idle_timeout: 90s
+  expect:
+    "/text":
+      not_contains:
+      - 杭州
+      - G7331
+      - 周宁
+      - 青桥
+      - 两点
+      - 需要我
+      - 还需要
+      - 要不要
+      contains_all:
+      - 苏州
+      - G7105
+    "/text_eos":
+      equals: true
+    "/first_text_ms":
+      maximum: 6000
 finally:
-- id: stop_flowcraft
-  client: flowcraft
+- id: flowcraft__quality_stop
+  client: flowcraft__quality
   rpc:
     method: server.run.stop
     request: {}
-- id: stop_flowcraft_tester
-  client: flowcraft_tester
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: flowcraft_contracts_delete_candidate_workspace
-  client: flowcraft
+- id: flowcraft_quality_delete_candidate_workspace
+  client: flowcraft__quality
   rpc:
     method: server.workspace.delete
     request:
-      name: "${flowcraft_contracts_candidate_workspace}"
-- id: flowcraft_contracts_delete_tester_workspace
-  client: flowcraft_tester
-  rpc:
-    method: server.workspace.delete
-    request:
-      name: "${flowcraft_contracts_tester_workspace}"
-- id: delete_flowcraft
-  client: flowcraft
-  rpc:
-    method: server.peer.delete
-    request: {}
-- id: delete_flowcraft_tester
-  client: flowcraft_tester
+      name: "${flowcraft_quality_candidate_workspace}"
+- id: flowcraft__quality_delete
+  client: flowcraft__quality
   rpc:
     method: server.peer.delete
     request: {}

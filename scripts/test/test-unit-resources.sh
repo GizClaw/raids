@@ -229,7 +229,8 @@ for package in workflows/story-*; do
 			}
 		done
         ruby -ryaml -e '
-          step = YAML.load_file(ARGV[0]).fetch("steps").find { |s| s["id"] == "#{ARGV[1]}_transitions_enter_next_chapter_with_story" }
+          require File.expand_path("scripts/test/giztest-layout.rb")
+          step = GiztestLayout.steps(YAML.load_file(ARGV[0])).find { |s| s["id"] == "#{ARGV[1]}_transitions_enter_next_chapter_with_story" }
           pattern = step && step.dig("expect", "/text", "pattern")
           abort "#{ARGV[0]}: #{ARGV[1]} missing chapter-opening continuation assertion" unless pattern && pattern.include?("第 2 章[：:]") && pattern.include?("{20,}")
         ' "$test_file" "$engine"
