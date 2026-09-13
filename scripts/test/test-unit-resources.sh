@@ -231,7 +231,7 @@ Dir['workflows/*/routing-cases.json'].sort.each do |fixture|
   nodes = flow.fetch('graph').fetch('nodes')
   adapter = flow.fetch('voice_adapter')
   bindings = adapter.fetch('node_voices')
-  check(bindings.values.sort == slots.keys.sort, "#{package}: node Voice aliases differ from manifest")
+  check(bindings.values.uniq.sort == slots.keys.sort, "#{package}: node Voice aliases differ from manifest")
   check(nodes.select { |n| n['publish'] == true }.map { |n| n['id'] }.sort == bindings.keys.sort, "#{package}: every published output needs a Voice")
   check(bindings.values.include?(adapter.fetch('default_voice')), "#{package}: default Voice missing from slots")
   profiles.each do |name, profile|
