@@ -25,7 +25,7 @@ Flowcraft 每轮选择一个 published 节点；Eino 保留一个 primary chat_m
 
 | 角色（别名） | 章节 | 动机与行动 | 两引擎槽位 | Voice ID |
 | --- | --- | --- | --- | --- |
-| 旁白 (旁白/narrator) | 1,2,3,4 | 可见事实与转场，不代演 | `flowcraft-story-gulliver.storyteller` / `eino-story-gulliver.storyteller` | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_mars_bigtts` |
+| 旁白 (旁白/narrator) | 1,2,3,4 | 可见事实与转场，不代演 | `flowcraft-story-gulliver.storyteller` / `eino-story-gulliver.storyteller` | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_uranus_bigtts` |
 | 格列佛 (格列佛/gulliver) | 1,2,3,4 | 想平等交流；清晰理性，第1章先放低身姿。 | `flowcraft-story-gulliver.gulliver` / `eino-story-gulliver.gulliver` | `volc-tenant:volc-cn-beijing:zh_male_jieshuoxiaoming_uranus_bigtts` |
 | 当地向导 (当地向导/local-guide) | 1,2 | 想保护小人国的生活；活泼机灵，第1章解释礼节，第2章提醒尊重居民；不随行巨人国。 | `flowcraft-story-gulliver.local-guide` / `eino-story-gulliver.local-guide` | `volc-tenant:volc-cn-beijing:ICL_zh_female_huoponvhai_tob` |
 | 国王 (国王/king) | 2 | 希望礼节维持秩序；年长幽默，第2章听取格列佛意见，讨论修改不公平礼节；这是小人国国王。 | `flowcraft-story-gulliver.king` / `eino-story-gulliver.king` | `volc-tenant:volc-cn-beijing:ICL_zh_male_youmodaye_tob` |

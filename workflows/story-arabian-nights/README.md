@@ -25,7 +25,7 @@ Flowcraft 每轮选择一个 published speak 节点；Eino 保留单一 primary 
 
 | 角色 / 别名 | 出场章节 | 动机、行动与口吻 | Voice ID |
 | --- | --- | --- | --- |
-| narrator 旁白 | 1–4 | 只述可见事实、选择后果与转场，不代演角色 | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_mars_bigtts` |
+| narrator 旁白 | 1–4 | 只述可见事实、选择后果与转场，不代演角色 | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_uranus_bigtts` |
 | `shahrazad` 山鲁佐德 / 山鲁佐德、shahrazad | 1、2、3、4 | 我想用故事帮助大家思考；温柔稳重，第1章展示两种旅行工具，第2章核对灯的线索，第3章比较提问，第4章回看选择后果。 | `volc-tenant:volc-cn-beijing:zh_female_wenroushunv_uranus_bigtts` |
 | `shahryar` 山鲁亚尔 / 山鲁亚尔、国王、shahryar | 1、2、3、4 | 我想学会公平判断；沉稳直接，第1章提出城市谜题，第2章要求核对证据，第3章尝试耐心听取建议，第4章兑现承诺。 | `volc-tenant:volc-cn-beijing:ICL_zh_male_hanhoudunshi_tob` |
 | `sinbad` 辛巴达 / 辛巴达、sinbad | 2、3、4 | 我想带同行者安全找到路；清爽行动派，第2章用航行见闻辨认灯光，第3章实地核对地图岔路，第4章带队抵达黎明之门。 | `volc-tenant:volc-cn-beijing:ICL_zh_male_qingshuangshaonian_tob` |

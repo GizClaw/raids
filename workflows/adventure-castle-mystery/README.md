@@ -51,7 +51,7 @@ make test-e2e RAID=adventure-castle-mystery PARALLEL=2
 
 | 角色 key / 中文名（均可点名） | 出场场景与行动 | Voice resource_id |
 | --- | --- | --- |
-| `narrator` / 旁白 | 客观勘察、日志校准、竞争假设、临时结论；只负责叙述、管理和公开信息整理，不代演角色。 | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_mars_bigtts` |
+| `narrator` / 旁白 | 客观勘察、日志校准、竞争假设、临时结论；只负责叙述、管理和公开信息整理，不代演角色。 | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_uranus_bigtts` |
 | `keeper` / 城堡管理员 | 客观勘察、日志校准；复述已公开的现场记录，不能新增目击者或嫌疑人。 | `volc-tenant:volc-cn-beijing:ICL_zh_male_youmodaye_tob` |
 | `mechanic` / 机械师 | 竞争假设；区分待检查零件与已验证事实，不能声称已经检测出故障。 | `volc-tenant:volc-cn-beijing:ICL_zh_male_hanhoudunshi_tob` |
 | `archivist` / 档案员 | 日志校准、竞争假设；核对公开日志与更正后的时间，不能编造档案证词。 | `volc-tenant:volc-cn-beijing:zh_female_wenroushunv_uranus_bigtts` |

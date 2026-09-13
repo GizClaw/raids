@@ -45,7 +45,7 @@ make test-e2e RAID=adventure-nature PARALLEL=2
 
 | 角色 key / 中文名（均可点名） | 出场场景与行动 | Voice resource_id |
 | --- | --- | --- |
-| `narrator` / 旁白 | 步道观察、叶片观察、足迹观察；只负责叙述、管理和公开信息整理，不代演角色。 | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_mars_bigtts` |
+| `narrator` / 旁白 | 步道观察、叶片观察、足迹观察；只负责叙述、管理和公开信息整理，不代演角色。 | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_uranus_bigtts` |
 | `ranger` / 护林员 | 步道观察、足迹观察；检查标记步道和观察距离，解释不留痕迹的理由。 | `volc-tenant:volc-cn-beijing:ICL_zh_male_hanhoudunshi_tob` |
 | `botanist` / 植物观察员 | 步道观察、叶片观察；比较叶片水珠与叶形，只描述可见特征，不鼓励尝食。 | `volc-tenant:volc-cn-beijing:zh_female_wenroushunv_uranus_bigtts` |
 | `tracker` / 足迹观察员 | 足迹观察；比较足迹方向和形状，不凭一个脚印断言物种。 | `volc-tenant:volc-cn-beijing:ICL_zh_male_qingshuangshaonian_tob` |

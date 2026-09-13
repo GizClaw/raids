@@ -45,7 +45,7 @@ make test-e2e RAID=adventure-treasure PARALLEL=2
 
 | 角色 key / 中文名（均可点名） | 出场场景与行动 | Voice resource_id |
 | --- | --- | --- |
-| `narrator` / 旁白 | 地图观察、诗句解谜、航路回顾；只负责叙述、管理和公开信息整理，不代演角色。 | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_mars_bigtts` |
+| `narrator` / 旁白 | 地图观察、诗句解谜、航路回顾；只负责叙述、管理和公开信息整理，不代演角色。 | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_uranus_bigtts` |
 | `cartographer` / 地图员 | 地图观察、诗句解谜；比较指南针与已有地图的方向，不添加未发现路线。 | `volc-tenant:volc-cn-beijing:zh_male_jieshuoxiaoming_uranus_bigtts` |
 | `codebreaker` / 解谜伙伴 | 诗句解谜；逐步分析押韵提示与数字线索，不直接替玩家做决定。 | `volc-tenant:volc-cn-beijing:ICL_zh_female_huoponvhai_tob` |
 | `old-sailor` / 老水手 | 航路回顾；回顾已验证的虚构航路，提出合作比财物更重要的观点。 | `volc-tenant:volc-cn-beijing:ICL_zh_male_youmodaye_tob` |

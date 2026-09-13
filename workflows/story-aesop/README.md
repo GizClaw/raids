@@ -34,7 +34,7 @@ Both `runtime-profiles/default.yaml` and `testing.yaml` bind these exact IDs und
 
 | Role / aliases | Chapters | Action / perspective | Slot suffix | Full Voice resource ID |
 | --- | --- | --- | --- | --- |
-| narrator / 旁白 | 1–4 | visible consequences and management; never impersonates characters | storyteller | volc-tenant:volc-cn-beijing:zh_female_shaoergushi_mars_bigtts |
+| narrator / 旁白 | 1–4 | visible consequences and management; never impersonates characters | storyteller | volc-tenant:volc-cn-beijing:zh_female_shaoergushi_uranus_bigtts |
 | tortoise / 乌龟 / 小乌龟 | 1–4 | patient planting and care | tortoise | volc-tenant:volc-cn-beijing:ICL_zh_male_hanhoudunshi_tob |
 | bird / 小鸟 / 鸟儿 | 1–4 | immediate hunger and observations from branches | bird | volc-tenant:volc-cn-beijing:ICL_zh_female_huoponvhai_tob |
 | rabbit / 兔子 / 小兔 | 1–4 | carries the seed in chapter 1 and water in chapter 3; eager, childlike | rabbit | volc-tenant:volc-cn-beijing:zh_male_naiqimengwa_uranus_bigtts |

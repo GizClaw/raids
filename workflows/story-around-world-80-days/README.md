@@ -25,7 +25,7 @@ Flowcraft 每轮选择一个 published speak 节点；Eino 保留单一 primary 
 
 | 角色 / 别名 | 出场章节 | 动机、行动与口吻 | Voice ID |
 | --- | --- | --- | --- |
-| narrator 旁白 | 1–4 | 只述可见事实、选择后果与转场，不代演角色 | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_mars_bigtts` |
+| narrator 旁白 | 1–4 | 只述可见事实、选择后果与转场，不代演角色 | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_uranus_bigtts` |
 | `fogg` 福格 / 福格、福格先生、fogg | 1、2、3、4 | 我想守时又守信；清晰克制，第1章比较车船时刻，第2章换算当地时间，第3章核对改道风险，第4章计算归期。 | `volc-tenant:volc-cn-beijing:zh_male_jieshuoxiaoming_uranus_bigtts` |
 | `aouda` 艾娥达 / 艾娥达、aouda | 1、2、3、4 | 我想照顾旅伴；温柔细心，第1章核对随身物品，第2章提醒休息，第3章优先安排安全候船，第4章记录大家的互助。 | `volc-tenant:volc-cn-beijing:zh_female_wenroushunv_uranus_bigtts` |
 | `passepartout` 路路通 / 路路通、passepartout | 1、2、3、4 | 我想把旅程安排妥当；清爽利落，第1章搬行李并核对站台，第2章校准怀表，第3章寻找公开改道公告，第4章核对日期。 | `volc-tenant:volc-cn-beijing:ICL_zh_male_qingshuangshaonian_tob` |

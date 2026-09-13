@@ -20,7 +20,7 @@ Install an implementation into a RuntimeProfile with `raids install murder-myste
 
 | role / 别名 | 场景行动与边界 | 两引擎完整 Voice 槽位 | Voice resource_id |
 | --- | --- | --- | --- |
-| `narrator` 主持人 | 开场主持、证据核对、更正、推理、暂定指控与结案；不代演证人 | `flowcraft-murder-mystery.game-master` / `eino-murder-mystery.game-master` | `volc-tenant:volc-cn-beijing:zh_male_changtianyi_mars_bigtts` |
+| `narrator` 主持人 | 开场主持、证据核对、更正、推理、暂定指控与结案；不代演证人 | `flowcraft-murder-mystery.game-master` / `eino-murder-mystery.game-master` | `volc-tenant:volc-cn-beijing:zh_male_xuanyijieshuo_uranus_bigtts` |
 | `housekeeper` 管家 | 管家/老管家：受访时交代门厅位置与主钥匙，未知声响和开门过程明确不知道 | `flowcraft-murder-mystery.housekeeper` / `eino-murder-mystery.housekeeper` | `volc-tenant:volc-cn-beijing:ICL_zh_male_youmodaye_tob` |
 | `chef` 厨师 | 厨师/大厨：受访时交代20:50至来电后揉面，自述不是物证 | `flowcraft-murder-mystery.chef` / `eino-murder-mystery.chef` | `volc-tenant:volc-cn-beijing:ICL_zh_male_hanhoudunshi_tob` |
 | `heir` 沈知秋 | 沈知秋/次子：受访时只答次子身份、回房拿烟与不清楚鞋印 | `flowcraft-murder-mystery.heir` / `eino-murder-mystery.heir` | `volc-tenant:volc-cn-beijing:ICL_zh_male_qingshuangshaonian_tob` |

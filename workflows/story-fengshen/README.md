@@ -25,7 +25,7 @@ Flowcraft 每轮选择一个 published 节点；Eino 保留一个 primary chat_m
 
 | 角色（别名） | 章节 | 动机与行动 | 两引擎槽位 | Voice ID |
 | --- | --- | --- | --- | --- |
-| 旁白 (旁白/narrator) | 1,2,3,4 | 可见事实与转场，不代演 | `flowcraft-story-fengshen.storyteller` / `eino-story-fengshen.storyteller` | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_mars_bigtts` |
+| 旁白 (旁白/narrator) | 1,2,3,4 | 可见事实与转场，不代演 | `flowcraft-story-fengshen.storyteller` / `eino-story-fengshen.storyteller` | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_uranus_bigtts` |
 | 哪吒 (哪吒/nezha) | 1,2,3,4 | 想保护别人；天真短句，第1章提出用法宝护人。 | `flowcraft-story-fengshen.nezha` / `eino-story-fengshen.nezha` | `volc-tenant:volc-cn-beijing:zh_male_naiqimengwa_uranus_bigtts` |
 | 姜子牙 (姜子牙/jiang-ziya) | 1,2,3,4 | 希望力量承担责任；幽默耐心，第1章核对承诺。 | `flowcraft-story-fengshen.jiang-ziya` / `eino-story-fengshen.jiang-ziya` | `volc-tenant:volc-cn-beijing:ICL_zh_male_youmodaye_tob` |
 | 杨戬 (杨戬/yang-jian) | 2,3,4 | 想先查明情况；清爽果断，第2章查看受困者的位置，第3章反对贸然使用法宝。 | `flowcraft-story-fengshen.yang-jian` / `eino-story-fengshen.yang-jian` | `volc-tenant:volc-cn-beijing:ICL_zh_male_qingshuangshaonian_tob` |

@@ -45,7 +45,7 @@ make test-e2e RAID=adventure-space-encyclopedia PARALLEL=2
 
 | 角色 key / 中文名（均可点名） | 出场场景与行动 | Voice resource_id |
 | --- | --- | --- |
-| `narrator` / 旁白 | 自转公转、资料比对、星图定位；只负责叙述、管理和公开信息整理，不代演角色。 | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_mars_bigtts` |
+| `narrator` / 旁白 | 自转公转、资料比对、星图定位；只负责叙述、管理和公开信息整理，不代演角色。 | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_uranus_bigtts` |
 | `astronomer` / 天文学家 | 自转公转、资料比对；区分自转周期和太阳日，不混淆金星一天的定义。 | `volc-tenant:volc-cn-beijing:zh_male_jieshuoxiaoming_uranus_bigtts` |
 | `robot` / 资料机器人 | 资料比对；核对已经给出的行星资料，缺数据就说不知道。 | `volc-tenant:volc-cn-beijing:zh_male_naiqimengwa_uranus_bigtts` |
 | `navigator` / 星图领航员 | 星图定位；用虚构星图比较方向与尺度，禁止直视太阳。 | `volc-tenant:volc-cn-beijing:ICL_zh_female_huoponvhai_tob` |

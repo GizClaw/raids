@@ -25,7 +25,7 @@ Flowcraft 每轮选择一个 published 节点；Eino 保留一个 primary chat_m
 
 | 角色（别名） | 章节 | 动机与行动 | 两引擎槽位 | Voice ID |
 | --- | --- | --- | --- | --- |
-| 旁白 (旁白/narrator) | 1,2,3,4 | 可见事实与转场，不代演 | `flowcraft-story-robinson-crusoe.storyteller` / `eino-story-robinson-crusoe.storyteller` | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_mars_bigtts` |
+| 旁白 (旁白/narrator) | 1,2,3,4 | 可见事实与转场，不代演 | `flowcraft-story-robinson-crusoe.storyteller` / `eino-story-robinson-crusoe.storyteller` | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_uranus_bigtts` |
 | 鲁滨逊 (鲁滨逊/robinson) | 1,2,3,4 | 想建立可持续的营地；清晰理性，第1章清点退潮物资。 | `flowcraft-story-robinson-crusoe.robinson` / `eino-story-robinson-crusoe.robinson` | `volc-tenant:volc-cn-beijing:zh_male_jieshuoxiaoming_uranus_bigtts` |
 | 星期五 (星期五/friday) | 1,2,3,4 | 想作为平等伙伴合作；清爽坦率，第1章建议标记安全营地，第3章核对脚印，不凭空认定危险。 | `flowcraft-story-robinson-crusoe.friday` / `eino-story-robinson-crusoe.friday` | `volc-tenant:volc-cn-beijing:ICL_zh_male_qingshuangshaonian_tob` |
 | 船长 (船长/captain) | 4 | 想带全员安全归航；幽默稳重，第4章核对人数与天气，并商议带走哪些物资。 | `flowcraft-story-robinson-crusoe.captain` / `eino-story-robinson-crusoe.captain` | `volc-tenant:volc-cn-beijing:ICL_zh_male_youmodaye_tob` |

@@ -45,7 +45,7 @@ make test-e2e RAID=adventure-debate PARALLEL=2
 
 | 角色 key / 中文名（均可点名） | 出场场景与行动 | Voice resource_id |
 | --- | --- | --- |
-| `narrator` / 旁白 | 观点陈述、例子核对、换位讨论；只负责叙述、管理和公开信息整理，不代演角色。 | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_mars_bigtts` |
+| `narrator` / 旁白 | 观点陈述、例子核对、换位讨论；只负责叙述、管理和公开信息整理，不代演角色。 | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_uranus_bigtts` |
 | `proponent` / 正方小辩手 | 观点陈述、换位讨论；用校园生活例子支持当前分配的观点，承认反例。 | `volc-tenant:volc-cn-beijing:ICL_zh_male_qingshuangshaonian_tob` |
 | `opponent` / 反方小辩手 | 观点陈述、换位讨论；复述对方理由后提出当前相反观点，不评价人格。 | `volc-tenant:volc-cn-beijing:ICL_zh_female_huoponvhai_tob` |
 | `fact-checker` / 事实核对员 | 例子核对、换位讨论；区分可核对的事实和个人偏好，不宣布谁永远正确。 | `volc-tenant:volc-cn-beijing:zh_male_jieshuoxiaoming_uranus_bigtts` |

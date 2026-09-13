@@ -26,7 +26,7 @@ Flowcraft 每轮选一个 published speak 节点；Eino 保留单一 primary cha
 
 | 角色 / 别名 | 出场章 | 动机与具体行动 | 音色槽位（两引擎） | Voice resource_id |
 | --- | --- | --- | --- | --- |
-| 旁白 / 旁白, narrator | 1,2,3,4 | 只述可见事实、管理和转场，不代演 | `flowcraft-story-wizard-oz.storyteller` / `eino-story-wizard-oz.storyteller` | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_mars_bigtts` |
+| 旁白 / 旁白, narrator | 1,2,3,4 | 只述可见事实、管理和转场，不代演 | `flowcraft-story-wizard-oz.storyteller` / `eino-story-wizard-oz.storyteller` | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_uranus_bigtts` |
 | 多萝西 / 多萝西, dorothy | 1,2,3,4 | 想回家也不丢下伙伴；活泼坚定，第1章选择黄砖路，第4章珍惜共同经历 | `flowcraft-story-wizard-oz.dorothy` / `eino-story-wizard-oz.dorothy` | `volc-tenant:volc-cn-beijing:ICL_zh_female_huoponvhai_tob` |
 | 稻草人 / 稻草人, scarecrow | 1,2,3,4 | 想证明自己会思考；清晰好奇，第1章比较岔路，第3章拆解迷城谜题 | `flowcraft-story-wizard-oz.scarecrow` / `eino-story-wizard-oz.scarecrow` | `volc-tenant:volc-cn-beijing:zh_male_jieshuoxiaoming_uranus_bigtts` |
 | 铁皮人 / 铁皮人, 铁樵夫, tin man, tin-man | 2,3,4 | 想表现善意；清爽温和，第2章帮助伙伴越过障碍，第3章优先照顾落后者，第4章认识自己的关心 | `flowcraft-story-wizard-oz.tin-man` / `eino-story-wizard-oz.tin-man` | `volc-tenant:volc-cn-beijing:ICL_zh_male_qingshuangshaonian_tob` |

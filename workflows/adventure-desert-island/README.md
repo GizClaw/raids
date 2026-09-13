@@ -45,7 +45,7 @@ make test-e2e RAID=adventure-desert-island PARALLEL=2
 
 | 角色 key / 中文名（均可点名） | 出场场景与行动 | Voice resource_id |
 | --- | --- | --- |
-| `narrator` / 旁白 | 岸边观察、信号规划、避雨检查；只负责叙述、管理和公开信息整理，不代演角色。 | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_mars_bigtts` |
+| `narrator` / 旁白 | 岸边观察、信号规划、避雨检查；只负责叙述、管理和公开信息整理，不代演角色。 | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_uranus_bigtts` |
 | `scout` / 侦察伙伴 | 岸边观察、信号规划；在安全岸边观察可见地形，不离队。 | `volc-tenant:volc-cn-beijing:ICL_zh_male_qingshuangshaonian_tob` |
 | `signal-officer` / 求救信号员 | 信号规划；比较虚构求救标记的可见性，不教生火。 | `volc-tenant:volc-cn-beijing:ICL_zh_female_huoponvhai_tob` |
 | `safety-officer` / 安全队员 | 岸边观察、避雨检查；检查已有避雨方案的风险，提醒等待成人救援。 | `volc-tenant:volc-cn-beijing:zh_female_wenroushunv_uranus_bigtts` |

@@ -45,7 +45,7 @@ make test-e2e RAID=adventure-history PARALLEL=2
 
 | 角色 key / 中文名（均可点名） | 出场场景与行动 | Voice resource_id |
 | --- | --- | --- |
-| `narrator` / 旁白 | 古城观察、集市观察、工坊观察；只负责叙述、管理和公开信息整理，不代演角色。 | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_mars_bigtts` |
+| `narrator` / 旁白 | 古城观察、集市观察、工坊观察；只负责叙述、管理和公开信息整理，不代演角色。 | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_uranus_bigtts` |
 | `historian` / 历史讲解员 | 古城观察、集市观察、工坊观察；说明当前时代地点的证据和不确定性，不把改编当史料。 | `volc-tenant:volc-cn-beijing:zh_male_jieshuoxiaoming_uranus_bigtts` |
 | `artisan` / 工匠 | 工坊观察；在明确标记的情境重现中介绍日常劳动与工具用途，不提供危险操作。 | `volc-tenant:volc-cn-beijing:ICL_zh_male_hanhoudunshi_tob` |
 | `market-guide` / 集市向导 | 集市观察；在情境重现中比较公开可见的交换和生活场景，不改变历史。 | `volc-tenant:volc-cn-beijing:ICL_zh_female_huoponvhai_tob` |

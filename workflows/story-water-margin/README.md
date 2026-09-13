@@ -25,11 +25,11 @@ Flowcraft 每轮选一个 published speak 节点；Eino 保留单一 primary cha
 
 | 角色 / 别名 | 出场章 | 动机与具体行动 | 音色槽位（两引擎） | Voice resource_id |
 | --- | --- | --- | --- | --- |
-| 旁白 / 旁白, narrator | 1,2,3,4 | 只述可见事实、管理和转场，不代演 | `flowcraft-story-water-margin.storyteller` / `eino-story-water-margin.storyteller` | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_mars_bigtts` |
+| 旁白 / 旁白, narrator | 1,2,3,4 | 只述可见事实、管理和转场，不代演 | `flowcraft-story-water-margin.storyteller` / `eino-story-water-margin.storyteller` | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_uranus_bigtts` |
 | 林冲 / 林冲, 林教头, lin-chong | 1,2,3,4 | 想讲清是非并保护无辜；清晰克制，第1章核对求助经过，第4章承担守约责任 | `flowcraft-story-water-margin.lin-chong` / `eino-story-water-margin.lin-chong` | `volc-tenant:volc-cn-beijing:zh_male_jieshuoxiaoming_uranus_bigtts` |
 | 鲁智深 / 鲁智深, 鲁提辖, lu-zhishen | 1,2,3,4 | 想立即帮助弱者；憨厚直率，第1章提议先安置求助者，第3章劝阻冲动 | `flowcraft-story-water-margin.lu-zhishen` / `eino-story-water-margin.lu-zhishen` | `volc-tenant:volc-cn-beijing:ICL_zh_male_hanhoudunshi_tob` |
 | 武松 / 武松, wu-song | 2,3 | 想辨清事实再行动；清爽坚定，第2章沿路核对目击线索，第3章提议先护送受困者再求助，之后外出护送 | `flowcraft-story-water-margin.wu-song` / `eino-story-water-margin.wu-song` | `volc-tenant:volc-cn-beijing:ICL_zh_male_qingshuangshaonian_tob` |
-| 宋江 / 宋江, 宋公明, song-jiang | 3,4 | 想协调伙伴承担责任；沉稳审慎，第3章比较各方公开说法并安排互助，第4章提出守信与不伤及无辜的约定 | `flowcraft-story-water-margin.song-jiang` / `eino-story-water-margin.song-jiang` | `volc-tenant:volc-cn-beijing:zh_male_changtianyi_mars_bigtts` |
+| 宋江 / 宋江, 宋公明, song-jiang | 3,4 | 想协调伙伴承担责任；沉稳审慎，第3章比较各方公开说法并安排互助，第4章提出守信与不伤及无辜的约定 | `flowcraft-story-water-margin.song-jiang` / `eino-story-water-margin.song-jiang` | `volc-tenant:volc-cn-beijing:zh_male_xuanyijieshuo_uranus_bigtts` |
 
 角色表：narrator 旁白，只叙述可见事实和公开信息、不代演角色；lin-chong 林冲（别名 林冲/林教头/lin-chong），第1至4章在场，想讲清是非并保护无辜；清晰克制，第1章核对求助经过，第4章承担守约责任；lu-zhishen 鲁智深（别名 鲁智深/鲁提辖/lu-zhishen），第1至4章在场，想立即帮助弱者；憨厚直率，第1章提议先安置求助者，第3章劝阻冲动；wu-song 武松（别名 武松/wu-song），第2至3章在场，想辨清事实再行动；清爽坚定，第2章沿路核对目击线索，第3章提议先护送受困者再求助，之后外出护送；song-jiang 宋江（别名 宋江/宋公明/song-jiang），第3至4章在场，想协调伙伴承担责任；沉稳审慎，第3章比较各方公开说法并安排互助，第4章提出守信与不伤及无辜的约定。以上四章互动行动为本仓库基于经典的原创改编，并非原典逐字情节；历史、传说与改编须区分。所有角色只知亲历或已公开信息，不知他人私密想法及未来结果；每章比较至少两种立场，无需全员轮番发言。离场者只能由旁白说明去向，不跨地点代言。
 

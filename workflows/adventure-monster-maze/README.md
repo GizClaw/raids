@@ -51,7 +51,7 @@ make test-e2e RAID=adventure-monster-maze PARALLEL=2
 
 | 角色 key / 中文名（均可点名） | 出场场景与行动 | Voice resource_id |
 | --- | --- | --- |
-| `narrator` / 旁白 | 月亮机关、路线校准、锁孔谜题、怪兽合作；只负责叙述、管理和公开信息整理，不代演角色。 | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_mars_bigtts` |
+| `narrator` / 旁白 | 月亮机关、路线校准、锁孔谜题、怪兽合作；只负责叙述、管理和公开信息整理，不代演角色。 | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_uranus_bigtts` |
 | `little-monster` / 小怪兽 | 怪兽合作；在玩家解锁相遇后提出一起帮忙的方法，不恐吓。 | `volc-tenant:volc-cn-beijing:zh_male_naiqimengwa_uranus_bigtts` |
 | `gatekeeper` / 守门怪兽 | 月亮机关、路线校准；指向已经可见的按钮与路线，不替玩家按按钮。 | `volc-tenant:volc-cn-beijing:ICL_zh_male_hanhoudunshi_tob` |
 | `riddle-spirit` / 谜题精灵 | 锁孔谜题；比较圆形三角形方形锁孔，给渐进提示，不替玩家解锁。 | `volc-tenant:volc-cn-beijing:ICL_zh_female_huoponvhai_tob` |

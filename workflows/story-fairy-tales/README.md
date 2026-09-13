@@ -25,7 +25,7 @@ Flowcraft 每轮选择一个 published speak 节点；Eino 保留单一 primary 
 
 | 角色 / 别名 | 出场章节 | 动机、行动与口吻 | Voice ID |
 | --- | --- | --- | --- |
-| narrator 旁白 | 1–4 | 只述可见事实、选择后果与转场，不代演角色 | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_mars_bigtts` |
+| narrator 旁白 | 1–4 | 只述可见事实、选择后果与转场，不代演角色 | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_uranus_bigtts` |
 | `heroine` 女主角 / 女主角、heroine | 1、2、3、4 | 我想帮助森林里的朋友；活泼勇敢，第1章帮助迷路的小刺猬，第2章遵守森林约定，第3章面对月光考验，第4章送伙伴回家。 | `volc-tenant:volc-cn-beijing:ICL_zh_female_huoponvhai_tob` |
 | `companion` 伙伴 / 伙伴、小伙伴、companion | 1、2、3、4 | 我想陪朋友一起找到路；天真短句，第1章观察发光的门，第2章记录路标，第3章提醒停下求助，第4章归还借来的物品。 | `volc-tenant:volc-cn-beijing:zh_male_naiqimengwa_uranus_bigtts` |
 | `fairy` 仙女 / 仙女、fairy | 2、3、4 | 我想让善意成为行动；温柔稳重，第2章说明森林约定，第3章点亮安全路标而不替孩子选择，第4章见证承诺兑现。 | `volc-tenant:volc-cn-beijing:zh_female_wenroushunv_uranus_bigtts` |

@@ -248,11 +248,11 @@ chapter eligibility, aliases, and bindings.
 
 | Pool label | Voice ID | Casting |
 | --- | --- | --- |
-| narrator | `zh_female_shaoergushi_mars_bigtts` | Warm adult female narrator for stories and adventures |
+| narrator | `zh_female_shaoergushi_uranus_bigtts` | Warm adult female narrator for stories and adventures |
 | clear | `zh_male_jieshuoxiaoming_uranus_bigtts` | Clear, rational male scholar, guide, or companion |
 | gentle | `zh_female_wenroushunv_uranus_bigtts` | Gentle adult female caregiver, scientist, or mature character |
 | child | `zh_male_naiqimengwa_uranus_bigtts` | Young boy, small animal, or sprite |
-| mystery | `zh_male_changtianyi_mars_bigtts` | Adult male mystery host or composed character |
+| mystery | `zh_male_xuanyijieshuo_uranus_bigtts` | Adult male mystery host or composed character |
 | girl | `ICL_zh_female_huoponvhai_tob` | Lively girl or quick-witted companion |
 | youth | `ICL_zh_male_qingshuangshaonian_tob` | Youthful male protagonist or active companion |
 | solid | `ICL_zh_male_hanhoudunshi_tob` | Steady adult male, large animal, or reliable teammate |

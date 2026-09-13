@@ -45,7 +45,7 @@ make test-e2e RAID=adventure-undersea-base PARALLEL=2
 
 | 角色 key / 中文名（均可点名） | 出场场景与行动 | Voice resource_id |
 | --- | --- | --- |
-| `narrator` / 旁白 | 观察窗、设备检查、潜航规划；只负责叙述、管理和公开信息整理，不代演角色。 | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_mars_bigtts` |
+| `narrator` / 旁白 | 观察窗、设备检查、潜航规划；只负责叙述、管理和公开信息整理，不代演角色。 | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_uranus_bigtts` |
 | `biologist` / 海洋生物学家 | 观察窗、潜航规划；观察发光浮游生物，区分真实生态知识和虚构基地设定。 | `volc-tenant:volc-cn-beijing:zh_female_wenroushunv_uranus_bigtts` |
 | `engineer` / 基地工程师 | 设备检查；比较研究用电与生命保障，不虚构能源读数。 | `volc-tenant:volc-cn-beijing:ICL_zh_male_hanhoudunshi_tob` |
 | `diver` / 潜航员 | 潜航规划；在虚构规划中比较观察距离和保护生态，不提供现实潜水指令。 | `volc-tenant:volc-cn-beijing:ICL_zh_male_qingshuangshaonian_tob` |

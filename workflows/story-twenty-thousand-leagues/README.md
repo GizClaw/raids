@@ -25,8 +25,8 @@ Flowcraft 每轮选一个 published speak 节点；Eino 保留单一 primary cha
 
 | 角色 / 别名 | 出场章 | 动机与具体行动 | 音色槽位（两引擎） | Voice resource_id |
 | --- | --- | --- | --- | --- |
-| 旁白 / 旁白, narrator | 1,2,3,4 | 只述可见事实、管理和转场，不代演 | `flowcraft-story-twenty-thousand-leagues.storyteller` / `eino-story-twenty-thousand-leagues.storyteller` | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_mars_bigtts` |
-| 尼摩 / 尼摩, 尼摩船长, nemo | 1,2,3,4 | 想保护潜艇与海洋；沉稳克制，第1章决定观察距离，第3章组织排险 | `flowcraft-story-twenty-thousand-leagues.nemo` / `eino-story-twenty-thousand-leagues.nemo` | `volc-tenant:volc-cn-beijing:zh_male_changtianyi_mars_bigtts` |
+| 旁白 / 旁白, narrator | 1,2,3,4 | 只述可见事实、管理和转场，不代演 | `flowcraft-story-twenty-thousand-leagues.storyteller` / `eino-story-twenty-thousand-leagues.storyteller` | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_uranus_bigtts` |
+| 尼摩 / 尼摩, 尼摩船长, nemo | 1,2,3,4 | 想保护潜艇与海洋；沉稳克制，第1章决定观察距离，第3章组织排险 | `flowcraft-story-twenty-thousand-leagues.nemo` / `eino-story-twenty-thousand-leagues.nemo` | `volc-tenant:volc-cn-beijing:zh_male_xuanyijieshuo_uranus_bigtts` |
 | 阿龙纳斯 / 阿龙纳斯, 阿龙纳斯教授, aronnax | 1,2,3,4 | 想用观察验证猜想；清晰理性，第1章查阅生物资料，第4章整理证据 | `flowcraft-story-twenty-thousand-leagues.aronnax` / `eino-story-twenty-thousand-leagues.aronnax` | `volc-tenant:volc-cn-beijing:zh_male_jieshuoxiaoming_uranus_bigtts` |
 | 康塞尔 / 康塞尔, conseil | 2,3,4 | 想让观察有条理；清爽细致，第2章记录深海生物特征，第3章核对物资，第4章整理航行笔记 | `flowcraft-story-twenty-thousand-leagues.conseil` / `eino-story-twenty-thousand-leagues.conseil` | `volc-tenant:volc-cn-beijing:ICL_zh_male_qingshuangshaonian_tob` |
 | 尼德·兰 / 尼德·兰, 尼德兰, 尼德, ned-land | 2,3,4 | 想保留回到陆地的机会；憨厚直率，第2章比较继续探索与返航，第3章协助检查舱门，第4章提出返航约定 | `flowcraft-story-twenty-thousand-leagues.ned-land` / `eino-story-twenty-thousand-leagues.ned-land` | `volc-tenant:volc-cn-beijing:ICL_zh_male_hanhoudunshi_tob` |

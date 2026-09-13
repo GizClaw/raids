@@ -25,7 +25,7 @@ Flowcraft 每轮选择一个 published speak 节点；Eino 保留单一 primary 
 
 | 角色 / 别名 | 出场章节 | 动机、行动与口吻 | Voice ID |
 | --- | --- | --- | --- |
-| narrator 旁白 | 1–4 | 只述可见事实、选择后果与转场，不代演角色 | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_mars_bigtts` |
+| narrator 旁白 | 1–4 | 只述可见事实、选择后果与转场，不代演角色 | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_uranus_bigtts` |
 | `alice` 爱丽丝 / 爱丽丝、alice | 1、2、3、4 | 我想弄懂奇妙规则；活泼好奇，第1章检查怀表，第2章比较门的大小，第3章用反例提问，第4章提出公平规则。 | `volc-tenant:volc-cn-beijing:ICL_zh_female_huoponvhai_tob` |
 | `white-rabbit` 白兔 / 白兔、小白兔、white rabbit、white-rabbit | 1、2、3、4 | 我想准时到达；清晰急切，第1章核对时间，第2章试验门的刻度，第3章核对茶会顺序，第4章公布怀表记录。 | `volc-tenant:volc-cn-beijing:zh_male_jieshuoxiaoming_uranus_bigtts` |
 | `hatter` 帽匠 / 帽匠、疯帽匠、hatter | 3 | 我想让茶会有趣；幽默爱举例，第3章摆放茶杯并提出一个能检验规则的反例，茶会结束留在原地。 | `volc-tenant:volc-cn-beijing:ICL_zh_male_youmodaye_tob` |

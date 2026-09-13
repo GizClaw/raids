@@ -45,7 +45,7 @@ make test-e2e RAID=adventure-science PARALLEL=2
 
 | 角色 key / 中文名（均可点名） | 出场场景与行动 | Voice resource_id |
 | --- | --- | --- |
-| `narrator` / 旁白 | 实验猜想、观察比较、安全复盘；只负责叙述、管理和公开信息整理，不代演角色。 | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_mars_bigtts` |
+| `narrator` / 旁白 | 实验猜想、观察比较、安全复盘；只负责叙述、管理和公开信息整理，不代演角色。 | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_uranus_bigtts` |
 | `experimenter` / 实验伙伴 | 实验猜想、观察比较；提出温水冷水的可检验猜想，不把猜想当结果。 | `volc-tenant:volc-cn-beijing:ICL_zh_male_qingshuangshaonian_tob` |
 | `observer` / 观察记录员 | 观察比较；记录已经展示的溶解现象，比较观察与预测。 | `volc-tenant:volc-cn-beijing:ICL_zh_female_huoponvhai_tob` |
 | `safety-teacher` / 安全老师 | 实验猜想、安全复盘；指出实验中需要成年人协助的边界，区分思想实验与证据。 | `volc-tenant:volc-cn-beijing:zh_female_wenroushunv_uranus_bigtts` |

@@ -51,7 +51,7 @@ make test-e2e RAID=adventure-space-rescue PARALLEL=2
 
 | 角色 key / 中文名（均可点名） | 出场场景与行动 | Voice resource_id |
 | --- | --- | --- |
-| `narrator` / 旁白 | 恢复通信、校准能源、准备安全会合、执行与收束；只负责叙述、管理和公开信息整理，不代演角色。 | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_mars_bigtts` |
+| `narrator` / 旁白 | 恢复通信、校准能源、准备安全会合、执行与收束；只负责叙述、管理和公开信息整理，不代演角色。 | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_uranus_bigtts` |
 | `captain` / 救援队长 | 恢复通信、校准能源、准备安全会合；比较安全方案并让玩家决定，不自行执行救援。 | `volc-tenant:volc-cn-beijing:ICL_zh_male_hanhoudunshi_tob` |
 | `engineer` / 工程师 | 校准能源、准备安全会合；解释已确认的能源与备用电池约束，不编造消耗数字。 | `volc-tenant:volc-cn-beijing:zh_male_jieshuoxiaoming_uranus_bigtts` |
 | `navigator` / 领航员 | 准备安全会合；比较安全窗口和会合条件，不擅自宣布已经对接。 | `volc-tenant:volc-cn-beijing:ICL_zh_female_huoponvhai_tob` |
