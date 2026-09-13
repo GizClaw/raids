@@ -1,0 +1,506 @@
+# User Story:
+# As a Raids catalog maintainer,
+# I want isolated narrator and character probes for adventure-debate,
+# So that every role produces complete text and non-empty audio within the response gates.
+version: gizclaw.test/v1alpha1
+name: adventure-debate.eino.roles
+clients:
+  narrator:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  proponent:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  opponent:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  fact-checker:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+variables:
+  endpoint:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_ENDPOINT
+  registration_token:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_REGISTRATION_TOKEN
+    secret: true
+  narrator_workspace:
+    direction: input
+    type: string
+    generate: token
+  proponent_workspace:
+    direction: input
+    type: string
+    generate: token
+  opponent_workspace:
+    direction: input
+    type: string
+    generate: token
+  fact_checker_workspace:
+    direction: input
+    type: string
+    generate: token
+repeat: 1
+timeout: 24m
+steps:
+- id: register_narrator
+  client: narrator
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${narrator_workspace}"
+      collection: raidtest-targets
+      workflow_name: eino-adventure-debate
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${narrator_workspace}"
+- id: warmup_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: probe_narrator
+  client: narrator
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 开始体验。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      not_contains:
+      - 旁白说
+      - 旁白：
+- id: probe_narrator_first_response
+  client: narrator
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 开始体验。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: register_proponent
+  client: proponent
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_proponent_workspace
+  client: proponent
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${proponent_workspace}"
+      collection: raidtest-targets
+      workflow_name: eino-adventure-debate
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_proponent_workspace
+  client: proponent
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${proponent_workspace}"
+- id: warmup_proponent_workspace
+  client: proponent
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: proponent_scene_setup_1
+  client: proponent
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 开始体验。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: probe_proponent
+  client: proponent
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让正方小辩手亲自回应。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      not_contains:
+      - 正方小辩手说
+      - 正方小辩手：
+- id: probe_proponent_first_response
+  client: proponent
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 请让正方小辩手亲自回应。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: register_opponent
+  client: opponent
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_opponent_workspace
+  client: opponent
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${opponent_workspace}"
+      collection: raidtest-targets
+      workflow_name: eino-adventure-debate
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_opponent_workspace
+  client: opponent
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${opponent_workspace}"
+- id: warmup_opponent_workspace
+  client: opponent
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: opponent_scene_setup_1
+  client: opponent
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 开始体验。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: probe_opponent
+  client: opponent
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让反方小辩手亲自回应。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      not_contains:
+      - 反方小辩手说
+      - 反方小辩手：
+- id: probe_opponent_first_response
+  client: opponent
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 请让反方小辩手亲自回应。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: register_fact-checker
+  client: fact-checker
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_fact_checker_workspace
+  client: fact-checker
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${fact_checker_workspace}"
+      collection: raidtest-targets
+      workflow_name: eino-adventure-debate
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_fact_checker_workspace
+  client: fact-checker
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${fact_checker_workspace}"
+- id: warmup_fact_checker_workspace
+  client: fact-checker
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: fact-checker_scene_setup_1
+  client: fact-checker
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 开始体验。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: fact-checker_scene_setup_2
+  client: fact-checker
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 进入例子核对。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      contains: 例子核对
+- id: probe_fact-checker
+  client: fact-checker
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让事实核对员亲自回应。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      not_contains:
+      - 事实核对员说
+      - 事实核对员：
+- id: probe_fact-checker_first_response
+  client: fact-checker
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 请让事实核对员亲自回应。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+finally:
+- id: stop_narrator_run
+  client: narrator
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${narrator_workspace}"
+- id: delete_narrator_peer
+  client: narrator
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: stop_proponent_run
+  client: proponent
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_proponent_workspace
+  client: proponent
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${proponent_workspace}"
+- id: delete_proponent_peer
+  client: proponent
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: stop_opponent_run
+  client: opponent
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_opponent_workspace
+  client: opponent
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${opponent_workspace}"
+- id: delete_opponent_peer
+  client: opponent
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: stop_fact-checker_run
+  client: fact-checker
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_fact_checker_workspace
+  client: fact-checker
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${fact_checker_workspace}"
+- id: delete_fact-checker_peer
+  client: fact-checker
+  rpc:
+    method: server.peer.delete
+    request: {}
+report:
+  redact:
+  - registration_token
