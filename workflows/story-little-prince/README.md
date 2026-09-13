@@ -24,7 +24,7 @@ Use an original planetary journey to discuss companionship, responsibility, imag
 | Workflow | Engine | Output | Voice roles |
 | --- | --- | --- | --- |
 | `flowcraft-story-little-prince` | Flowcraft | text + TTS | `storyteller`, `little-prince`, `rose` mapped to three distinct public Voices |
-| `eino-story-little-prince` | Eino | text only | none; GizClaw v0.7.7 cannot dynamically select a Voice for one fixed primary output |
+| `eino-story-little-prince` | Eino | text + audio | `eino-story-little-prince.storyteller` (single default Voice) |
 
 Flowcraft selects exactly one published node per external response. Chapter entry/transition and invalid speaker selection fall back to `storyteller`; direct in-scene requests may select `little-prince` or `rose`.
 

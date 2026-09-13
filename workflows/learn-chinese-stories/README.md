@@ -8,7 +8,7 @@ Explore verified primary Chinese textbook stories through classical texts, fable
 
 | File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |
 | --- | --- | --- | --- | --- | --- |
-| `eino.yaml` | `eino-learn-chinese-stories` | eino | learner | `eino-learn-chinese-stories.model` | - |
+| `eino.yaml` | `eino-learn-chinese-stories` | eino | learner | `eino-learn-chinese-stories.model` | `eino-learn-chinese-stories.tutor` |
 | `flowcraft.yaml` | `flowcraft-learn-chinese-stories` | flowcraft | learner | `flowcraft-learn-chinese-stories.model` | `flowcraft-learn-chinese-stories.tutor` |
 
 Install an implementation into a RuntimeProfile with `raids install learn-chinese-stories --impl <engine> --profile <file> --collection <name> --set model.<alias>=<model id> --set voice.<alias>=<voice id>`; the slots above are the parameters the installer asks for.

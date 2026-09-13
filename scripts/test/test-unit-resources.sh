@@ -117,14 +117,14 @@ for package in workflows/adventure-* workflows/story-* workflows/learn-*; do
 		printf 'Eino RealTime Giztest lacks 2 s text gate: %s\n' "$raid" >&2
 		exit 1
 	}
-	grep -F 'require_audio: false' "$eino_realtime" >/dev/null || {
-		printf 'Eino RealTime Giztest lacks text-only response contract: %s\n' "$raid" >&2
+	grep -F 'require_audio: true' "$eino_realtime" >/dev/null || {
+		printf 'Eino RealTime Giztest lacks audio response contract: %s\n' "$raid" >&2
 		exit 1
 	}
-	if grep -F 'first_audio_timeout:' "$eino_realtime" >/dev/null; then
-		printf 'Eino RealTime Giztest must not claim an audio latency gate: %s\n' "$raid" >&2
+	grep -F 'first_audio_timeout: 3s' "$eino_realtime" >/dev/null || {
+		printf 'Eino RealTime Giztest lacks 3 s audio gate: %s\n' "$raid" >&2
 		exit 1
-	fi
+	}
 	grep -F 'first_text_timeout: 2s' "tests/giztest/$raid/flowcraft.realtime.giztest.yaml" >/dev/null || {
 		printf 'Flowcraft RealTime Giztest lacks 2 s text gate: %s\n' "$raid" >&2
 		exit 1

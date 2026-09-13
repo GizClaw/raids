@@ -24,7 +24,7 @@ Learn about habitats, behavior, and ecosystems through animal stories.
 | Workflow | Engine | Output | Voice roles |
 | --- | --- | --- | --- |
 | `flowcraft-story-animal-kingdom` | Flowcraft | text + TTS | `storyteller`, `explorer`, `animal-guide` mapped to three distinct public Voices |
-| `eino-story-animal-kingdom` | Eino | text only | none; GizClaw v0.7.7 cannot dynamically select a Voice for one fixed primary output |
+| `eino-story-animal-kingdom` | Eino | text + audio | `eino-story-animal-kingdom.storyteller` (single default Voice) |
 
 Flowcraft selects exactly one published node per external response. Chapter entry/transition and invalid speaker selection fall back to `storyteller`; direct in-scene requests may select `explorer` or `animal-guide`.
 

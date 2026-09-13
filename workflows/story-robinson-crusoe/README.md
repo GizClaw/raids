@@ -24,7 +24,7 @@ Learn planning, making, observation, and seeking help through an island survival
 | Workflow | Engine | Output | Voice roles |
 | --- | --- | --- | --- |
 | `flowcraft-story-robinson-crusoe` | Flowcraft | text + TTS | `storyteller`, `robinson`, `friday` mapped to three distinct public Voices |
-| `eino-story-robinson-crusoe` | Eino | text only | none; GizClaw v0.7.7 cannot dynamically select a Voice for one fixed primary output |
+| `eino-story-robinson-crusoe` | Eino | text + audio | `eino-story-robinson-crusoe.storyteller` (single default Voice) |
 
 Flowcraft selects exactly one published node per external response. Chapter entry/transition and invalid speaker selection fall back to `storyteller`; direct in-scene requests may select `robinson` or `friday`.
 

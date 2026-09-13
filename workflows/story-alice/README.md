@@ -24,7 +24,7 @@ Explore a dreamlike world through strange rules, wordplay, and logic puzzles.
 | Workflow | Engine | Output | Voice roles |
 | --- | --- | --- | --- |
 | `flowcraft-story-alice` | Flowcraft | text + TTS | `storyteller`, `alice`, `white-rabbit` mapped to three distinct public Voices |
-| `eino-story-alice` | Eino | text only | none; GizClaw v0.7.7 cannot dynamically select a Voice for one fixed primary output |
+| `eino-story-alice` | Eino | text + audio | `eino-story-alice.storyteller` (single default Voice) |
 
 Flowcraft selects exactly one published node per external response. Chapter entry/transition and invalid speaker selection fall back to `storyteller`; direct in-scene requests may select `alice` or `white-rabbit`.
 

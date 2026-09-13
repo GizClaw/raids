@@ -24,7 +24,7 @@ Discover consequences and lessons through short interactive animal fables.
 | Workflow | Engine | Output | Voice roles |
 | --- | --- | --- | --- |
 | `flowcraft-story-aesop` | Flowcraft | text + TTS | `storyteller`, `tortoise`, `bird` mapped to three distinct public Voices |
-| `eino-story-aesop` | Eino | text only | none; GizClaw v0.7.7 cannot dynamically select a Voice for one fixed primary output |
+| `eino-story-aesop` | Eino | text + audio | `eino-story-aesop.storyteller` (single default Voice) |
 
 Flowcraft selects exactly one published node per external response. Chapter entry/transition and invalid speaker selection fall back to `storyteller`; direct in-scene requests may select `tortoise` or `bird`.
 

@@ -24,7 +24,7 @@ Travel with migratory birds to learn geography, ecology, and respect for life.
 | Workflow | Engine | Output | Voice roles |
 | --- | --- | --- | --- |
 | `flowcraft-story-nils` | Flowcraft | text + TTS | `storyteller`, `nils`, `akka` mapped to three distinct public Voices |
-| `eino-story-nils` | Eino | text only | none; GizClaw v0.7.7 cannot dynamically select a Voice for one fixed primary output |
+| `eino-story-nils` | Eino | text + audio | `eino-story-nils.storyteller` (single default Voice) |
 
 Flowcraft selects exactly one published node per external response. Chapter entry/transition and invalid speaker selection fall back to `storyteller`; direct in-scene requests may select `nils` or `akka`.
 

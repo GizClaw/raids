@@ -24,7 +24,7 @@ Explore oceans, technology, and unknown creatures aboard an imagined submarine.
 | Workflow | Engine | Output | Voice roles |
 | --- | --- | --- | --- |
 | `flowcraft-story-twenty-thousand-leagues` | Flowcraft | text + TTS | `storyteller`, `nemo`, `aronnax` mapped to three distinct public Voices |
-| `eino-story-twenty-thousand-leagues` | Eino | text only | none; GizClaw v0.7.7 cannot dynamically select a Voice for one fixed primary output |
+| `eino-story-twenty-thousand-leagues` | Eino | text + audio | `eino-story-twenty-thousand-leagues.storyteller` (single default Voice) |
 
 Flowcraft selects exactly one published node per external response. Chapter entry/transition and invalid speaker selection fall back to `storyteller`; direct in-scene requests may select `nemo` or `aronnax`.
 

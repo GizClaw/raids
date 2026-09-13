@@ -8,7 +8,7 @@ Learn about weather, plants, animals, and ecosystems through observation clues.
 
 | File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |
 | --- | --- | --- | --- | --- | --- |
-| `eino.yaml` | `eino-adventure-nature` | eino | adventure | `eino-adventure-nature.model` | - |
+| `eino.yaml` | `eino-adventure-nature` | eino | adventure | `eino-adventure-nature.model` | `eino-adventure-nature.adventure-guide` |
 | `flowcraft.yaml` | `flowcraft-adventure-nature` | flowcraft | adventure | `flowcraft-adventure-nature.model` | `flowcraft-adventure-nature.adventure-guide` |
 
 Install an implementation into a RuntimeProfile with `raids install adventure-nature --impl <engine> --profile <file> --collection <name> --set model.<alias>=<model id> --set voice.<alias>=<voice id>`; the slots above are the parameters the installer asks for.

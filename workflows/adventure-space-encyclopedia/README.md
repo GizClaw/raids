@@ -8,7 +8,7 @@ Explore real astronomy through missions, questions, and observations.
 
 | File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |
 | --- | --- | --- | --- | --- | --- |
-| `eino.yaml` | `eino-adventure-space-encyclopedia` | eino | adventure | `eino-adventure-space-encyclopedia.model` | - |
+| `eino.yaml` | `eino-adventure-space-encyclopedia` | eino | adventure | `eino-adventure-space-encyclopedia.model` | `eino-adventure-space-encyclopedia.adventure-guide` |
 | `flowcraft.yaml` | `flowcraft-adventure-space-encyclopedia` | flowcraft | adventure | `flowcraft-adventure-space-encyclopedia.model` | `flowcraft-adventure-space-encyclopedia.adventure-guide` |
 
 Install an implementation into a RuntimeProfile with `raids install adventure-space-encyclopedia --impl <engine> --profile <file> --collection <name> --set model.<alias>=<model id> --set voice.<alias>=<voice id>`; the slots above are the parameters the installer asks for.

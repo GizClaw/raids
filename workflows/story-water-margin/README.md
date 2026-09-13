@@ -24,7 +24,7 @@ Use Water Margin characters to discuss courage, rules, friendship, and responsib
 | Workflow | Engine | Output | Voice roles |
 | --- | --- | --- | --- |
 | `flowcraft-story-water-margin` | Flowcraft | text + TTS | `storyteller`, `lin-chong`, `lu-zhishen` mapped to three distinct public Voices |
-| `eino-story-water-margin` | Eino | text only | none; GizClaw v0.7.7 cannot dynamically select a Voice for one fixed primary output |
+| `eino-story-water-margin` | Eino | text + audio | `eino-story-water-margin.storyteller` (single default Voice) |
 
 Flowcraft selects exactly one published node per external response. Chapter entry/transition and invalid speaker selection fall back to `storyteller`; direct in-scene requests may select `lin-chong` or `lu-zhishen`.
 

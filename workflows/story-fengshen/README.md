@@ -24,7 +24,7 @@ Tell child-friendly stories about choices, magical artifacts, duty, and justice 
 | Workflow | Engine | Output | Voice roles |
 | --- | --- | --- | --- |
 | `flowcraft-story-fengshen` | Flowcraft | text + TTS | `storyteller`, `nezha`, `jiang-ziya` mapped to three distinct public Voices |
-| `eino-story-fengshen` | Eino | text only | none; GizClaw v0.7.7 cannot dynamically select a Voice for one fixed primary output |
+| `eino-story-fengshen` | Eino | text + audio | `eino-story-fengshen.storyteller` (single default Voice) |
 
 Flowcraft selects exactly one published node per external response. Chapter entry/transition and invalid speaker selection fall back to `storyteller`; direct in-scene requests may select `nezha` or `jiang-ziya`.
 

@@ -24,7 +24,7 @@ Explore leadership, promises, judgment, and teamwork through Chu-Han stories.
 | Workflow | Engine | Output | Voice roles |
 | --- | --- | --- | --- |
 | `flowcraft-story-chu-han` | Flowcraft | text + TTS | `storyteller`, `xiang-yu`, `empress-lu` mapped to three distinct public Voices |
-| `eino-story-chu-han` | Eino | text only | none; GizClaw v0.7.7 cannot dynamically select a Voice for one fixed primary output |
+| `eino-story-chu-han` | Eino | text + audio | `eino-story-chu-han.storyteller` (single default Voice) |
 
 Flowcraft selects exactly one published node per external response. Chapter entry/transition and invalid speaker selection fall back to `storyteller`; direct in-scene requests may select `xiang-yu` or `empress-lu`.
 

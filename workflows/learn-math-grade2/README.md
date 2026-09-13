@@ -8,7 +8,7 @@ Explore grade 2 People's Education Press primary math through Math Corner topics
 
 | File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |
 | --- | --- | --- | --- | --- | --- |
-| `eino.yaml` | `eino-learn-math-grade2` | eino | learner | `eino-learn-math-grade2.model` | - |
+| `eino.yaml` | `eino-learn-math-grade2` | eino | learner | `eino-learn-math-grade2.model` | `eino-learn-math-grade2.tutor` |
 | `flowcraft.yaml` | `flowcraft-learn-math-grade2` | flowcraft | learner | `flowcraft-learn-math-grade2.model` | `flowcraft-learn-math-grade2.tutor` |
 
 Install an implementation into a RuntimeProfile with `raids install learn-math-grade2 --impl <engine> --profile <file> --collection <name> --set model.<alias>=<model id> --set voice.<alias>=<voice id>`; the slots above are the parameters the installer asks for.

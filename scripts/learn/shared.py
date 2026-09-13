@@ -114,6 +114,7 @@ def render_flowcraft(repo: Path, raid: str, system_prompt: str) -> str:
 def render_eino(repo: Path, raid: str, system_prompt: str, memory_description: str) -> str:
     text = read_text(repo / "workflows" / ADVENTURE / "eino.yaml")
     text = text.replace(ADVENTURE, raid)
+    text = text.replace("adventure-guide", "tutor")
     text = text.replace("memory: adventure", "memory: learner")
     text = replace_once(
         text,
@@ -242,8 +243,9 @@ def render_raid_manifest(
         implementation["memory"]["layout_id"] = "learner"
         for model in implementation["parameters"]["models"].values():
             model["role"] = "tutor"
-    voice = manifest["implementations"]["flowcraft"]["parameters"]["voices"]
-    voice[f"flowcraft-{raid}.tutor"]["description"] = voice_description
+    for engine in ("eino", "flowcraft"):
+        voice = manifest["implementations"][engine]["parameters"]["voices"]
+        voice[f"{engine}-{raid}.tutor"]["description"] = voice_description
     manifest["tester"]["route"] = {
         "responses": len(route),
         "checkpoints": [item[0] for item in route],
@@ -262,5 +264,5 @@ def source_links(urls: Iterable[str]) -> str:
 def implementation_table(raid: str) -> str:
     return f"""| File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |
 | --- | --- | --- | --- | --- | --- |
-| `eino.yaml` | `eino-{raid}` | eino | learner | `eino-{raid}.model` | - |
+| `eino.yaml` | `eino-{raid}` | eino | learner | `eino-{raid}.model` | `eino-{raid}.tutor` |
 | `flowcraft.yaml` | `flowcraft-{raid}` | flowcraft | learner | `flowcraft-{raid}.model` | `flowcraft-{raid}.tutor` |"""

@@ -8,7 +8,7 @@ Manage an undersea research base while exploring ocean ecosystems.
 
 | File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |
 | --- | --- | --- | --- | --- | --- |
-| `eino.yaml` | `eino-adventure-undersea-base` | eino | adventure | `eino-adventure-undersea-base.model` | - |
+| `eino.yaml` | `eino-adventure-undersea-base` | eino | adventure | `eino-adventure-undersea-base.model` | `eino-adventure-undersea-base.adventure-guide` |
 | `flowcraft.yaml` | `flowcraft-adventure-undersea-base` | flowcraft | adventure | `flowcraft-adventure-undersea-base.model` | `flowcraft-adventure-undersea-base.adventure-guide` |
 
 Install an implementation into a RuntimeProfile with `raids install adventure-undersea-base --impl <engine> --profile <file> --collection <name> --set model.<alias>=<model id> --set voice.<alias>=<voice id>`; the slots above are the parameters the installer asks for.

@@ -24,7 +24,7 @@ Explore rocks, strata, and Earth science through a fictional underground journey
 | Workflow | Engine | Output | Voice roles |
 | --- | --- | --- | --- |
 | `flowcraft-story-journey-center-earth` | Flowcraft | text + TTS | `storyteller`, `axel`, `lidenbrock` mapped to three distinct public Voices |
-| `eino-story-journey-center-earth` | Eino | text only | none; GizClaw v0.7.7 cannot dynamically select a Voice for one fixed primary output |
+| `eino-story-journey-center-earth` | Eino | text + audio | `eino-story-journey-center-earth.storyteller` (single default Voice) |
 
 Flowcraft selects exactly one published node per external response. Chapter entry/transition and invalid speaker selection fall back to `storyteller`; direct in-scene requests may select `axel` or `lidenbrock`.
 
