@@ -38,3 +38,5 @@ Journey quality 另保留七回合 benchmark（四实现同输入同门槛）；
 quality 不重复 smoke 中逐项相同的 285 个首响应探针。其余原有文本、音频 EOS、首字/首音、第一人称、知识边界、转场、路由和安全断言均保留；不会仅因文本 EOS 提前进入下一轮。学习类 quality 用新建 Workspace 执行安全围栏，chat-assistant 用三轮事实建立/更正的确定性检查，完整长程记忆及裁判均在 soak。
 
 story-aesop / adventure-history 的 quality 在 finally 清理前读取各 client 最新一条 Workspace 历史，并输出类型和正文到运行日志，辅助定位文本围栏失败；报告 JSON 保留相应步骤与延迟。该观测不替代原 peer_stream 断言。
+
+story-aesop soak 仍按实现顺序执行长 relay；每个 client 首次注册前重连，全部 verdict 完成后在正常步骤中重连四个 client，再进入 finally，以免前一引擎耗时超过空闲窗口后阻断下一引擎或清理。reconnect 不放在 finally（当前 CLI schema 不支持），relay 和裁判断言不变。

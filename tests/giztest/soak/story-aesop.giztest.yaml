@@ -60,12 +60,20 @@ variables:
 repeat: 1
 timeout: 180m
 steps:
+- id: flowcraft_reconnect_candidate_before_register
+  client: flowcraft
+  reconnect:
+    await_ms: 30000
 - id: flowcraft_register_candidate
   client: flowcraft
   rpc:
     method: server.register
     request:
       token: "${registration_token}"
+- id: flowcraft_reconnect_tester_before_register
+  client: flowcraft_tester
+  reconnect:
+    await_ms: 30000
 - id: flowcraft_register_tester
   client: flowcraft_tester
   rpc:
@@ -192,12 +200,20 @@ steps:
 - id: flowcraft_emit_verdict
   output:
     variable: flowcraft_verdict
+- id: eino_reconnect_candidate_before_register
+  client: eino
+  reconnect:
+    await_ms: 30000
 - id: eino_register_candidate
   client: eino
   rpc:
     method: server.register
     request:
       token: "${registration_token}"
+- id: eino_reconnect_tester_before_register
+  client: eino_tester
+  reconnect:
+    await_ms: 30000
 - id: eino_register_tester
   client: eino_tester
   rpc:
@@ -322,6 +338,22 @@ steps:
 - id: eino_emit_verdict
   output:
     variable: eino_verdict
+- id: flowcraft_reconnect_candidate_before_cleanup
+  client: flowcraft
+  reconnect:
+    await_ms: 30000
+- id: flowcraft_reconnect_tester_before_cleanup
+  client: flowcraft_tester
+  reconnect:
+    await_ms: 30000
+- id: eino_reconnect_candidate_before_cleanup
+  client: eino
+  reconnect:
+    await_ms: 30000
+- id: eino_reconnect_tester_before_cleanup
+  client: eino_tester
+  reconnect:
+    await_ms: 30000
 finally:
 - id: flowcraft_stop_candidate_run
   client: flowcraft
