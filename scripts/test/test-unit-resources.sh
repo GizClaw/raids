@@ -140,38 +140,146 @@ test "$realtime_count" -eq 100 || {
 }
 printf 'validated %s story/adventure/learn RealTime Giztests\n' "$realtime_count"
 
-# Published node Voices already identify the active speaker. Spoken labels such
-# as "旁白说" or "角色名：" make the synthesized story sound like a test
-# fixture, so every multi-voice story must instruct direct speech and its live
-# role probes must reject those labels.
-role_count=0
-for role_test in tests/giztest/story-*/flowcraft.roles.giztest.yaml; do
-	test -f "$role_test" || continue
-	raid="${role_test#tests/giztest/}"
-	raid="${raid%%/*}"
-	workflow="workflows/$raid/flowcraft.yaml"
-	test -f "$workflow" || {
-		printf 'role Giztest lacks Flowcraft Workflow: %s\n' "$role_test" >&2
-		exit 1
-	}
-	label_guard_count="$(grep -Fc '等说话人标签' "$workflow" || true)"
-	test "$label_guard_count" -eq 3 || {
-		printf 'multi-voice Workflow must guard all three outputs against speaker labels: %s\n' "$workflow" >&2
-		exit 1
-	}
-	spoken_label_count="$(grep -Ec '^[[:space:]]+- .+说$' "$role_test" || true)"
-	colon_label_count="$(grep -Ec '^[[:space:]]+- .+：$' "$role_test" || true)"
-	test "$spoken_label_count" -eq 3 && test "$colon_label_count" -eq 3 || {
-		printf 'role Giztest must reject narrator and character speaker labels: %s\n' "$role_test" >&2
-		exit 1
-	}
-	role_count=$((role_count + 1))
-done
-test "$role_count" -eq 19 || {
-	printf 'expected 19 multi-voice role Giztests, found %s\n' "$role_count" >&2
-	exit 1
-}
-printf 'validated %s speaker-label-free multi-voice story Giztests\n' "$role_count"
+# Resolve the complete manifest -> branch -> published node -> alias -> Voice
+# chain using parsed YAML, not aggregate text counts. Ruby uses only stdlib.
+require_command ruby
+ruby <<'RUBY'
+require 'yaml'
+require 'json'
+def check(ok, message)
+  abort message unless ok
+end
+profiles = %w[default testing].to_h do |name|
+  [name, YAML.load_file("runtime-profiles/#{name}.yaml").fetch('spec').fetch('resources').fetch('voices')]
+end
+voice_files = Dir['voices/**/*.yaml'].to_h do |file|
+  [YAML.load_file(file).fetch('metadata').fetch('id'), file]
+end
+packages = Dir['workflows/story-*'].select { |p| File.directory?(p) }
+packages.each do |package|
+  manifest = JSON.parse(File.read("#{package}/raid.json"))
+  impl = manifest.fetch('implementations').fetch('flowcraft')
+  slots = impl.fetch('parameters').fetch('voices')
+  tests = manifest.fetch('tests').select { |t| t['topology'] == 'isolated-role-probes' && t['implementation'] == 'flowcraft' }
+  check(tests.size == 1, "#{package}: require one registered role probe document")
+  test = tests.first
+  check(test.fetch('roles') == slots.size, "#{package}: manifest role count differs from Voice slots")
+  probes = YAML.load_file(test.fetch('file')).fetch('steps')
+  workflow = YAML.load_file("#{package}/#{impl.fetch('file')}")
+  flow = workflow.fetch('spec').fetch('flowcraft')
+  graph = flow.fetch('graph')
+  nodes = graph.fetch('nodes').to_h { |n| [n.fetch('id'), n] }
+  edges = graph.fetch('edges')
+  bindings = flow.fetch('voice_adapter').fetch('node_voices')
+  check(bindings.values.sort == slots.keys.sort, "#{package}: node Voice aliases differ from manifest")
+  check(nodes.values.select { |n| n['publish'] == true }.map { |n| n['id'] }.sort == bindings.keys.sort, "#{package}: every published output needs a Voice")
+  routing_file = "#{package}/routing-cases.json"
+  routing = File.exist?(routing_file) ? JSON.parse(File.read(routing_file)).fetch('flowcraft') : {}
+  control = routing.fetch('node', 'control-story')
+  branches = edges.select { |e| e['from'] == control }
+  check(branches.last == {'from'=>control, 'to'=>'speak-narrator'}, "#{package}: narrator must be the last fallback")
+  roles = slots.values.map { |slot| slot.fetch('role') == 'storyteller' ? 'narrator' : slot.fetch('role') }
+  check(roles.uniq.size == roles.size, "#{package}: duplicate role keys")
+  source = nodes.fetch(control).fetch('config').fetch('source')
+  table_json = source[/const roleTable = (\[.*\]);/, 1]
+  if table_json
+    table = JSON.parse(table_json)
+    check(table.map { |r| r.fetch('key') }.sort == roles.sort, "#{package}: role table differs from manifest")
+    table.each do |role|
+      check(!role.fetch('aliases').empty? && !role.fetch('chapters').empty?, "#{package}: missing aliases or chapter eligibility")
+    end
+  end
+  check(branches.size == roles.size, "#{package}: unexpected speaker branches")
+  check(flow.fetch('voice_adapter').fetch('default_voice') == bindings.fetch('speak-narrator'), "#{package}: wrong narrator default Voice")
+  check(probes.select { |p| p['id'].start_with?('probe_') && !p['id'].end_with?('_first_response') }.size == roles.size, "#{package}: role probe count mismatch")
+  slots.each do |name, slot|
+    role = slot.fetch('role') == 'storyteller' ? 'narrator' : slot.fetch('role')
+    id = "speak-#{role}"
+    node = nodes.fetch(id)
+    check(bindings[id] == name, "#{package}/#{role}: wrong alias")
+    check(node['type'] == 'llm' && node['publish'] == true && node.dig('config', 'output_key') == 'answer', "#{package}/#{role}: invalid output node")
+    check(impl.fetch('parameters').fetch('models').key?(node.dig('config', 'model')), "#{package}/#{role}: unknown model alias")
+    check(edges.include?({'from'=>id, 'to'=>'persist-story'}), "#{package}/#{role}: missing persistence edge")
+    expected = {'from'=>control, 'to'=>id}
+    expected['condition'] = "selected_speaker == \"#{role}\"" unless role == 'narrator'
+    check(branches.count(expected) == 1, "#{package}/#{role}: missing or duplicated role branch")
+    prompt = node.fetch('config').fetch('system_prompt')
+    check(prompt.include?('等说话人标签'), "#{package}/#{role}: missing speaker label guard")
+    probe = probes.find { |p| p['id'] == "probe_#{role}" }
+    check(!probe.nil?, "#{package}/#{role}: missing full role probe")
+    labels = probe.dig('expect', '/text', 'not_contains') || []
+    spoken = labels.find { |label| label.end_with?('说') }
+    check(spoken && labels.include?(spoken.delete_suffix('说') + '：') && prompt.include?(spoken), "#{package}/#{role}: mismatched speaker label assertions")
+    check(probe.dig('peer_stream','require_audio') == true && probe.dig('expect','/audio_eos','equals') == true && probe.dig('expect','/text_eos','equals') == true && probe.dig('expect','/audio_bytes','minimum').to_i >= 1, "#{package}/#{role}: missing complete audio/text checks")
+    first = probes.find { |p| p['id'] == "probe_#{role}_first_response" }
+    check(first && first.dig('peer_stream','completion') == 'first_response' && first.dig('peer_stream','first_text_timeout') == '2s' && first.dig('peer_stream','first_audio_timeout') == '3s', "#{package}/#{role}: missing first response gates")
+  end
+  profiles.each do |profile_name, profile|
+    ids = slots.keys.map { |name| profile.fetch(name).fetch('resource_id') }
+    check(ids.uniq.size == ids.size, "#{package}/#{profile_name}: duplicate Voice resource IDs")
+    ids.each { |id| check(voice_files.key?(id), "#{package}/#{profile_name}: Voice file missing for #{id}") }
+  end
+end
+# Non-story packages may use different graph/node names. Validate their declared
+# published-node -> alias -> manifest -> profiles -> Voice closure structurally.
+Dir['workflows/*/routing-cases.json'].sort.each do |fixture|
+  package = File.dirname(fixture)
+  manifest = JSON.parse(File.read("#{package}/raid.json"))
+  impl = manifest.fetch('implementations').fetch('flowcraft')
+  slots = impl.fetch('parameters').fetch('voices')
+  flow = YAML.load_file("#{package}/flowcraft.yaml").dig('spec', 'flowcraft')
+  nodes = flow.fetch('graph').fetch('nodes')
+  adapter = flow.fetch('voice_adapter')
+  bindings = adapter.fetch('node_voices')
+  check(bindings.values.sort == slots.keys.sort, "#{package}: node Voice aliases differ from manifest")
+  check(nodes.select { |n| n['publish'] == true }.map { |n| n['id'] }.sort == bindings.keys.sort, "#{package}: every published output needs a Voice")
+  check(bindings.values.include?(adapter.fetch('default_voice')), "#{package}: default Voice missing from slots")
+  profiles.each do |name, profile|
+    ids = slots.keys.map { |a| profile.fetch(a).fetch('resource_id') }
+    check(ids.uniq.size == ids.size, "#{package}/#{name}: duplicate Voice resources")
+    ids.each { |id| check(voice_files.key?(id), "#{package}/#{name}: missing Voice #{id}") }
+  end
+end
+# Eino state-selected aliases must close over manifest and both profiles too.
+Dir['workflows/**/eino.yaml'].each do |file|
+  eino = YAML.load_file(file).dig('spec', 'eino')
+  adapter = eino.fetch('voice_adapter', {})
+  selector = adapter['state_voices']
+  next unless selector
+  manifest = JSON.parse(File.read(File.join(File.dirname(file), 'raid.json')))
+  impl = manifest.fetch('implementations').fetch('eino')
+  slots = impl.fetch('parameters').fetch('voices')
+  aliases = selector.fetch('voices').values
+  check(aliases.sort == slots.keys.sort, "#{file}: state Voice aliases differ from manifest")
+  check(aliases.include?(adapter.fetch('default_voice')), "#{file}: default Voice missing from slots")
+  fields = eino.fetch('graph').fetch('state').fetch('fields')
+  check(fields.any? { |f| f['name'] == selector['field'] && f['type'] == 'string' }, "#{file}: selector must reference string State")
+  profiles.each do |name, profile|
+    ids = aliases.map { |a| profile.fetch(a).fetch('resource_id') }
+    check(ids.uniq.size == ids.size, "#{file}/#{name}: duplicate Voice resources")
+    ids.each { |id| check(voice_files.key?(id), "#{file}/#{name}: missing Voice #{id}") }
+    flow_slots = manifest.fetch('implementations').fetch('flowcraft').fetch('parameters').fetch('voices')
+    slots.each do |a, slot|
+      counterpart = flow_slots.find { |_, other| other.fetch('role') == slot.fetch('role') }
+      check(counterpart && profile.fetch(a)['resource_id'] == profile.fetch(counterpart.first)['resource_id'], "#{file}/#{name}: role Voice differs from Flowcraft")
+    end
+  end
+  test = manifest.fetch('tests').find { |t| t['implementation'] == 'eino' && t['topology'] == 'isolated-role-probes' }
+  check(test && test['roles'] == slots.size, "#{file}: missing registered Eino roles")
+  steps = YAML.load_file(test.fetch('file')).fetch('steps')
+  selector.fetch('voices').each_key do |role|
+    full = steps.find { |p| p['id'] == "probe_#{role}" }
+    check(full && full.dig('peer_stream', 'require_audio') && full.dig('expect', '/audio_bytes', 'minimum').to_i > 0 && full.dig('expect', '/text_eos', 'equals') && full.dig('expect', '/audio_eos', 'equals'), "#{file}/#{role}: missing EOS/audio checks")
+    first = steps.find { |p| p['id'] == "probe_#{role}_first_response" }
+    check(first && first.dig('peer_stream', 'first_text_timeout') == '2s' && first.dig('peer_stream', 'first_audio_timeout') == '3s', "#{file}/#{role}: missing latency gates")
+  end
+end
+puts "validated #{packages.size} multi-voice stories: dynamic role counts, probes and Voice binding closure"
+RUBY
+
+# Execute every declared routing suite against both real engine scripts.
+require_command node
+ruby scripts/test/routing-sources.rb | node scripts/test/test-routing.js
 
 # A chapter heading spoken on its own leaves the child waiting in silence, so
 # every story Workflow must continue into the new chapter's opening, and each
