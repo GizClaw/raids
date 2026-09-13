@@ -37,7 +37,7 @@ Both `runtime-profiles/default.yaml` and `testing.yaml` bind these exact IDs und
 | narrator / 旁白 | 1–4 | visible consequences and management; never impersonates characters | storyteller | volc-tenant:volc-cn-beijing:zh_female_shaoergushi_mars_bigtts |
 | tortoise / 乌龟 / 小乌龟 | 1–4 | patient planting and care | tortoise | volc-tenant:volc-cn-beijing:ICL_zh_male_hanhoudunshi_tob |
 | bird / 小鸟 / 鸟儿 | 1–4 | immediate hunger and observations from branches | bird | volc-tenant:volc-cn-beijing:ICL_zh_female_huoponvhai_tob |
-| rabbit / 兔子 / 小兔 | 1–4 | carries the seed in chapter 1 and water in chapter 3; eager, childlike | rabbit | volc-tenant:volc-cn-beijing:zh_male_naiqimengwa_mars_bigtts |
+| rabbit / 兔子 / 小兔 | 1–4 | carries the seed in chapter 1 and water in chapter 3; eager, childlike | rabbit | volc-tenant:volc-cn-beijing:zh_male_naiqimengwa_uranus_bigtts |
 | fox / 狐狸 / 小狐狸 | 2–4 | compares waiting with finding food in chapter 2; proposes shared care in chapter 3 | fox | volc-tenant:volc-cn-beijing:ICL_zh_male_qingshuangshaonian_tob |
 
 Examples: “请让兔子说说”; after chapter 2 starts, “请让狐狸亲自回应”. “请让小鸟说说，再让乌龟说说” selects only bird. “不要让兔子说话，请让小鸟说说” selects bird. Before chapter 2 a fox request falls back to narrator.

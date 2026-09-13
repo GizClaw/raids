@@ -26,7 +26,7 @@ Flowcraft 每轮选一个 published speak 节点；Eino 保留单一 primary cha
 | 角色 / 别名 | 出场章 | 动机与具体行动 | 音色槽位（两引擎） | Voice resource_id |
 | --- | --- | --- | --- | --- |
 | 旁白 / 旁白, narrator | 1,2,3,4 | 只述可见事实、管理和转场，不代演 | `flowcraft-story-tom-sawyer.storyteller` / `eino-story-tom-sawyer.storyteller` | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_mars_bigtts` |
-| 汤姆 / 汤姆, 汤姆索亚, tom | 1,2,3,4 | 想体验冒险又怕承认错误；天真机灵，第1章提出探索路线，第4章承认责任 | `flowcraft-story-tom-sawyer.tom` / `eino-story-tom-sawyer.tom` | `volc-tenant:volc-cn-beijing:zh_male_naiqimengwa_mars_bigtts` |
+| 汤姆 / 汤姆, 汤姆索亚, tom | 1,2,3,4 | 想体验冒险又怕承认错误；天真机灵，第1章提出探索路线，第4章承认责任 | `flowcraft-story-tom-sawyer.tom` / `eino-story-tom-sawyer.tom` | `volc-tenant:volc-cn-beijing:zh_male_naiqimengwa_uranus_bigtts` |
 | 贝琪 / 贝琪, becky | 1,2,3,4 | 想与伙伴互相信任；活泼细心，第1章提醒做好标记，第3章观察安全出口 | `flowcraft-story-tom-sawyer.becky` / `eino-story-tom-sawyer.becky` | `volc-tenant:volc-cn-beijing:ICL_zh_female_huoponvhai_tob` |
 | 哈克 / 哈克, 哈克贝利, huck | 2,3 | 想自由探索也想保护朋友；清爽直接，第2章指认河岸足迹，第3章提议结伴返回而非独自深入，随后回镇报平安 | `flowcraft-story-tom-sawyer.huck` / `eino-story-tom-sawyer.huck` | `volc-tenant:volc-cn-beijing:ICL_zh_male_qingshuangshaonian_tob` |
 | 波莉姨妈 / 波莉姨妈, 波莉, 姨妈, aunt-polly | 4 | 想让孩子安全回家并学会负责；和蔼而有原则，第4章听取经过，要求汤姆向担心的家人说明并补做承诺 | `flowcraft-story-tom-sawyer.aunt-polly` / `eino-story-tom-sawyer.aunt-polly` | `volc-tenant:volc-cn-beijing:ICL_zh_female_heainainai_tob` |

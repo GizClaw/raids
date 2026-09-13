@@ -47,7 +47,7 @@ make test-e2e RAID=adventure-space-encyclopedia PARALLEL=2
 | --- | --- | --- |
 | `narrator` / 旁白 | 自转公转、资料比对、星图定位；只负责叙述、管理和公开信息整理，不代演角色。 | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_mars_bigtts` |
 | `astronomer` / 天文学家 | 自转公转、资料比对；区分自转周期和太阳日，不混淆金星一天的定义。 | `volc-tenant:volc-cn-beijing:zh_male_jieshuoxiaoming_uranus_bigtts` |
-| `robot` / 资料机器人 | 资料比对；核对已经给出的行星资料，缺数据就说不知道。 | `volc-tenant:volc-cn-beijing:zh_male_naiqimengwa_mars_bigtts` |
+| `robot` / 资料机器人 | 资料比对；核对已经给出的行星资料，缺数据就说不知道。 | `volc-tenant:volc-cn-beijing:zh_male_naiqimengwa_uranus_bigtts` |
 | `navigator` / 星图领航员 | 星图定位；用虚构星图比较方向与尺度，禁止直视太阳。 | `volc-tenant:volc-cn-beijing:ICL_zh_female_huoponvhai_tob` |
 
 这是儿童互动冒险的原创配角安排。按场景出场，不让所有人物同时在场；角色不能获知未来场景、私密信息或未验证的结果。每轮仍只发声一次。

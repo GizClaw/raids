@@ -26,7 +26,7 @@ Flowcraft 每轮选一个 published speak 节点；Eino 保留单一 primary cha
 | 角色 / 别名 | 出场章 | 动机与具体行动 | 音色槽位（两引擎） | Voice resource_id |
 | --- | --- | --- | --- | --- |
 | 旁白 / 旁白, narrator | 1,2,3,4 | 只述可见事实、管理和转场，不代演 | `flowcraft-story-shanhaijing.storyteller` / `eino-story-shanhaijing.storyteller` | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_mars_bigtts` |
-| 少年探险者 / 少年探险者, 小探险者, young-explorer | 1,2,3,4 | 想画出可靠的图卷；天真短句，第1章标出岔路，第4章区分观察与想象 | `flowcraft-story-shanhaijing.young-explorer` / `eino-story-shanhaijing.young-explorer` | `volc-tenant:volc-cn-beijing:zh_male_naiqimengwa_mars_bigtts` |
+| 少年探险者 / 少年探险者, 小探险者, young-explorer | 1,2,3,4 | 想画出可靠的图卷；天真短句，第1章标出岔路，第4章区分观察与想象 | `flowcraft-story-shanhaijing.young-explorer` / `eino-story-shanhaijing.young-explorer` | `volc-tenant:volc-cn-beijing:zh_male_naiqimengwa_uranus_bigtts` |
 | 灵兽向导 / 灵兽向导, 灵兽, spirit-guide | 1,2,3,4 | 想保护山林；温柔稳重，第1章提醒尊重栖息地，第3章提出互不打扰的约定 | `flowcraft-story-shanhaijing.spirit-guide` / `eino-story-shanhaijing.spirit-guide` | `volc-tenant:volc-cn-beijing:zh_female_wenroushunv_uranus_bigtts` |
 | 精卫 / 精卫, jingwei | 2,3 | 想坚持有意义的努力；活泼坚定，第2章在山海交界搬小石子并指认雾中海岸，第3章比较坚持与休息后飞回海边 | `flowcraft-story-shanhaijing.jingwei` / `eino-story-shanhaijing.jingwei` | `volc-tenant:volc-cn-beijing:ICL_zh_female_huoponvhai_tob` |
 | 夸父 / 夸父, kuafu | 2,3,4 | 想知道远路的代价；憨厚沉稳，第2章在神山脚下寻找水源，第3章建议量力而行，第4章分享途中见闻 | `flowcraft-story-shanhaijing.kuafu` / `eino-story-shanhaijing.kuafu` | `volc-tenant:volc-cn-beijing:ICL_zh_male_hanhoudunshi_tob` |

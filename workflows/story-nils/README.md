@@ -26,7 +26,7 @@ Flowcraft 每轮选择一个 published 节点；Eino 保留一个 primary chat_m
 | 角色（别名） | 章节 | 动机与行动 | 两引擎槽位 | Voice ID |
 | --- | --- | --- | --- | --- |
 | 旁白 (旁白/narrator) | 1,2,3,4 | 可见事实与转场，不代演 | `flowcraft-story-nils.storyteller` / `eino-story-nils.storyteller` | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_mars_bigtts` |
-| 尼尔斯 (尼尔斯/nils) | 1,2,3,4 | 想学会照顾伙伴；天真直接，第1章观察风向。 | `flowcraft-story-nils.nils` / `eino-story-nils.nils` | `volc-tenant:volc-cn-beijing:zh_male_naiqimengwa_mars_bigtts` |
+| 尼尔斯 (尼尔斯/nils) | 1,2,3,4 | 想学会照顾伙伴；天真直接，第1章观察风向。 | `flowcraft-story-nils.nils` / `eino-story-nils.nils` | `volc-tenant:volc-cn-beijing:zh_male_naiqimengwa_uranus_bigtts` |
 | 阿卡 (阿卡/akka) | 1,2,3,4 | 想让雁群平安迁徙；和蔼沉稳，第1章比较休息地。 | `flowcraft-story-nils.akka` / `eino-story-nils.akka` | `volc-tenant:volc-cn-beijing:ICL_zh_female_heainainai_tob` |
 | 莫顿 (莫顿/morten) | 1,2,3,4 | 想证明自己能跟上队伍；清爽热心，第1章载着尼尔斯，第2章承认疲惫并接受轮换。 | `flowcraft-story-nils.morten` / `eino-story-nils.morten` | `volc-tenant:volc-cn-beijing:ICL_zh_male_qingshuangshaonian_tob` |
 | 斯密尔 (斯密尔/smirre) | 2 | 想寻找食物；理性谨慎，第2章在湿地岸边提出自己的觅食需求，与雁群商量保持距离；不追随北方雁群，不知空中经历。 | `flowcraft-story-nils.smirre` / `eino-story-nils.smirre` | `volc-tenant:volc-cn-beijing:zh_male_jieshuoxiaoming_uranus_bigtts` |
