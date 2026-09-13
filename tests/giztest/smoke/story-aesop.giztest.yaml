@@ -39,6 +39,14 @@ variables:
     direction: input
     type: string
     generate: token
+  flowcraft_fox_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_fox_workspace:
+    direction: input
+    type: string
+    generate: token
   input_audio:
     direction: output
     type: audio
@@ -758,6 +766,60 @@ steps:
   rpc:
     method: server.run.workspace.reload
     request: {}
+# Fox joins in chapter 2. Start this chapter-transition fixture in a fresh
+# Workspace: an existing story does not restart or announce chapter 1 again.
+- id: flowcraft_create_fox
+  client: flowcraft
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${flowcraft_fox_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-story-aesop
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: flowcraft_select_fox
+  client: flowcraft
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${flowcraft_fox_workspace}"
+- id: flowcraft_warmup_fox
+  client: flowcraft
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: eino_create_fox
+  client: eino
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_fox_workspace}"
+      collection: raidtest-targets
+      workflow_name: eino-story-aesop
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_select_fox
+  client: eino
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${eino_fox_workspace}"
+- id: eino_warmup_fox
+  client: eino
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
 - id: fox_chapter_setup_1
   timeout: 2m
   parallel:
@@ -1430,11 +1492,23 @@ finally:
     method: server.workspace.delete
     request:
       name: "${eino_realtime_workspace}"
+- id: flowcraft_delete_fox
+  client: flowcraft
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${flowcraft_fox_workspace}"
 - id: flowcraft_delete_peer
   client: flowcraft
   rpc:
     method: server.peer.delete
     request: {}
+- id: eino_delete_fox
+  client: eino
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${eino_fox_workspace}"
 - id: eino_delete_peer
   client: eino
   rpc:
