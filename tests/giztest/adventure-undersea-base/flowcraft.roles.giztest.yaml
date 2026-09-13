@@ -1,0 +1,528 @@
+# User Story:
+# As a Raids catalog maintainer,
+# I want isolated narrator and character probes for adventure-undersea-base,
+# So that every role produces complete text and non-empty audio within the response gates.
+version: gizclaw.test/v1alpha1
+name: adventure-undersea-base.flowcraft.roles
+clients:
+  narrator:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  biologist:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  engineer:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  diver:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+variables:
+  endpoint:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_ENDPOINT
+  registration_token:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_REGISTRATION_TOKEN
+    secret: true
+  narrator_workspace:
+    direction: input
+    type: string
+    generate: token
+  biologist_workspace:
+    direction: input
+    type: string
+    generate: token
+  engineer_workspace:
+    direction: input
+    type: string
+    generate: token
+  diver_workspace:
+    direction: input
+    type: string
+    generate: token
+repeat: 1
+timeout: 24m
+steps:
+- id: register_narrator
+  client: narrator
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${narrator_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-adventure-undersea-base
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${narrator_workspace}"
+- id: warmup_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: probe_narrator
+  client: narrator
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 开始体验。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      not_contains:
+      - 旁白说
+      - 旁白：
+- id: probe_narrator_first_response
+  client: narrator
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 开始体验。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: register_biologist
+  client: biologist
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_biologist_workspace
+  client: biologist
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${biologist_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-adventure-undersea-base
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_biologist_workspace
+  client: biologist
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${biologist_workspace}"
+- id: warmup_biologist_workspace
+  client: biologist
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: biologist_scene_setup_1
+  client: biologist
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 开始体验。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: probe_biologist
+  client: biologist
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让海洋生物学家亲自回应。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      not_contains:
+      - 海洋生物学家说
+      - 海洋生物学家：
+- id: probe_biologist_first_response
+  client: biologist
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 请让海洋生物学家亲自回应。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: register_engineer
+  client: engineer
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_engineer_workspace
+  client: engineer
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${engineer_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-adventure-undersea-base
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_engineer_workspace
+  client: engineer
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${engineer_workspace}"
+- id: warmup_engineer_workspace
+  client: engineer
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: engineer_scene_setup_1
+  client: engineer
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 开始体验。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: engineer_scene_setup_2
+  client: engineer
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 进入设备检查。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      contains: 设备检查
+- id: probe_engineer
+  client: engineer
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让基地工程师亲自回应。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      not_contains:
+      - 基地工程师说
+      - 基地工程师：
+- id: probe_engineer_first_response
+  client: engineer
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 请让基地工程师亲自回应。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: register_diver
+  client: diver
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_diver_workspace
+  client: diver
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${diver_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-adventure-undersea-base
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_diver_workspace
+  client: diver
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${diver_workspace}"
+- id: warmup_diver_workspace
+  client: diver
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: diver_scene_setup_1
+  client: diver
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 开始体验。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: diver_scene_setup_2
+  client: diver
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 进入潜航规划。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      contains: 潜航规划
+- id: probe_diver
+  client: diver
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让潜航员亲自回应。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      not_contains:
+      - 潜航员说
+      - 潜航员：
+- id: probe_diver_first_response
+  client: diver
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 请让潜航员亲自回应。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+finally:
+- id: stop_narrator_run
+  client: narrator
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${narrator_workspace}"
+- id: delete_narrator_peer
+  client: narrator
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: stop_biologist_run
+  client: biologist
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_biologist_workspace
+  client: biologist
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${biologist_workspace}"
+- id: delete_biologist_peer
+  client: biologist
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: stop_engineer_run
+  client: engineer
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_engineer_workspace
+  client: engineer
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${engineer_workspace}"
+- id: delete_engineer_peer
+  client: engineer
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: stop_diver_run
+  client: diver
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_diver_workspace
+  client: diver
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${diver_workspace}"
+- id: delete_diver_peer
+  client: diver
+  rpc:
+    method: server.peer.delete
+    request: {}
+report:
+  redact:
+  - registration_token
