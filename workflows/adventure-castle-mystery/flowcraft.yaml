@@ -15,19 +15,28 @@ spec:
         to: recall-progress
       - from: recall-progress
         to: route-phase
-      - from: route-phase
+      - from: select-speaker
         to: narrate-opening
         condition: scenario_phase == "opening"
-      - from: route-phase
+      - from: select-speaker
         to: narrate-correction
         condition: scenario_phase == "correction"
-      - from: route-phase
+      - from: select-speaker
         to: narrate-challenge
         condition: scenario_phase == "challenge"
-      - from: route-phase
+      - from: select-speaker
         to: narrate-conclusion
         condition: scenario_phase == "conclusion"
-      - from: route-phase
+      - from: select-speaker
+        to: speak-keeper
+        condition: selected_speaker == "keeper"
+      - from: select-speaker
+        to: speak-mechanic
+        condition: selected_speaker == "mechanic"
+      - from: select-speaker
+        to: speak-archivist
+        condition: selected_speaker == "archivist"
+      - from: select-speaker
         to: narrate-explore
       - from: narrate-opening
         to: reduce-state
@@ -43,7 +52,89 @@ spec:
         to: observe-progress
       - from: observe-progress
         to: __end__
+      - from: route-phase
+        to: select-speaker
+      - from: speak-keeper
+        to: reduce-state
+      - from: speak-mechanic
+        to: reduce-state
+      - from: speak-archivist
+        to: reduce-state
       nodes:
+      - id: select-speaker
+        type: script
+        config:
+          source: |+
+            const current = String(board.getVar("input") || "").trim().toLowerCase();
+            const memory = String(board.getVar("scenario_memory") || "");
+            let state = Object.assign({schema:"raid_scenario_state_v2", revision:0}, board.getVar("scenario_state") || {});
+            for (const line of memory.split("\n")) {
+              const start = line.indexOf('{"schema":');
+              if (start < 0) continue;
+              try { const old = JSON.parse(line.slice(start));
+                if (old.schema === "raid_scenario_state_v2" && Number(old.revision || 0) > Number(state.revision || 0)) state = Object.assign({},state,old);
+              } catch (_) {}
+            }
+            const roleTable = [{"key": "narrator", "name": "旁白", "aliases": ["旁白", "narrator"], "chapters": [1, 2, 3, 4], "duty": "只负责叙述、管理和公开信息整理，不代演角色。"}, {"key": "keeper", "name": "城堡管理员", "aliases": ["城堡管理员", "keeper"], "chapters": [1, 2], "duty": "复述已公开的现场记录，不能新增目击者或嫌疑人。"}, {"key": "mechanic", "name": "机械师", "aliases": ["机械师", "mechanic"], "chapters": [3], "duty": "区分待检查零件与已验证事实，不能声称已经检测出故障。"}, {"key": "archivist", "name": "档案员", "aliases": ["档案员", "archivist"], "chapters": [2, 3], "duty": "核对公开日志与更正后的时间，不能编造档案证词。"}];
+            const scenes = ["客观勘察", "日志校准", "竞争假设", "临时结论"];
+            const any = (s, cues) => cues.some(c => s.includes(c));
+            if (!state.voice_scene && state.route) for (let i=0;i<scenes.length;i++) if(String(state.route).includes(scenes[i])) state.voice_scene=i+1;
+            let scene = Number(state.voice_scene || 1);
+            scene = Number.isFinite(scene) ? Math.max(1, Math.min(scenes.length, Math.floor(scene))) : 1;
+            const history = typeof board.channel === "function" ? (board.channel(board.MAIN_CHANNEL) || []) : [];
+            if (!state.voice_scene) {
+              for (const m of history) {
+                if (m.role !== "assistant") continue;
+                const text = m.content || (m.parts || []).filter(p => p.type === "text").map(p => p.text || "").join("");
+                for (let i=0;i<scenes.length;i++) if (text.includes("当前场景："+scenes[i]) || text.includes("来到"+scenes[i])) scene=i+1;
+              }
+            }
+            let transition = false;
+            if (!current || any(current, ["重新开始", "restart", "开场", "介绍这个体验", "开始体验"])) scene=1;
+            else if (any(current,["进入下一章","进入下一场景"])) {scene=Math.min(scenes.length,scene+1); transition=true;}
+            else {
+              for (let i=0;i<scenes.length;i++) if (any(current,["进入"+scenes[i],"前往"+scenes[i],"来到"+scenes[i]])) {scene=i+1;transition=true;}
+              if (any(current,["查看机械日志", "核对机械日志"])) {scene=2;transition=true;}
+              if (any(current,["检查零件", "检验竞争假设"])) {scene=3;transition=true;}
+            }
+            let phase = "explore";
+            if (!current || any(current, ["开始城堡", "介绍钟楼"])) phase = "opening";
+            else if (any(current, ["更正", "只确认", "有效鞋印", "正确时间", "正确尺码", "只说有效", "重连", "隔了几轮", "只说"])) phase = "correction";
+            else if (any(current, ["总结", "暂时结论", "给出结论", "三句以内"])) phase = "conclusion";
+            else if (any(current, ["我猜", "怀疑", "一定", "检验推理", "可能是", "能支持", "不能支持", "不要下结论", "第几阶段"])) phase = "challenge";
+            const stageRoute = String(board.getVar("scenario_route") || state.route || "");
+            for (let i=0;i<scenes.length;i++) if(stageRoute.includes(scenes[i])) scene=i+1;
+            state.voice_scene=scene;
+            state.active_roles=roleTable.filter(r=>r.chapters.includes(scene)).map(r=>r.key);
+            let speaker="narrator";
+            let managementText=current;
+            for (const role of roleTable) for (const alias of role.aliases) managementText=managementText.split(alias).join("");
+            const management = !current || transition || any(managementText,["更正", "纠正", "修正", "改成", "改变主意", "其实", "安全", "危险", "现实", "模仿", "受伤", "攻击", "牺牲", "停止", "总结", "结论", "回忆", "重连", "恢复", "请记住", "只确认", "只说", "换边", "correction", "correct", "actually", "danger", "safety", "restart", "重新开始", "开场", "介绍这个体验", "进入下一", "下一章", "下一场景", "转场", "开始体验", "从头开始", "第一章", "第1章", "开始冒险", "start", "begin", "介绍体验", "喝生水", "吃野果", "爬高墙", "关闭生命保障", "直视太阳", "尝陌生植物"]) || phase !== "explore";
+            if (!management) {
+              const mentions=[];
+              for (const role of roleTable) for (const alias of role.aliases) {
+                let start=0;
+                for (let attempt=0;attempt<32;attempt++) {
+                  const at=current.indexOf(alias,start); if(at<0) break; start=at+alias.length;
+                  const prefix=current.slice(0,at).replace(/但是|而是|再让|改请|改让|but /g,"，").split(/[，。；！？,;!?]/).pop();
+                  const tail=current.slice(at+alias.length).split(/[，。；！？,;!?]/)[0];
+                  const neg=any(prefix,["不要", "别让", "别请", "不让", "不请", "不想让", "不想听", "不用", "无需", "别", "不需要", "do not", "don't", "not", "instead of"]) || any(tail,["不要说","别说","不用回答","不要回答"]);
+                  const requested=any(prefix+alias+tail,["说说", "说话", "发言", "回应", "回答", "解释", "问问", "采访", "talk", "speak", "answer", "explain"]);
+                  if(!neg && requested && state.active_roles.includes(role.key)) mentions.push({key:role.key,at});
+                }
+              }
+              mentions.sort((a,b)=>a.at-b.at);
+              if(mentions.length) speaker=mentions[0].key;
+            }
+            state.chapter_choice_made=!!current && !management && speaker === "narrator";
+            state.selected_speaker=speaker;
+            state.revision=Math.max(0,Number(state.revision || 0))+1;
+            board.setVar("scenario_state",state);
+            board.setVar("scenario_state_text",JSON.stringify(state));
+            board.setVar("selected_speaker",speaker);
+            board.setVar("story_bible","这是儿童互动冒险的原创配角安排。按场景出场，不让所有人物同时在场；角色不能获知未来场景、私密信息或未验证的结果。每轮仍只发声一次。\n场景1“客观勘察”：城堡管理员：复述已公开的现场记录，不能新增目击者或嫌疑人。\n场景2“日志校准”：城堡管理员：复述已公开的现场记录，不能新增目击者或嫌疑人。；档案员：核对公开日志与更正后的时间，不能编造档案证词。\n场景3“竞争假设”：机械师：区分待检查零件与已验证事实，不能声称已经检测出故障。；档案员：核对公开日志与更正后的时间，不能编造档案证词。\n场景4“临时结论”：\n明确点名例如“请让城堡管理员说说”才请求角色说话；只报名字或支持某人仍是玩家选项，由旁白承接。多人按文本顺序只选第一个在场且未被否定者。开场、转场、更正、安全、结论由旁白负责；旁白不代演角色，不加“旁白说”“旁白：”等说话人标签。严格开场结束后，下一次探索才简短介绍在场角色及点名玩法。\n三名配角不能新增任何改变案件结论的证词、目击、故障检测或档案。只复述本轮之前已公开且仍有效的观察；不知道就说明不知道。");
+            board.setVar("speaker_direction", "当前场景："+scenes[scene-1]+"。当前在场角色："+roleTable.filter(r=>state.active_roles.includes(r.key)).map(r=>r.name).join("、")+"。"+(transition ? "本轮由旁白说出‘来到"+scenes[scene-1]+"’，描写该处角色的一项具体行动并给一个观察选项，不替人物说台词。" : "")+"本轮仅由"+speaker+"发声。" );
+
       - id: prepare-recall-query
         type: script
         config:
@@ -64,7 +155,7 @@ spec:
           output: scenario_memory
           render:
             header: 'Confirmed scenario history:'
-            item_prefix: '- '
+            item_prefix: "- "
             max_items: 12
           top_k: 12
       - id: route-phase
@@ -91,13 +182,14 @@ spec:
                 // Recall may also contain natural-language notes; only Graph-authored JSON state is authoritative.
               }
             }
-            let combined = memory + "\n" + current;
+            const isSpeechRequest = text => ["说说","说话","发言","回应","回答","talk","speak","answer"].some(c => text.includes(c));
+            let combined = memory + "\n" + (isSpeechRequest(current) ? "" : current);
             const messages = board.channel(board.MAIN_CHANNEL) || [];
             for (const message of messages) {
-              if (message && typeof message.content === "string") combined += "\n" + message.content;
+              if (message && typeof message.content === "string" && !isSpeechRequest(message.content)) combined += "\n" + message.content;
               const parts = message && Array.isArray(message.parts) ? message.parts : [];
               const text = parts.map((part) => part && part.type === "text" && typeof part.text === "string" ? part.text : "").join("");
-              if (text) combined += "\n" + text;
+              if (text && !isSpeechRequest(text)) combined += "\n" + text;
             }
             const containsAnyText = (text, values) => values.some((value) => text.includes(value));
             let phase = "explore";
@@ -109,7 +201,7 @@ spec:
             const conclude = containsAnyText(current, ["总结脚印", "暂时结论", "给出结论"]);
             if (conclude && !current.includes("不要下结论")) route = "第四阶段‘临时结论’";
             else if (containsAnyText(combined, ["竞争假设", "风雨", "松动零件", "机械误差", "修钟人", "不要下结论", "第几阶段"])) route = "第三阶段‘竞争假设’";
-            else if (containsAnyText(combined, ["零点十五分", "零点零五分", "机械日志", "管理员最初记录"])) route = "第二阶段‘日志校准’";
+            else if (containsAnyText(combined, ["日志校准", "零点十五分", "零点零五分", "机械日志", "管理员最初记录"])) route = "第二阶段‘日志校准’";
             else route = "第一阶段‘客观勘察’";
             board.setVar("scenario_phase", phase);
             board.setVar("scenario_route", route);
@@ -129,6 +221,9 @@ spec:
             本轮必须先逐字说出这段身份和玩法介绍：「我们来到一座古老的城堡，你是来帮忙的小侦探，要找出钟声提前响起的原因。你可以说想先查看哪个线索，也可以说出你的猜想，我们一起验证。」然后再按下面的要求写。本轮只建立固定开场，让玩家自由选择线索；不要提前解释羽毛、脚印或钟声。
             可核对的长期进度：${board.scenario_memory}
             Graph状态：${board.scenario_state_text}
+            ${board.story_bible}
+            ${board.speaker_direction}
+            本轮由旁白叙述，不代演人物。
           track_steps: true
       - id: narrate-explore
         type: llm
@@ -143,6 +238,9 @@ spec:
             本轮只呈现玩家当前明确调查对象的可见结果或证词，并保持方向、位置和来源边界。
             可核对的长期进度：${board.scenario_memory}
             Graph状态：${board.scenario_state_text}
+            ${board.story_bible}
+            ${board.speaker_direction}
+            本轮由旁白叙述，不代演人物。
           track_steps: true
       - id: narrate-correction
         type: llm
@@ -157,6 +255,9 @@ spec:
             本轮只确认最新有效事实；旧值立即失效，不得为了说明更正而再次输出旧值，也不得推进调查。
             可核对的长期进度：${board.scenario_memory}
             Graph状态：${board.scenario_state_text}
+            ${board.story_bible}
+            ${board.speaker_direction}
+            本轮由旁白叙述，不代演人物。
           track_steps: true
       - id: narrate-challenge
         type: llm
@@ -171,6 +272,9 @@ spec:
             本轮逐项区分观察、证词与推测；反驳无证据指控并指出仍需怎样验证，不替玩家选路线。
             可核对的长期进度：${board.scenario_memory}
             Graph状态：${board.scenario_state_text}
+            ${board.story_bible}
+            ${board.speaker_direction}
+            本轮由旁白叙述，不代演人物。
           track_steps: true
       - id: narrate-conclusion
         type: llm
@@ -185,6 +289,9 @@ spec:
             本轮只使用已经展示且仍有效的证据，保留不确定性，并严格服从用户的句数限制。
             可核对的长期进度：${board.scenario_memory}
             Graph状态：${board.scenario_state_text}
+            ${board.story_bible}
+            ${board.speaker_direction}
+            本轮由旁白叙述，不代演人物。
           track_steps: true
       - id: reduce-state
         type: script
@@ -221,10 +328,76 @@ spec:
                 lane: case_state
                 kind: state
           wait_for_completion: false
+      - id: speak-keeper
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-adventure-castle-mystery.model
+          max_tokens: 2048
+          output_key: tmp_answer
+          system_prompt: |-
+            ${board.scenario_common_prompt}
+            本轮Graph路径：${board.scenario_route}。
+            本轮只呈现玩家当前明确调查对象的可见结果或证词，并保持方向、位置和来源边界。
+            可核对的长期进度：${board.scenario_memory}
+            Graph状态：${board.scenario_state_text}
+            ${board.story_bible}
+            ${board.speaker_direction}
+            你是城堡管理员。复述已公开的现场记录，不能新增目击者或嫌疑人。
+            本轮只能由城堡管理员直接以第一人称角色口吻说台词，不得添加“城堡管理员说”“城堡管理员：”等说话人标签；不替旁白或其他角色发言。只说亲历或公开且已确认的信息，不知道就说明不知道；不得补造未来结果。
+            上述主持与首次开场指令本轮不执行；仅继承事实、安全及阶段限制，不得代替玩家执行挑战、推进调查或完成任务。
+          track_steps: true
+      - id: speak-mechanic
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-adventure-castle-mystery.model
+          max_tokens: 2048
+          output_key: tmp_answer
+          system_prompt: |-
+            ${board.scenario_common_prompt}
+            本轮Graph路径：${board.scenario_route}。
+            本轮只呈现玩家当前明确调查对象的可见结果或证词，并保持方向、位置和来源边界。
+            可核对的长期进度：${board.scenario_memory}
+            Graph状态：${board.scenario_state_text}
+            ${board.story_bible}
+            ${board.speaker_direction}
+            你是机械师。区分待检查零件与已验证事实，不能声称已经检测出故障。
+            本轮只能由机械师直接以第一人称角色口吻说台词，不得添加“机械师说”“机械师：”等说话人标签；不替旁白或其他角色发言。只说亲历或公开且已确认的信息，不知道就说明不知道；不得补造未来结果。
+            上述主持与首次开场指令本轮不执行；仅继承事实、安全及阶段限制，不得代替玩家执行挑战、推进调查或完成任务。
+          track_steps: true
+      - id: speak-archivist
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-adventure-castle-mystery.model
+          max_tokens: 2048
+          output_key: tmp_answer
+          system_prompt: |-
+            ${board.scenario_common_prompt}
+            本轮Graph路径：${board.scenario_route}。
+            本轮只呈现玩家当前明确调查对象的可见结果或证词，并保持方向、位置和来源边界。
+            可核对的长期进度：${board.scenario_memory}
+            Graph状态：${board.scenario_state_text}
+            ${board.story_bible}
+            ${board.speaker_direction}
+            你是档案员。核对公开日志与更正后的时间，不能编造档案证词。
+            本轮只能由档案员直接以第一人称角色口吻说台词，不得添加“档案员说”“档案员：”等说话人标签；不替旁白或其他角色发言。只说亲历或公开且已确认的信息，不知道就说明不知道；不得补造未来结果。
+            上述主持与首次开场指令本轮不执行；仅继承事实、安全及阶段限制，不得代替玩家执行挑战、推进调查或完成任务。
+          track_steps: true
     max_iterations: 10
     conversation:
       starts: agent
     voice_adapter:
       asr_model: asr
       default_voice: flowcraft-adventure-castle-mystery.adventure-guide
+      node_voices:
+        narrate-opening: flowcraft-adventure-castle-mystery.adventure-guide
+        narrate-explore: flowcraft-adventure-castle-mystery.adventure-guide
+        narrate-correction: flowcraft-adventure-castle-mystery.adventure-guide
+        narrate-challenge: flowcraft-adventure-castle-mystery.adventure-guide
+        narrate-conclusion: flowcraft-adventure-castle-mystery.adventure-guide
+        speak-keeper: flowcraft-adventure-castle-mystery.keeper
+        speak-mechanic: flowcraft-adventure-castle-mystery.mechanic
+        speak-archivist: flowcraft-adventure-castle-mystery.archivist
   memory: adventure
