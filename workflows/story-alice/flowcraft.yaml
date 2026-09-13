@@ -27,12 +27,27 @@ spec:
         to: speak-white-rabbit
         condition: selected_speaker == "white-rabbit"
       - from: control-story
+        to: speak-hatter
+        condition: selected_speaker == "hatter"
+      - from: control-story
+        to: speak-cheshire-cat
+        condition: selected_speaker == "cheshire-cat"
+      - from: control-story
+        to: speak-queen-of-hearts
+        condition: selected_speaker == "queen-of-hearts"
+      - from: control-story
         to: speak-narrator
       - from: speak-narrator
         to: persist-story
       - from: speak-alice
         to: persist-story
       - from: speak-white-rabbit
+        to: persist-story
+      - from: speak-hatter
+        to: persist-story
+      - from: speak-cheshire-cat
+        to: persist-story
+      - from: speak-queen-of-hearts
         to: persist-story
       - from: persist-story
         to: observe-story
@@ -72,7 +87,8 @@ spec:
           source: |
             const current = String(board.getVar("input") || "").trim();
             const memory = String(board.getVar("scenario_memory") || "");
-            const defaults = {"schema":"story_contract_v1","revision":0,"chapter":1,"chapter_title":"迟到的怀表","completed_beats":[],"chapter_progress_beats":[],"chapter_choice_made":false,"location":"迟到的怀表","active_roles":["narrator","alice","white-rabbit"],"player_choices":[],"explicit_corrections":{},"durable_objects":["旅程代号"],"unresolved_hooks":["缩小之门尚未解决"]};
+            const roleTable = [{"key":"narrator","name":"旁白","aliases":["旁白","narrator"],"chapters":[1,2,3,4]},{"key":"alice","name":"爱丽丝","aliases":["爱丽丝","alice"],"chapters":[1,2,3,4]},{"key":"white-rabbit","name":"白兔","aliases":["白兔","小白兔","white rabbit","white-rabbit"],"chapters":[1,2,3,4]},{"key":"hatter","name":"帽匠","aliases":["帽匠","疯帽匠","hatter"],"chapters":[3]},{"key":"cheshire-cat","name":"柴郡猫","aliases":["柴郡猫","笑脸猫","cheshire cat","cheshire-cat"],"chapters":[2,3]},{"key":"queen-of-hearts","name":"红心王后","aliases":["红心王后","王后","queen of hearts","queen-of-hearts"],"chapters":[4]}];
+            const defaults = {"schema":"story_contract_v1","revision":0,"chapter":1,"chapter_title":"迟到的怀表","completed_beats":[],"chapter_progress_beats":[],"chapter_choice_made":false,"location":"迟到的怀表","active_roles":roleTable.filter((role) => role.chapters.includes(1)).map((role) => role.key),"player_choices":[],"explicit_corrections":{},"durable_objects":["旅程代号"],"unresolved_hooks":["缩小之门尚未解决"]};
             let state = Object.assign({}, defaults, board.getVar("story_state") || {});
             for (const line of memory.split("\n")) {
               const start = line.indexOf('{"schema":"story_contract_v1"');
@@ -82,8 +98,9 @@ spec:
                 if (candidate.schema === "story_contract_v1" && Number(candidate.revision || 0) >= Number(state.revision || 0)) state = Object.assign({}, defaults, candidate);
               } catch (_) {}
             }
+            state.chapter = Math.max(1, Math.min(4, Math.floor(Number(state.chapter) || 1)));
             const chapters = ["迟到的怀表", "缩小之门", "茶会反例", "花园答案"];
-            const enteringFirst = Number(state.revision || 0) === 0 && (current.includes("第一章") || current.includes("第 1 章"));
+            const enteringFirst = Number(state.revision || 0) === 0 && (current.includes("第一章") || current.includes("第 1 章") || /(?:start|begin|restart).{0,20}(?:chapter\s*1|first chapter)/i.test(current));
             let transitionTarget = 0;
             if (current.includes("第二章") || current.includes("第2章") || current.includes("第 2 章")) transitionTarget = 2;
             if (current.includes("第三章") || current.includes("第3章") || current.includes("第 3 章")) transitionTarget = 3;
@@ -124,7 +141,7 @@ spec:
             }
             const asksBlockedExplanation = ["为什么还不能", "为何不能", "说明为什么", "why can't", "why cannot", "why not ready"].some((cue) => lower.includes(cue));
             const transitionBlocked = transitionTarget > 0 && transitionTarget !== currentChapter && !transition && ((transitionIntent && !transitionDenied) || asksBlockedExplanation);
-            const administrativeTurn = ["旅程代号", "更正", "作废", "重连", "回忆", "事实", "传说", "原创设定", "总结", "说明当前章节"].some((cue) => current.includes(cue)) || current.includes("不要推进") || current.includes("不推进章节") || current.includes("只确认");
+            const administrativeTurn = ["旅程代号", "更正", "改成", "纠正", "修正", "作废", "重连", "回忆", "事实", "传说", "原创设定", "总结", "说明当前章节"].some((cue) => current.includes(cue)) || current.includes("不要推进") || current.includes("不推进章节") || current.includes("只确认") || /\b(correct|correction|reconnect|recall)\b/i.test(current);
             const requestsOutcome = ["直接结果", "直接后果", "具体后果", "眼前结果", "新局面", "新线索", "推进一个场景", "推进当前章"].some((cue) => current.includes(cue));
             const requestsPerspective = ["亲自回应", "不同立场", "不同回应", "比较两名角色"].some((cue) => current.includes(cue));
             const safetyOnly = current.includes("现实中模仿") && !requestsOutcome;
@@ -140,11 +157,34 @@ spec:
               state.player_choices = choices;
             }
             state.revision = Number(state.revision || 0) + 1;
-            let speaker = "narrator";
-            const explicitlyRequests = (name) => current.includes("请让" + name) || current.includes("由" + name) || current.includes(name + "亲自");
-            if (!transition && !transitionBlocked && !enteringFirst && explicitlyRequests("爱丽丝")) speaker = "alice";
-            if (!transition && !transitionBlocked && !enteringFirst && explicitlyRequests("白兔")) speaker = "white-rabbit";
+            // Always rebuild derived cast after recall and chapter changes; old arrays are not authoritative.
+            state.active_roles = roleTable.filter((role) => role.chapters.includes(state.chapter)).map((role) => role.key);
+            state.chapter_title = chapters[state.chapter - 1];
+            state.location = state.chapter_title;
             const announce = (!current && Number(state.chapter || 1) === 1) || enteringFirst || transition;
+            const safetyManagement = current.includes("现实中模仿") || current.includes("现实模仿");
+            let speaker = "narrator";
+            // Option-only names are choices, not requests for a character performance.
+            const optionOnly = roleTable.some((role) => role.aliases.includes(lower.replace(/[。！!,.，]/g, "")));
+            const mentions = [];
+            for (const role of roleTable) {
+              for (const alias of role.aliases) {
+                let index = lower.indexOf(alias);
+                while (index >= 0) {
+                  const prefix = lower.slice(0, index).split(/[，。；！？,;!?]|但是|而是|不过|但/).pop();
+                  const suffix = lower.slice(index + alias.length).split(/[，。；！？,;!?]/)[0];
+                  const negated = /(不要|别|不让|不用|不想|不请|不由|不听|不选|do not|don't|not|never).{0,16}$/.test(prefix) || /^(先|暂时)?(不要|别|不用|不必)/.test(suffix);
+                  const requestedRole = /(请让|请|让|由|听|ask|let|hear)\s*$/.test(prefix) || /^(亲自|说|讲|回应|回答|来讲)/.test(suffix);
+                  if (!negated && requestedRole) mentions.push({key: role.key, index});
+                  index = lower.indexOf(alias, index + alias.length);
+                }
+              }
+            }
+            mentions.sort((a, b) => a.index - b.index);
+            if (!announce && !transitionBlocked && !administrativeTurn && !safetyManagement && !optionOnly) {
+              const selected = mentions.find((mention) => state.active_roles.includes(mention.key));
+              if (selected) speaker = selected.key;
+            }
             const countProgress = !transition && !transitionBlocked && !enteringFirst && current !== "" && !administrativeTurn && !safetyOnly && (requested === 0 || requested === currentChapter);
             const beatsAfterTurn = priorProgressBeats.slice();
             if (countProgress && (speaker === "narrator" || requestsOutcome) && !beatsAfterTurn.includes("consequence")) beatsAfterTurn.push("consequence");
@@ -162,7 +202,7 @@ spec:
             board.setVar("response_requests_perspective", requestsPerspective);
             board.setVar("story_state", state);
             board.setVar("story_state_text", JSON.stringify(state));
-            board.setVar("story_bible", "故事：爱丽丝梦游仙境。前提：用奇妙规则、语言游戏和逻辑谜题探索梦境世界。\n玩家是能改变局面但不能替代角色作决定的同行者。\n四章依次为：第1章《迟到的怀表》；第2章《缩小之门》；第3章《茶会反例》；第4章《花园答案》。\n第1章《迟到的怀表》：进入条件=收到首次开场请求；目标=解决《迟到的怀表》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，并明确要求进入第2章；结束条件=转场回合只出现一次下一章标题“第 2 章：缩小之门”，并紧接新章开场。\n第2章《缩小之门》：进入条件=第1章的当前选择已完成转场条件，且用户明确要求继续；目标=解决《缩小之门》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，并明确要求进入第3章；结束条件=转场回合只出现一次下一章标题“第 3 章：茶会反例”，并紧接新章开场。\n第3章《茶会反例》：进入条件=第2章的当前选择已完成转场条件，且用户明确要求继续；目标=解决《茶会反例》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，并明确要求进入第4章；结束条件=转场回合只出现一次下一章标题“第 4 章：花园答案”，并紧接新章开场。\n第4章《花园答案》：进入条件=第3章的当前选择已完成转场条件，且用户明确要求继续；目标=解决《花园答案》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家确认角色的持久选择，并保留一个结局后的责任线索；结束条件=保持第4章，不再创建第五章，并以仍需兑现的责任收束。\n角色表：旁白只陈述可见事实与转场；爱丽丝坚持自身动机、只知道亲历信息；白兔提供不同立场、不得知道未公开事实。\n世界规则：每轮只推进一个场景、线索或选择；最多一个问题，请孩子做选择时要在这个问题里直接说出两三个具体选项，不能只问“你想怎么做”；给孩子的选项必须适合儿童，不能包含杀害、伤害、威胁或报复任何人；当前用户更正覆盖历史旧值。\n事实边界：经典来源、传说与本剧本原创设定必须区分；不得复制完整出版译文。\n安全边界：面向儿童，危险非血腥；现实模仿请求必须明确说“不要模仿”，并建议找可信任的成年人、家长或老师帮助。\n反重复：不得重复确认句、场景开头、上一轮选择、同一个问题、回顾或寓意总结。");
+            board.setVar("story_bible", "故事：爱丽丝梦游仙境。前提：用奇妙规则、语言游戏和逻辑谜题探索梦境世界。\n玩家是能改变局面但不能替代角色作决定的同行者。\n四章依次为：第1章《迟到的怀表》；第2章《缩小之门》；第3章《茶会反例》；第4章《花园答案》。\n第1章《迟到的怀表》：进入条件=收到首次开场请求；目标=解决《迟到的怀表》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，并明确要求进入第2章；结束条件=转场回合只出现一次下一章标题“第 2 章：缩小之门”，并紧接新章开场。\n第2章《缩小之门》：进入条件=第1章的当前选择已完成转场条件，且用户明确要求继续；目标=解决《缩小之门》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，并明确要求进入第3章；结束条件=转场回合只出现一次下一章标题“第 3 章：茶会反例”，并紧接新章开场。\n第3章《茶会反例》：进入条件=第2章的当前选择已完成转场条件，且用户明确要求继续；目标=解决《茶会反例》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，并明确要求进入第4章；结束条件=转场回合只出现一次下一章标题“第 4 章：花园答案”，并紧接新章开场。\n第4章《花园答案》：进入条件=第3章的当前选择已完成转场条件，且用户明确要求继续；目标=解决《花园答案》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家确认角色的持久选择，并保留一个结局后的责任线索；结束条件=保持第4章，不再创建第五章，并以仍需兑现的责任收束。\n角色表：narrator 旁白（别名 narrator），第1至4章只述可见事实、不代演角色；alice 爱丽丝（别名 爱丽丝/alice），仅第1、2、3、4章可出场，我想弄懂奇妙规则；活泼好奇，第1章检查怀表，第2章比较门的大小，第3章用反例提问，第4章提出公平规则。；white-rabbit 白兔（别名 白兔/小白兔/white rabbit/white-rabbit），仅第1、2、3、4章可出场，我想准时到达；清晰急切，第1章核对时间，第2章试验门的刻度，第3章核对茶会顺序，第4章公布怀表记录。；hatter 帽匠（别名 帽匠/疯帽匠/hatter），仅第3章可出场，我想让茶会有趣；幽默爱举例，第3章摆放茶杯并提出一个能检验规则的反例，茶会结束留在原地。；cheshire-cat 柴郡猫（别名 柴郡猫/笑脸猫/cheshire cat/cheshire-cat），仅第2、3章可出场，我想让旅伴先想清目的；机敏反问，第2章指出门上两种刻度，第3章比较两种茶会规则，之后留在茶会。；queen-of-hearts 红心王后（别名 红心王后/王后/queen of hearts/queen-of-hearts），仅第4章可出场，我想维持花园秩序；稳重清楚，第4章展示花园规则、听取反例后修改不公平的一条，不恐吓或伤害任何人。本故事四章及人物相遇是本仓库原创改编安排，不等同原典情节或真实历史；所有角色只知亲历或已公开信息，不知别人的私密想法和未来结果；每章比较至少两种立场，不要求全员轮流发言。\n世界规则：每轮只推进一个场景、线索或选择；最多一个问题，请孩子做选择时要在这个问题里直接说出两三个具体选项，不能只问“你想怎么做”；给孩子的选项必须适合儿童，不能包含杀害、伤害、威胁或报复任何人；当前用户更正覆盖历史旧值。\n事实边界：经典来源、传说与本剧本原创设定必须区分；不得复制完整出版译文。\n安全边界：面向儿童，危险非血腥；现实模仿请求必须明确说“不要模仿”，并建议找可信任的成年人、家长或老师帮助。\n反重复：不得重复确认句、场景开头、上一轮选择、同一个问题、回顾或寓意总结。");
       - id: speak-narrator
         type: llm
         publish: true
@@ -177,7 +217,7 @@ spec:
             本轮安全请求：${board.safety_request}。若该值为 true，回复中必须明确包含“不要模仿”和“找家长、老师或可信任成年人帮助”，并承接玩家所选安全替代带来的一个直接结果。
             本轮转场阻塞：${board.transition_blocked}。若该值为 true，用“第 N 章：标题”格式写出当前章节及标题，再用孩子听得懂的话说明这一章还差孩子自己的选择或还没看到选择的结果，所以暂时还不能去下一章，最后用一个问题说出本章问题的具体选项；不得说“节拍”“转场条件”“悬念”等内部用语，也不要把“先听某个角色说说”当作选项，并且绝不输出用户请求的下一章标题。
             若 announce_chapter 为 true，第一行只写一次“第 N 章：标题”，其中“第”与数字、数字与“章”之间各有一个空格，标题后必须在同一条回复里紧接着讲这一章的开场：先用一两句话交代新场景在哪里、谁在场、发生了什么，再用一个问题说出孩子可以选的两三个具体选项；绝不能只输出章节标题就结束。若 announce_chapter 和 transition_blocked 均为 false，则不得输出章节标题。
-            首次进入第一章时，章节标题后必须依次完整说出这段开场，先交代背景，再说明玩法，最后提出开场问题：你跟着爱丽丝掉进了奇妙的仙境，这里的规则常常颠倒过来，身边有好奇的爱丽丝和总在赶时间的白兔。你可以直接说出你的选择，也可以说“请让爱丽丝说说”或“请让白兔说说”，听他们自己讲；这一章的选择做完后，说“进入下一章”就能继续听下去。白兔的怀表只剩三分钟，蓝门和红门都在移动，你想先追白兔还是先检查怀表？（玩法说明里“说‘进入下一章’就能继续听下去”这一句不得省略）
+            首次进入第一章时，章节标题后必须依次完整说出这段开场，先交代背景，再说明玩法，最后提出开场问题：你跟着爱丽丝掉进了奇妙的仙境，这里的规则常常颠倒过来，身边有好奇的爱丽丝和总在赶时间的白兔。柴郡猫在第二章引路，帽匠在第三章摆茶杯，红心王后在第四章修改花园规则，遇见后也能点名。你可以直接说出你的选择，也可以说“请让爱丽丝说说”或“请让白兔说说”，听他们自己讲；这一章的选择做完后，说“进入下一章”就能继续听下去。白兔的怀表只剩三分钟，蓝门和红门都在移动，你想先追白兔还是先检查怀表？（玩法说明里“说‘进入下一章’就能继续听下去”这一句不得省略）
             若用户只要求回忆或确认旅程代号，只回答当前代号；存在更正时绝不输出旧值。
             ${board.next_chapter_instruction}
             普通回合输出2至4个完整中文句子、30至220个Unicode字符；首次开场和进入新章的回合可以写到6个句子、320个Unicode字符以内。不输出Markdown、列表、emoji、舞台说明、系统字段或重复问题。
@@ -192,7 +232,8 @@ spec:
           system_prompt: |-
             ${board.story_bible}
             当前权威状态：${board.story_state_text}
-            本轮只能由爱丽丝说话，直接以角色口吻说台词，不得添加“爱丽丝说”“爱丽丝：”等说话人标签；只说该角色亲历或已公开的信息，不替旁白或另一角色发言。
+            角色动机与说话方式：我想弄懂奇妙规则；活泼好奇，第1章检查怀表，第2章比较门的大小，第3章用反例提问，第4章提出公平规则。
+            本轮只能由爱丽丝说话，直接以第一人称角色口吻说台词，不得添加“爱丽丝说”“爱丽丝：”等说话人标签；只说该角色亲历或已公开的信息，不替旁白或另一角色发言。
             本轮不得输出章节标题。承接玩家当前选择，推进一个直接后果或线索，最多一个问题。
             输出2至4个完整中文句子、30至220个Unicode字符，不输出Markdown、列表、emoji、舞台说明或系统字段。
           track_steps: true
@@ -206,7 +247,53 @@ spec:
           system_prompt: |-
             ${board.story_bible}
             当前权威状态：${board.story_state_text}
-            本轮只能由白兔说话，直接以角色口吻说台词，不得添加“白兔说”“白兔：”等说话人标签；只说该角色亲历或已公开的信息，不替旁白或另一角色发言。
+            角色动机与说话方式：我想准时到达；清晰急切，第1章核对时间，第2章试验门的刻度，第3章核对茶会顺序，第4章公布怀表记录。
+            本轮只能由白兔说话，直接以第一人称角色口吻说台词，不得添加“白兔说”“白兔：”等说话人标签；只说该角色亲历或已公开的信息，不替旁白或另一角色发言。
+            本轮不得输出章节标题。承接玩家当前选择，推进一个直接后果或线索，最多一个问题。
+            输出2至4个完整中文句子、30至220个Unicode字符，不输出Markdown、列表、emoji、舞台说明或系统字段。
+          track_steps: true
+      - id: speak-hatter
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-story-alice.model
+          max_tokens: 1024
+          output_key: answer
+          system_prompt: |-
+            ${board.story_bible}
+            当前权威状态：${board.story_state_text}
+            角色动机与说话方式：我想让茶会有趣；幽默爱举例，第3章摆放茶杯并提出一个能检验规则的反例，茶会结束留在原地。
+            本轮只能由帽匠说话，直接以第一人称角色口吻说台词，不得添加“帽匠说”“帽匠：”等说话人标签；只说该角色亲历或已公开的信息，不替旁白或另一角色发言。
+            本轮不得输出章节标题。承接玩家当前选择，推进一个直接后果或线索，最多一个问题。
+            输出2至4个完整中文句子、30至220个Unicode字符，不输出Markdown、列表、emoji、舞台说明或系统字段。
+          track_steps: true
+      - id: speak-cheshire-cat
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-story-alice.model
+          max_tokens: 1024
+          output_key: answer
+          system_prompt: |-
+            ${board.story_bible}
+            当前权威状态：${board.story_state_text}
+            角色动机与说话方式：我想让旅伴先想清目的；机敏反问，第2章指出门上两种刻度，第3章比较两种茶会规则，之后留在茶会。
+            本轮只能由柴郡猫说话，直接以第一人称角色口吻说台词，不得添加“柴郡猫说”“柴郡猫：”等说话人标签；只说该角色亲历或已公开的信息，不替旁白或另一角色发言。
+            本轮不得输出章节标题。承接玩家当前选择，推进一个直接后果或线索，最多一个问题。
+            输出2至4个完整中文句子、30至220个Unicode字符，不输出Markdown、列表、emoji、舞台说明或系统字段。
+          track_steps: true
+      - id: speak-queen-of-hearts
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-story-alice.model
+          max_tokens: 1024
+          output_key: answer
+          system_prompt: |-
+            ${board.story_bible}
+            当前权威状态：${board.story_state_text}
+            角色动机与说话方式：我想维持花园秩序；稳重清楚，第4章展示花园规则、听取反例后修改不公平的一条，不恐吓或伤害任何人。
+            本轮只能由红心王后说话，直接以第一人称角色口吻说台词，不得添加“红心王后说”“红心王后：”等说话人标签；只说该角色亲历或已公开的信息，不替旁白或另一角色发言。
             本轮不得输出章节标题。承接玩家当前选择，推进一个直接后果或线索，最多一个问题。
             输出2至4个完整中文句子、30至220个Unicode字符，不输出Markdown、列表、emoji、舞台说明或系统字段。
           track_steps: true
@@ -242,4 +329,7 @@ spec:
         speak-narrator: flowcraft-story-alice.storyteller
         speak-alice: flowcraft-story-alice.alice
         speak-white-rabbit: flowcraft-story-alice.white-rabbit
+        speak-hatter: flowcraft-story-alice.hatter
+        speak-cheshire-cat: flowcraft-story-alice.cheshire-cat
+        speak-queen-of-hearts: flowcraft-story-alice.queen-of-hearts
   memory: story-teller
