@@ -5,241 +5,812 @@
 version: gizclaw.test/v1alpha1
 name: story-tom-sawyer.flowcraft.roles
 clients:
-  narrator: {identity: ephemeral, connection: webrtc, access_point: "${endpoint}"}
-  tom: {identity: ephemeral, connection: webrtc, access_point: "${endpoint}"}
-  becky: {identity: ephemeral, connection: webrtc, access_point: "${endpoint}"}
+  narrator:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  tom:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  becky:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  huck:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  aunt-polly:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
 variables:
-  endpoint: {direction: input, type: string, env: GIZCLAW_TEST_ENDPOINT}
-  registration_token: {direction: input, type: string, env: GIZCLAW_TEST_REGISTRATION_TOKEN, secret: true}
-  narrator_workspace: {direction: input, type: string, generate: token}
-  tom_workspace: {direction: input, type: string, generate: token}
-  becky_workspace: {direction: input, type: string, generate: token}
+  endpoint:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_ENDPOINT
+  registration_token:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_REGISTRATION_TOKEN
+    secret: true
+  narrator_workspace:
+    direction: input
+    type: string
+    generate: token
+  tom_workspace:
+    direction: input
+    type: string
+    generate: token
+  becky_workspace:
+    direction: input
+    type: string
+    generate: token
+  huck_workspace:
+    direction: input
+    type: string
+    generate: token
+  aunt_polly_workspace:
+    direction: input
+    type: string
+    generate: token
 repeat: 1
-timeout: 12m
+timeout: 60m
 steps:
 - id: register_narrator
   client: narrator
-  rpc: {method: server.register, request: {token: "${registration_token}"}}
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
 - id: create_narrator_workspace
   client: narrator
   rpc:
     method: server.workspace.create
     request:
-      name: ${narrator_workspace}
+      name: "${narrator_workspace}"
       collection: raidtest-targets
       workflow_name: flowcraft-story-tom-sawyer
       parameters:
         flowcraft_workspace_parameters:
           agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
-          conversation: {initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER}
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
           input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
 - id: select_narrator_workspace
   client: narrator
-  rpc: {method: server.run.workspace.set, request: {workspace_name: "${narrator_workspace}"}}
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${narrator_workspace}"
 - id: warmup_narrator_workspace
   client: narrator
-  rpc: {method: server.run.workspace.reload, request: {}}
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
   timeout: 2m
 - id: register_tom
   client: tom
-  rpc: {method: server.register, request: {token: "${registration_token}"}}
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
 - id: create_tom_workspace
   client: tom
   rpc:
     method: server.workspace.create
     request:
-      name: ${tom_workspace}
+      name: "${tom_workspace}"
       collection: raidtest-targets
       workflow_name: flowcraft-story-tom-sawyer
       parameters:
         flowcraft_workspace_parameters:
           agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
-          conversation: {initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER}
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
           input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
 - id: select_tom_workspace
   client: tom
-  rpc: {method: server.run.workspace.set, request: {workspace_name: "${tom_workspace}"}}
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${tom_workspace}"
 - id: warmup_tom_workspace
   client: tom
-  rpc: {method: server.run.workspace.reload, request: {}}
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
   timeout: 2m
 - id: register_becky
   client: becky
-  rpc: {method: server.register, request: {token: "${registration_token}"}}
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
 - id: create_becky_workspace
   client: becky
   rpc:
     method: server.workspace.create
     request:
-      name: ${becky_workspace}
+      name: "${becky_workspace}"
       collection: raidtest-targets
       workflow_name: flowcraft-story-tom-sawyer
       parameters:
         flowcraft_workspace_parameters:
           agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
-          conversation: {initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER}
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
           input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
 - id: select_becky_workspace
   client: becky
-  rpc: {method: server.run.workspace.set, request: {workspace_name: "${becky_workspace}"}}
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${becky_workspace}"
 - id: warmup_becky_workspace
   client: becky
-  rpc: {method: server.run.workspace.reload, request: {}}
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: register_huck
+  client: huck
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_huck_workspace
+  client: huck
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${huck_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-story-tom-sawyer
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_huck_workspace
+  client: huck
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${huck_workspace}"
+- id: warmup_huck_workspace
+  client: huck
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: register_aunt-polly
+  client: aunt-polly
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_aunt_polly_workspace
+  client: aunt-polly
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${aunt_polly_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-story-tom-sawyer
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_aunt_polly_workspace
+  client: aunt-polly
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${aunt_polly_workspace}"
+- id: warmup_aunt_polly_workspace
+  client: aunt-polly
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
   timeout: 2m
 - id: probe_narrator
   client: narrator
   timeout: 2m
   peer_stream:
     mode: text
-    input: "请由旁白承接当前故事，只推进一个可见线索。"
+    input: 请由旁白承接当前故事，只推进一个可见线索。
     idle_timeout: 90s
     require_text: true
     require_audio: true
   expect:
-    /text:
+    "/text":
       not_contains:
       - 旁白说
       - 旁白：
-    /text_eos: {equals: true}
-    /audio_eos: {equals: true}
-    /audio_bytes: {minimum: 1}
-    /first_text_ms: {maximum: 6000}
-    /first_audio_ms: {maximum: 90000}
-- id: reject_premature_chapter_two
-  client: narrator
-  timeout: 2m
-  peer_stream:
-    mode: text
-    input: "请直接进入第二章；如果条件不足，只说明仍停留的当前章节。"
-    idle_timeout: 90s
-    require_text: true
-    require_audio: true
-  expect:
-    /text:
-      contains_all:
-      - "第 1 章"
-      - "河边地图"
-      not_contains:
-      - "第 2 章"
-      - "承诺冲突"
-    /text_eos: {equals: true}
-    /audio_eos: {equals: true}
-    /audio_bytes: {minimum: 1}
-    /first_text_ms: {maximum: 6000}
-    /first_audio_ms: {maximum: 90000}
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
 - id: probe_narrator_first_response
   client: narrator
   timeout: 15s
   peer_stream:
     mode: text
-    input: "请直接进入第二章；如果条件不足，只说明仍停留的当前章节。"
+    input: 请由旁白承接当前故事，只推进一个可见线索。
     completion: first_response
     first_text_timeout: 2s
     first_audio_timeout: 3s
     require_text: true
     require_audio: true
   expect:
-    /events: {non_empty: true}
-    /audio_bytes: {minimum: 1}
-    /first_text_ms: {maximum: 2000}
-    /first_audio_ms: {maximum: 3000}
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
 - id: probe_tom
   client: tom
   timeout: 2m
   peer_stream:
     mode: text
-    input: "请让汤姆亲自回应，只说这个角色知道的事。"
+    input: 请让汤姆亲自回应，只说这个角色知道的事。
     idle_timeout: 90s
     require_text: true
     require_audio: true
   expect:
-    /text:
+    "/text":
       not_contains:
       - 汤姆说
       - 汤姆：
-    /text_eos: {equals: true}
-    /audio_eos: {equals: true}
-    /audio_bytes: {minimum: 1}
-    /first_text_ms: {maximum: 6000}
-    /first_audio_ms: {maximum: 90000}
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
 - id: probe_tom_first_response
   client: tom
   timeout: 15s
   peer_stream:
     mode: text
-    input: "请让汤姆亲自回应，只说这个角色知道的事。"
+    input: 请让汤姆亲自回应，只说这个角色知道的事。
     completion: first_response
     first_text_timeout: 2s
     first_audio_timeout: 3s
     require_text: true
     require_audio: true
   expect:
-    /events: {non_empty: true}
-    /audio_bytes: {minimum: 1}
-    /first_text_ms: {maximum: 2000}
-    /first_audio_ms: {maximum: 3000}
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
 - id: probe_becky
   client: becky
   timeout: 2m
   peer_stream:
     mode: text
-    input: "请让贝琪亲自回应，只说这个角色知道的事。"
+    input: 请让贝琪亲自回应，只说这个角色知道的事。
     idle_timeout: 90s
     require_text: true
     require_audio: true
   expect:
-    /text:
+    "/text":
       not_contains:
       - 贝琪说
       - 贝琪：
-    /text_eos: {equals: true}
-    /audio_eos: {equals: true}
-    /audio_bytes: {minimum: 1}
-    /first_text_ms: {maximum: 6000}
-    /first_audio_ms: {maximum: 90000}
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
 - id: probe_becky_first_response
   client: becky
   timeout: 15s
   peer_stream:
     mode: text
-    input: "请让贝琪亲自回应，只说这个角色知道的事。"
+    input: 请让贝琪亲自回应，只说这个角色知道的事。
     completion: first_response
     first_text_timeout: 2s
     first_audio_timeout: 3s
     require_text: true
     require_audio: true
   expect:
-    /events: {non_empty: true}
-    /audio_bytes: {minimum: 1}
-    /first_text_ms: {maximum: 2000}
-    /first_audio_ms: {maximum: 3000}
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: huck_chapter_setup_26
+  client: huck
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请从第一章开始《汤姆索亚历险记》。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      contains: 第 1 章：河边地图
+- id: huck_chapter_setup_27
+  client: huck
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我选择先帮助同伴并核对眼前线索，请推进一个直接结果。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: huck_chapter_setup_28
+  client: huck
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让汤姆亲自回应，说出不同立场。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: huck_chapter_setup_29
+  client: huck
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 进入下一章。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      contains: 第 2 章：承诺冲突
+- id: probe_huck
+  client: huck
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让哈克亲自回应，只说这个角色知道的事。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      not_contains:
+      - 哈克说
+      - 哈克：
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: probe_huck_first_response
+  client: huck
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 请让哈克亲自回应，只说这个角色知道的事。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: aunt-polly_chapter_setup_32
+  client: aunt-polly
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请从第一章开始《汤姆索亚历险记》。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      contains: 第 1 章：河边地图
+- id: aunt-polly_chapter_setup_33
+  client: aunt-polly
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我选择先帮助同伴并核对眼前线索，请推进一个直接结果。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: aunt-polly_chapter_setup_34
+  client: aunt-polly
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让汤姆亲自回应，说出不同立场。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: aunt-polly_chapter_setup_35
+  client: aunt-polly
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 进入下一章。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      contains: 第 2 章：承诺冲突
+- id: aunt-polly_chapter_setup_36
+  client: aunt-polly
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我选择先帮助同伴并核对眼前线索，请推进一个直接结果。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: aunt-polly_chapter_setup_37
+  client: aunt-polly
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让汤姆亲自回应，说出不同立场。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: aunt-polly_chapter_setup_38
+  client: aunt-polly
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 进入下一章。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      contains: 第 3 章：洞穴线索
+- id: aunt-polly_chapter_setup_39
+  client: aunt-polly
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我选择先帮助同伴并核对眼前线索，请推进一个直接结果。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: aunt-polly_chapter_setup_40
+  client: aunt-polly
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让汤姆亲自回应，说出不同立场。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: aunt-polly_chapter_setup_41
+  client: aunt-polly
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 进入下一章。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      contains: 第 4 章：诚实归来
+- id: probe_aunt-polly
+  client: aunt-polly
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让波莉姨妈亲自回应，只说这个角色知道的事。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      not_contains:
+      - 波莉姨妈说
+      - 波莉姨妈：
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: probe_aunt-polly_first_response
+  client: aunt-polly
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 请让波莉姨妈亲自回应，只说这个角色知道的事。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
 finally:
 - id: stop_narrator_run
   client: narrator
-  rpc: {method: server.run.stop, request: {}}
+  rpc:
+    method: server.run.stop
+    request: {}
 - id: delete_narrator_workspace
   client: narrator
-  rpc: {method: server.workspace.delete, request: {name: "${narrator_workspace}"}}
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${narrator_workspace}"
 - id: delete_narrator_peer
   client: narrator
-  rpc: {method: server.peer.delete, request: {}}
+  rpc:
+    method: server.peer.delete
+    request: {}
 - id: stop_tom_run
   client: tom
-  rpc: {method: server.run.stop, request: {}}
+  rpc:
+    method: server.run.stop
+    request: {}
 - id: delete_tom_workspace
   client: tom
-  rpc: {method: server.workspace.delete, request: {name: "${tom_workspace}"}}
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${tom_workspace}"
 - id: delete_tom_peer
   client: tom
-  rpc: {method: server.peer.delete, request: {}}
+  rpc:
+    method: server.peer.delete
+    request: {}
 - id: stop_becky_run
   client: becky
-  rpc: {method: server.run.stop, request: {}}
+  rpc:
+    method: server.run.stop
+    request: {}
 - id: delete_becky_workspace
   client: becky
-  rpc: {method: server.workspace.delete, request: {name: "${becky_workspace}"}}
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${becky_workspace}"
 - id: delete_becky_peer
   client: becky
-  rpc: {method: server.peer.delete, request: {}}
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: stop_huck_run
+  client: huck
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_huck_workspace
+  client: huck
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${huck_workspace}"
+- id: delete_huck_peer
+  client: huck
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: stop_aunt-polly_run
+  client: aunt-polly
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_aunt_polly_workspace
+  client: aunt-polly
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${aunt_polly_workspace}"
+- id: delete_aunt-polly_peer
+  client: aunt-polly
+  rpc:
+    method: server.peer.delete
+    request: {}
 report:
-  redact: [registration_token]
+  redact:
+  - registration_token

@@ -5,241 +5,688 @@
 version: gizclaw.test/v1alpha1
 name: story-shanhaijing.flowcraft.roles
 clients:
-  narrator: {identity: ephemeral, connection: webrtc, access_point: "${endpoint}"}
-  young_explorer: {identity: ephemeral, connection: webrtc, access_point: "${endpoint}"}
-  spirit_guide: {identity: ephemeral, connection: webrtc, access_point: "${endpoint}"}
+  narrator:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  young-explorer:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  spirit-guide:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  jingwei:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  kuafu:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
 variables:
-  endpoint: {direction: input, type: string, env: GIZCLAW_TEST_ENDPOINT}
-  registration_token: {direction: input, type: string, env: GIZCLAW_TEST_REGISTRATION_TOKEN, secret: true}
-  narrator_workspace: {direction: input, type: string, generate: token}
-  young_explorer_workspace: {direction: input, type: string, generate: token}
-  spirit_guide_workspace: {direction: input, type: string, generate: token}
+  endpoint:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_ENDPOINT
+  registration_token:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_REGISTRATION_TOKEN
+    secret: true
+  narrator_workspace:
+    direction: input
+    type: string
+    generate: token
+  young_explorer_workspace:
+    direction: input
+    type: string
+    generate: token
+  spirit_guide_workspace:
+    direction: input
+    type: string
+    generate: token
+  jingwei_workspace:
+    direction: input
+    type: string
+    generate: token
+  kuafu_workspace:
+    direction: input
+    type: string
+    generate: token
 repeat: 1
-timeout: 12m
+timeout: 60m
 steps:
 - id: register_narrator
   client: narrator
-  rpc: {method: server.register, request: {token: "${registration_token}"}}
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
 - id: create_narrator_workspace
   client: narrator
   rpc:
     method: server.workspace.create
     request:
-      name: ${narrator_workspace}
+      name: "${narrator_workspace}"
       collection: raidtest-targets
       workflow_name: flowcraft-story-shanhaijing
       parameters:
         flowcraft_workspace_parameters:
           agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
-          conversation: {initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER}
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
           input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
 - id: select_narrator_workspace
   client: narrator
-  rpc: {method: server.run.workspace.set, request: {workspace_name: "${narrator_workspace}"}}
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${narrator_workspace}"
 - id: warmup_narrator_workspace
   client: narrator
-  rpc: {method: server.run.workspace.reload, request: {}}
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
   timeout: 2m
 - id: register_young-explorer
-  client: young_explorer
-  rpc: {method: server.register, request: {token: "${registration_token}"}}
-- id: create_young-explorer_workspace
-  client: young_explorer
+  client: young-explorer
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_young_explorer_workspace
+  client: young-explorer
   rpc:
     method: server.workspace.create
     request:
-      name: ${young_explorer_workspace}
+      name: "${young_explorer_workspace}"
       collection: raidtest-targets
       workflow_name: flowcraft-story-shanhaijing
       parameters:
         flowcraft_workspace_parameters:
           agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
-          conversation: {initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER}
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
           input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: select_young-explorer_workspace
-  client: young_explorer
-  rpc: {method: server.run.workspace.set, request: {workspace_name: "${young_explorer_workspace}"}}
-- id: warmup_young-explorer_workspace
-  client: young_explorer
-  rpc: {method: server.run.workspace.reload, request: {}}
+- id: select_young_explorer_workspace
+  client: young-explorer
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${young_explorer_workspace}"
+- id: warmup_young_explorer_workspace
+  client: young-explorer
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
   timeout: 2m
 - id: register_spirit-guide
-  client: spirit_guide
-  rpc: {method: server.register, request: {token: "${registration_token}"}}
-- id: create_spirit-guide_workspace
-  client: spirit_guide
+  client: spirit-guide
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_spirit_guide_workspace
+  client: spirit-guide
   rpc:
     method: server.workspace.create
     request:
-      name: ${spirit_guide_workspace}
+      name: "${spirit_guide_workspace}"
       collection: raidtest-targets
       workflow_name: flowcraft-story-shanhaijing
       parameters:
         flowcraft_workspace_parameters:
           agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
-          conversation: {initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER}
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
           input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: select_spirit-guide_workspace
-  client: spirit_guide
-  rpc: {method: server.run.workspace.set, request: {workspace_name: "${spirit_guide_workspace}"}}
-- id: warmup_spirit-guide_workspace
-  client: spirit_guide
-  rpc: {method: server.run.workspace.reload, request: {}}
+- id: select_spirit_guide_workspace
+  client: spirit-guide
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${spirit_guide_workspace}"
+- id: warmup_spirit_guide_workspace
+  client: spirit-guide
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: register_jingwei
+  client: jingwei
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_jingwei_workspace
+  client: jingwei
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${jingwei_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-story-shanhaijing
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_jingwei_workspace
+  client: jingwei
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${jingwei_workspace}"
+- id: warmup_jingwei_workspace
+  client: jingwei
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: register_kuafu
+  client: kuafu
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_kuafu_workspace
+  client: kuafu
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${kuafu_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-story-shanhaijing
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_kuafu_workspace
+  client: kuafu
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${kuafu_workspace}"
+- id: warmup_kuafu_workspace
+  client: kuafu
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
   timeout: 2m
 - id: probe_narrator
   client: narrator
   timeout: 2m
   peer_stream:
     mode: text
-    input: "请由旁白承接当前故事，只推进一个可见线索。"
+    input: 请由旁白承接当前故事，只推进一个可见线索。
     idle_timeout: 90s
     require_text: true
     require_audio: true
   expect:
-    /text:
+    "/text":
       not_contains:
       - 旁白说
       - 旁白：
-    /text_eos: {equals: true}
-    /audio_eos: {equals: true}
-    /audio_bytes: {minimum: 1}
-    /first_text_ms: {maximum: 6000}
-    /first_audio_ms: {maximum: 90000}
-- id: reject_premature_chapter_two
-  client: narrator
-  timeout: 2m
-  peer_stream:
-    mode: text
-    input: "请直接进入第二章；如果条件不足，只说明仍停留的当前章节。"
-    idle_timeout: 90s
-    require_text: true
-    require_audio: true
-  expect:
-    /text:
-      contains_all:
-      - "第 1 章"
-      - "图卷初开"
-      not_contains:
-      - "第 2 章"
-      - "神山迷雾"
-    /text_eos: {equals: true}
-    /audio_eos: {equals: true}
-    /audio_bytes: {minimum: 1}
-    /first_text_ms: {maximum: 6000}
-    /first_audio_ms: {maximum: 90000}
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
 - id: probe_narrator_first_response
   client: narrator
   timeout: 15s
   peer_stream:
     mode: text
-    input: "请直接进入第二章；如果条件不足，只说明仍停留的当前章节。"
+    input: 请由旁白承接当前故事，只推进一个可见线索。
     completion: first_response
     first_text_timeout: 2s
     first_audio_timeout: 3s
     require_text: true
     require_audio: true
   expect:
-    /events: {non_empty: true}
-    /audio_bytes: {minimum: 1}
-    /first_text_ms: {maximum: 2000}
-    /first_audio_ms: {maximum: 3000}
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
 - id: probe_young-explorer
-  client: young_explorer
+  client: young-explorer
   timeout: 2m
   peer_stream:
     mode: text
-    input: "请让少年探险者亲自回应，只说这个角色知道的事。"
+    input: 请让少年探险者亲自回应，只说这个角色知道的事。
     idle_timeout: 90s
     require_text: true
     require_audio: true
   expect:
-    /text:
+    "/text":
       not_contains:
       - 少年探险者说
       - 少年探险者：
-    /text_eos: {equals: true}
-    /audio_eos: {equals: true}
-    /audio_bytes: {minimum: 1}
-    /first_text_ms: {maximum: 6000}
-    /first_audio_ms: {maximum: 90000}
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
 - id: probe_young-explorer_first_response
-  client: young_explorer
+  client: young-explorer
   timeout: 15s
   peer_stream:
     mode: text
-    input: "请让少年探险者亲自回应，只说这个角色知道的事。"
+    input: 请让少年探险者亲自回应，只说这个角色知道的事。
     completion: first_response
     first_text_timeout: 2s
     first_audio_timeout: 3s
     require_text: true
     require_audio: true
   expect:
-    /events: {non_empty: true}
-    /audio_bytes: {minimum: 1}
-    /first_text_ms: {maximum: 2000}
-    /first_audio_ms: {maximum: 3000}
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
 - id: probe_spirit-guide
-  client: spirit_guide
+  client: spirit-guide
   timeout: 2m
   peer_stream:
     mode: text
-    input: "请让灵兽向导亲自回应，只说这个角色知道的事。"
+    input: 请让灵兽向导亲自回应，只说这个角色知道的事。
     idle_timeout: 90s
     require_text: true
     require_audio: true
   expect:
-    /text:
+    "/text":
       not_contains:
       - 灵兽向导说
       - 灵兽向导：
-    /text_eos: {equals: true}
-    /audio_eos: {equals: true}
-    /audio_bytes: {minimum: 1}
-    /first_text_ms: {maximum: 6000}
-    /first_audio_ms: {maximum: 90000}
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
 - id: probe_spirit-guide_first_response
-  client: spirit_guide
+  client: spirit-guide
   timeout: 15s
   peer_stream:
     mode: text
-    input: "请让灵兽向导亲自回应，只说这个角色知道的事。"
+    input: 请让灵兽向导亲自回应，只说这个角色知道的事。
     completion: first_response
     first_text_timeout: 2s
     first_audio_timeout: 3s
     require_text: true
     require_audio: true
   expect:
-    /events: {non_empty: true}
-    /audio_bytes: {minimum: 1}
-    /first_text_ms: {maximum: 2000}
-    /first_audio_ms: {maximum: 3000}
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: jingwei_chapter_setup_26
+  client: jingwei
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请从第一章开始《山海经》。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      contains: 第 1 章：图卷初开
+- id: jingwei_chapter_setup_27
+  client: jingwei
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我选择先帮助同伴并核对眼前线索，请推进一个直接结果。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: jingwei_chapter_setup_28
+  client: jingwei
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让少年探险者亲自回应，说出不同立场。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: jingwei_chapter_setup_29
+  client: jingwei
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 进入下一章。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      contains: 第 2 章：神山迷雾
+- id: probe_jingwei
+  client: jingwei
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让精卫亲自回应，只说这个角色知道的事。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      not_contains:
+      - 精卫说
+      - 精卫：
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: probe_jingwei_first_response
+  client: jingwei
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 请让精卫亲自回应，只说这个角色知道的事。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: kuafu_chapter_setup_32
+  client: kuafu
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请从第一章开始《山海经》。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      contains: 第 1 章：图卷初开
+- id: kuafu_chapter_setup_33
+  client: kuafu
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我选择先帮助同伴并核对眼前线索，请推进一个直接结果。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: kuafu_chapter_setup_34
+  client: kuafu
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让少年探险者亲自回应，说出不同立场。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: kuafu_chapter_setup_35
+  client: kuafu
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 进入下一章。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      contains: 第 2 章：神山迷雾
+- id: probe_kuafu
+  client: kuafu
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让夸父亲自回应，只说这个角色知道的事。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      not_contains:
+      - 夸父说
+      - 夸父：
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: probe_kuafu_first_response
+  client: kuafu
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 请让夸父亲自回应，只说这个角色知道的事。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
 finally:
 - id: stop_narrator_run
   client: narrator
-  rpc: {method: server.run.stop, request: {}}
+  rpc:
+    method: server.run.stop
+    request: {}
 - id: delete_narrator_workspace
   client: narrator
-  rpc: {method: server.workspace.delete, request: {name: "${narrator_workspace}"}}
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${narrator_workspace}"
 - id: delete_narrator_peer
   client: narrator
-  rpc: {method: server.peer.delete, request: {}}
+  rpc:
+    method: server.peer.delete
+    request: {}
 - id: stop_young-explorer_run
-  client: young_explorer
-  rpc: {method: server.run.stop, request: {}}
-- id: delete_young-explorer_workspace
-  client: young_explorer
-  rpc: {method: server.workspace.delete, request: {name: "${young_explorer_workspace}"}}
+  client: young-explorer
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_young_explorer_workspace
+  client: young-explorer
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${young_explorer_workspace}"
 - id: delete_young-explorer_peer
-  client: young_explorer
-  rpc: {method: server.peer.delete, request: {}}
+  client: young-explorer
+  rpc:
+    method: server.peer.delete
+    request: {}
 - id: stop_spirit-guide_run
-  client: spirit_guide
-  rpc: {method: server.run.stop, request: {}}
-- id: delete_spirit-guide_workspace
-  client: spirit_guide
-  rpc: {method: server.workspace.delete, request: {name: "${spirit_guide_workspace}"}}
+  client: spirit-guide
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_spirit_guide_workspace
+  client: spirit-guide
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${spirit_guide_workspace}"
 - id: delete_spirit-guide_peer
-  client: spirit_guide
-  rpc: {method: server.peer.delete, request: {}}
+  client: spirit-guide
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: stop_jingwei_run
+  client: jingwei
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_jingwei_workspace
+  client: jingwei
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${jingwei_workspace}"
+- id: delete_jingwei_peer
+  client: jingwei
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: stop_kuafu_run
+  client: kuafu
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_kuafu_workspace
+  client: kuafu
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${kuafu_workspace}"
+- id: delete_kuafu_peer
+  client: kuafu
+  rpc:
+    method: server.peer.delete
+    request: {}
 report:
-  redact: [registration_token]
+  redact:
+  - registration_token

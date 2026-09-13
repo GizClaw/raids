@@ -1,3 +1,4 @@
+---
 apiVersion: gizclaw.admin/v1alpha1
 kind: Workflow
 metadata:
@@ -27,12 +28,22 @@ spec:
         to: speak-becky
         condition: selected_speaker == "becky"
       - from: control-story
+        to: speak-huck
+        condition: selected_speaker == "huck"
+      - from: control-story
+        to: speak-aunt-polly
+        condition: selected_speaker == "aunt-polly"
+      - from: control-story
         to: speak-narrator
       - from: speak-narrator
         to: persist-story
       - from: speak-tom
         to: persist-story
       - from: speak-becky
+        to: persist-story
+      - from: speak-huck
+        to: persist-story
+      - from: speak-aunt-polly
         to: persist-story
       - from: persist-story
         to: observe-story
@@ -58,11 +69,13 @@ spec:
         config:
           query:
             text_from: scenario_recall_query
-            lanes: [story_progress]
-            kinds: [state]
+            lanes:
+            - story_progress
+            kinds:
+            - state
           output: scenario_memory
           render:
-            header: "Confirmed story state:"
+            header: 'Confirmed story state:'
             item_prefix: "- "
             max_items: 16
           top_k: 16
@@ -72,6 +85,7 @@ spec:
           source: |
             const current = String(board.getVar("input") || "").trim();
             const memory = String(board.getVar("scenario_memory") || "");
+            const roleTable = [{"key":"narrator","name":"旁白","aliases":["旁白","narrator"],"chapters":[1,2,3,4]},{"key":"tom","name":"汤姆","aliases":["汤姆","汤姆索亚","tom"],"chapters":[1,2,3,4]},{"key":"becky","name":"贝琪","aliases":["贝琪","becky"],"chapters":[1,2,3,4]},{"key":"huck","name":"哈克","aliases":["哈克","哈克贝利","huck"],"chapters":[2,3]},{"key":"aunt-polly","name":"波莉姨妈","aliases":["波莉姨妈","波莉","姨妈","aunt-polly"],"chapters":[4]}];
             const defaults = {"schema":"story_contract_v1","revision":0,"chapter":1,"chapter_title":"河边地图","completed_beats":[],"chapter_progress_beats":[],"chapter_choice_made":false,"location":"河边地图","active_roles":["narrator","tom","becky"],"player_choices":[],"explicit_corrections":{},"durable_objects":["旅程代号"],"unresolved_hooks":["承诺冲突尚未解决"]};
             let state = Object.assign({}, defaults, board.getVar("story_state") || {});
             for (const line of memory.split("\n")) {
@@ -82,8 +96,9 @@ spec:
                 if (candidate.schema === "story_contract_v1" && Number(candidate.revision || 0) >= Number(state.revision || 0)) state = Object.assign({}, defaults, candidate);
               } catch (_) {}
             }
+            state.chapter = Math.max(1, Math.min(4, Math.floor(Number(state.chapter) || 1)));
             const chapters = ["河边地图", "承诺冲突", "洞穴线索", "诚实归来"];
-            const enteringFirst = Number(state.revision || 0) === 0 && (current.includes("第一章") || current.includes("第 1 章"));
+            const enteringFirst = Number(state.revision || 0) === 0 && (current.includes("第一章") || current.includes("第 1 章") || /(?:start|begin|restart).{0,20}(?:chapter\s*1|first chapter)/i.test(current));
             let transitionTarget = 0;
             if (current.includes("第二章") || current.includes("第2章") || current.includes("第 2 章")) transitionTarget = 2;
             if (current.includes("第三章") || current.includes("第3章") || current.includes("第 3 章")) transitionTarget = 3;
@@ -124,7 +139,7 @@ spec:
             }
             const asksBlockedExplanation = ["为什么还不能", "为何不能", "说明为什么", "why can't", "why cannot", "why not ready"].some((cue) => lower.includes(cue));
             const transitionBlocked = transitionTarget > 0 && transitionTarget !== currentChapter && !transition && ((transitionIntent && !transitionDenied) || asksBlockedExplanation);
-            const administrativeTurn = ["旅程代号", "更正", "作废", "重连", "回忆", "事实", "传说", "原创设定", "总结", "说明当前章节"].some((cue) => current.includes(cue)) || current.includes("不要推进") || current.includes("不推进章节") || current.includes("只确认");
+            const administrativeTurn = ["旅程代号", "更正", "改成", "纠正", "修正", "作废", "重连", "回忆", "事实", "传说", "原创设定", "总结", "说明当前章节"].some((cue) => current.includes(cue)) || current.includes("不要推进") || current.includes("不推进章节") || current.includes("只确认") || /\b(correct|correction|reconnect|recall)\b/i.test(current);
             const requestsOutcome = ["直接结果", "直接后果", "具体后果", "眼前结果", "新局面", "新线索", "推进一个场景", "推进当前章"].some((cue) => current.includes(cue));
             const requestsPerspective = ["亲自回应", "不同立场", "不同回应", "比较两名角色"].some((cue) => current.includes(cue));
             const safetyOnly = current.includes("现实中模仿") && !requestsOutcome;
@@ -140,11 +155,40 @@ spec:
               state.player_choices = choices;
             }
             state.revision = Number(state.revision || 0) + 1;
-            let speaker = "narrator";
-            const explicitlyRequests = (name) => current.includes("请让" + name) || current.includes("由" + name) || current.includes(name + "亲自");
-            if (!transition && !transitionBlocked && !enteringFirst && explicitlyRequests("汤姆")) speaker = "tom";
-            if (!transition && !transitionBlocked && !enteringFirst && explicitlyRequests("贝琪")) speaker = "becky";
+            // Always rebuild derived cast after recall and chapter changes; old arrays are not authoritative.
+            state.active_roles = roleTable.filter((role) => role.chapters.includes(state.chapter)).map((role) => role.key);
+            state.chapter_title = chapters[state.chapter - 1];
+            state.location = state.chapter_title;
             const announce = (!current && Number(state.chapter || 1) === 1) || enteringFirst || transition;
+            const safetyManagement = current.includes("现实中模仿") || current.includes("现实模仿");
+            let speaker = "narrator";
+            // Option-only names are choices, not requests for a character performance.
+            const optionOnly = roleTable.some((role) => role.aliases.includes(lower.replace(/[。！!,.，]/g, "")));
+            const mentions = [];
+            for (const role of roleTable) {
+              for (const alias of role.aliases) {
+                let index = lower.indexOf(alias);
+                while (index >= 0) {
+                  // A shorter alias inside a full name must not bypass that name's negation.
+                  const shadowed = role.aliases.some((full) => {
+                    const offset = full.indexOf(alias);
+                    return full.length > alias.length && offset >= 0 && index >= offset && lower.slice(index - offset, index - offset + full.length) === full;
+                  });
+                  if (shadowed) { index = lower.indexOf(alias, index + alias.length); continue; }
+                  const prefix = lower.slice(0, index).split(/[，。；！？,;!?]|但是|而是|不过|但/).pop();
+                  const suffix = lower.slice(index + alias.length).split(/[，。；！？,;!?]/)[0];
+                  const negated = /(不要|别|不让|不用|不想|不请|不由|不听|不选|do not|don't|not|never).{0,16}$/.test(prefix) || /^(先|暂时)?(不要|别|不用|不必)/.test(suffix);
+                  const requestedRole = /(请让|请|让|由|听|ask|let|hear)\s*$/.test(prefix) || /^(亲自|说|讲|回应|回答|来讲)/.test(suffix);
+                  if (!negated && requestedRole) mentions.push({key: role.key, index});
+                  index = lower.indexOf(alias, index + alias.length);
+                }
+              }
+            }
+            mentions.sort((a, b) => a.index - b.index);
+            if (!announce && !transitionBlocked && !administrativeTurn && !safetyManagement && !optionOnly) {
+              const selected = mentions.find((mention) => state.active_roles.includes(mention.key));
+              if (selected) speaker = selected.key;
+            }
             const countProgress = !transition && !transitionBlocked && !enteringFirst && current !== "" && !administrativeTurn && !safetyOnly && (requested === 0 || requested === currentChapter);
             const beatsAfterTurn = priorProgressBeats.slice();
             if (countProgress && (speaker === "narrator" || requestsOutcome) && !beatsAfterTurn.includes("consequence")) beatsAfterTurn.push("consequence");
@@ -162,7 +206,7 @@ spec:
             board.setVar("response_requests_perspective", requestsPerspective);
             board.setVar("story_state", state);
             board.setVar("story_state_text", JSON.stringify(state));
-            board.setVar("story_bible", "故事：汤姆索亚历险记。前提：通过童年冒险讨论好奇心、诚实、友谊与后果。\n玩家是能改变局面但不能替代角色作决定的同行者。\n四章依次为：第1章《河边地图》；第2章《承诺冲突》；第3章《洞穴线索》；第4章《诚实归来》。\n第1章《河边地图》：进入条件=收到首次开场请求；目标=解决《河边地图》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，并明确要求进入第2章；结束条件=转场回合只出现一次下一章标题“第 2 章：承诺冲突”，并紧接新章开场。\n第2章《承诺冲突》：进入条件=第1章的当前选择已完成转场条件，且用户明确要求继续；目标=解决《承诺冲突》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，并明确要求进入第3章；结束条件=转场回合只出现一次下一章标题“第 3 章：洞穴线索”，并紧接新章开场。\n第3章《洞穴线索》：进入条件=第2章的当前选择已完成转场条件，且用户明确要求继续；目标=解决《洞穴线索》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，并明确要求进入第4章；结束条件=转场回合只出现一次下一章标题“第 4 章：诚实归来”，并紧接新章开场。\n第4章《诚实归来》：进入条件=第3章的当前选择已完成转场条件，且用户明确要求继续；目标=解决《诚实归来》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家确认角色的持久选择，并保留一个结局后的责任线索；结束条件=保持第4章，不再创建第五章，并以仍需兑现的责任收束。\n角色表：旁白只陈述可见事实与转场；汤姆坚持自身动机、只知道亲历信息；贝琪提供不同立场、不得知道未公开事实。\n世界规则：每轮只推进一个场景、线索或选择；最多一个问题，请孩子做选择时要在这个问题里直接说出两三个具体选项，不能只问“你想怎么做”；给孩子的选项必须适合儿童，不能包含杀害、伤害、威胁或报复任何人；当前用户更正覆盖历史旧值。\n事实边界：经典来源、传说与本剧本原创设定必须区分；不得复制完整出版译文。\n安全边界：面向儿童，危险非血腥；现实模仿请求必须明确说“不要模仿”，并建议找可信任的成年人、家长或老师帮助。\n反重复：不得重复确认句、场景开头、上一轮选择、同一个问题、回顾或寓意总结。");
+            board.setVar("story_bible", "故事：汤姆索亚历险记。前提：通过童年冒险讨论好奇心、诚实、友谊与后果。\n玩家是能改变局面但不能替代角色作决定的同行者。\n四章依次为：第1章《河边地图》；第2章《承诺冲突》；第3章《洞穴线索》；第4章《诚实归来》。\n第1章《河边地图》：进入条件=收到首次开场请求；目标=解决《河边地图》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，并明确要求进入第2章；结束条件=转场回合只出现一次下一章标题“第 2 章：承诺冲突”，并紧接新章开场。\n第2章《承诺冲突》：进入条件=第1章的当前选择已完成转场条件，且用户明确要求继续；目标=解决《承诺冲突》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，并明确要求进入第3章；结束条件=转场回合只出现一次下一章标题“第 3 章：洞穴线索”，并紧接新章开场。\n第3章《洞穴线索》：进入条件=第2章的当前选择已完成转场条件，且用户明确要求继续；目标=解决《洞穴线索》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，并明确要求进入第4章；结束条件=转场回合只出现一次下一章标题“第 4 章：诚实归来”，并紧接新章开场。\n第4章《诚实归来》：进入条件=第3章的当前选择已完成转场条件，且用户明确要求继续；目标=解决《诚实归来》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家确认角色的持久选择，并保留一个结局后的责任线索；结束条件=保持第4章，不再创建第五章，并以仍需兑现的责任收束。\n角色表：narrator 旁白，只叙述可见事实和公开信息、不代演角色；tom 汤姆（别名 汤姆/汤姆索亚/tom），第1至4章在场，想体验冒险又怕承认错误；天真机灵，第1章提出探索路线，第4章承认责任；becky 贝琪（别名 贝琪/becky），第1至4章在场，想与伙伴互相信任；活泼细心，第1章提醒做好标记，第3章观察安全出口；huck 哈克（别名 哈克/哈克贝利/huck），第2至3章在场，想自由探索也想保护朋友；清爽直接，第2章指认河岸足迹，第3章提议结伴返回而非独自深入，随后回镇报平安；aunt-polly 波莉姨妈（别名 波莉姨妈/波莉/姨妈/aunt-polly），第4至4章在场，想让孩子安全回家并学会负责；和蔼而有原则，第4章听取经过，要求汤姆向担心的家人说明并补做承诺。以上四章互动行动为本仓库基于经典的原创改编，并非原典逐字情节；历史、传说与改编须区分。所有角色只知亲历或已公开信息，不知他人私密想法及未来结果；每章比较至少两种立场，无需全员轮番发言。离场者只能由旁白说明去向，不跨地点代言。\n旧记忆中的角色名单按当前章节和角色表重新归一化，不覆盖旅程代号、更正和进度。开场、转场（含阻塞）、更正、安全管理优先旁白；其次按文本顺序选第一个明确点名且在场的角色，否定点名不触发，否则旁白。只报角色名或“我支持某人”是玩家选择。每轮一人直接第一人称发言，不加说话人标签，旁白不代演。\n世界规则：每轮只推进一个场景、线索或选择；最多一个问题，请孩子做选择时要在这个问题里直接说出两三个具体选项，不能只问“你想怎么做”；给孩子的选项必须适合儿童，不能包含杀害、伤害、威胁或报复任何人；当前用户更正覆盖历史旧值。\n事实边界：经典来源、传说与本剧本原创设定必须区分；不得复制完整出版译文。\n安全边界：面向儿童，危险非血腥；现实模仿请求必须明确说“不要模仿”，并建议找可信任的成年人、家长或老师帮助。\n反重复：不得重复确认句、场景开头、上一轮选择、同一个问题、回顾或寓意总结。");
       - id: speak-narrator
         type: llm
         publish: true
@@ -177,7 +221,7 @@ spec:
             本轮安全请求：${board.safety_request}。若该值为 true，回复中必须明确包含“不要模仿”和“找家长、老师或可信任成年人帮助”，并承接玩家所选安全替代带来的一个直接结果。
             本轮转场阻塞：${board.transition_blocked}。若该值为 true，用“第 N 章：标题”格式写出当前章节及标题，再用孩子听得懂的话说明这一章还差孩子自己的选择或还没看到选择的结果，所以暂时还不能去下一章，最后用一个问题说出本章问题的具体选项；不得说“节拍”“转场条件”“悬念”等内部用语，也不要把“先听某个角色说说”当作选项，并且绝不输出用户请求的下一章标题。
             若 announce_chapter 为 true，第一行只写一次“第 N 章：标题”，其中“第”与数字、数字与“章”之间各有一个空格，标题后必须在同一条回复里紧接着讲这一章的开场：先用一两句话交代新场景在哪里、谁在场、发生了什么，再用一个问题说出孩子可以选的两三个具体选项；绝不能只输出章节标题就结束。若 announce_chapter 和 transition_blocked 均为 false，则不得输出章节标题。
-            首次进入第一章时，章节标题后必须依次完整说出这段开场，先交代背景，再说明玩法，最后提出开场问题：我们来到美国密西西比河边的小镇，你是汤姆的好朋友，贝琪也和你们一起玩。你可以直接说出你的选择，也可以说“请让汤姆说说”或“请让贝琪说说”，听他们自己讲；这一章的选择做完后，说“进入下一章”就能继续听下去。河边发现了一张神秘地图，但今天答应家人的事情还没完成，你会先去看地图，还是先把答应家人的事做完？（玩法说明里“说‘进入下一章’就能继续听下去”这一句不得省略）
+            首次进入第一章时，章节标题后必须依次完整说出这段开场，先交代背景，再说明玩法，最后提出开场问题：我们来到美国密西西比河边的小镇，你是汤姆的好朋友，贝琪也和你们一起玩。哈克在第2章加入、第3章后离场；波莉姨妈在第4章加入，加入后也可以点名。你可以直接说出你的选择，也可以说“请让汤姆说说”或“请让贝琪说说”，听他们自己讲；这一章的选择做完后，说“进入下一章”就能继续听下去。河边发现了一张神秘地图，但今天答应家人的事情还没完成，你会先去看地图，还是先把答应家人的事做完？（玩法说明里“说‘进入下一章’就能继续听下去”这一句不得省略）
             若用户只要求回忆或确认旅程代号，只回答当前代号；存在更正时绝不输出旧值。
             ${board.next_chapter_instruction}
             普通回合输出2至4个完整中文句子、30至220个Unicode字符；首次开场和进入新章的回合可以写到6个句子、320个Unicode字符以内。不输出Markdown、列表、emoji、舞台说明、系统字段或重复问题。
@@ -192,7 +236,8 @@ spec:
           system_prompt: |-
             ${board.story_bible}
             当前权威状态：${board.story_state_text}
-            本轮只能由汤姆说话，直接以角色口吻说台词，不得添加“汤姆说”“汤姆：”等说话人标签；只说该角色亲历或已公开的信息，不替旁白或另一角色发言。
+            角色动机与说话方式：想体验冒险又怕承认错误；天真机灵，第1章提出探索路线，第4章承认责任；只知亲历或已公开信息。
+            本轮只能由汤姆说话，直接以第一人称角色口吻说台词，不得添加“汤姆说”“汤姆：”等说话人标签；不替旁白或另一角色发言。
             本轮不得输出章节标题。承接玩家当前选择，推进一个直接后果或线索，最多一个问题。
             输出2至4个完整中文句子、30至220个Unicode字符，不输出Markdown、列表、emoji、舞台说明或系统字段。
           track_steps: true
@@ -206,7 +251,38 @@ spec:
           system_prompt: |-
             ${board.story_bible}
             当前权威状态：${board.story_state_text}
-            本轮只能由贝琪说话，直接以角色口吻说台词，不得添加“贝琪说”“贝琪：”等说话人标签；只说该角色亲历或已公开的信息，不替旁白或另一角色发言。
+            角色动机与说话方式：想与伙伴互相信任；活泼细心，第1章提醒做好标记，第3章观察安全出口；只知亲历或已公开信息。
+            本轮只能由贝琪说话，直接以第一人称角色口吻说台词，不得添加“贝琪说”“贝琪：”等说话人标签；不替旁白或另一角色发言。
+            本轮不得输出章节标题。承接玩家当前选择，推进一个直接后果或线索，最多一个问题。
+            输出2至4个完整中文句子、30至220个Unicode字符，不输出Markdown、列表、emoji、舞台说明或系统字段。
+          track_steps: true
+      - id: speak-huck
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-story-tom-sawyer.model
+          max_tokens: 1024
+          output_key: answer
+          system_prompt: |-
+            ${board.story_bible}
+            当前权威状态：${board.story_state_text}
+            角色动机与说话方式：想自由探索也想保护朋友；清爽直接，第2章指认河岸足迹，第3章提议结伴返回而非独自深入，随后回镇报平安；只知亲历或已公开信息。
+            本轮只能由哈克说话，直接以第一人称角色口吻说台词，不得添加“哈克说”“哈克：”等说话人标签；不替旁白或另一角色发言。
+            本轮不得输出章节标题。承接玩家当前选择，推进一个直接后果或线索，最多一个问题。
+            输出2至4个完整中文句子、30至220个Unicode字符，不输出Markdown、列表、emoji、舞台说明或系统字段。
+          track_steps: true
+      - id: speak-aunt-polly
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-story-tom-sawyer.model
+          max_tokens: 1024
+          output_key: answer
+          system_prompt: |-
+            ${board.story_bible}
+            当前权威状态：${board.story_state_text}
+            角色动机与说话方式：想让孩子安全回家并学会负责；和蔼而有原则，第4章听取经过，要求汤姆向担心的家人说明并补做承诺；只知亲历或已公开信息。
+            本轮只能由波莉姨妈说话，直接以第一人称角色口吻说台词，不得添加“波莉姨妈说”“波莉姨妈：”等说话人标签；不替旁白或另一角色发言。
             本轮不得输出章节标题。承接玩家当前选择，推进一个直接后果或线索，最多一个问题。
             输出2至4个完整中文句子、30至220个Unicode字符，不输出Markdown、列表、emoji、舞台说明或系统字段。
           track_steps: true
@@ -230,7 +306,9 @@ spec:
           observations:
           - facts:
             - text_from: story_state_fact
-              attributes: {lane: story_progress, kind: state}
+              attributes:
+                lane: story_progress
+                kind: state
           wait_for_completion: true
     max_iterations: 10
     conversation:
@@ -242,4 +320,6 @@ spec:
         speak-narrator: flowcraft-story-tom-sawyer.storyteller
         speak-tom: flowcraft-story-tom-sawyer.tom
         speak-becky: flowcraft-story-tom-sawyer.becky
+        speak-huck: flowcraft-story-tom-sawyer.huck
+        speak-aunt-polly: flowcraft-story-tom-sawyer.aunt-polly
   memory: story-teller

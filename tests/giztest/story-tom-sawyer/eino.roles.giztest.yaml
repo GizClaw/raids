@@ -1,27 +1,27 @@
 # User Story:
 # As a Raids catalog maintainer,
-# I want isolated narrator and character probes for flowcraft-story-twenty-thousand-leagues,
+# I want isolated narrator and character probes for eino-story-tom-sawyer,
 # So that every reachable role path produces text and non-empty synthesized audio.
 version: gizclaw.test/v1alpha1
-name: story-twenty-thousand-leagues.flowcraft.roles
+name: story-tom-sawyer.eino.roles
 clients:
   narrator:
     identity: ephemeral
     connection: webrtc
     access_point: "${endpoint}"
-  nemo:
+  tom:
     identity: ephemeral
     connection: webrtc
     access_point: "${endpoint}"
-  aronnax:
+  becky:
     identity: ephemeral
     connection: webrtc
     access_point: "${endpoint}"
-  conseil:
+  huck:
     identity: ephemeral
     connection: webrtc
     access_point: "${endpoint}"
-  ned-land:
+  aunt-polly:
     identity: ephemeral
     connection: webrtc
     access_point: "${endpoint}"
@@ -39,19 +39,19 @@ variables:
     direction: input
     type: string
     generate: token
-  nemo_workspace:
+  tom_workspace:
     direction: input
     type: string
     generate: token
-  aronnax_workspace:
+  becky_workspace:
     direction: input
     type: string
     generate: token
-  conseil_workspace:
+  huck_workspace:
     direction: input
     type: string
     generate: token
-  ned_land_workspace:
+  aunt_polly_workspace:
     direction: input
     type: string
     generate: token
@@ -71,10 +71,10 @@ steps:
     request:
       name: "${narrator_workspace}"
       collection: raidtest-targets
-      workflow_name: flowcraft-story-twenty-thousand-leagues
+      workflow_name: eino-story-tom-sawyer
       parameters:
-        flowcraft_workspace_parameters:
-          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
           conversation:
             initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
           input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
@@ -90,130 +90,130 @@ steps:
     method: server.run.workspace.reload
     request: {}
   timeout: 2m
-- id: register_nemo
-  client: nemo
+- id: register_tom
+  client: tom
   rpc:
     method: server.register
     request:
       token: "${registration_token}"
-- id: create_nemo_workspace
-  client: nemo
+- id: create_tom_workspace
+  client: tom
   rpc:
     method: server.workspace.create
     request:
-      name: "${nemo_workspace}"
+      name: "${tom_workspace}"
       collection: raidtest-targets
-      workflow_name: flowcraft-story-twenty-thousand-leagues
+      workflow_name: eino-story-tom-sawyer
       parameters:
-        flowcraft_workspace_parameters:
-          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
           conversation:
             initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
           input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: select_nemo_workspace
-  client: nemo
+- id: select_tom_workspace
+  client: tom
   rpc:
     method: server.run.workspace.set
     request:
-      workspace_name: "${nemo_workspace}"
-- id: warmup_nemo_workspace
-  client: nemo
+      workspace_name: "${tom_workspace}"
+- id: warmup_tom_workspace
+  client: tom
   rpc:
     method: server.run.workspace.reload
     request: {}
   timeout: 2m
-- id: register_aronnax
-  client: aronnax
+- id: register_becky
+  client: becky
   rpc:
     method: server.register
     request:
       token: "${registration_token}"
-- id: create_aronnax_workspace
-  client: aronnax
+- id: create_becky_workspace
+  client: becky
   rpc:
     method: server.workspace.create
     request:
-      name: "${aronnax_workspace}"
+      name: "${becky_workspace}"
       collection: raidtest-targets
-      workflow_name: flowcraft-story-twenty-thousand-leagues
+      workflow_name: eino-story-tom-sawyer
       parameters:
-        flowcraft_workspace_parameters:
-          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
           conversation:
             initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
           input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: select_aronnax_workspace
-  client: aronnax
+- id: select_becky_workspace
+  client: becky
   rpc:
     method: server.run.workspace.set
     request:
-      workspace_name: "${aronnax_workspace}"
-- id: warmup_aronnax_workspace
-  client: aronnax
+      workspace_name: "${becky_workspace}"
+- id: warmup_becky_workspace
+  client: becky
   rpc:
     method: server.run.workspace.reload
     request: {}
   timeout: 2m
-- id: register_conseil
-  client: conseil
+- id: register_huck
+  client: huck
   rpc:
     method: server.register
     request:
       token: "${registration_token}"
-- id: create_conseil_workspace
-  client: conseil
+- id: create_huck_workspace
+  client: huck
   rpc:
     method: server.workspace.create
     request:
-      name: "${conseil_workspace}"
+      name: "${huck_workspace}"
       collection: raidtest-targets
-      workflow_name: flowcraft-story-twenty-thousand-leagues
+      workflow_name: eino-story-tom-sawyer
       parameters:
-        flowcraft_workspace_parameters:
-          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
           conversation:
             initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
           input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: select_conseil_workspace
-  client: conseil
+- id: select_huck_workspace
+  client: huck
   rpc:
     method: server.run.workspace.set
     request:
-      workspace_name: "${conseil_workspace}"
-- id: warmup_conseil_workspace
-  client: conseil
+      workspace_name: "${huck_workspace}"
+- id: warmup_huck_workspace
+  client: huck
   rpc:
     method: server.run.workspace.reload
     request: {}
   timeout: 2m
-- id: register_ned-land
-  client: ned-land
+- id: register_aunt-polly
+  client: aunt-polly
   rpc:
     method: server.register
     request:
       token: "${registration_token}"
-- id: create_ned_land_workspace
-  client: ned-land
+- id: create_aunt_polly_workspace
+  client: aunt-polly
   rpc:
     method: server.workspace.create
     request:
-      name: "${ned_land_workspace}"
+      name: "${aunt_polly_workspace}"
       collection: raidtest-targets
-      workflow_name: flowcraft-story-twenty-thousand-leagues
+      workflow_name: eino-story-tom-sawyer
       parameters:
-        flowcraft_workspace_parameters:
-          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
           conversation:
             initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
           input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: select_ned_land_workspace
-  client: ned-land
+- id: select_aunt_polly_workspace
+  client: aunt-polly
   rpc:
     method: server.run.workspace.set
     request:
-      workspace_name: "${ned_land_workspace}"
-- id: warmup_ned_land_workspace
-  client: ned-land
+      workspace_name: "${aunt_polly_workspace}"
+- id: warmup_aunt_polly_workspace
+  client: aunt-polly
   rpc:
     method: server.run.workspace.reload
     request: {}
@@ -262,20 +262,20 @@ steps:
       maximum: 2000
     "/first_audio_ms":
       maximum: 3000
-- id: probe_nemo
-  client: nemo
+- id: probe_tom
+  client: tom
   timeout: 2m
   peer_stream:
     mode: text
-    input: 请让尼摩亲自回应，只说这个角色知道的事。
+    input: 请让汤姆亲自回应，只说这个角色知道的事。
     idle_timeout: 90s
     require_text: true
     require_audio: true
   expect:
     "/text":
       not_contains:
-      - 尼摩说
-      - 尼摩：
+      - 汤姆说
+      - 汤姆：
     "/text_eos":
       equals: true
     "/audio_eos":
@@ -286,12 +286,12 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: probe_nemo_first_response
-  client: nemo
+- id: probe_tom_first_response
+  client: tom
   timeout: 15s
   peer_stream:
     mode: text
-    input: 请让尼摩亲自回应，只说这个角色知道的事。
+    input: 请让汤姆亲自回应，只说这个角色知道的事。
     completion: first_response
     first_text_timeout: 2s
     first_audio_timeout: 3s
@@ -306,20 +306,20 @@ steps:
       maximum: 2000
     "/first_audio_ms":
       maximum: 3000
-- id: probe_aronnax
-  client: aronnax
+- id: probe_becky
+  client: becky
   timeout: 2m
   peer_stream:
     mode: text
-    input: 请让阿龙纳斯亲自回应，只说这个角色知道的事。
+    input: 请让贝琪亲自回应，只说这个角色知道的事。
     idle_timeout: 90s
     require_text: true
     require_audio: true
   expect:
     "/text":
       not_contains:
-      - 阿龙纳斯说
-      - 阿龙纳斯：
+      - 贝琪说
+      - 贝琪：
     "/text_eos":
       equals: true
     "/audio_eos":
@@ -330,12 +330,12 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: probe_aronnax_first_response
-  client: aronnax
+- id: probe_becky_first_response
+  client: becky
   timeout: 15s
   peer_stream:
     mode: text
-    input: 请让阿龙纳斯亲自回应，只说这个角色知道的事。
+    input: 请让贝琪亲自回应，只说这个角色知道的事。
     completion: first_response
     first_text_timeout: 2s
     first_audio_timeout: 3s
@@ -350,12 +350,12 @@ steps:
       maximum: 2000
     "/first_audio_ms":
       maximum: 3000
-- id: conseil_chapter_setup_26
-  client: conseil
+- id: huck_chapter_setup_26
+  client: huck
   timeout: 2m
   peer_stream:
     mode: text
-    input: 请从第一章开始《海底两万里》。
+    input: 请从第一章开始《汤姆索亚历险记》。
     idle_timeout: 90s
     require_text: true
     require_audio: true
@@ -371,9 +371,9 @@ steps:
     "/first_audio_ms":
       maximum: 90000
     "/text":
-      contains: 第 1 章：发光巨影
-- id: conseil_chapter_setup_27
-  client: conseil
+      contains: 第 1 章：河边地图
+- id: huck_chapter_setup_27
+  client: huck
   timeout: 2m
   peer_stream:
     mode: text
@@ -392,12 +392,12 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: conseil_chapter_setup_28
-  client: conseil
+- id: huck_chapter_setup_28
+  client: huck
   timeout: 2m
   peer_stream:
     mode: text
-    input: 请让尼摩亲自回应，说出不同立场。
+    input: 请让汤姆亲自回应，说出不同立场。
     idle_timeout: 90s
     require_text: true
     require_audio: true
@@ -412,8 +412,8 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: conseil_chapter_setup_29
-  client: conseil
+- id: huck_chapter_setup_29
+  client: huck
   timeout: 2m
   peer_stream:
     mode: text
@@ -433,21 +433,21 @@ steps:
     "/first_audio_ms":
       maximum: 90000
     "/text":
-      contains: 第 2 章：深海档案
-- id: probe_conseil
-  client: conseil
+      contains: 第 2 章：承诺冲突
+- id: probe_huck
+  client: huck
   timeout: 2m
   peer_stream:
     mode: text
-    input: 请让康塞尔亲自回应，只说这个角色知道的事。
+    input: 请让哈克亲自回应，只说这个角色知道的事。
     idle_timeout: 90s
     require_text: true
     require_audio: true
   expect:
     "/text":
       not_contains:
-      - 康塞尔说
-      - 康塞尔：
+      - 哈克说
+      - 哈克：
     "/text_eos":
       equals: true
     "/audio_eos":
@@ -458,12 +458,12 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: probe_conseil_first_response
-  client: conseil
+- id: probe_huck_first_response
+  client: huck
   timeout: 15s
   peer_stream:
     mode: text
-    input: 请让康塞尔亲自回应，只说这个角色知道的事。
+    input: 请让哈克亲自回应，只说这个角色知道的事。
     completion: first_response
     first_text_timeout: 2s
     first_audio_timeout: 3s
@@ -478,12 +478,12 @@ steps:
       maximum: 2000
     "/first_audio_ms":
       maximum: 3000
-- id: ned-land_chapter_setup_32
-  client: ned-land
+- id: aunt-polly_chapter_setup_32
+  client: aunt-polly
   timeout: 2m
   peer_stream:
     mode: text
-    input: 请从第一章开始《海底两万里》。
+    input: 请从第一章开始《汤姆索亚历险记》。
     idle_timeout: 90s
     require_text: true
     require_audio: true
@@ -499,9 +499,9 @@ steps:
     "/first_audio_ms":
       maximum: 90000
     "/text":
-      contains: 第 1 章：发光巨影
-- id: ned-land_chapter_setup_33
-  client: ned-land
+      contains: 第 1 章：河边地图
+- id: aunt-polly_chapter_setup_33
+  client: aunt-polly
   timeout: 2m
   peer_stream:
     mode: text
@@ -520,12 +520,12 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: ned-land_chapter_setup_34
-  client: ned-land
+- id: aunt-polly_chapter_setup_34
+  client: aunt-polly
   timeout: 2m
   peer_stream:
     mode: text
-    input: 请让尼摩亲自回应，说出不同立场。
+    input: 请让汤姆亲自回应，说出不同立场。
     idle_timeout: 90s
     require_text: true
     require_audio: true
@@ -540,8 +540,8 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: ned-land_chapter_setup_35
-  client: ned-land
+- id: aunt-polly_chapter_setup_35
+  client: aunt-polly
   timeout: 2m
   peer_stream:
     mode: text
@@ -561,21 +561,17 @@ steps:
     "/first_audio_ms":
       maximum: 90000
     "/text":
-      contains: 第 2 章：深海档案
-- id: probe_ned-land
-  client: ned-land
+      contains: 第 2 章：承诺冲突
+- id: aunt-polly_chapter_setup_36
+  client: aunt-polly
   timeout: 2m
   peer_stream:
     mode: text
-    input: 请让尼德·兰亲自回应，只说这个角色知道的事。
+    input: 我选择先帮助同伴并核对眼前线索，请推进一个直接结果。
     idle_timeout: 90s
     require_text: true
     require_audio: true
   expect:
-    "/text":
-      not_contains:
-      - 尼德·兰说
-      - 尼德·兰：
     "/text_eos":
       equals: true
     "/audio_eos":
@@ -586,12 +582,140 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: probe_ned-land_first_response
-  client: ned-land
+- id: aunt-polly_chapter_setup_37
+  client: aunt-polly
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让汤姆亲自回应，说出不同立场。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: aunt-polly_chapter_setup_38
+  client: aunt-polly
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 进入下一章。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      contains: 第 3 章：洞穴线索
+- id: aunt-polly_chapter_setup_39
+  client: aunt-polly
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我选择先帮助同伴并核对眼前线索，请推进一个直接结果。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: aunt-polly_chapter_setup_40
+  client: aunt-polly
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让汤姆亲自回应，说出不同立场。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: aunt-polly_chapter_setup_41
+  client: aunt-polly
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 进入下一章。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      contains: 第 4 章：诚实归来
+- id: probe_aunt-polly
+  client: aunt-polly
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让波莉姨妈亲自回应，只说这个角色知道的事。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      not_contains:
+      - 波莉姨妈说
+      - 波莉姨妈：
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: probe_aunt-polly_first_response
+  client: aunt-polly
   timeout: 15s
   peer_stream:
     mode: text
-    input: 请让尼德·兰亲自回应，只说这个角色知道的事。
+    input: 请让波莉姨妈亲自回应，只说这个角色知道的事。
     completion: first_response
     first_text_timeout: 2s
     first_audio_timeout: 3s
@@ -623,67 +747,67 @@ finally:
   rpc:
     method: server.peer.delete
     request: {}
-- id: stop_nemo_run
-  client: nemo
+- id: stop_tom_run
+  client: tom
   rpc:
     method: server.run.stop
     request: {}
-- id: delete_nemo_workspace
-  client: nemo
+- id: delete_tom_workspace
+  client: tom
   rpc:
     method: server.workspace.delete
     request:
-      name: "${nemo_workspace}"
-- id: delete_nemo_peer
-  client: nemo
+      name: "${tom_workspace}"
+- id: delete_tom_peer
+  client: tom
   rpc:
     method: server.peer.delete
     request: {}
-- id: stop_aronnax_run
-  client: aronnax
+- id: stop_becky_run
+  client: becky
   rpc:
     method: server.run.stop
     request: {}
-- id: delete_aronnax_workspace
-  client: aronnax
+- id: delete_becky_workspace
+  client: becky
   rpc:
     method: server.workspace.delete
     request:
-      name: "${aronnax_workspace}"
-- id: delete_aronnax_peer
-  client: aronnax
+      name: "${becky_workspace}"
+- id: delete_becky_peer
+  client: becky
   rpc:
     method: server.peer.delete
     request: {}
-- id: stop_conseil_run
-  client: conseil
+- id: stop_huck_run
+  client: huck
   rpc:
     method: server.run.stop
     request: {}
-- id: delete_conseil_workspace
-  client: conseil
+- id: delete_huck_workspace
+  client: huck
   rpc:
     method: server.workspace.delete
     request:
-      name: "${conseil_workspace}"
-- id: delete_conseil_peer
-  client: conseil
+      name: "${huck_workspace}"
+- id: delete_huck_peer
+  client: huck
   rpc:
     method: server.peer.delete
     request: {}
-- id: stop_ned-land_run
-  client: ned-land
+- id: stop_aunt-polly_run
+  client: aunt-polly
   rpc:
     method: server.run.stop
     request: {}
-- id: delete_ned_land_workspace
-  client: ned-land
+- id: delete_aunt_polly_workspace
+  client: aunt-polly
   rpc:
     method: server.workspace.delete
     request:
-      name: "${ned_land_workspace}"
-- id: delete_ned-land_peer
-  client: ned-land
+      name: "${aunt_polly_workspace}"
+- id: delete_aunt-polly_peer
+  client: aunt-polly
   rpc:
     method: server.peer.delete
     request: {}

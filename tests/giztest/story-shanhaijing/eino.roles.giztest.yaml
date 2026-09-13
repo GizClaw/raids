@@ -1,27 +1,27 @@
 # User Story:
 # As a Raids catalog maintainer,
-# I want isolated narrator and character probes for flowcraft-story-twenty-thousand-leagues,
+# I want isolated narrator and character probes for eino-story-shanhaijing,
 # So that every reachable role path produces text and non-empty synthesized audio.
 version: gizclaw.test/v1alpha1
-name: story-twenty-thousand-leagues.flowcraft.roles
+name: story-shanhaijing.eino.roles
 clients:
   narrator:
     identity: ephemeral
     connection: webrtc
     access_point: "${endpoint}"
-  nemo:
+  young-explorer:
     identity: ephemeral
     connection: webrtc
     access_point: "${endpoint}"
-  aronnax:
+  spirit-guide:
     identity: ephemeral
     connection: webrtc
     access_point: "${endpoint}"
-  conseil:
+  jingwei:
     identity: ephemeral
     connection: webrtc
     access_point: "${endpoint}"
-  ned-land:
+  kuafu:
     identity: ephemeral
     connection: webrtc
     access_point: "${endpoint}"
@@ -39,19 +39,19 @@ variables:
     direction: input
     type: string
     generate: token
-  nemo_workspace:
+  young_explorer_workspace:
     direction: input
     type: string
     generate: token
-  aronnax_workspace:
+  spirit_guide_workspace:
     direction: input
     type: string
     generate: token
-  conseil_workspace:
+  jingwei_workspace:
     direction: input
     type: string
     generate: token
-  ned_land_workspace:
+  kuafu_workspace:
     direction: input
     type: string
     generate: token
@@ -71,10 +71,10 @@ steps:
     request:
       name: "${narrator_workspace}"
       collection: raidtest-targets
-      workflow_name: flowcraft-story-twenty-thousand-leagues
+      workflow_name: eino-story-shanhaijing
       parameters:
-        flowcraft_workspace_parameters:
-          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
           conversation:
             initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
           input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
@@ -90,130 +90,130 @@ steps:
     method: server.run.workspace.reload
     request: {}
   timeout: 2m
-- id: register_nemo
-  client: nemo
+- id: register_young-explorer
+  client: young-explorer
   rpc:
     method: server.register
     request:
       token: "${registration_token}"
-- id: create_nemo_workspace
-  client: nemo
+- id: create_young_explorer_workspace
+  client: young-explorer
   rpc:
     method: server.workspace.create
     request:
-      name: "${nemo_workspace}"
+      name: "${young_explorer_workspace}"
       collection: raidtest-targets
-      workflow_name: flowcraft-story-twenty-thousand-leagues
+      workflow_name: eino-story-shanhaijing
       parameters:
-        flowcraft_workspace_parameters:
-          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
           conversation:
             initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
           input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: select_nemo_workspace
-  client: nemo
+- id: select_young_explorer_workspace
+  client: young-explorer
   rpc:
     method: server.run.workspace.set
     request:
-      workspace_name: "${nemo_workspace}"
-- id: warmup_nemo_workspace
-  client: nemo
+      workspace_name: "${young_explorer_workspace}"
+- id: warmup_young_explorer_workspace
+  client: young-explorer
   rpc:
     method: server.run.workspace.reload
     request: {}
   timeout: 2m
-- id: register_aronnax
-  client: aronnax
+- id: register_spirit-guide
+  client: spirit-guide
   rpc:
     method: server.register
     request:
       token: "${registration_token}"
-- id: create_aronnax_workspace
-  client: aronnax
+- id: create_spirit_guide_workspace
+  client: spirit-guide
   rpc:
     method: server.workspace.create
     request:
-      name: "${aronnax_workspace}"
+      name: "${spirit_guide_workspace}"
       collection: raidtest-targets
-      workflow_name: flowcraft-story-twenty-thousand-leagues
+      workflow_name: eino-story-shanhaijing
       parameters:
-        flowcraft_workspace_parameters:
-          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
           conversation:
             initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
           input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: select_aronnax_workspace
-  client: aronnax
+- id: select_spirit_guide_workspace
+  client: spirit-guide
   rpc:
     method: server.run.workspace.set
     request:
-      workspace_name: "${aronnax_workspace}"
-- id: warmup_aronnax_workspace
-  client: aronnax
+      workspace_name: "${spirit_guide_workspace}"
+- id: warmup_spirit_guide_workspace
+  client: spirit-guide
   rpc:
     method: server.run.workspace.reload
     request: {}
   timeout: 2m
-- id: register_conseil
-  client: conseil
+- id: register_jingwei
+  client: jingwei
   rpc:
     method: server.register
     request:
       token: "${registration_token}"
-- id: create_conseil_workspace
-  client: conseil
+- id: create_jingwei_workspace
+  client: jingwei
   rpc:
     method: server.workspace.create
     request:
-      name: "${conseil_workspace}"
+      name: "${jingwei_workspace}"
       collection: raidtest-targets
-      workflow_name: flowcraft-story-twenty-thousand-leagues
+      workflow_name: eino-story-shanhaijing
       parameters:
-        flowcraft_workspace_parameters:
-          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
           conversation:
             initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
           input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: select_conseil_workspace
-  client: conseil
+- id: select_jingwei_workspace
+  client: jingwei
   rpc:
     method: server.run.workspace.set
     request:
-      workspace_name: "${conseil_workspace}"
-- id: warmup_conseil_workspace
-  client: conseil
+      workspace_name: "${jingwei_workspace}"
+- id: warmup_jingwei_workspace
+  client: jingwei
   rpc:
     method: server.run.workspace.reload
     request: {}
   timeout: 2m
-- id: register_ned-land
-  client: ned-land
+- id: register_kuafu
+  client: kuafu
   rpc:
     method: server.register
     request:
       token: "${registration_token}"
-- id: create_ned_land_workspace
-  client: ned-land
+- id: create_kuafu_workspace
+  client: kuafu
   rpc:
     method: server.workspace.create
     request:
-      name: "${ned_land_workspace}"
+      name: "${kuafu_workspace}"
       collection: raidtest-targets
-      workflow_name: flowcraft-story-twenty-thousand-leagues
+      workflow_name: eino-story-shanhaijing
       parameters:
-        flowcraft_workspace_parameters:
-          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
           conversation:
             initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
           input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: select_ned_land_workspace
-  client: ned-land
+- id: select_kuafu_workspace
+  client: kuafu
   rpc:
     method: server.run.workspace.set
     request:
-      workspace_name: "${ned_land_workspace}"
-- id: warmup_ned_land_workspace
-  client: ned-land
+      workspace_name: "${kuafu_workspace}"
+- id: warmup_kuafu_workspace
+  client: kuafu
   rpc:
     method: server.run.workspace.reload
     request: {}
@@ -262,20 +262,20 @@ steps:
       maximum: 2000
     "/first_audio_ms":
       maximum: 3000
-- id: probe_nemo
-  client: nemo
+- id: probe_young-explorer
+  client: young-explorer
   timeout: 2m
   peer_stream:
     mode: text
-    input: 请让尼摩亲自回应，只说这个角色知道的事。
+    input: 请让少年探险者亲自回应，只说这个角色知道的事。
     idle_timeout: 90s
     require_text: true
     require_audio: true
   expect:
     "/text":
       not_contains:
-      - 尼摩说
-      - 尼摩：
+      - 少年探险者说
+      - 少年探险者：
     "/text_eos":
       equals: true
     "/audio_eos":
@@ -286,12 +286,12 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: probe_nemo_first_response
-  client: nemo
+- id: probe_young-explorer_first_response
+  client: young-explorer
   timeout: 15s
   peer_stream:
     mode: text
-    input: 请让尼摩亲自回应，只说这个角色知道的事。
+    input: 请让少年探险者亲自回应，只说这个角色知道的事。
     completion: first_response
     first_text_timeout: 2s
     first_audio_timeout: 3s
@@ -306,20 +306,20 @@ steps:
       maximum: 2000
     "/first_audio_ms":
       maximum: 3000
-- id: probe_aronnax
-  client: aronnax
+- id: probe_spirit-guide
+  client: spirit-guide
   timeout: 2m
   peer_stream:
     mode: text
-    input: 请让阿龙纳斯亲自回应，只说这个角色知道的事。
+    input: 请让灵兽向导亲自回应，只说这个角色知道的事。
     idle_timeout: 90s
     require_text: true
     require_audio: true
   expect:
     "/text":
       not_contains:
-      - 阿龙纳斯说
-      - 阿龙纳斯：
+      - 灵兽向导说
+      - 灵兽向导：
     "/text_eos":
       equals: true
     "/audio_eos":
@@ -330,12 +330,12 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: probe_aronnax_first_response
-  client: aronnax
+- id: probe_spirit-guide_first_response
+  client: spirit-guide
   timeout: 15s
   peer_stream:
     mode: text
-    input: 请让阿龙纳斯亲自回应，只说这个角色知道的事。
+    input: 请让灵兽向导亲自回应，只说这个角色知道的事。
     completion: first_response
     first_text_timeout: 2s
     first_audio_timeout: 3s
@@ -350,12 +350,12 @@ steps:
       maximum: 2000
     "/first_audio_ms":
       maximum: 3000
-- id: conseil_chapter_setup_26
-  client: conseil
+- id: jingwei_chapter_setup_26
+  client: jingwei
   timeout: 2m
   peer_stream:
     mode: text
-    input: 请从第一章开始《海底两万里》。
+    input: 请从第一章开始《山海经》。
     idle_timeout: 90s
     require_text: true
     require_audio: true
@@ -371,9 +371,9 @@ steps:
     "/first_audio_ms":
       maximum: 90000
     "/text":
-      contains: 第 1 章：发光巨影
-- id: conseil_chapter_setup_27
-  client: conseil
+      contains: 第 1 章：图卷初开
+- id: jingwei_chapter_setup_27
+  client: jingwei
   timeout: 2m
   peer_stream:
     mode: text
@@ -392,12 +392,12 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: conseil_chapter_setup_28
-  client: conseil
+- id: jingwei_chapter_setup_28
+  client: jingwei
   timeout: 2m
   peer_stream:
     mode: text
-    input: 请让尼摩亲自回应，说出不同立场。
+    input: 请让少年探险者亲自回应，说出不同立场。
     idle_timeout: 90s
     require_text: true
     require_audio: true
@@ -412,8 +412,8 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: conseil_chapter_setup_29
-  client: conseil
+- id: jingwei_chapter_setup_29
+  client: jingwei
   timeout: 2m
   peer_stream:
     mode: text
@@ -433,21 +433,21 @@ steps:
     "/first_audio_ms":
       maximum: 90000
     "/text":
-      contains: 第 2 章：深海档案
-- id: probe_conseil
-  client: conseil
+      contains: 第 2 章：神山迷雾
+- id: probe_jingwei
+  client: jingwei
   timeout: 2m
   peer_stream:
     mode: text
-    input: 请让康塞尔亲自回应，只说这个角色知道的事。
+    input: 请让精卫亲自回应，只说这个角色知道的事。
     idle_timeout: 90s
     require_text: true
     require_audio: true
   expect:
     "/text":
       not_contains:
-      - 康塞尔说
-      - 康塞尔：
+      - 精卫说
+      - 精卫：
     "/text_eos":
       equals: true
     "/audio_eos":
@@ -458,12 +458,12 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: probe_conseil_first_response
-  client: conseil
+- id: probe_jingwei_first_response
+  client: jingwei
   timeout: 15s
   peer_stream:
     mode: text
-    input: 请让康塞尔亲自回应，只说这个角色知道的事。
+    input: 请让精卫亲自回应，只说这个角色知道的事。
     completion: first_response
     first_text_timeout: 2s
     first_audio_timeout: 3s
@@ -478,12 +478,12 @@ steps:
       maximum: 2000
     "/first_audio_ms":
       maximum: 3000
-- id: ned-land_chapter_setup_32
-  client: ned-land
+- id: kuafu_chapter_setup_32
+  client: kuafu
   timeout: 2m
   peer_stream:
     mode: text
-    input: 请从第一章开始《海底两万里》。
+    input: 请从第一章开始《山海经》。
     idle_timeout: 90s
     require_text: true
     require_audio: true
@@ -499,9 +499,9 @@ steps:
     "/first_audio_ms":
       maximum: 90000
     "/text":
-      contains: 第 1 章：发光巨影
-- id: ned-land_chapter_setup_33
-  client: ned-land
+      contains: 第 1 章：图卷初开
+- id: kuafu_chapter_setup_33
+  client: kuafu
   timeout: 2m
   peer_stream:
     mode: text
@@ -520,12 +520,12 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: ned-land_chapter_setup_34
-  client: ned-land
+- id: kuafu_chapter_setup_34
+  client: kuafu
   timeout: 2m
   peer_stream:
     mode: text
-    input: 请让尼摩亲自回应，说出不同立场。
+    input: 请让少年探险者亲自回应，说出不同立场。
     idle_timeout: 90s
     require_text: true
     require_audio: true
@@ -540,8 +540,8 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: ned-land_chapter_setup_35
-  client: ned-land
+- id: kuafu_chapter_setup_35
+  client: kuafu
   timeout: 2m
   peer_stream:
     mode: text
@@ -561,21 +561,21 @@ steps:
     "/first_audio_ms":
       maximum: 90000
     "/text":
-      contains: 第 2 章：深海档案
-- id: probe_ned-land
-  client: ned-land
+      contains: 第 2 章：神山迷雾
+- id: probe_kuafu
+  client: kuafu
   timeout: 2m
   peer_stream:
     mode: text
-    input: 请让尼德·兰亲自回应，只说这个角色知道的事。
+    input: 请让夸父亲自回应，只说这个角色知道的事。
     idle_timeout: 90s
     require_text: true
     require_audio: true
   expect:
     "/text":
       not_contains:
-      - 尼德·兰说
-      - 尼德·兰：
+      - 夸父说
+      - 夸父：
     "/text_eos":
       equals: true
     "/audio_eos":
@@ -586,12 +586,12 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: probe_ned-land_first_response
-  client: ned-land
+- id: probe_kuafu_first_response
+  client: kuafu
   timeout: 15s
   peer_stream:
     mode: text
-    input: 请让尼德·兰亲自回应，只说这个角色知道的事。
+    input: 请让夸父亲自回应，只说这个角色知道的事。
     completion: first_response
     first_text_timeout: 2s
     first_audio_timeout: 3s
@@ -623,67 +623,67 @@ finally:
   rpc:
     method: server.peer.delete
     request: {}
-- id: stop_nemo_run
-  client: nemo
+- id: stop_young-explorer_run
+  client: young-explorer
   rpc:
     method: server.run.stop
     request: {}
-- id: delete_nemo_workspace
-  client: nemo
+- id: delete_young_explorer_workspace
+  client: young-explorer
   rpc:
     method: server.workspace.delete
     request:
-      name: "${nemo_workspace}"
-- id: delete_nemo_peer
-  client: nemo
+      name: "${young_explorer_workspace}"
+- id: delete_young-explorer_peer
+  client: young-explorer
   rpc:
     method: server.peer.delete
     request: {}
-- id: stop_aronnax_run
-  client: aronnax
+- id: stop_spirit-guide_run
+  client: spirit-guide
   rpc:
     method: server.run.stop
     request: {}
-- id: delete_aronnax_workspace
-  client: aronnax
+- id: delete_spirit_guide_workspace
+  client: spirit-guide
   rpc:
     method: server.workspace.delete
     request:
-      name: "${aronnax_workspace}"
-- id: delete_aronnax_peer
-  client: aronnax
+      name: "${spirit_guide_workspace}"
+- id: delete_spirit-guide_peer
+  client: spirit-guide
   rpc:
     method: server.peer.delete
     request: {}
-- id: stop_conseil_run
-  client: conseil
+- id: stop_jingwei_run
+  client: jingwei
   rpc:
     method: server.run.stop
     request: {}
-- id: delete_conseil_workspace
-  client: conseil
+- id: delete_jingwei_workspace
+  client: jingwei
   rpc:
     method: server.workspace.delete
     request:
-      name: "${conseil_workspace}"
-- id: delete_conseil_peer
-  client: conseil
+      name: "${jingwei_workspace}"
+- id: delete_jingwei_peer
+  client: jingwei
   rpc:
     method: server.peer.delete
     request: {}
-- id: stop_ned-land_run
-  client: ned-land
+- id: stop_kuafu_run
+  client: kuafu
   rpc:
     method: server.run.stop
     request: {}
-- id: delete_ned_land_workspace
-  client: ned-land
+- id: delete_kuafu_workspace
+  client: kuafu
   rpc:
     method: server.workspace.delete
     request:
-      name: "${ned_land_workspace}"
-- id: delete_ned-land_peer
-  client: ned-land
+      name: "${kuafu_workspace}"
+- id: delete_kuafu_peer
+  client: kuafu
   rpc:
     method: server.peer.delete
     request: {}
