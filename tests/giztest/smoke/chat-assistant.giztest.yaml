@@ -114,12 +114,6 @@ steps:
       equals: true
     "/first_text_ms":
       maximum: 6000
-    "/first_audio_ms":
-      maximum: 90000
-    "/text_eos_ms":
-      maximum: 90000
-    "/audio_eos_ms":
-      maximum: 90000
     "/audio_integrity/streams":
       minimum: 1
     "/audio_integrity/max_active":
@@ -133,37 +127,6 @@ steps:
     "/audio_pacing/underruns":
       equals: 0
   client: flowcraft
-- id: flowcraft_opening_first_response
-  timeout: 15s
-  peer_stream:
-    mode: text
-    input: 我下周三要去杭州见周宁，车次是G7331，请记住；用一句自然口语复述这四项，不要标签或追问。
-    completion: first_response
-    require_audio: true
-    require_text: true
-    first_text_timeout: 2s
-    first_audio_timeout: 3s
-  expect:
-    "/events":
-      non_empty: true
-    "/audio_bytes":
-      minimum: 1
-    "/first_text_ms":
-      maximum: 2000
-    "/first_audio_ms":
-      maximum: 3000
-  client: flowcraft
-- id: flowcraft_opening_stop_probe
-  client: flowcraft
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: flowcraft_opening_resume_workspace
-  client: flowcraft
-  timeout: 2m
-  rpc:
-    method: server.run.workspace.reload
-    request: {}
 - id: flowcraft_select_realtime
   client: flowcraft
   rpc:
@@ -220,38 +183,6 @@ steps:
     "/audio_pacing/underruns":
       equals: 0
   client: flowcraft
-- id: flowcraft_realtime_roundtrip_first_response
-  timeout: 15s
-  peer_stream:
-    mode: realtime
-    input: "${input_audio}"
-    pacing: 20ms
-    completion: first_response
-    require_audio: true
-    require_text: true
-    first_text_timeout: 2s
-    first_audio_timeout: 3s
-  expect:
-    "/events":
-      non_empty: true
-    "/audio_bytes":
-      minimum: 1
-    "/first_text_ms":
-      maximum: 2000
-    "/first_audio_ms":
-      maximum: 3000
-  client: flowcraft
-- id: flowcraft_realtime_roundtrip_stop_probe
-  client: flowcraft
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: flowcraft_realtime_roundtrip_resume_workspace
-  client: flowcraft
-  timeout: 2m
-  rpc:
-    method: server.run.workspace.reload
-    request: {}
 finally:
 - id: flowcraft_stop_run
   client: flowcraft

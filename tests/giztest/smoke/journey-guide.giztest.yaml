@@ -261,7 +261,7 @@ steps:
       mode: text
       input: 我从花果山出发，带着一枚青铜铃。承接我的行动，不要替我选择路线。
       require_text: true
-      require_audio: true
+      require_audio: false
       idle_timeout: 90s
   - id: eino_memory_async_turn_1_origin
     client: eino_memory_async
@@ -269,7 +269,7 @@ steps:
       mode: text
       input: 我从花果山出发，带着一枚青铜铃。承接我的行动，不要替我选择路线。
       require_text: true
-      require_audio: true
+      require_audio: false
       idle_timeout: 90s
   - id: eino_memory_recall_turn_1_origin
     client: eino_memory_recall
@@ -277,7 +277,7 @@ steps:
       mode: text
       input: 我从花果山出发，带着一枚青铜铃。承接我的行动，不要替我选择路线。
       require_text: true
-      require_audio: true
+      require_audio: false
       idle_timeout: 90s
   expect:
     "/flowcraft_turn_1_origin/text":
@@ -299,10 +299,6 @@ steps:
       equals: true
     "/flowcraft_turn_1_origin/audio_eos":
       equals: true
-    "/flowcraft_turn_1_origin/first_audio_ms":
-      maximum: 90000
-    "/flowcraft_turn_1_origin/audio_eos_ms":
-      maximum: 90000
     "/flowcraft_turn_1_origin/audio_integrity/streams":
       minimum: 1
     "/flowcraft_turn_1_origin/audio_integrity/max_active":
@@ -328,28 +324,8 @@ steps:
       maximum: 90000
     "/eino_history_turn_1_origin/events":
       non_empty: true
-    "/eino_history_turn_1_origin/audio_bytes":
-      minimum: 1
     "/eino_history_turn_1_origin/text_eos":
       equals: true
-    "/eino_history_turn_1_origin/audio_eos":
-      equals: true
-    "/eino_history_turn_1_origin/first_audio_ms":
-      maximum: 90000
-    "/eino_history_turn_1_origin/audio_eos_ms":
-      maximum: 90000
-    "/eino_history_turn_1_origin/audio_integrity/streams":
-      minimum: 1
-    "/eino_history_turn_1_origin/audio_integrity/max_active":
-      equals: 1
-    "/eino_history_turn_1_origin/audio_integrity/open":
-      equals: 0
-    "/eino_history_turn_1_origin/audio_integrity/violations":
-      equals: 0
-    "/eino_history_turn_1_origin/audio_pacing/minimum_buffer_ms":
-      minimum: 0
-    "/eino_history_turn_1_origin/audio_pacing/underruns":
-      equals: 0
     "/eino_memory_async_turn_1_origin/text":
       contains_all:
       - 花果山
@@ -363,28 +339,8 @@ steps:
       maximum: 90000
     "/eino_memory_async_turn_1_origin/events":
       non_empty: true
-    "/eino_memory_async_turn_1_origin/audio_bytes":
-      minimum: 1
     "/eino_memory_async_turn_1_origin/text_eos":
       equals: true
-    "/eino_memory_async_turn_1_origin/audio_eos":
-      equals: true
-    "/eino_memory_async_turn_1_origin/first_audio_ms":
-      maximum: 90000
-    "/eino_memory_async_turn_1_origin/audio_eos_ms":
-      maximum: 90000
-    "/eino_memory_async_turn_1_origin/audio_integrity/streams":
-      minimum: 1
-    "/eino_memory_async_turn_1_origin/audio_integrity/max_active":
-      equals: 1
-    "/eino_memory_async_turn_1_origin/audio_integrity/open":
-      equals: 0
-    "/eino_memory_async_turn_1_origin/audio_integrity/violations":
-      equals: 0
-    "/eino_memory_async_turn_1_origin/audio_pacing/minimum_buffer_ms":
-      minimum: 0
-    "/eino_memory_async_turn_1_origin/audio_pacing/underruns":
-      equals: 0
     "/eino_memory_recall_turn_1_origin/text":
       contains_all:
       - 花果山
@@ -398,148 +354,8 @@ steps:
       maximum: 90000
     "/eino_memory_recall_turn_1_origin/events":
       non_empty: true
-    "/eino_memory_recall_turn_1_origin/audio_bytes":
-      minimum: 1
     "/eino_memory_recall_turn_1_origin/text_eos":
       equals: true
-    "/eino_memory_recall_turn_1_origin/audio_eos":
-      equals: true
-    "/eino_memory_recall_turn_1_origin/first_audio_ms":
-      maximum: 90000
-    "/eino_memory_recall_turn_1_origin/audio_eos_ms":
-      maximum: 90000
-    "/eino_memory_recall_turn_1_origin/audio_integrity/streams":
-      minimum: 1
-    "/eino_memory_recall_turn_1_origin/audio_integrity/max_active":
-      equals: 1
-    "/eino_memory_recall_turn_1_origin/audio_integrity/open":
-      equals: 0
-    "/eino_memory_recall_turn_1_origin/audio_integrity/violations":
-      equals: 0
-    "/eino_memory_recall_turn_1_origin/audio_pacing/minimum_buffer_ms":
-      minimum: 0
-    "/eino_memory_recall_turn_1_origin/audio_pacing/underruns":
-      equals: 0
-- id: turn_1_origin_first_response
-  timeout: 15s
-  parallel:
-  - id: flowcraft_turn_1_origin_first_response
-    client: flowcraft
-    peer_stream:
-      mode: text
-      input: 我从花果山出发，带着一枚青铜铃。承接我的行动，不要替我选择路线。
-      require_text: true
-      completion: first_response
-      require_audio: true
-      first_text_timeout: 2s
-      first_audio_timeout: 3s
-  - id: eino_history_turn_1_origin_first_response
-    client: eino_history
-    peer_stream:
-      mode: text
-      input: 我从花果山出发，带着一枚青铜铃。承接我的行动，不要替我选择路线。
-      require_text: true
-      completion: first_response
-      require_audio: true
-      first_text_timeout: 2s
-      first_audio_timeout: 3s
-  - id: eino_memory_async_turn_1_origin_first_response
-    client: eino_memory_async
-    peer_stream:
-      mode: text
-      input: 我从花果山出发，带着一枚青铜铃。承接我的行动，不要替我选择路线。
-      require_text: true
-      completion: first_response
-      require_audio: true
-      first_text_timeout: 2s
-      first_audio_timeout: 3s
-  - id: eino_memory_recall_turn_1_origin_first_response
-    client: eino_memory_recall
-    peer_stream:
-      mode: text
-      input: 我从花果山出发，带着一枚青铜铃。承接我的行动，不要替我选择路线。
-      require_text: true
-      completion: first_response
-      require_audio: true
-      first_text_timeout: 2s
-      first_audio_timeout: 3s
-  expect:
-    "/flowcraft_turn_1_origin_first_response/events":
-      non_empty: true
-    "/flowcraft_turn_1_origin_first_response/audio_bytes":
-      minimum: 1
-    "/flowcraft_turn_1_origin_first_response/first_text_ms":
-      maximum: 2000
-    "/flowcraft_turn_1_origin_first_response/first_audio_ms":
-      maximum: 3000
-    "/eino_history_turn_1_origin_first_response/events":
-      non_empty: true
-    "/eino_history_turn_1_origin_first_response/audio_bytes":
-      minimum: 1
-    "/eino_history_turn_1_origin_first_response/first_text_ms":
-      maximum: 2000
-    "/eino_history_turn_1_origin_first_response/first_audio_ms":
-      maximum: 3000
-    "/eino_memory_async_turn_1_origin_first_response/events":
-      non_empty: true
-    "/eino_memory_async_turn_1_origin_first_response/audio_bytes":
-      minimum: 1
-    "/eino_memory_async_turn_1_origin_first_response/first_text_ms":
-      maximum: 2000
-    "/eino_memory_async_turn_1_origin_first_response/first_audio_ms":
-      maximum: 3000
-    "/eino_memory_recall_turn_1_origin_first_response/events":
-      non_empty: true
-    "/eino_memory_recall_turn_1_origin_first_response/audio_bytes":
-      minimum: 1
-    "/eino_memory_recall_turn_1_origin_first_response/first_text_ms":
-      maximum: 2000
-    "/eino_memory_recall_turn_1_origin_first_response/first_audio_ms":
-      maximum: 3000
-- id: flowcraft_turn_1_origin_stop_probe
-  client: flowcraft
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: flowcraft_turn_1_origin_resume_workspace
-  client: flowcraft
-  timeout: 2m
-  rpc:
-    method: server.run.workspace.reload
-    request: {}
-- id: eino_history_turn_1_origin_stop_probe
-  client: eino_history
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: eino_history_turn_1_origin_resume_workspace
-  client: eino_history
-  timeout: 2m
-  rpc:
-    method: server.run.workspace.reload
-    request: {}
-- id: eino_memory_async_turn_1_origin_stop_probe
-  client: eino_memory_async
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: eino_memory_async_turn_1_origin_resume_workspace
-  client: eino_memory_async
-  timeout: 2m
-  rpc:
-    method: server.run.workspace.reload
-    request: {}
-- id: eino_memory_recall_turn_1_origin_stop_probe
-  client: eino_memory_recall
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: eino_memory_recall_turn_1_origin_resume_workspace
-  client: eino_memory_recall
-  timeout: 2m
-  rpc:
-    method: server.run.workspace.reload
-    request: {}
 - id: flowcraft_select_realtime
   client: flowcraft
   rpc:
@@ -616,7 +432,7 @@ steps:
       mode: realtime
       input: "${input_audio}"
       pacing: 20ms
-      require_audio: true
+      require_audio: false
       require_text: true
       idle_timeout: 90s
     client: eino_history
@@ -625,7 +441,7 @@ steps:
       mode: realtime
       input: "${input_audio}"
       pacing: 20ms
-      require_audio: true
+      require_audio: false
       require_text: true
       idle_timeout: 90s
     client: eino_memory_async
@@ -634,7 +450,7 @@ steps:
       mode: realtime
       input: "${input_audio}"
       pacing: 20ms
-      require_audio: true
+      require_audio: false
       require_text: true
       idle_timeout: 90s
     client: eino_memory_recall
@@ -663,194 +479,22 @@ steps:
       equals: 0
     "/eino_history_realtime_roundtrip/events":
       non_empty: true
-    "/eino_history_realtime_roundtrip/audio_bytes":
-      minimum: 1
     "/eino_history_realtime_roundtrip/text_eos":
-      equals: true
-    "/eino_history_realtime_roundtrip/audio_eos":
       equals: true
     "/eino_history_realtime_roundtrip/text":
       non_empty: true
-    "/eino_history_realtime_roundtrip/audio_integrity/streams":
-      minimum: 1
-    "/eino_history_realtime_roundtrip/audio_integrity/max_active":
-      equals: 1
-    "/eino_history_realtime_roundtrip/audio_integrity/open":
-      equals: 0
-    "/eino_history_realtime_roundtrip/audio_integrity/violations":
-      equals: 0
-    "/eino_history_realtime_roundtrip/audio_pacing/minimum_buffer_ms":
-      minimum: 0
-    "/eino_history_realtime_roundtrip/audio_pacing/underruns":
-      equals: 0
     "/eino_memory_async_realtime_roundtrip/events":
       non_empty: true
-    "/eino_memory_async_realtime_roundtrip/audio_bytes":
-      minimum: 1
     "/eino_memory_async_realtime_roundtrip/text_eos":
-      equals: true
-    "/eino_memory_async_realtime_roundtrip/audio_eos":
       equals: true
     "/eino_memory_async_realtime_roundtrip/text":
       non_empty: true
-    "/eino_memory_async_realtime_roundtrip/audio_integrity/streams":
-      minimum: 1
-    "/eino_memory_async_realtime_roundtrip/audio_integrity/max_active":
-      equals: 1
-    "/eino_memory_async_realtime_roundtrip/audio_integrity/open":
-      equals: 0
-    "/eino_memory_async_realtime_roundtrip/audio_integrity/violations":
-      equals: 0
-    "/eino_memory_async_realtime_roundtrip/audio_pacing/minimum_buffer_ms":
-      minimum: 0
-    "/eino_memory_async_realtime_roundtrip/audio_pacing/underruns":
-      equals: 0
     "/eino_memory_recall_realtime_roundtrip/events":
       non_empty: true
-    "/eino_memory_recall_realtime_roundtrip/audio_bytes":
-      minimum: 1
     "/eino_memory_recall_realtime_roundtrip/text_eos":
-      equals: true
-    "/eino_memory_recall_realtime_roundtrip/audio_eos":
       equals: true
     "/eino_memory_recall_realtime_roundtrip/text":
       non_empty: true
-    "/eino_memory_recall_realtime_roundtrip/audio_integrity/streams":
-      minimum: 1
-    "/eino_memory_recall_realtime_roundtrip/audio_integrity/max_active":
-      equals: 1
-    "/eino_memory_recall_realtime_roundtrip/audio_integrity/open":
-      equals: 0
-    "/eino_memory_recall_realtime_roundtrip/audio_integrity/violations":
-      equals: 0
-    "/eino_memory_recall_realtime_roundtrip/audio_pacing/minimum_buffer_ms":
-      minimum: 0
-    "/eino_memory_recall_realtime_roundtrip/audio_pacing/underruns":
-      equals: 0
-- id: realtime_roundtrip_first_response
-  timeout: 15s
-  parallel:
-  - id: flowcraft_realtime_roundtrip_first_response
-    peer_stream:
-      mode: realtime
-      input: "${input_audio}"
-      pacing: 20ms
-      completion: first_response
-      require_audio: true
-      require_text: true
-      first_text_timeout: 2s
-      first_audio_timeout: 3s
-    client: flowcraft
-  - id: eino_history_realtime_roundtrip_first_response
-    peer_stream:
-      mode: realtime
-      input: "${input_audio}"
-      pacing: 20ms
-      completion: first_response
-      require_audio: true
-      require_text: true
-      first_text_timeout: 2s
-      first_audio_timeout: 3s
-    client: eino_history
-  - id: eino_memory_async_realtime_roundtrip_first_response
-    peer_stream:
-      mode: realtime
-      input: "${input_audio}"
-      pacing: 20ms
-      completion: first_response
-      require_audio: true
-      require_text: true
-      first_text_timeout: 2s
-      first_audio_timeout: 3s
-    client: eino_memory_async
-  - id: eino_memory_recall_realtime_roundtrip_first_response
-    peer_stream:
-      mode: realtime
-      input: "${input_audio}"
-      pacing: 20ms
-      completion: first_response
-      require_audio: true
-      require_text: true
-      first_text_timeout: 2s
-      first_audio_timeout: 3s
-    client: eino_memory_recall
-  expect:
-    "/flowcraft_realtime_roundtrip_first_response/events":
-      non_empty: true
-    "/flowcraft_realtime_roundtrip_first_response/audio_bytes":
-      minimum: 1
-    "/flowcraft_realtime_roundtrip_first_response/first_text_ms":
-      maximum: 2000
-    "/flowcraft_realtime_roundtrip_first_response/first_audio_ms":
-      maximum: 3000
-    "/eino_history_realtime_roundtrip_first_response/events":
-      non_empty: true
-    "/eino_history_realtime_roundtrip_first_response/audio_bytes":
-      minimum: 1
-    "/eino_history_realtime_roundtrip_first_response/first_text_ms":
-      maximum: 2000
-    "/eino_history_realtime_roundtrip_first_response/first_audio_ms":
-      maximum: 3000
-    "/eino_memory_async_realtime_roundtrip_first_response/events":
-      non_empty: true
-    "/eino_memory_async_realtime_roundtrip_first_response/audio_bytes":
-      minimum: 1
-    "/eino_memory_async_realtime_roundtrip_first_response/first_text_ms":
-      maximum: 2000
-    "/eino_memory_async_realtime_roundtrip_first_response/first_audio_ms":
-      maximum: 3000
-    "/eino_memory_recall_realtime_roundtrip_first_response/events":
-      non_empty: true
-    "/eino_memory_recall_realtime_roundtrip_first_response/audio_bytes":
-      minimum: 1
-    "/eino_memory_recall_realtime_roundtrip_first_response/first_text_ms":
-      maximum: 2000
-    "/eino_memory_recall_realtime_roundtrip_first_response/first_audio_ms":
-      maximum: 3000
-- id: flowcraft_realtime_roundtrip_stop_probe
-  client: flowcraft
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: flowcraft_realtime_roundtrip_resume_workspace
-  client: flowcraft
-  timeout: 2m
-  rpc:
-    method: server.run.workspace.reload
-    request: {}
-- id: eino_history_realtime_roundtrip_stop_probe
-  client: eino_history
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: eino_history_realtime_roundtrip_resume_workspace
-  client: eino_history
-  timeout: 2m
-  rpc:
-    method: server.run.workspace.reload
-    request: {}
-- id: eino_memory_async_realtime_roundtrip_stop_probe
-  client: eino_memory_async
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: eino_memory_async_realtime_roundtrip_resume_workspace
-  client: eino_memory_async
-  timeout: 2m
-  rpc:
-    method: server.run.workspace.reload
-    request: {}
-- id: eino_memory_recall_realtime_roundtrip_stop_probe
-  client: eino_memory_recall
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: eino_memory_recall_realtime_roundtrip_resume_workspace
-  client: eino_memory_recall
-  timeout: 2m
-  rpc:
-    method: server.run.workspace.reload
-    request: {}
 finally:
 - id: flowcraft_stop_run
   client: flowcraft

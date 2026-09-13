@@ -75,7 +75,7 @@ steps:
     mode: text
     input: 我下周三要去杭州见周宁，车次是G7331，请记住；用一句自然口语复述这四项，不要标签或追问。
     require_text: true
-    require_audio: false
+    require_audio: true
     wait_for_history: true
     idle_timeout: 90s
   expect:
@@ -95,6 +95,10 @@ steps:
       equals: true
     "/first_text_ms":
       maximum: 6000
+    "/audio_bytes":
+      minimum: 1
+    "/audio_eos":
+      equals: true
 - id: flowcraft__quality_keepalive_2
   client: flowcraft__quality
   rpc:
@@ -107,7 +111,7 @@ steps:
     mode: text
     input: 这次是讨论青桥项目，会议在下午两点开始；只确认项目和时间，不要复述其他行程。
     require_text: true
-    require_audio: false
+    require_audio: true
     wait_for_history: true
     idle_timeout: 90s
   expect:
@@ -125,6 +129,10 @@ steps:
       equals: true
     "/first_text_ms":
       maximum: 6000
+    "/audio_bytes":
+      minimum: 1
+    "/audio_eos":
+      equals: true
 - id: flowcraft__quality_keepalive_3
   client: flowcraft__quality
   rpc:
@@ -137,7 +145,7 @@ steps:
     mode: text
     input: 更正一下，不是杭州，是苏州；车次也改成G7105。新值覆盖旧值，只复述这两个新值。
     require_text: true
-    require_audio: false
+    require_audio: true
     wait_for_history: true
     idle_timeout: 90s
   expect:
@@ -158,6 +166,10 @@ steps:
       equals: true
     "/first_text_ms":
       maximum: 6000
+    "/audio_bytes":
+      minimum: 1
+    "/audio_eos":
+      equals: true
 finally:
 - id: flowcraft__quality_stop
   client: flowcraft__quality

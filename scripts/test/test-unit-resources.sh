@@ -65,6 +65,7 @@ test -d tests/giztest || {
 }
 
 require_command ruby
+ruby scripts/test/test-giztest-layout.rb
 ruby scripts/test/giztest-layout.rb
 
 # Resolve the complete manifest -> branch -> published node -> alias -> Voice

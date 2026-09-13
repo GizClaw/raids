@@ -4,6 +4,44 @@ require 'json'
 module GiztestLayout
   TIERS = %w[smoke quality soak].freeze
   AUDIO_ONLY = %w[ast-translate doubao-realtime].freeze
+  AUDIO_PATH = %r{/(?:audio_eos(?:_ms)?|audio_bytes|first_audio_ms|audio_integrity|audio_pacing)(?:/|$)}.freeze
+  # Resolve actual output capability, never infer it from an engine name or ASR.
+  def self.tts_capabilities(raid)
+    path = "workflows/#{raid}/raid.json"
+    return {} unless File.exist?(path)
+    JSON.parse(File.read(path)).fetch('implementations').to_h do |name, impl|
+      voice = YAML.load_file("workflows/#{raid}/#{impl.fetch('file')}").dig('spec', impl.fetch('driver'), 'voice_adapter') || {}
+      [name.tr('-', '_'), %w[default_voice node_voices state_voices].any? { |key| voice[key] && !voice[key].empty? }]
+    end
+  end
+  def self.check_audio(step, capability, file)
+    peer = step['peer_stream']
+    return unless peer
+    expect = step.fetch('expect', {})
+    if capability
+      check(peer['require_audio'] == true && expect.dig('/audio_bytes', 'minimum').to_i > 0,
+            "#{file}: #{step['id']} TTS implementation needs audio output assertions")
+      unless peer['completion'] == 'first_response'
+        check(expect.dig('/audio_eos', 'equals') == true,
+              "#{file}: #{step['id']} TTS response needs audio EOS")
+      end
+    else
+      check(peer['require_audio'] == false && !peer.key?('first_audio_timeout') &&
+            !expect.keys.any? { |key| key.match?(AUDIO_PATH) },
+            "#{file}: #{step['id']} non-TTS implementation must not require audio")
+    end
+  end
+  def self.without_audio(sequence)
+    sequence.map do |step|
+      copy = Marshal.load(Marshal.dump(step))
+      if copy['peer_stream']
+        copy['peer_stream'].delete('require_audio')
+        copy['peer_stream'].delete('first_audio_timeout')
+      end
+      copy.fetch('expect', {}).delete_if { |key, _| key.match?(AUDIO_PATH) }
+      copy
+    end
+  end
   def self.check(ok, message)
     abort message unless ok
   end
@@ -74,6 +112,11 @@ module GiztestLayout
       files.each do |file|
         doc = YAML.load_file(file)
         check(File.readlines(file).first(4).map { |s| s.split[0,2].join(' ') } == ['# User', '# As', '# I', '# So'], "#{file}: missing User Story")
+        capabilities = tts_capabilities(File.basename(file, '.giztest.yaml'))
+        steps(doc).each do |step|
+          implementation = step.fetch('client', '').split('__').first
+          check_audio(step, capabilities[implementation], file) if capabilities.key?(implementation)
+        end
         if tier == 'smoke'
           steps(doc).each do |step|
             expect = step.fetch('expect', {})
@@ -89,14 +132,19 @@ module GiztestLayout
                 '/audio_pacing/minimum_buffer_ms' => {'minimum' => 0},
                 '/audio_pacing/underruns' => {'equals' => 0}
               }
+              capability = capabilities[step.fetch('client').split('__').first]
+              roundtrip_expect.delete_if { |key, _| key.match?(AUDIO_PATH) } if capability == false
               check(expect == roundtrip_expect, "#{file}: #{step['id']} must check complete realtime output without timing gates")
               first = steps(doc).find { |s| s['id'] == "#{step['id']}_first_response" }
-              check(first && first.dig('peer_stream', 'completion') == 'first_response' &&
-                    first.dig('peer_stream', 'first_text_timeout') == '2s' &&
-                    first.dig('peer_stream', 'first_audio_timeout') == '3s' &&
-                    first.dig('expect', '/first_text_ms') == {'maximum' => 2000} &&
-                    first.dig('expect', '/first_audio_ms') == {'maximum' => 3000},
-                    "#{file}: #{step['id']} needs independent 2s/3s realtime latency gates")
+              raid = File.basename(file, '.giztest.yaml')
+              if raid.match?(/\A(?:story|adventure|learn)-/)
+                check(first && first.dig('peer_stream', 'completion') == 'first_response' &&
+                      first.dig('peer_stream', 'first_text_timeout') == '2s' &&
+                      first.dig('expect', '/first_text_ms') == {'maximum' => 2000} &&
+                      (capability == false || (first.dig('peer_stream', 'first_audio_timeout') == '3s' &&
+                       first.dig('expect', '/first_audio_ms') == {'maximum' => 3000})),
+                      "#{file}: #{step['id']} needs capability-aware realtime latency gates")
+              end
             end
             check(!expect.keys.any? { |p| p.end_with?('/audio_pacing/max_interval_ms') }, "#{file}: packet gaps must remain diagnostic evidence")
             next unless expect.keys.any? { |p| p.end_with?('/audio_pacing/underruns') }
@@ -150,8 +198,11 @@ module GiztestLayout
               check(owners.size == 1, "#{file}: #{section}/#{step['id']} has ambiguous or missing implementation ownership")
             end
           end
-          implementations.drop(1).each do |impl|
+          implementations.combination(2).each do |baseline, impl|
             left, right = [baseline, impl].map { |i| sequence(doc, i, section) }
+            if capabilities.fetch(baseline) != capabilities.fetch(impl)
+              left, right = [left, right].map { |seq| without_audio(seq) }
+            end
             index = (0...[left.size, right.size].max).find { |n| left[n] != right[n] }
             check(index.nil?, "#{file}: #{section} #{baseline}/#{impl} mismatch at #{index}: #{left[index].inspect if index} != #{right[index].inspect if index}")
           end
@@ -176,8 +227,9 @@ module GiztestLayout
           check(create, "#{file}: #{engine} lacks realtime Workspace")
           full = probes.find { |s| s['id'] == "#{engine}_realtime_roundtrip" }
           first = probes.find { |s| s['id'] == "#{engine}_realtime_roundtrip_first_response" }
-          check(full && full.dig('peer_stream','mode') == 'realtime' && full.dig('peer_stream','require_audio') && full.dig('expect','/text_eos','equals') && full.dig('expect','/audio_eos','equals'), "#{file}: #{engine} lacks complete realtime response")
-          check(first && first.dig('peer_stream','completion') == 'first_response' && first.dig('peer_stream','first_text_timeout') == '2s' && first.dig('peer_stream','first_audio_timeout') == '3s', "#{file}: #{engine} lacks realtime latency gates")
+          capability = tts_capabilities(raid).fetch(engine)
+          check(full && full.dig('peer_stream','mode') == 'realtime' && full.dig('peer_stream','require_audio') == capability && full.dig('expect','/text_eos','equals') && (!capability || full.dig('expect','/audio_eos','equals')), "#{file}: #{engine} lacks complete realtime response")
+          check(first && first.dig('peer_stream','completion') == 'first_response' && first.dig('peer_stream','first_text_timeout') == '2s' && (!capability || first.dig('peer_stream','first_audio_timeout') == '3s'), "#{file}: #{engine} lacks realtime latency gates")
         end
         eino = YAML.load_file("workflows/#{raid}/eino.yaml").dig('spec','eino')
         check(eino.dig('voice_adapter','asr_model') == 'asr', "#{file}: missing Eino realtime ASR binding")

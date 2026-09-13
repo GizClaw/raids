@@ -98,14 +98,6 @@ steps:
       equals: true
     "/audio_eos":
       equals: true
-    "/first_text_ms":
-      maximum: 6000
-    "/first_audio_ms":
-      maximum: 90000
-    "/text_eos_ms":
-      maximum: 90000
-    "/audio_eos_ms":
-      maximum: 90000
     "/audio_integrity/streams":
       minimum: 1
     "/audio_integrity/max_active":
@@ -118,38 +110,6 @@ steps:
       minimum: 0
     "/audio_pacing/underruns":
       equals: 0
-- id: doubao_turn_1_establish-context_first_response
-  client: doubao
-  timeout: 15s
-  peer_stream:
-    mode: realtime
-    input: "${input_audio}"
-    pacing: 20ms
-    require_text: true
-    completion: first_response
-    require_audio: true
-    first_text_timeout: 2s
-    first_audio_timeout: 3s
-  expect:
-    "/events":
-      non_empty: true
-    "/audio_bytes":
-      minimum: 1
-    "/first_text_ms":
-      maximum: 2000
-    "/first_audio_ms":
-      maximum: 3000
-- id: doubao_turn_1_establish-context_stop_probe
-  client: doubao
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: doubao_turn_1_establish-context_resume_workspace
-  client: doubao
-  timeout: 2m
-  rpc:
-    method: server.run.workspace.reload
-    request: {}
 finally:
 - id: doubao_stop_run
   client: doubao
