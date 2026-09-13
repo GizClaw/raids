@@ -1,0 +1,588 @@
+# User Story:
+# As a Raids catalog maintainer,
+# I want isolated narrator and character probes for adventure-castle-mystery,
+# So that every role produces complete text and non-empty audio within the response gates.
+version: gizclaw.test/v1alpha1
+name: adventure-castle-mystery.flowcraft.roles
+clients:
+  narrator:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  keeper:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  mechanic:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  archivist:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+variables:
+  endpoint:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_ENDPOINT
+  registration_token:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_REGISTRATION_TOKEN
+    secret: true
+  narrator_workspace:
+    direction: input
+    type: string
+    generate: token
+  keeper_workspace:
+    direction: input
+    type: string
+    generate: token
+  mechanic_workspace:
+    direction: input
+    type: string
+    generate: token
+  archivist_workspace:
+    direction: input
+    type: string
+    generate: token
+repeat: 1
+timeout: 24m
+steps:
+- id: register_narrator
+  client: narrator
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${narrator_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-adventure-castle-mystery
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${narrator_workspace}"
+- id: warmup_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: probe_narrator
+  client: narrator
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 开始城堡谜案
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      not_contains:
+      - 旁白说
+      - 旁白：
+- id: probe_narrator_first_response
+  client: narrator
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 开始城堡谜案
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: register_keeper
+  client: keeper
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_keeper_workspace
+  client: keeper
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${keeper_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-adventure-castle-mystery
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_keeper_workspace
+  client: keeper
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${keeper_workspace}"
+- id: warmup_keeper_workspace
+  client: keeper
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: keeper_scene_setup_1
+  client: keeper
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 开始城堡谜案
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: probe_keeper
+  client: keeper
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让城堡管理员亲自回应。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      not_contains:
+      - 城堡管理员说
+      - 城堡管理员：
+- id: probe_keeper_first_response
+  client: keeper
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 请让城堡管理员亲自回应。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: register_mechanic
+  client: mechanic
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_mechanic_workspace
+  client: mechanic
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${mechanic_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-adventure-castle-mystery
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_mechanic_workspace
+  client: mechanic
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${mechanic_workspace}"
+- id: warmup_mechanic_workspace
+  client: mechanic
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: mechanic_scene_setup_1
+  client: mechanic
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 开始城堡谜案
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: mechanic_scene_setup_2
+  client: mechanic
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我查看机械日志，先核对其中已经公开的时间记录。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: mechanic_scene_setup_3
+  client: mechanic
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我比较风雨、松动零件与机械误差这些竞争假设，先说明哪些还没有证据。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: mechanic_confirm_scene
+  client: mechanic
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 现在处于哪个阶段或区域？请用当前场景名称回答。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      contains: 竞争假设
+- id: probe_mechanic
+  client: mechanic
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让机械师亲自回应。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      not_contains:
+      - 机械师说
+      - 机械师：
+- id: probe_mechanic_first_response
+  client: mechanic
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 请让机械师亲自回应。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: register_archivist
+  client: archivist
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_archivist_workspace
+  client: archivist
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${archivist_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-adventure-castle-mystery
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_archivist_workspace
+  client: archivist
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${archivist_workspace}"
+- id: warmup_archivist_workspace
+  client: archivist
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: archivist_scene_setup_1
+  client: archivist
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 开始城堡谜案
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: archivist_scene_setup_2
+  client: archivist
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我查看机械日志，先核对其中已经公开的时间记录。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: archivist_confirm_scene
+  client: archivist
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 现在处于哪个阶段或区域？请用当前场景名称回答。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      contains: 日志校准
+- id: probe_archivist
+  client: archivist
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让档案员亲自回应。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      not_contains:
+      - 档案员说
+      - 档案员：
+- id: probe_archivist_first_response
+  client: archivist
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 请让档案员亲自回应。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+finally:
+- id: stop_narrator_run
+  client: narrator
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${narrator_workspace}"
+- id: delete_narrator_peer
+  client: narrator
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: stop_keeper_run
+  client: keeper
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_keeper_workspace
+  client: keeper
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${keeper_workspace}"
+- id: delete_keeper_peer
+  client: keeper
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: stop_mechanic_run
+  client: mechanic
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_mechanic_workspace
+  client: mechanic
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${mechanic_workspace}"
+- id: delete_mechanic_peer
+  client: mechanic
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: stop_archivist_run
+  client: archivist
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_archivist_workspace
+  client: archivist
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${archivist_workspace}"
+- id: delete_archivist_peer
+  client: archivist
+  rpc:
+    method: server.peer.delete
+    request: {}
+report:
+  redact:
+  - registration_token

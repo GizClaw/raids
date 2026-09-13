@@ -1,0 +1,830 @@
+# User Story:
+# As a Raids catalog maintainer,
+# I want isolated narrator and character probes for adventure-space-rescue,
+# So that every role produces complete text and non-empty audio within the response gates.
+version: gizclaw.test/v1alpha1
+name: adventure-space-rescue.flowcraft.roles
+clients:
+  narrator:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  captain:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  engineer:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  navigator:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  medic:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+variables:
+  endpoint:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_ENDPOINT
+  registration_token:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_REGISTRATION_TOKEN
+    secret: true
+  narrator_workspace:
+    direction: input
+    type: string
+    generate: token
+  captain_workspace:
+    direction: input
+    type: string
+    generate: token
+  engineer_workspace:
+    direction: input
+    type: string
+    generate: token
+  navigator_workspace:
+    direction: input
+    type: string
+    generate: token
+  medic_workspace:
+    direction: input
+    type: string
+    generate: token
+repeat: 1
+timeout: 24m
+steps:
+- id: register_narrator
+  client: narrator
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${narrator_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-adventure-space-rescue
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${narrator_workspace}"
+- id: warmup_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: probe_narrator
+  client: narrator
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 开始救援
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      not_contains:
+      - 旁白说
+      - 旁白：
+- id: probe_narrator_first_response
+  client: narrator
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 开始救援
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: register_captain
+  client: captain
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_captain_workspace
+  client: captain
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${captain_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-adventure-space-rescue
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_captain_workspace
+  client: captain
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${captain_workspace}"
+- id: warmup_captain_workspace
+  client: captain
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: captain_scene_setup_1
+  client: captain
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 开始救援
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: probe_captain
+  client: captain
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让救援队长亲自回应。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      not_contains:
+      - 救援队长说
+      - 救援队长：
+- id: probe_captain_first_response
+  client: captain
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 请让救援队长亲自回应。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: register_engineer
+  client: engineer
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_engineer_workspace
+  client: engineer
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${engineer_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-adventure-space-rescue
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_engineer_workspace
+  client: engineer
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${engineer_workspace}"
+- id: warmup_engineer_workspace
+  client: engineer
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: engineer_scene_setup_1
+  client: engineer
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 开始救援
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: engineer_scene_setup_2
+  client: engineer
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我先修通信，让科研飞船把人员状态和轨道数据发回来。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: engineer_scene_setup_3
+  client: engineer
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 通信恢复后我检查能源，请只依据已经公开的读数说明约束。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: engineer_confirm_scene
+  client: engineer
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 现在处于哪个阶段或区域？请用当前场景名称回答。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      contains: 校准能源
+- id: probe_engineer
+  client: engineer
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让工程师亲自回应。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      not_contains:
+      - 工程师说
+      - 工程师：
+- id: probe_engineer_first_response
+  client: engineer
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 请让工程师亲自回应。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: register_navigator
+  client: navigator
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_navigator_workspace
+  client: navigator
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${navigator_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-adventure-space-rescue
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_navigator_workspace
+  client: navigator
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${navigator_workspace}"
+- id: warmup_navigator_workspace
+  client: navigator
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: navigator_scene_setup_1
+  client: navigator
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 开始救援
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: navigator_scene_setup_2
+  client: navigator
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我先修通信，让科研飞船把人员状态和轨道数据发回来。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: navigator_scene_setup_3
+  client: navigator
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 通信恢复后我检查能源，请只依据已经公开的读数说明约束。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: navigator_scene_setup_4
+  client: navigator
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我选择用备用电池等待安全窗口，现在只准备会合，不执行对接。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: navigator_confirm_scene
+  client: navigator
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 现在处于哪个阶段或区域？请用当前场景名称回答。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      contains: 准备安全会合
+- id: probe_navigator
+  client: navigator
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让领航员亲自回应。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      not_contains:
+      - 领航员说
+      - 领航员：
+- id: probe_navigator_first_response
+  client: navigator
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 请让领航员亲自回应。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: register_medic
+  client: medic
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_medic_workspace
+  client: medic
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${medic_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-adventure-space-rescue
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_medic_workspace
+  client: medic
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${medic_workspace}"
+- id: warmup_medic_workspace
+  client: medic
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: medic_scene_setup_1
+  client: medic
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 开始救援
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: medic_scene_setup_2
+  client: medic
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我先修通信，让科研飞船把人员状态和轨道数据发回来。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: medic_scene_setup_3
+  client: medic
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 通信恢复后我检查能源，请只依据已经公开的读数说明约束。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: medic_scene_setup_4
+  client: medic
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我选择用备用电池等待安全窗口，现在只准备会合，不执行对接。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: medic_confirm_scene
+  client: medic
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 现在处于哪个阶段或区域？请用当前场景名称回答。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      contains: 准备安全会合
+- id: probe_medic
+  client: medic
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让医护员亲自回应。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      not_contains:
+      - 医护员说
+      - 医护员：
+- id: probe_medic_first_response
+  client: medic
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 请让医护员亲自回应。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+finally:
+- id: stop_narrator_run
+  client: narrator
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${narrator_workspace}"
+- id: delete_narrator_peer
+  client: narrator
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: stop_captain_run
+  client: captain
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_captain_workspace
+  client: captain
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${captain_workspace}"
+- id: delete_captain_peer
+  client: captain
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: stop_engineer_run
+  client: engineer
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_engineer_workspace
+  client: engineer
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${engineer_workspace}"
+- id: delete_engineer_peer
+  client: engineer
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: stop_navigator_run
+  client: navigator
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_navigator_workspace
+  client: navigator
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${navigator_workspace}"
+- id: delete_navigator_peer
+  client: navigator
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: stop_medic_run
+  client: medic
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_medic_workspace
+  client: medic
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${medic_workspace}"
+- id: delete_medic_peer
+  client: medic
+  rpc:
+    method: server.peer.delete
+    request: {}
+report:
+  redact:
+  - registration_token

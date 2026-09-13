@@ -1,0 +1,528 @@
+# User Story:
+# As a Raids catalog maintainer,
+# I want isolated narrator and character probes for adventure-treasure,
+# So that every role produces complete text and non-empty audio within the response gates.
+version: gizclaw.test/v1alpha1
+name: adventure-treasure.flowcraft.roles
+clients:
+  narrator:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  cartographer:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  codebreaker:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  old-sailor:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+variables:
+  endpoint:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_ENDPOINT
+  registration_token:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_REGISTRATION_TOKEN
+    secret: true
+  narrator_workspace:
+    direction: input
+    type: string
+    generate: token
+  cartographer_workspace:
+    direction: input
+    type: string
+    generate: token
+  codebreaker_workspace:
+    direction: input
+    type: string
+    generate: token
+  old_sailor_workspace:
+    direction: input
+    type: string
+    generate: token
+repeat: 1
+timeout: 24m
+steps:
+- id: register_narrator
+  client: narrator
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${narrator_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-adventure-treasure
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${narrator_workspace}"
+- id: warmup_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: probe_narrator
+  client: narrator
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 开始体验。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      not_contains:
+      - 旁白说
+      - 旁白：
+- id: probe_narrator_first_response
+  client: narrator
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 开始体验。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: register_cartographer
+  client: cartographer
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_cartographer_workspace
+  client: cartographer
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${cartographer_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-adventure-treasure
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_cartographer_workspace
+  client: cartographer
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${cartographer_workspace}"
+- id: warmup_cartographer_workspace
+  client: cartographer
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: cartographer_scene_setup_1
+  client: cartographer
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 开始体验。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: probe_cartographer
+  client: cartographer
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让地图员亲自回应。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      not_contains:
+      - 地图员说
+      - 地图员：
+- id: probe_cartographer_first_response
+  client: cartographer
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 请让地图员亲自回应。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: register_codebreaker
+  client: codebreaker
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_codebreaker_workspace
+  client: codebreaker
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${codebreaker_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-adventure-treasure
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_codebreaker_workspace
+  client: codebreaker
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${codebreaker_workspace}"
+- id: warmup_codebreaker_workspace
+  client: codebreaker
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: codebreaker_scene_setup_1
+  client: codebreaker
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 开始体验。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: codebreaker_scene_setup_2
+  client: codebreaker
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 进入诗句解谜。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      contains: 诗句解谜
+- id: probe_codebreaker
+  client: codebreaker
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让解谜伙伴亲自回应。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      not_contains:
+      - 解谜伙伴说
+      - 解谜伙伴：
+- id: probe_codebreaker_first_response
+  client: codebreaker
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 请让解谜伙伴亲自回应。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: register_old-sailor
+  client: old-sailor
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_old_sailor_workspace
+  client: old-sailor
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${old_sailor_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-adventure-treasure
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_old_sailor_workspace
+  client: old-sailor
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${old_sailor_workspace}"
+- id: warmup_old_sailor_workspace
+  client: old-sailor
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: old-sailor_scene_setup_1
+  client: old-sailor
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 开始体验。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: old-sailor_scene_setup_2
+  client: old-sailor
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 进入航路回顾。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      contains: 航路回顾
+- id: probe_old-sailor
+  client: old-sailor
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让老水手亲自回应。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      not_contains:
+      - 老水手说
+      - 老水手：
+- id: probe_old-sailor_first_response
+  client: old-sailor
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 请让老水手亲自回应。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+finally:
+- id: stop_narrator_run
+  client: narrator
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${narrator_workspace}"
+- id: delete_narrator_peer
+  client: narrator
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: stop_cartographer_run
+  client: cartographer
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_cartographer_workspace
+  client: cartographer
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${cartographer_workspace}"
+- id: delete_cartographer_peer
+  client: cartographer
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: stop_codebreaker_run
+  client: codebreaker
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_codebreaker_workspace
+  client: codebreaker
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${codebreaker_workspace}"
+- id: delete_codebreaker_peer
+  client: codebreaker
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: stop_old-sailor_run
+  client: old-sailor
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_old_sailor_workspace
+  client: old-sailor
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${old_sailor_workspace}"
+- id: delete_old-sailor_peer
+  client: old-sailor
+  rpc:
+    method: server.peer.delete
+    request: {}
+report:
+  redact:
+  - registration_token

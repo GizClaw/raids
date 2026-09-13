@@ -8,8 +8,8 @@ Manage an undersea research base while exploring ocean ecosystems.
 
 | File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |
 | --- | --- | --- | --- | --- | --- |
-| `eino.yaml` | `eino-adventure-undersea-base` | eino | adventure | `eino-adventure-undersea-base.model` | - |
-| `flowcraft.yaml` | `flowcraft-adventure-undersea-base` | flowcraft | adventure | `flowcraft-adventure-undersea-base.model` | `flowcraft-adventure-undersea-base.adventure-guide` |
+| `eino.yaml` | `eino-adventure-undersea-base` | eino | adventure | `eino-adventure-undersea-base.model` | `eino-adventure-undersea-base.adventure-guide`, `eino-adventure-undersea-base.biologist`, `eino-adventure-undersea-base.engineer`, `eino-adventure-undersea-base.diver` |
+| `flowcraft.yaml` | `flowcraft-adventure-undersea-base` | flowcraft | adventure | `flowcraft-adventure-undersea-base.model` | `flowcraft-adventure-undersea-base.adventure-guide`, `flowcraft-adventure-undersea-base.biologist`, `flowcraft-adventure-undersea-base.engineer`, `flowcraft-adventure-undersea-base.diver` |
 
 Install an implementation into a RuntimeProfile with `raids install adventure-undersea-base --impl <engine> --profile <file> --collection <name> --set model.<alias>=<model id> --set voice.<alias>=<voice id>`; the slots above are the parameters the installer asks for.
 
@@ -38,3 +38,24 @@ Run:
 ```sh
 make test-e2e RAID=adventure-undersea-base PARALLEL=2
 ```
+
+## 多音色角色与场景
+
+两引擎每轮只发声一次；Flowcraft 按 published 节点绑定，Eino 保持单一 primary chat_model，通过 `selected_speaker` / `state_voices` 选音色。旁白槽位保留 `.adventure-guide`。
+
+| 角色 key / 中文名（均可点名） | 出场场景与行动 | Voice resource_id |
+| --- | --- | --- |
+| `narrator` / 旁白 | 观察窗、设备检查、潜航规划；只负责叙述、管理和公开信息整理，不代演角色。 | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_mars_bigtts` |
+| `biologist` / 海洋生物学家 | 观察窗、潜航规划；观察发光浮游生物，区分真实生态知识和虚构基地设定。 | `volc-tenant:volc-cn-beijing:zh_female_wenroushunv_uranus_bigtts` |
+| `engineer` / 基地工程师 | 设备检查；比较研究用电与生命保障，不虚构能源读数。 | `volc-tenant:volc-cn-beijing:ICL_zh_male_hanhoudunshi_tob` |
+| `diver` / 潜航员 | 潜航规划；在虚构规划中比较观察距离和保护生态，不提供现实潜水指令。 | `volc-tenant:volc-cn-beijing:ICL_zh_male_qingshuangshaonian_tob` |
+
+这是儿童互动冒险的原创配角安排。按场景出场，不让所有人物同时在场；角色不能获知未来场景、私密信息或未验证的结果。每轮仍只发声一次。
+场景1“观察窗”：海洋生物学家：观察发光浮游生物，区分真实生态知识和虚构基地设定。
+场景2“设备检查”：基地工程师：比较研究用电与生命保障，不虚构能源读数。
+场景3“潜航规划”：海洋生物学家：观察发光浮游生物，区分真实生态知识和虚构基地设定。；潜航员：在虚构规划中比较观察距离和保护生态，不提供现实潜水指令。
+明确点名例如“请让海洋生物学家说说”才请求角色说话；只报名字或支持某人仍是玩家选项，由旁白承接。多人按文本顺序只选第一个在场且未被否定者。开场、转场、更正、安全、结论由旁白负责；旁白不代演角色，不加“旁白说”“旁白：”等说话人标签。严格开场结束后，下一次探索才简短介绍在场角色及点名玩法。
+
+点名示例：`请让海洋生物学家说说`；否定示例：`不要让海洋生物学家说话，请让潜航员回应`；多人示例：`请让海洋生物学家说说，再让潜航员回应`。仅选择首位在场且未被否定的角色。只说 `海洋生物学家` 仍算玩家选择，不切换人物声线。可说 `进入设备检查` 探索下一地点；转场旁白说明角色的具体行动，未到场角色不能提前回答。旧记忆恢复后从场景重建 `active_roles`，保留原事实和更正。
+
+新增 `flowcraft.roles.giztest.yaml` 与 `eino.roles.giztest.yaml`，每引擎 4 个隔离 Workspace；完整探针检查 text/audio EOS、audio_bytes > 0，first_response 保持文本 2s / 音频 3s。后续角色先进入对应场景。`routing-cases.json` 同时执行两引擎真实脚本。原 relay/realtime 的固定中英文开场、事实、安全、记忆和 reload 契约保留。离线验证不代表实际音色试听或供应商权限验收。

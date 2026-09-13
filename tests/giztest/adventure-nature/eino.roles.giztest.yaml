@@ -1,0 +1,506 @@
+# User Story:
+# As a Raids catalog maintainer,
+# I want isolated narrator and character probes for adventure-nature,
+# So that every role produces complete text and non-empty audio within the response gates.
+version: gizclaw.test/v1alpha1
+name: adventure-nature.eino.roles
+clients:
+  narrator:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  ranger:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  botanist:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  tracker:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+variables:
+  endpoint:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_ENDPOINT
+  registration_token:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_REGISTRATION_TOKEN
+    secret: true
+  narrator_workspace:
+    direction: input
+    type: string
+    generate: token
+  ranger_workspace:
+    direction: input
+    type: string
+    generate: token
+  botanist_workspace:
+    direction: input
+    type: string
+    generate: token
+  tracker_workspace:
+    direction: input
+    type: string
+    generate: token
+repeat: 1
+timeout: 24m
+steps:
+- id: register_narrator
+  client: narrator
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${narrator_workspace}"
+      collection: raidtest-targets
+      workflow_name: eino-adventure-nature
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${narrator_workspace}"
+- id: warmup_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: probe_narrator
+  client: narrator
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 开始体验。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      not_contains:
+      - 旁白说
+      - 旁白：
+- id: probe_narrator_first_response
+  client: narrator
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 开始体验。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: register_ranger
+  client: ranger
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_ranger_workspace
+  client: ranger
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${ranger_workspace}"
+      collection: raidtest-targets
+      workflow_name: eino-adventure-nature
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_ranger_workspace
+  client: ranger
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${ranger_workspace}"
+- id: warmup_ranger_workspace
+  client: ranger
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: ranger_scene_setup_1
+  client: ranger
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 开始体验。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: probe_ranger
+  client: ranger
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让护林员亲自回应。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      not_contains:
+      - 护林员说
+      - 护林员：
+- id: probe_ranger_first_response
+  client: ranger
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 请让护林员亲自回应。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: register_botanist
+  client: botanist
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_botanist_workspace
+  client: botanist
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${botanist_workspace}"
+      collection: raidtest-targets
+      workflow_name: eino-adventure-nature
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_botanist_workspace
+  client: botanist
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${botanist_workspace}"
+- id: warmup_botanist_workspace
+  client: botanist
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: botanist_scene_setup_1
+  client: botanist
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 开始体验。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: probe_botanist
+  client: botanist
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让植物观察员亲自回应。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      not_contains:
+      - 植物观察员说
+      - 植物观察员：
+- id: probe_botanist_first_response
+  client: botanist
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 请让植物观察员亲自回应。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: register_tracker
+  client: tracker
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_tracker_workspace
+  client: tracker
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${tracker_workspace}"
+      collection: raidtest-targets
+      workflow_name: eino-adventure-nature
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_tracker_workspace
+  client: tracker
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${tracker_workspace}"
+- id: warmup_tracker_workspace
+  client: tracker
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: tracker_scene_setup_1
+  client: tracker
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 开始体验。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: tracker_scene_setup_2
+  client: tracker
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 进入足迹观察。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      contains: 足迹观察
+- id: probe_tracker
+  client: tracker
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让足迹观察员亲自回应。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      not_contains:
+      - 足迹观察员说
+      - 足迹观察员：
+- id: probe_tracker_first_response
+  client: tracker
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 请让足迹观察员亲自回应。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+finally:
+- id: stop_narrator_run
+  client: narrator
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${narrator_workspace}"
+- id: delete_narrator_peer
+  client: narrator
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: stop_ranger_run
+  client: ranger
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_ranger_workspace
+  client: ranger
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${ranger_workspace}"
+- id: delete_ranger_peer
+  client: ranger
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: stop_botanist_run
+  client: botanist
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_botanist_workspace
+  client: botanist
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${botanist_workspace}"
+- id: delete_botanist_peer
+  client: botanist
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: stop_tracker_run
+  client: tracker
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_tracker_workspace
+  client: tracker
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${tracker_workspace}"
+- id: delete_tracker_peer
+  client: tracker
+  rpc:
+    method: server.peer.delete
+    request: {}
+report:
+  redact:
+  - registration_token
