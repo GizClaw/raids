@@ -1,0 +1,889 @@
+# User Story:
+# As a Raids catalog maintainer,
+# I want equal opening, role and realtime responsiveness gates for every implementation,
+# So that text and audio respond promptly without overlap or playback stalls.
+version: gizclaw.test/v1alpha1
+name: journey-guide.smoke
+clients:
+  flowcraft:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  eino_history:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  eino_memory_async:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  eino_memory_recall:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+variables:
+  endpoint:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_ENDPOINT
+  registration_token:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_REGISTRATION_TOKEN
+    secret: true
+  flowcraft_text_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_history_text_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_memory_async_text_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_memory_recall_text_workspace:
+    direction: input
+    type: string
+    generate: token
+  flowcraft_realtime_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_history_realtime_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_memory_async_realtime_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_memory_recall_realtime_workspace:
+    direction: input
+    type: string
+    generate: token
+  input_audio:
+    direction: output
+    type: audio
+    max_bytes: 16777216
+    media_type: audio/ogg
+    codec: opus
+repeat: 1
+timeout: 12m
+steps:
+- id: flowcraft_register
+  client: flowcraft
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: eino_history_register
+  client: eino_history
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: eino_memory_async_register
+  client: eino_memory_async
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: eino_memory_recall_register
+  client: eino_memory_recall
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: flowcraft_create_text
+  client: flowcraft
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${flowcraft_text_workspace}"
+      collection: story-teller
+      workflow_name: journey
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: flowcraft_select_text
+  client: flowcraft
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${flowcraft_text_workspace}"
+- id: flowcraft_warmup_text
+  client: flowcraft
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: eino_history_create_text
+  client: eino_history
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_history_text_workspace}"
+      collection: story-teller
+      workflow_name: journey-eino-history
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_history_select_text
+  client: eino_history
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${eino_history_text_workspace}"
+- id: eino_history_warmup_text
+  client: eino_history
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: eino_memory_async_create_text
+  client: eino_memory_async
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_memory_async_text_workspace}"
+      collection: story-teller
+      workflow_name: journey-eino-memory-async
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_memory_async_select_text
+  client: eino_memory_async
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${eino_memory_async_text_workspace}"
+- id: eino_memory_async_warmup_text
+  client: eino_memory_async
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: eino_memory_recall_create_text
+  client: eino_memory_recall
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_memory_recall_text_workspace}"
+      collection: story-teller
+      workflow_name: journey-eino-memory-recall
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_memory_recall_select_text
+  client: eino_memory_recall
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${eino_memory_recall_text_workspace}"
+- id: eino_memory_recall_warmup_text
+  client: eino_memory_recall
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: flowcraft_create_realtime
+  client: flowcraft
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${flowcraft_realtime_workspace}"
+      collection: story-teller
+      workflow_name: journey
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_REALTIME
+- id: eino_history_create_realtime
+  client: eino_history
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_history_realtime_workspace}"
+      collection: story-teller
+      workflow_name: journey-eino-history
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          input: WORKSPACE_INPUT_MODE_REALTIME
+- id: eino_memory_async_create_realtime
+  client: eino_memory_async
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_memory_async_realtime_workspace}"
+      collection: story-teller
+      workflow_name: journey-eino-memory-async
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          input: WORKSPACE_INPUT_MODE_REALTIME
+- id: eino_memory_recall_create_realtime
+  client: eino_memory_recall
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_memory_recall_realtime_workspace}"
+      collection: story-teller
+      workflow_name: journey-eino-memory-recall
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          input: WORKSPACE_INPUT_MODE_REALTIME
+- id: turn_1_origin
+  timeout: 2m
+  parallel:
+  - id: flowcraft_turn_1_origin
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 我从花果山出发，带着一枚青铜铃。承接我的行动，不要替我选择路线。
+      require_text: true
+      require_audio: true
+      idle_timeout: 90s
+  - id: eino_history_turn_1_origin
+    client: eino_history
+    peer_stream:
+      mode: text
+      input: 我从花果山出发，带着一枚青铜铃。承接我的行动，不要替我选择路线。
+      require_text: true
+      require_audio: true
+      idle_timeout: 90s
+  - id: eino_memory_async_turn_1_origin
+    client: eino_memory_async
+    peer_stream:
+      mode: text
+      input: 我从花果山出发，带着一枚青铜铃。承接我的行动，不要替我选择路线。
+      require_text: true
+      require_audio: true
+      idle_timeout: 90s
+  - id: eino_memory_recall_turn_1_origin
+    client: eino_memory_recall
+    peer_stream:
+      mode: text
+      input: 我从花果山出发，带着一枚青铜铃。承接我的行动，不要替我选择路线。
+      require_text: true
+      require_audio: true
+      idle_timeout: 90s
+  expect:
+    "/flowcraft_turn_1_origin/text":
+      contains_all:
+      - 花果山
+      - 青铜铃
+      min_length: 80
+      max_length: 520
+      non_empty: true
+    "/flowcraft_turn_1_origin/first_text_ms":
+      maximum: 6000
+    "/flowcraft_turn_1_origin/text_eos_ms":
+      maximum: 90000
+    "/flowcraft_turn_1_origin/events":
+      non_empty: true
+    "/flowcraft_turn_1_origin/audio_bytes":
+      minimum: 1
+    "/flowcraft_turn_1_origin/text_eos":
+      equals: true
+    "/flowcraft_turn_1_origin/audio_eos":
+      equals: true
+    "/flowcraft_turn_1_origin/first_audio_ms":
+      maximum: 90000
+    "/flowcraft_turn_1_origin/audio_eos_ms":
+      maximum: 90000
+    "/flowcraft_turn_1_origin/audio_integrity/streams":
+      minimum: 1
+    "/flowcraft_turn_1_origin/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_turn_1_origin/audio_integrity/open":
+      equals: 0
+    "/flowcraft_turn_1_origin/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_turn_1_origin/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/flowcraft_turn_1_origin/audio_pacing/underruns":
+      equals: 0
+    "/eino_history_turn_1_origin/text":
+      contains_all:
+      - 花果山
+      - 青铜铃
+      min_length: 80
+      max_length: 520
+      non_empty: true
+    "/eino_history_turn_1_origin/first_text_ms":
+      maximum: 6000
+    "/eino_history_turn_1_origin/text_eos_ms":
+      maximum: 90000
+    "/eino_history_turn_1_origin/events":
+      non_empty: true
+    "/eino_history_turn_1_origin/audio_bytes":
+      minimum: 1
+    "/eino_history_turn_1_origin/text_eos":
+      equals: true
+    "/eino_history_turn_1_origin/audio_eos":
+      equals: true
+    "/eino_history_turn_1_origin/first_audio_ms":
+      maximum: 90000
+    "/eino_history_turn_1_origin/audio_eos_ms":
+      maximum: 90000
+    "/eino_history_turn_1_origin/audio_integrity/streams":
+      minimum: 1
+    "/eino_history_turn_1_origin/audio_integrity/max_active":
+      equals: 1
+    "/eino_history_turn_1_origin/audio_integrity/open":
+      equals: 0
+    "/eino_history_turn_1_origin/audio_integrity/violations":
+      equals: 0
+    "/eino_history_turn_1_origin/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/eino_history_turn_1_origin/audio_pacing/underruns":
+      equals: 0
+    "/eino_memory_async_turn_1_origin/text":
+      contains_all:
+      - 花果山
+      - 青铜铃
+      min_length: 80
+      max_length: 520
+      non_empty: true
+    "/eino_memory_async_turn_1_origin/first_text_ms":
+      maximum: 6000
+    "/eino_memory_async_turn_1_origin/text_eos_ms":
+      maximum: 90000
+    "/eino_memory_async_turn_1_origin/events":
+      non_empty: true
+    "/eino_memory_async_turn_1_origin/audio_bytes":
+      minimum: 1
+    "/eino_memory_async_turn_1_origin/text_eos":
+      equals: true
+    "/eino_memory_async_turn_1_origin/audio_eos":
+      equals: true
+    "/eino_memory_async_turn_1_origin/first_audio_ms":
+      maximum: 90000
+    "/eino_memory_async_turn_1_origin/audio_eos_ms":
+      maximum: 90000
+    "/eino_memory_async_turn_1_origin/audio_integrity/streams":
+      minimum: 1
+    "/eino_memory_async_turn_1_origin/audio_integrity/max_active":
+      equals: 1
+    "/eino_memory_async_turn_1_origin/audio_integrity/open":
+      equals: 0
+    "/eino_memory_async_turn_1_origin/audio_integrity/violations":
+      equals: 0
+    "/eino_memory_async_turn_1_origin/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/eino_memory_async_turn_1_origin/audio_pacing/underruns":
+      equals: 0
+    "/eino_memory_recall_turn_1_origin/text":
+      contains_all:
+      - 花果山
+      - 青铜铃
+      min_length: 80
+      max_length: 520
+      non_empty: true
+    "/eino_memory_recall_turn_1_origin/first_text_ms":
+      maximum: 6000
+    "/eino_memory_recall_turn_1_origin/text_eos_ms":
+      maximum: 90000
+    "/eino_memory_recall_turn_1_origin/events":
+      non_empty: true
+    "/eino_memory_recall_turn_1_origin/audio_bytes":
+      minimum: 1
+    "/eino_memory_recall_turn_1_origin/text_eos":
+      equals: true
+    "/eino_memory_recall_turn_1_origin/audio_eos":
+      equals: true
+    "/eino_memory_recall_turn_1_origin/first_audio_ms":
+      maximum: 90000
+    "/eino_memory_recall_turn_1_origin/audio_eos_ms":
+      maximum: 90000
+    "/eino_memory_recall_turn_1_origin/audio_integrity/streams":
+      minimum: 1
+    "/eino_memory_recall_turn_1_origin/audio_integrity/max_active":
+      equals: 1
+    "/eino_memory_recall_turn_1_origin/audio_integrity/open":
+      equals: 0
+    "/eino_memory_recall_turn_1_origin/audio_integrity/violations":
+      equals: 0
+    "/eino_memory_recall_turn_1_origin/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/eino_memory_recall_turn_1_origin/audio_pacing/underruns":
+      equals: 0
+- id: turn_1_origin_first_response
+  timeout: 15s
+  parallel:
+  - id: flowcraft_turn_1_origin_first_response
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 我从花果山出发，带着一枚青铜铃。承接我的行动，不要替我选择路线。
+      require_text: true
+      completion: first_response
+      require_audio: true
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+  - id: eino_history_turn_1_origin_first_response
+    client: eino_history
+    peer_stream:
+      mode: text
+      input: 我从花果山出发，带着一枚青铜铃。承接我的行动，不要替我选择路线。
+      require_text: true
+      completion: first_response
+      require_audio: true
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+  - id: eino_memory_async_turn_1_origin_first_response
+    client: eino_memory_async
+    peer_stream:
+      mode: text
+      input: 我从花果山出发，带着一枚青铜铃。承接我的行动，不要替我选择路线。
+      require_text: true
+      completion: first_response
+      require_audio: true
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+  - id: eino_memory_recall_turn_1_origin_first_response
+    client: eino_memory_recall
+    peer_stream:
+      mode: text
+      input: 我从花果山出发，带着一枚青铜铃。承接我的行动，不要替我选择路线。
+      require_text: true
+      completion: first_response
+      require_audio: true
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+  expect:
+    "/flowcraft_turn_1_origin_first_response/events":
+      non_empty: true
+    "/flowcraft_turn_1_origin_first_response/audio_bytes":
+      minimum: 1
+    "/flowcraft_turn_1_origin_first_response/first_text_ms":
+      maximum: 2000
+    "/flowcraft_turn_1_origin_first_response/first_audio_ms":
+      maximum: 3000
+    "/eino_history_turn_1_origin_first_response/events":
+      non_empty: true
+    "/eino_history_turn_1_origin_first_response/audio_bytes":
+      minimum: 1
+    "/eino_history_turn_1_origin_first_response/first_text_ms":
+      maximum: 2000
+    "/eino_history_turn_1_origin_first_response/first_audio_ms":
+      maximum: 3000
+    "/eino_memory_async_turn_1_origin_first_response/events":
+      non_empty: true
+    "/eino_memory_async_turn_1_origin_first_response/audio_bytes":
+      minimum: 1
+    "/eino_memory_async_turn_1_origin_first_response/first_text_ms":
+      maximum: 2000
+    "/eino_memory_async_turn_1_origin_first_response/first_audio_ms":
+      maximum: 3000
+    "/eino_memory_recall_turn_1_origin_first_response/events":
+      non_empty: true
+    "/eino_memory_recall_turn_1_origin_first_response/audio_bytes":
+      minimum: 1
+    "/eino_memory_recall_turn_1_origin_first_response/first_text_ms":
+      maximum: 2000
+    "/eino_memory_recall_turn_1_origin_first_response/first_audio_ms":
+      maximum: 3000
+- id: flowcraft_select_realtime
+  client: flowcraft
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${flowcraft_realtime_workspace}"
+- id: flowcraft_warmup_realtime
+  client: flowcraft
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: eino_history_select_realtime
+  client: eino_history
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${eino_history_realtime_workspace}"
+- id: eino_history_warmup_realtime
+  client: eino_history
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: eino_memory_async_select_realtime
+  client: eino_memory_async
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${eino_memory_async_realtime_workspace}"
+- id: eino_memory_async_warmup_realtime
+  client: eino_memory_async
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: eino_memory_recall_select_realtime
+  client: eino_memory_recall
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${eino_memory_recall_realtime_workspace}"
+- id: eino_memory_recall_warmup_realtime
+  client: eino_memory_recall
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: synthesize_input_audio
+  client: flowcraft
+  speech:
+    method: server.speech.synthesize
+    request:
+      voice_name: giztest-input.zh
+      text: 我从花果山出发，带着一枚青铜铃。简短承接我的行动，不要替我选择路线。
+      accepted_content_types:
+      - audio/ogg
+    cache: run
+  save_as: input_audio
+- id: realtime_roundtrip
+  timeout: 2m
+  parallel:
+  - id: flowcraft_realtime_roundtrip
+    peer_stream:
+      mode: realtime
+      input: "${input_audio}"
+      pacing: 20ms
+      require_audio: true
+      require_text: true
+      idle_timeout: 90s
+    client: flowcraft
+  - id: eino_history_realtime_roundtrip
+    peer_stream:
+      mode: realtime
+      input: "${input_audio}"
+      pacing: 20ms
+      require_audio: true
+      require_text: true
+      idle_timeout: 90s
+    client: eino_history
+  - id: eino_memory_async_realtime_roundtrip
+    peer_stream:
+      mode: realtime
+      input: "${input_audio}"
+      pacing: 20ms
+      require_audio: true
+      require_text: true
+      idle_timeout: 90s
+    client: eino_memory_async
+  - id: eino_memory_recall_realtime_roundtrip
+    peer_stream:
+      mode: realtime
+      input: "${input_audio}"
+      pacing: 20ms
+      require_audio: true
+      require_text: true
+      idle_timeout: 90s
+    client: eino_memory_recall
+  expect:
+    "/flowcraft_realtime_roundtrip/events":
+      non_empty: true
+    "/flowcraft_realtime_roundtrip/audio_bytes":
+      minimum: 1
+    "/flowcraft_realtime_roundtrip/text_eos":
+      equals: true
+    "/flowcraft_realtime_roundtrip/audio_eos":
+      equals: true
+    "/flowcraft_realtime_roundtrip/text":
+      non_empty: true
+    "/flowcraft_realtime_roundtrip/first_text_ms":
+      maximum: 6000
+    "/flowcraft_realtime_roundtrip/first_audio_ms":
+      maximum: 90000
+    "/flowcraft_realtime_roundtrip/text_eos_ms":
+      maximum: 90000
+    "/flowcraft_realtime_roundtrip/audio_eos_ms":
+      maximum: 90000
+    "/flowcraft_realtime_roundtrip/audio_integrity/streams":
+      minimum: 1
+    "/flowcraft_realtime_roundtrip/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_realtime_roundtrip/audio_integrity/open":
+      equals: 0
+    "/flowcraft_realtime_roundtrip/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_realtime_roundtrip/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/flowcraft_realtime_roundtrip/audio_pacing/underruns":
+      equals: 0
+    "/eino_history_realtime_roundtrip/events":
+      non_empty: true
+    "/eino_history_realtime_roundtrip/audio_bytes":
+      minimum: 1
+    "/eino_history_realtime_roundtrip/text_eos":
+      equals: true
+    "/eino_history_realtime_roundtrip/audio_eos":
+      equals: true
+    "/eino_history_realtime_roundtrip/text":
+      non_empty: true
+    "/eino_history_realtime_roundtrip/first_text_ms":
+      maximum: 6000
+    "/eino_history_realtime_roundtrip/first_audio_ms":
+      maximum: 90000
+    "/eino_history_realtime_roundtrip/text_eos_ms":
+      maximum: 90000
+    "/eino_history_realtime_roundtrip/audio_eos_ms":
+      maximum: 90000
+    "/eino_history_realtime_roundtrip/audio_integrity/streams":
+      minimum: 1
+    "/eino_history_realtime_roundtrip/audio_integrity/max_active":
+      equals: 1
+    "/eino_history_realtime_roundtrip/audio_integrity/open":
+      equals: 0
+    "/eino_history_realtime_roundtrip/audio_integrity/violations":
+      equals: 0
+    "/eino_history_realtime_roundtrip/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/eino_history_realtime_roundtrip/audio_pacing/underruns":
+      equals: 0
+    "/eino_memory_async_realtime_roundtrip/events":
+      non_empty: true
+    "/eino_memory_async_realtime_roundtrip/audio_bytes":
+      minimum: 1
+    "/eino_memory_async_realtime_roundtrip/text_eos":
+      equals: true
+    "/eino_memory_async_realtime_roundtrip/audio_eos":
+      equals: true
+    "/eino_memory_async_realtime_roundtrip/text":
+      non_empty: true
+    "/eino_memory_async_realtime_roundtrip/first_text_ms":
+      maximum: 6000
+    "/eino_memory_async_realtime_roundtrip/first_audio_ms":
+      maximum: 90000
+    "/eino_memory_async_realtime_roundtrip/text_eos_ms":
+      maximum: 90000
+    "/eino_memory_async_realtime_roundtrip/audio_eos_ms":
+      maximum: 90000
+    "/eino_memory_async_realtime_roundtrip/audio_integrity/streams":
+      minimum: 1
+    "/eino_memory_async_realtime_roundtrip/audio_integrity/max_active":
+      equals: 1
+    "/eino_memory_async_realtime_roundtrip/audio_integrity/open":
+      equals: 0
+    "/eino_memory_async_realtime_roundtrip/audio_integrity/violations":
+      equals: 0
+    "/eino_memory_async_realtime_roundtrip/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/eino_memory_async_realtime_roundtrip/audio_pacing/underruns":
+      equals: 0
+    "/eino_memory_recall_realtime_roundtrip/events":
+      non_empty: true
+    "/eino_memory_recall_realtime_roundtrip/audio_bytes":
+      minimum: 1
+    "/eino_memory_recall_realtime_roundtrip/text_eos":
+      equals: true
+    "/eino_memory_recall_realtime_roundtrip/audio_eos":
+      equals: true
+    "/eino_memory_recall_realtime_roundtrip/text":
+      non_empty: true
+    "/eino_memory_recall_realtime_roundtrip/first_text_ms":
+      maximum: 6000
+    "/eino_memory_recall_realtime_roundtrip/first_audio_ms":
+      maximum: 90000
+    "/eino_memory_recall_realtime_roundtrip/text_eos_ms":
+      maximum: 90000
+    "/eino_memory_recall_realtime_roundtrip/audio_eos_ms":
+      maximum: 90000
+    "/eino_memory_recall_realtime_roundtrip/audio_integrity/streams":
+      minimum: 1
+    "/eino_memory_recall_realtime_roundtrip/audio_integrity/max_active":
+      equals: 1
+    "/eino_memory_recall_realtime_roundtrip/audio_integrity/open":
+      equals: 0
+    "/eino_memory_recall_realtime_roundtrip/audio_integrity/violations":
+      equals: 0
+    "/eino_memory_recall_realtime_roundtrip/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/eino_memory_recall_realtime_roundtrip/audio_pacing/underruns":
+      equals: 0
+- id: realtime_roundtrip_first_response
+  timeout: 15s
+  parallel:
+  - id: flowcraft_realtime_roundtrip_first_response
+    peer_stream:
+      mode: realtime
+      input: "${input_audio}"
+      pacing: 20ms
+      completion: first_response
+      require_audio: true
+      require_text: true
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+    client: flowcraft
+  - id: eino_history_realtime_roundtrip_first_response
+    peer_stream:
+      mode: realtime
+      input: "${input_audio}"
+      pacing: 20ms
+      completion: first_response
+      require_audio: true
+      require_text: true
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+    client: eino_history
+  - id: eino_memory_async_realtime_roundtrip_first_response
+    peer_stream:
+      mode: realtime
+      input: "${input_audio}"
+      pacing: 20ms
+      completion: first_response
+      require_audio: true
+      require_text: true
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+    client: eino_memory_async
+  - id: eino_memory_recall_realtime_roundtrip_first_response
+    peer_stream:
+      mode: realtime
+      input: "${input_audio}"
+      pacing: 20ms
+      completion: first_response
+      require_audio: true
+      require_text: true
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+    client: eino_memory_recall
+  expect:
+    "/flowcraft_realtime_roundtrip_first_response/events":
+      non_empty: true
+    "/flowcraft_realtime_roundtrip_first_response/audio_bytes":
+      minimum: 1
+    "/flowcraft_realtime_roundtrip_first_response/first_text_ms":
+      maximum: 2000
+    "/flowcraft_realtime_roundtrip_first_response/first_audio_ms":
+      maximum: 3000
+    "/eino_history_realtime_roundtrip_first_response/events":
+      non_empty: true
+    "/eino_history_realtime_roundtrip_first_response/audio_bytes":
+      minimum: 1
+    "/eino_history_realtime_roundtrip_first_response/first_text_ms":
+      maximum: 2000
+    "/eino_history_realtime_roundtrip_first_response/first_audio_ms":
+      maximum: 3000
+    "/eino_memory_async_realtime_roundtrip_first_response/events":
+      non_empty: true
+    "/eino_memory_async_realtime_roundtrip_first_response/audio_bytes":
+      minimum: 1
+    "/eino_memory_async_realtime_roundtrip_first_response/first_text_ms":
+      maximum: 2000
+    "/eino_memory_async_realtime_roundtrip_first_response/first_audio_ms":
+      maximum: 3000
+    "/eino_memory_recall_realtime_roundtrip_first_response/events":
+      non_empty: true
+    "/eino_memory_recall_realtime_roundtrip_first_response/audio_bytes":
+      minimum: 1
+    "/eino_memory_recall_realtime_roundtrip_first_response/first_text_ms":
+      maximum: 2000
+    "/eino_memory_recall_realtime_roundtrip_first_response/first_audio_ms":
+      maximum: 3000
+finally:
+- id: flowcraft_stop_run
+  client: flowcraft
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: eino_history_stop_run
+  client: eino_history
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: eino_memory_async_stop_run
+  client: eino_memory_async
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: eino_memory_recall_stop_run
+  client: eino_memory_recall
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: flowcraft_delete_text
+  client: flowcraft
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${flowcraft_text_workspace}"
+- id: eino_history_delete_text
+  client: eino_history
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${eino_history_text_workspace}"
+- id: eino_memory_async_delete_text
+  client: eino_memory_async
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${eino_memory_async_text_workspace}"
+- id: eino_memory_recall_delete_text
+  client: eino_memory_recall
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${eino_memory_recall_text_workspace}"
+- id: flowcraft_delete_realtime
+  client: flowcraft
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${flowcraft_realtime_workspace}"
+- id: eino_history_delete_realtime
+  client: eino_history
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${eino_history_realtime_workspace}"
+- id: eino_memory_async_delete_realtime
+  client: eino_memory_async
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${eino_memory_async_realtime_workspace}"
+- id: eino_memory_recall_delete_realtime
+  client: eino_memory_recall
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${eino_memory_recall_realtime_workspace}"
+- id: flowcraft_delete_peer
+  client: flowcraft
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: eino_history_delete_peer
+  client: eino_history
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: eino_memory_async_delete_peer
+  client: eino_memory_async
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: eino_memory_recall_delete_peer
+  client: eino_memory_recall
+  rpc:
+    method: server.peer.delete
+    request: {}
+report:
+  redact:
+  - registration_token

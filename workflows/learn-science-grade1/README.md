@@ -102,10 +102,11 @@ Contents sources: [1](https://r2-ndr.ykt.cbern.com.cn/edu_product/esp/assets/674
 
 Tester: `test.yaml` (`learn-science-grade1-test`, eino), shared by every implementation:
 
-- `tests/giztest/learn-science-grade1/eino.giztest.yaml` (relay, with reload, timeout 35m)
-- `tests/giztest/learn-science-grade1/flowcraft.giztest.yaml` (relay, with reload, timeout 35m)
-- `tests/giztest/learn-science-grade1/eino.realtime.giztest.yaml` (paced-audio RealTime roundtrip)
-- `tests/giztest/learn-science-grade1/flowcraft.realtime.giztest.yaml` (paced-audio RealTime roundtrip)
+- `tests/giztest/smoke/learn-science-grade1.giztest.yaml`: speed, latency and responsiveness.
+- `tests/giztest/quality/learn-science-grade1.giztest.yaml`: quality control and safety guardrails.
+- `tests/giztest/soak/learn-science-grade1.giztest.yaml`: long-turn Tester relay with reload.
+
+Run `make test-e2e TIER=smoke RAID=learn-science-grade1`. Each tier file covers all implementations; see [the test guide](../../tests/giztest/README.md) for budgets and failure reporting.
 
 The route has 8 target responses and verifies safe prediction-first
 experiments, observation-based explanation, gentle misconception correction,

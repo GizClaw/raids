@@ -16,10 +16,13 @@ Install an implementation into a RuntimeProfile with `raids install adventure-de
 
 ## Testing
 
-Tester: `test.yaml` (`adventure-debate-test`, eino), shared by every implementation; one Giztest scenario per implementation:
+Tester: `test.yaml` (`adventure-debate-test`, eino), shared by every implementation; one Giztest file per tier covering all implementations:
 
-- `tests/giztest/adventure-debate/eino.giztest.yaml` (relay, with reload, timeout 35m)
-- `tests/giztest/adventure-debate/flowcraft.giztest.yaml` (relay, with reload, timeout 35m)
+- `tests/giztest/smoke/adventure-debate.giztest.yaml`: speed, latency and responsiveness.
+- `tests/giztest/quality/adventure-debate.giztest.yaml`: quality control and safety guardrails.
+- `tests/giztest/soak/adventure-debate.giztest.yaml`: long-turn Tester relay with reload.
+
+Run `make test-e2e TIER=smoke RAID=adventure-debate`. Each tier file covers all implementations; see [the test guide](../../tests/giztest/README.md) for budgets and failure reporting.
 
 The route has 7 target responses:
 

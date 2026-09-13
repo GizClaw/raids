@@ -16,10 +16,13 @@ Install an implementation into a RuntimeProfile with `raids install adventure-sp
 
 ## Testing
 
-Tester: `test.yaml` (`adventure-space-rescue-test`, eino), shared by every implementation; one Giztest scenario per implementation:
+Tester: `test.yaml` (`adventure-space-rescue-test`, eino), shared by every implementation; one Giztest file per tier covering all implementations:
 
-- `tests/giztest/adventure-space-rescue/eino.giztest.yaml` (relay, with reload, timeout 55m)
-- `tests/giztest/adventure-space-rescue/flowcraft.giztest.yaml` (relay, with reload, timeout 55m)
+- `tests/giztest/smoke/adventure-space-rescue.giztest.yaml`: speed, latency and responsiveness.
+- `tests/giztest/quality/adventure-space-rescue.giztest.yaml`: quality control and safety guardrails.
+- `tests/giztest/soak/adventure-space-rescue.giztest.yaml`: long-turn Tester relay with reload.
+
+Run `make test-e2e TIER=smoke RAID=adventure-space-rescue`. Each tier file covers all implementations; see [the test guide](../../tests/giztest/README.md) for budgets and failure reporting.
 
 The route has 13 target responses:
 

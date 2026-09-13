@@ -1,0 +1,1570 @@
+# User Story:
+# As a Raids quality maintainer,
+# I want identical quality contracts for every implementation of journey-guide,
+# So that safety, correction, recall, routing and language regressions fail at the original gates.
+# workflows/journey-guide/test.yaml: CHECKPOINTS = ["origin", "river", "choose-bridge", "village", "temple", "establish-guide", "correct-guide", "mountain", "shelter", "wrong-theory", "cave", "scout", "reload-recall", "waterfall", "diversion", "rescue", "return-choice", "night-camp", "recap", "return"]
+# workflows/journey-guide/test.yaml: CONTRACTS = ["必须含花果山、青铜铃；80-520字；语义维度：journey-continuity、player-agency、response-completeness", "80-520字；语义维度：player-agency、narrative-coherence", "不得含坐上渡船、乘船、已经渡船；60-440字；语义维度：choice-consequence、instruction-following", "不得含找到村民、正准备询问、准备问；100-640字；语义维度：narrative-coherence、response-completeness", "必须含脚印；不得含属于妖怪、妖怪脚印；80-480字；语义维度：uncertainty-handling、player-agency", "必须含清禾、黑风岭；10-200字；语义维度：fact-establishment、naturalness", "必须含明月、黑风岭；不得含清禾；10-200字；语义维度：correction-handling、response-completeness", "必须含明月；不得含清禾；80-520字；语义维度：history-continuity、action-consequence", "80-520字；语义维度：non-invention、narrative-coherence", "不得含你打开货箱、你继续前进、你走进山洞、商队就是迷路；60-480字；语义维度：uncertainty-handling、non-railroading、no-scene-advancement", "必须含明月；不得含清禾；80-520字；语义维度：history-continuity、paced-progression", "必须含青铜铃；10-200字；语义维度：instruction-following、player-agency", "必须含明月、青铜铃、商队；不得含清禾；10-240字；语义维度：long-term-continuity、correction-handling、response-completeness", "必须含明月；不得含清禾、不对、重新来、bronze；80-520字；语义维度：player-agency、spatial-continuity", "必须含青铜铃、明月；不得含清禾；80-520字；语义维度：choice-consequence、history-continuity", "必须含明月、商队；不得含快被解开、正在解开、准备解开、回到村庄；80-520字；语义维度：paced-progression、response-completeness", "不得含走上旧索桥、踏上旧索桥、通过旧索桥、回到村庄、抵达村庄、走到村口、抵达村口；60-440字；语义维度：choice-consequence、instruction-following", "不得含就是小妖、正是小妖、确认有关、确实有关；80-560字；语义维度：uncertainty-handling、narrative-coherence", "必须含明月、青铜铃、商队；不得含清禾；20-280字；语义维度：long-term-continuity、response-completeness", "必须含明月、商队；不得含清禾、新任务、下一回、我与明月、我护送商队；20-440字；语义维度：ending-quality、history-continuity、instruction-following"]
+# workflows/journey-guide/test.yaml: CHECKS = [{"required": ["花果山", "青铜铃"], "required_any": [], "forbidden": [], "min_runes": 80, "max_runes": 520}, {"required": [], "required_any": [], "forbidden": [], "min_runes": 80, "max_runes": 520}, {"required": [], "required_any": [], "forbidden": ["坐上渡船", "乘船", "已经渡船"], "min_runes": 60, "max_runes": 440}, {"required": [], "required_any": [], "forbidden": ["找到村民", "正准备询问", "准备问"], "min_runes": 100, "max_runes": 640}, {"required": ["脚印"], "required_any": [], "forbidden": ["属于妖怪", "妖怪脚印"], "min_runes": 80, "max_runes": 480}, {"required": ["清禾", "黑风岭"], "required_any": [], "forbidden": [], "min_runes": 10, "max_runes": 200}, {"required": ["明月", "黑风岭"], "required_any": [], "forbidden": ["清禾"], "min_runes": 10, "max_runes": 200}, {"required": ["明月"], "required_any": [], "forbidden": ["清禾"], "min_runes": 80, "max_runes": 520}, {"required": [], "required_any": [], "forbidden": [], "min_runes": 80, "max_runes": 520}, {"required": [], "required_any": [], "forbidden": ["你打开货箱", "你继续前进", "你走进山洞", "商队就是迷路"], "min_runes": 60, "max_runes": 480}, {"required": ["明月"], "required_any": [], "forbidden": ["清禾"], "min_runes": 80, "max_runes": 520}, {"required": ["青铜铃"], "required_any": [], "forbidden": [], "min_runes": 10, "max_runes": 200}, {"required": ["明月", "青铜铃", "商队"], "required_any": [], "forbidden": ["清禾"], "min_runes": 10, "max_runes": 240}, {"required": ["明月"], "required_any": [], "forbidden": ["清禾", "不对", "重新来", "bronze"], "min_runes": 80, "max_runes": 520}, {"required": ["青铜铃", "明月"], "required_any": [], "forbidden": ["清禾"], "min_runes": 80, "max_runes": 520}, {"required": ["明月", "商队"], "required_any": [], "forbidden": ["快被解开", "正在解开", "准备解开", "回到村庄"], "min_runes": 80, "max_runes": 520}, {"required": [], "required_any": [], "forbidden": ["走上旧索桥", "踏上旧索桥", "通过旧索桥", "回到村庄", "抵达村庄", "走到村口", "抵达村口"], "min_runes": 60, "max_runes": 440}, {"required": [], "required_any": [], "forbidden": ["就是小妖", "正是小妖", "确认有关", "确实有关"], "min_runes": 80, "max_runes": 560}, {"required": ["明月", "青铜铃", "商队"], "required_any": [], "forbidden": ["清禾"], "min_runes": 20, "max_runes": 280}, {"required": ["明月", "商队"], "required_any": [], "forbidden": ["清禾", "新任务", "下一回", "我与明月", "我护送商队"], "min_runes": 20, "max_runes": 440}]
+# workflows/journey-guide/test.yaml: RULES = "你是 `journey-guide` 的专属验收 Workflow，不是西游故事角色。你负责二十回合西游互动故事的路线选择后果、同行者纠正、暂不推进、重载后的长期连续性与收束质量。\n玩家角色设定：第一次参与西游互动故事的普通玩家，会自由选择路线、提出错误推断、纠正同行者姓名，并期待二十回合后的选择仍有后果。\n负向控制：回复与当前玩家话语无关、复活已被更正的旧事实、重复同义内容或违反明确的格式与字数指令时，对应维度必须 fail。"
+# workflows/journey-guide/README.md: | 7 | `correct-guide` | 更正，向导不叫清禾，叫明月；她仍然熟悉黑风岭。 | 必须含明月、黑风岭；不得含清禾；10-80字；语义维度：correction-handling、response-completeness |
+# workflows/journey-guide/README.md: | 8 | `mountain` | 我和明月翻越黑风岭，遇到暴雨时先找安全处避雨。 | 必须含明月；不得含清禾；80-260字；语义维度：history-continuity、action-consequence |
+version: gizclaw.test/v1alpha1
+name: quality.journey-guide
+clients:
+  flowcraft:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  flowcraft_tester:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  eino_history:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  eino_history_tester:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  eino_memory_async:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  eino_memory_async_tester:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  eino_memory_recall:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  eino_memory_recall_tester:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+variables:
+  endpoint:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_ENDPOINT
+  registration_token:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_REGISTRATION_TOKEN
+    secret: true
+  flowcraft_contracts_candidate_workspace:
+    direction: input
+    type: string
+    generate: token
+  flowcraft_contracts_tester_workspace:
+    direction: input
+    type: string
+    generate: token
+  flowcraft_contracts_test_brief:
+    direction: input
+    type: string
+    value: BEGIN flowcraft-journey-guide long-form-branch-correction-return
+  flowcraft_contracts_verdict:
+    direction: output
+    type: string
+  flowcraft_contracts_reload_handoff:
+    direction: output
+    type: string
+  eino_history_contracts_candidate_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_history_contracts_tester_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_history_contracts_test_brief:
+    direction: input
+    type: string
+    value: BEGIN flowcraft-journey-guide long-form-branch-correction-return
+  eino_history_contracts_verdict:
+    direction: output
+    type: string
+  eino_history_contracts_reload_handoff:
+    direction: output
+    type: string
+  eino_memory_async_contracts_candidate_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_memory_async_contracts_tester_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_memory_async_contracts_test_brief:
+    direction: input
+    type: string
+    value: BEGIN flowcraft-journey-guide long-form-branch-correction-return
+  eino_memory_async_contracts_verdict:
+    direction: output
+    type: string
+  eino_memory_async_contracts_reload_handoff:
+    direction: output
+    type: string
+  eino_memory_recall_contracts_candidate_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_memory_recall_contracts_tester_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_memory_recall_contracts_test_brief:
+    direction: input
+    type: string
+    value: BEGIN flowcraft-journey-guide long-form-branch-correction-return
+  eino_memory_recall_contracts_verdict:
+    direction: output
+    type: string
+  eino_memory_recall_contracts_reload_handoff:
+    direction: output
+    type: string
+  flowcraft_benchmark_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_history_benchmark_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_memory_async_benchmark_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_memory_recall_benchmark_workspace:
+    direction: input
+    type: string
+    generate: token
+repeat: 1
+timeout: 388m
+steps:
+- id: register_flowcraft
+  client: flowcraft
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: register_flowcraft_tester
+  client: flowcraft_tester
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: register_eino_history
+  client: eino_history
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: register_eino_history_tester
+  client: eino_history_tester
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: register_eino_memory_async
+  client: eino_memory_async
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: register_eino_memory_async_tester
+  client: eino_memory_async_tester
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: register_eino_memory_recall
+  client: eino_memory_recall
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: register_eino_memory_recall_tester
+  client: eino_memory_recall_tester
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: flowcraft_contracts_stop_create_candidate_workspace
+  client: flowcraft
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: flowcraft_contracts_create_candidate_workspace
+  client: flowcraft
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${flowcraft_contracts_candidate_workspace}"
+      collection: story-teller
+      workflow_name: journey
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: flowcraft_contracts_create_tester_workspace
+  client: flowcraft_tester
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${flowcraft_contracts_tester_workspace}"
+      collection: raidtest-testers
+      workflow_name: journey-guide-test
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: flowcraft_contracts_select_candidate_workspace
+  client: flowcraft
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${flowcraft_contracts_candidate_workspace}"
+- id: flowcraft_contracts_warmup_candidate_workspace
+  client: flowcraft
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: flowcraft_contracts_select_tester_workspace
+  client: flowcraft_tester
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${flowcraft_contracts_tester_workspace}"
+- id: flowcraft_contracts_run_dialogue_before_reload
+  timeout: 40m
+  workspace_relay:
+    first_client: flowcraft_tester
+    second_client: flowcraft
+    input: "${flowcraft_contracts_test_brief}"
+    media: text
+    idle_timeout: 90s
+    max_turns: 24
+    terminal_client: flowcraft
+  capture:
+    flowcraft_contracts_reload_handoff: "/terminal/text"
+  expect:
+    "/terminal/client":
+      equals: flowcraft
+    "/completed_turns":
+      equals: 24
+    "/turns/flowcraft/count":
+      equals: 12
+    "/turns/flowcraft_tester/count":
+      equals: 12
+    "/turns/flowcraft/first_text_ms/max":
+      maximum: 6000
+    "/turns/flowcraft/text_runes/min":
+      minimum: 10
+    "/turns/flowcraft/text_runes/max":
+      maximum: 520
+- id: flowcraft_contracts_recall_barrier_1
+  client: flowcraft
+  rpc:
+    method: server.run.workspace.recall
+    request:
+      query: 明月
+  timeout: 90s
+  expect:
+    "/available":
+      equals: true
+    "/hits":
+      non_empty: true
+- id: flowcraft_contracts_recall_barrier_2
+  client: flowcraft
+  rpc:
+    method: server.run.workspace.recall
+    request:
+      query: 青铜铃
+  timeout: 90s
+  expect:
+    "/available":
+      equals: true
+    "/hits":
+      non_empty: true
+- id: flowcraft_contracts_recall_barrier_3
+  client: flowcraft
+  rpc:
+    method: server.run.workspace.recall
+    request:
+      query: 商队
+  timeout: 90s
+  expect:
+    "/available":
+      equals: true
+    "/hits":
+      non_empty: true
+- id: flowcraft_contracts_reload_candidate_workspace
+  client: flowcraft
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+- id: flowcraft_contracts_run_dialogue_after_reload
+  timeout: 29m
+  workspace_relay:
+    first_client: flowcraft_tester
+    second_client: flowcraft
+    input: "${flowcraft_contracts_reload_handoff}"
+    media: text
+    idle_timeout: 90s
+    max_turns: 17
+    terminal_client: flowcraft_tester
+  capture:
+    flowcraft_contracts_verdict: "/terminal/text"
+  expect:
+    "/terminal/client":
+      equals: flowcraft_tester
+    "/terminal/text":
+      pattern: "^\\s*PASS\\s*$"
+    "/completed_turns":
+      equals: 17
+    "/turns/flowcraft/count":
+      equals: 8
+    "/turns/flowcraft_tester/count":
+      equals: 9
+    "/turns/flowcraft/first_text_ms/max":
+      maximum: 6000
+    "/turns/flowcraft/text_runes/min":
+      minimum: 10
+    "/turns/flowcraft/text_runes/max":
+      maximum: 200
+- id: flowcraft_contracts_emit_verdict
+  output:
+    variable: flowcraft_contracts_verdict
+- id: eino_history_contracts_stop_create_candidate_workspace
+  client: eino_history
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: eino_history_contracts_create_candidate_workspace
+  client: eino_history
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_history_contracts_candidate_workspace}"
+      collection: story-teller
+      workflow_name: journey-eino-history
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_history_contracts_create_tester_workspace
+  client: eino_history_tester
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_history_contracts_tester_workspace}"
+      collection: raidtest-testers
+      workflow_name: journey-guide-test
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_history_contracts_select_candidate_workspace
+  client: eino_history
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${eino_history_contracts_candidate_workspace}"
+- id: eino_history_contracts_warmup_candidate_workspace
+  client: eino_history
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: eino_history_contracts_select_tester_workspace
+  client: eino_history_tester
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${eino_history_contracts_tester_workspace}"
+- id: eino_history_contracts_run_dialogue_before_reload
+  timeout: 40m
+  workspace_relay:
+    first_client: eino_history_tester
+    second_client: eino_history
+    input: "${eino_history_contracts_test_brief}"
+    media: text
+    idle_timeout: 90s
+    max_turns: 24
+    terminal_client: eino_history
+  capture:
+    eino_history_contracts_reload_handoff: "/terminal/text"
+  expect:
+    "/terminal/client":
+      equals: eino_history
+    "/completed_turns":
+      equals: 24
+    "/turns/eino_history/count":
+      equals: 12
+    "/turns/eino_history_tester/count":
+      equals: 12
+    "/turns/eino_history/first_text_ms/max":
+      maximum: 6000
+    "/turns/eino_history/text_runes/min":
+      minimum: 10
+    "/turns/eino_history/text_runes/max":
+      maximum: 520
+- id: eino_history_contracts_recall_barrier_1
+  client: eino_history
+  rpc:
+    method: server.run.workspace.recall
+    request:
+      query: 明月
+  timeout: 90s
+  expect:
+    "/available":
+      equals: true
+    "/hits":
+      non_empty: true
+- id: eino_history_contracts_recall_barrier_2
+  client: eino_history
+  rpc:
+    method: server.run.workspace.recall
+    request:
+      query: 青铜铃
+  timeout: 90s
+  expect:
+    "/available":
+      equals: true
+    "/hits":
+      non_empty: true
+- id: eino_history_contracts_recall_barrier_3
+  client: eino_history
+  rpc:
+    method: server.run.workspace.recall
+    request:
+      query: 商队
+  timeout: 90s
+  expect:
+    "/available":
+      equals: true
+    "/hits":
+      non_empty: true
+- id: eino_history_contracts_reload_candidate_workspace
+  client: eino_history
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+- id: eino_history_contracts_run_dialogue_after_reload
+  timeout: 29m
+  workspace_relay:
+    first_client: eino_history_tester
+    second_client: eino_history
+    input: "${eino_history_contracts_reload_handoff}"
+    media: text
+    idle_timeout: 90s
+    max_turns: 17
+    terminal_client: eino_history_tester
+  capture:
+    eino_history_contracts_verdict: "/terminal/text"
+  expect:
+    "/terminal/client":
+      equals: eino_history_tester
+    "/terminal/text":
+      pattern: "^\\s*PASS\\s*$"
+    "/completed_turns":
+      equals: 17
+    "/turns/eino_history/count":
+      equals: 8
+    "/turns/eino_history_tester/count":
+      equals: 9
+    "/turns/eino_history/first_text_ms/max":
+      maximum: 6000
+    "/turns/eino_history/text_runes/min":
+      minimum: 10
+    "/turns/eino_history/text_runes/max":
+      maximum: 200
+- id: eino_history_contracts_emit_verdict
+  output:
+    variable: eino_history_contracts_verdict
+- id: eino_memory_async_contracts_stop_create_candidate_workspace
+  client: eino_memory_async
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: eino_memory_async_contracts_create_candidate_workspace
+  client: eino_memory_async
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_memory_async_contracts_candidate_workspace}"
+      collection: story-teller
+      workflow_name: journey-eino-memory-async
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_memory_async_contracts_create_tester_workspace
+  client: eino_memory_async_tester
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_memory_async_contracts_tester_workspace}"
+      collection: raidtest-testers
+      workflow_name: journey-guide-test
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_memory_async_contracts_select_candidate_workspace
+  client: eino_memory_async
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${eino_memory_async_contracts_candidate_workspace}"
+- id: eino_memory_async_contracts_warmup_candidate_workspace
+  client: eino_memory_async
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: eino_memory_async_contracts_select_tester_workspace
+  client: eino_memory_async_tester
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${eino_memory_async_contracts_tester_workspace}"
+- id: eino_memory_async_contracts_run_dialogue_before_reload
+  timeout: 40m
+  workspace_relay:
+    first_client: eino_memory_async_tester
+    second_client: eino_memory_async
+    input: "${eino_memory_async_contracts_test_brief}"
+    media: text
+    idle_timeout: 90s
+    max_turns: 24
+    terminal_client: eino_memory_async
+  capture:
+    eino_memory_async_contracts_reload_handoff: "/terminal/text"
+  expect:
+    "/terminal/client":
+      equals: eino_memory_async
+    "/completed_turns":
+      equals: 24
+    "/turns/eino_memory_async/count":
+      equals: 12
+    "/turns/eino_memory_async_tester/count":
+      equals: 12
+    "/turns/eino_memory_async/first_text_ms/max":
+      maximum: 6000
+    "/turns/eino_memory_async/text_runes/min":
+      minimum: 10
+    "/turns/eino_memory_async/text_runes/max":
+      maximum: 520
+- id: eino_memory_async_contracts_recall_barrier_1
+  client: eino_memory_async
+  rpc:
+    method: server.run.workspace.recall
+    request:
+      query: 明月
+  timeout: 90s
+  expect:
+    "/available":
+      equals: true
+    "/hits":
+      non_empty: true
+- id: eino_memory_async_contracts_recall_barrier_2
+  client: eino_memory_async
+  rpc:
+    method: server.run.workspace.recall
+    request:
+      query: 青铜铃
+  timeout: 90s
+  expect:
+    "/available":
+      equals: true
+    "/hits":
+      non_empty: true
+- id: eino_memory_async_contracts_recall_barrier_3
+  client: eino_memory_async
+  rpc:
+    method: server.run.workspace.recall
+    request:
+      query: 商队
+  timeout: 90s
+  expect:
+    "/available":
+      equals: true
+    "/hits":
+      non_empty: true
+- id: eino_memory_async_contracts_reload_candidate_workspace
+  client: eino_memory_async
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+- id: eino_memory_async_contracts_run_dialogue_after_reload
+  timeout: 29m
+  workspace_relay:
+    first_client: eino_memory_async_tester
+    second_client: eino_memory_async
+    input: "${eino_memory_async_contracts_reload_handoff}"
+    media: text
+    idle_timeout: 90s
+    max_turns: 17
+    terminal_client: eino_memory_async_tester
+  capture:
+    eino_memory_async_contracts_verdict: "/terminal/text"
+  expect:
+    "/terminal/client":
+      equals: eino_memory_async_tester
+    "/terminal/text":
+      pattern: "^\\s*PASS\\s*$"
+    "/completed_turns":
+      equals: 17
+    "/turns/eino_memory_async/count":
+      equals: 8
+    "/turns/eino_memory_async_tester/count":
+      equals: 9
+    "/turns/eino_memory_async/first_text_ms/max":
+      maximum: 6000
+    "/turns/eino_memory_async/text_runes/min":
+      minimum: 10
+    "/turns/eino_memory_async/text_runes/max":
+      maximum: 200
+- id: eino_memory_async_contracts_emit_verdict
+  output:
+    variable: eino_memory_async_contracts_verdict
+- id: eino_memory_recall_contracts_stop_create_candidate_workspace
+  client: eino_memory_recall
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: eino_memory_recall_contracts_create_candidate_workspace
+  client: eino_memory_recall
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_memory_recall_contracts_candidate_workspace}"
+      collection: story-teller
+      workflow_name: journey-eino-memory-recall
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_memory_recall_contracts_create_tester_workspace
+  client: eino_memory_recall_tester
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_memory_recall_contracts_tester_workspace}"
+      collection: raidtest-testers
+      workflow_name: journey-guide-test
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_memory_recall_contracts_select_candidate_workspace
+  client: eino_memory_recall
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${eino_memory_recall_contracts_candidate_workspace}"
+- id: eino_memory_recall_contracts_warmup_candidate_workspace
+  client: eino_memory_recall
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: eino_memory_recall_contracts_select_tester_workspace
+  client: eino_memory_recall_tester
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${eino_memory_recall_contracts_tester_workspace}"
+- id: eino_memory_recall_contracts_run_dialogue_before_reload
+  timeout: 40m
+  workspace_relay:
+    first_client: eino_memory_recall_tester
+    second_client: eino_memory_recall
+    input: "${eino_memory_recall_contracts_test_brief}"
+    media: text
+    idle_timeout: 90s
+    max_turns: 24
+    terminal_client: eino_memory_recall
+  capture:
+    eino_memory_recall_contracts_reload_handoff: "/terminal/text"
+  expect:
+    "/terminal/client":
+      equals: eino_memory_recall
+    "/completed_turns":
+      equals: 24
+    "/turns/eino_memory_recall/count":
+      equals: 12
+    "/turns/eino_memory_recall_tester/count":
+      equals: 12
+    "/turns/eino_memory_recall/first_text_ms/max":
+      maximum: 6000
+    "/turns/eino_memory_recall/text_runes/min":
+      minimum: 10
+    "/turns/eino_memory_recall/text_runes/max":
+      maximum: 520
+- id: eino_memory_recall_contracts_recall_barrier_1
+  client: eino_memory_recall
+  rpc:
+    method: server.run.workspace.recall
+    request:
+      query: 明月
+  timeout: 90s
+  expect:
+    "/available":
+      equals: true
+    "/hits":
+      non_empty: true
+- id: eino_memory_recall_contracts_recall_barrier_2
+  client: eino_memory_recall
+  rpc:
+    method: server.run.workspace.recall
+    request:
+      query: 青铜铃
+  timeout: 90s
+  expect:
+    "/available":
+      equals: true
+    "/hits":
+      non_empty: true
+- id: eino_memory_recall_contracts_recall_barrier_3
+  client: eino_memory_recall
+  rpc:
+    method: server.run.workspace.recall
+    request:
+      query: 商队
+  timeout: 90s
+  expect:
+    "/available":
+      equals: true
+    "/hits":
+      non_empty: true
+- id: eino_memory_recall_contracts_reload_candidate_workspace
+  client: eino_memory_recall
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+- id: eino_memory_recall_contracts_run_dialogue_after_reload
+  timeout: 29m
+  workspace_relay:
+    first_client: eino_memory_recall_tester
+    second_client: eino_memory_recall
+    input: "${eino_memory_recall_contracts_reload_handoff}"
+    media: text
+    idle_timeout: 90s
+    max_turns: 17
+    terminal_client: eino_memory_recall_tester
+  capture:
+    eino_memory_recall_contracts_verdict: "/terminal/text"
+  expect:
+    "/terminal/client":
+      equals: eino_memory_recall_tester
+    "/terminal/text":
+      pattern: "^\\s*PASS\\s*$"
+    "/completed_turns":
+      equals: 17
+    "/turns/eino_memory_recall/count":
+      equals: 8
+    "/turns/eino_memory_recall_tester/count":
+      equals: 9
+    "/turns/eino_memory_recall/first_text_ms/max":
+      maximum: 6000
+    "/turns/eino_memory_recall/text_runes/min":
+      minimum: 10
+    "/turns/eino_memory_recall/text_runes/max":
+      maximum: 200
+- id: eino_memory_recall_contracts_emit_verdict
+  output:
+    variable: eino_memory_recall_contracts_verdict
+- id: flowcraft_benchmark_create_workspace
+  client: flowcraft
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${flowcraft_benchmark_workspace}"
+      collection: story-teller
+      workflow_name: journey
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: flowcraft_benchmark_select_workspace
+  client: flowcraft
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${flowcraft_benchmark_workspace}"
+- id: flowcraft_benchmark_warmup_workspace
+  client: flowcraft
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: flowcraft_benchmark_turn_1_origin
+  client: flowcraft
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我从花果山出发，带着一枚青铜铃。承接我的行动，不要替我选择路线。
+    require_text: true
+  expect:
+    "/text":
+      contains_all:
+      - 花果山
+      - 青铜铃
+      min_length: 80
+      max_length: 520
+    "/first_text_ms":
+      maximum: 6000
+    "/text_eos_ms":
+      maximum: 90000
+- id: flowcraft_benchmark_turn_2_river
+  client: flowcraft
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我沿河寻找渡口，先观察水流和两岸，不急着决定怎么过河。
+    require_text: true
+  expect:
+    "/text":
+      min_length: 80
+      max_length: 520
+    "/first_text_ms":
+      maximum: 6000
+    "/text_eos_ms":
+      maximum: 90000
+- id: flowcraft_benchmark_turn_3_establish-guide
+  client: flowcraft
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我确认同行向导叫清禾，她熟悉黑风岭，请记住。
+    require_text: true
+  expect:
+    "/text":
+      contains_all:
+      - 清禾
+      - 黑风岭
+      min_length: 10
+      max_length: 200
+    "/first_text_ms":
+      maximum: 6000
+    "/text_eos_ms":
+      maximum: 90000
+- id: flowcraft_benchmark_turn_4_correct-guide
+  client: flowcraft
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 更正，向导不叫清禾，叫明月；她仍然熟悉黑风岭。
+    require_text: true
+  expect:
+    "/text":
+      contains_all:
+      - 明月
+      - 黑风岭
+      not_contains:
+      - 清禾
+      min_length: 10
+      max_length: 200
+    "/first_text_ms":
+      maximum: 6000
+    "/text_eos_ms":
+      maximum: 90000
+- id: flowcraft_benchmark_turn_5_mountain
+  client: flowcraft
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我和明月翻越黑风岭，遇到暴雨时先找安全处避雨。
+    require_text: true
+  expect:
+    "/text":
+      contains_all:
+      - 明月
+      not_contains:
+      - 清禾
+      min_length: 80
+      max_length: 520
+    "/first_text_ms":
+      maximum: 6000
+    "/text_eos_ms":
+      maximum: 90000
+- id: flowcraft_benchmark_turn_6_theory
+  client: flowcraft
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我猜商队只是自己迷路了，并没有被抓走。根据目前剧情回应，不要顺着我下定论，也不要推进场景。
+    require_text: true
+  expect:
+    "/text":
+      not_contains:
+      - 商队就是迷路
+      - 你继续前进
+      - 你走进山洞
+      min_length: 40
+      max_length: 480
+    "/first_text_ms":
+      maximum: 6000
+    "/text_eos_ms":
+      maximum: 90000
+- id: flowcraft_benchmark_turn_7_recap
+  client: flowcraft
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 用一句话说出向导姓名、我带的物品和当前地点。
+    require_text: true
+  expect:
+    "/text":
+      contains_all:
+      - 明月
+      - 青铜铃
+      - 黑风岭
+      not_contains:
+      - 清禾
+      min_length: 10
+      max_length: 200
+    "/first_text_ms":
+      maximum: 6000
+    "/text_eos_ms":
+      maximum: 90000
+- id: eino_history_benchmark_create_workspace
+  client: eino_history
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_history_benchmark_workspace}"
+      collection: story-teller
+      workflow_name: journey-eino-history
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_history_benchmark_select_workspace
+  client: eino_history
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${eino_history_benchmark_workspace}"
+- id: eino_history_benchmark_warmup_workspace
+  client: eino_history
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: eino_history_benchmark_turn_1_origin
+  client: eino_history
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我从花果山出发，带着一枚青铜铃。承接我的行动，不要替我选择路线。
+    require_text: true
+  expect:
+    "/text":
+      contains_all:
+      - 花果山
+      - 青铜铃
+      min_length: 80
+      max_length: 520
+    "/first_text_ms":
+      maximum: 6000
+    "/text_eos_ms":
+      maximum: 90000
+- id: eino_history_benchmark_turn_2_river
+  client: eino_history
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我沿河寻找渡口，先观察水流和两岸，不急着决定怎么过河。
+    require_text: true
+  expect:
+    "/text":
+      min_length: 80
+      max_length: 520
+    "/first_text_ms":
+      maximum: 6000
+    "/text_eos_ms":
+      maximum: 90000
+- id: eino_history_benchmark_turn_3_establish-guide
+  client: eino_history
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我确认同行向导叫清禾，她熟悉黑风岭，请记住。
+    require_text: true
+  expect:
+    "/text":
+      contains_all:
+      - 清禾
+      - 黑风岭
+      min_length: 10
+      max_length: 200
+    "/first_text_ms":
+      maximum: 6000
+    "/text_eos_ms":
+      maximum: 90000
+- id: eino_history_benchmark_turn_4_correct-guide
+  client: eino_history
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 更正，向导不叫清禾，叫明月；她仍然熟悉黑风岭。
+    require_text: true
+  expect:
+    "/text":
+      contains_all:
+      - 明月
+      - 黑风岭
+      not_contains:
+      - 清禾
+      min_length: 10
+      max_length: 200
+    "/first_text_ms":
+      maximum: 6000
+    "/text_eos_ms":
+      maximum: 90000
+- id: eino_history_benchmark_turn_5_mountain
+  client: eino_history
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我和明月翻越黑风岭，遇到暴雨时先找安全处避雨。
+    require_text: true
+  expect:
+    "/text":
+      contains_all:
+      - 明月
+      not_contains:
+      - 清禾
+      min_length: 80
+      max_length: 520
+    "/first_text_ms":
+      maximum: 6000
+    "/text_eos_ms":
+      maximum: 90000
+- id: eino_history_benchmark_turn_6_theory
+  client: eino_history
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我猜商队只是自己迷路了，并没有被抓走。根据目前剧情回应，不要顺着我下定论，也不要推进场景。
+    require_text: true
+  expect:
+    "/text":
+      not_contains:
+      - 商队就是迷路
+      - 你继续前进
+      - 你走进山洞
+      min_length: 40
+      max_length: 480
+    "/first_text_ms":
+      maximum: 6000
+    "/text_eos_ms":
+      maximum: 90000
+- id: eino_history_benchmark_turn_7_recap
+  client: eino_history
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 用一句话说出向导姓名、我带的物品和当前地点。
+    require_text: true
+  expect:
+    "/text":
+      contains_all:
+      - 明月
+      - 青铜铃
+      - 黑风岭
+      not_contains:
+      - 清禾
+      min_length: 10
+      max_length: 200
+    "/first_text_ms":
+      maximum: 6000
+    "/text_eos_ms":
+      maximum: 90000
+- id: eino_memory_async_benchmark_create_workspace
+  client: eino_memory_async
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_memory_async_benchmark_workspace}"
+      collection: story-teller
+      workflow_name: journey-eino-memory-async
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_memory_async_benchmark_select_workspace
+  client: eino_memory_async
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${eino_memory_async_benchmark_workspace}"
+- id: eino_memory_async_benchmark_warmup_workspace
+  client: eino_memory_async
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: eino_memory_async_benchmark_turn_1_origin
+  client: eino_memory_async
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我从花果山出发，带着一枚青铜铃。承接我的行动，不要替我选择路线。
+    require_text: true
+  expect:
+    "/text":
+      contains_all:
+      - 花果山
+      - 青铜铃
+      min_length: 80
+      max_length: 520
+    "/first_text_ms":
+      maximum: 6000
+    "/text_eos_ms":
+      maximum: 90000
+- id: eino_memory_async_benchmark_turn_2_river
+  client: eino_memory_async
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我沿河寻找渡口，先观察水流和两岸，不急着决定怎么过河。
+    require_text: true
+  expect:
+    "/text":
+      min_length: 80
+      max_length: 520
+    "/first_text_ms":
+      maximum: 6000
+    "/text_eos_ms":
+      maximum: 90000
+- id: eino_memory_async_benchmark_turn_3_establish-guide
+  client: eino_memory_async
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我确认同行向导叫清禾，她熟悉黑风岭，请记住。
+    require_text: true
+  expect:
+    "/text":
+      contains_all:
+      - 清禾
+      - 黑风岭
+      min_length: 10
+      max_length: 200
+    "/first_text_ms":
+      maximum: 6000
+    "/text_eos_ms":
+      maximum: 90000
+- id: eino_memory_async_benchmark_turn_4_correct-guide
+  client: eino_memory_async
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 更正，向导不叫清禾，叫明月；她仍然熟悉黑风岭。
+    require_text: true
+  expect:
+    "/text":
+      contains_all:
+      - 明月
+      - 黑风岭
+      not_contains:
+      - 清禾
+      min_length: 10
+      max_length: 200
+    "/first_text_ms":
+      maximum: 6000
+    "/text_eos_ms":
+      maximum: 90000
+- id: eino_memory_async_benchmark_turn_5_mountain
+  client: eino_memory_async
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我和明月翻越黑风岭，遇到暴雨时先找安全处避雨。
+    require_text: true
+  expect:
+    "/text":
+      contains_all:
+      - 明月
+      not_contains:
+      - 清禾
+      min_length: 80
+      max_length: 520
+    "/first_text_ms":
+      maximum: 6000
+    "/text_eos_ms":
+      maximum: 90000
+- id: eino_memory_async_benchmark_turn_6_theory
+  client: eino_memory_async
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我猜商队只是自己迷路了，并没有被抓走。根据目前剧情回应，不要顺着我下定论，也不要推进场景。
+    require_text: true
+  expect:
+    "/text":
+      not_contains:
+      - 商队就是迷路
+      - 你继续前进
+      - 你走进山洞
+      min_length: 40
+      max_length: 480
+    "/first_text_ms":
+      maximum: 6000
+    "/text_eos_ms":
+      maximum: 90000
+- id: eino_memory_async_benchmark_turn_7_recap
+  client: eino_memory_async
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 用一句话说出向导姓名、我带的物品和当前地点。
+    require_text: true
+  expect:
+    "/text":
+      contains_all:
+      - 明月
+      - 青铜铃
+      - 黑风岭
+      not_contains:
+      - 清禾
+      min_length: 10
+      max_length: 200
+    "/first_text_ms":
+      maximum: 6000
+    "/text_eos_ms":
+      maximum: 90000
+- id: eino_memory_recall_benchmark_create_workspace
+  client: eino_memory_recall
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_memory_recall_benchmark_workspace}"
+      collection: story-teller
+      workflow_name: journey-eino-memory-recall
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_memory_recall_benchmark_select_workspace
+  client: eino_memory_recall
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${eino_memory_recall_benchmark_workspace}"
+- id: eino_memory_recall_benchmark_warmup_workspace
+  client: eino_memory_recall
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: eino_memory_recall_benchmark_turn_1_origin
+  client: eino_memory_recall
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我从花果山出发，带着一枚青铜铃。承接我的行动，不要替我选择路线。
+    require_text: true
+  expect:
+    "/text":
+      contains_all:
+      - 花果山
+      - 青铜铃
+      min_length: 80
+      max_length: 520
+    "/first_text_ms":
+      maximum: 6000
+    "/text_eos_ms":
+      maximum: 90000
+- id: eino_memory_recall_benchmark_turn_2_river
+  client: eino_memory_recall
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我沿河寻找渡口，先观察水流和两岸，不急着决定怎么过河。
+    require_text: true
+  expect:
+    "/text":
+      min_length: 80
+      max_length: 520
+    "/first_text_ms":
+      maximum: 6000
+    "/text_eos_ms":
+      maximum: 90000
+- id: eino_memory_recall_benchmark_turn_3_establish-guide
+  client: eino_memory_recall
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我确认同行向导叫清禾，她熟悉黑风岭，请记住。
+    require_text: true
+  expect:
+    "/text":
+      contains_all:
+      - 清禾
+      - 黑风岭
+      min_length: 10
+      max_length: 200
+    "/first_text_ms":
+      maximum: 6000
+    "/text_eos_ms":
+      maximum: 90000
+- id: eino_memory_recall_benchmark_turn_4_correct-guide
+  client: eino_memory_recall
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 更正，向导不叫清禾，叫明月；她仍然熟悉黑风岭。
+    require_text: true
+  expect:
+    "/text":
+      contains_all:
+      - 明月
+      - 黑风岭
+      not_contains:
+      - 清禾
+      min_length: 10
+      max_length: 200
+    "/first_text_ms":
+      maximum: 6000
+    "/text_eos_ms":
+      maximum: 90000
+- id: eino_memory_recall_benchmark_turn_5_mountain
+  client: eino_memory_recall
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我和明月翻越黑风岭，遇到暴雨时先找安全处避雨。
+    require_text: true
+  expect:
+    "/text":
+      contains_all:
+      - 明月
+      not_contains:
+      - 清禾
+      min_length: 80
+      max_length: 520
+    "/first_text_ms":
+      maximum: 6000
+    "/text_eos_ms":
+      maximum: 90000
+- id: eino_memory_recall_benchmark_turn_6_theory
+  client: eino_memory_recall
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我猜商队只是自己迷路了，并没有被抓走。根据目前剧情回应，不要顺着我下定论，也不要推进场景。
+    require_text: true
+  expect:
+    "/text":
+      not_contains:
+      - 商队就是迷路
+      - 你继续前进
+      - 你走进山洞
+      min_length: 40
+      max_length: 480
+    "/first_text_ms":
+      maximum: 6000
+    "/text_eos_ms":
+      maximum: 90000
+- id: eino_memory_recall_benchmark_turn_7_recap
+  client: eino_memory_recall
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 用一句话说出向导姓名、我带的物品和当前地点。
+    require_text: true
+  expect:
+    "/text":
+      contains_all:
+      - 明月
+      - 青铜铃
+      - 黑风岭
+      not_contains:
+      - 清禾
+      min_length: 10
+      max_length: 200
+    "/first_text_ms":
+      maximum: 6000
+    "/text_eos_ms":
+      maximum: 90000
+finally:
+- id: stop_flowcraft
+  client: flowcraft
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: stop_flowcraft_tester
+  client: flowcraft_tester
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: stop_eino_history
+  client: eino_history
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: stop_eino_history_tester
+  client: eino_history_tester
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: stop_eino_memory_async
+  client: eino_memory_async
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: stop_eino_memory_async_tester
+  client: eino_memory_async_tester
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: stop_eino_memory_recall
+  client: eino_memory_recall
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: stop_eino_memory_recall_tester
+  client: eino_memory_recall_tester
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: flowcraft_contracts_delete_candidate_workspace
+  client: flowcraft
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${flowcraft_contracts_candidate_workspace}"
+- id: flowcraft_contracts_delete_tester_workspace
+  client: flowcraft_tester
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${flowcraft_contracts_tester_workspace}"
+- id: eino_history_contracts_delete_candidate_workspace
+  client: eino_history
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${eino_history_contracts_candidate_workspace}"
+- id: eino_history_contracts_delete_tester_workspace
+  client: eino_history_tester
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${eino_history_contracts_tester_workspace}"
+- id: eino_memory_async_contracts_delete_candidate_workspace
+  client: eino_memory_async
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${eino_memory_async_contracts_candidate_workspace}"
+- id: eino_memory_async_contracts_delete_tester_workspace
+  client: eino_memory_async_tester
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${eino_memory_async_contracts_tester_workspace}"
+- id: eino_memory_recall_contracts_delete_candidate_workspace
+  client: eino_memory_recall
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${eino_memory_recall_contracts_candidate_workspace}"
+- id: eino_memory_recall_contracts_delete_tester_workspace
+  client: eino_memory_recall_tester
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${eino_memory_recall_contracts_tester_workspace}"
+- id: flowcraft_benchmark_delete_workspace
+  client: flowcraft
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${flowcraft_benchmark_workspace}"
+- id: delete_flowcraft
+  client: flowcraft
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: delete_flowcraft_tester
+  client: flowcraft_tester
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: eino_history_benchmark_delete_workspace
+  client: eino_history
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${eino_history_benchmark_workspace}"
+- id: delete_eino_history
+  client: eino_history
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: delete_eino_history_tester
+  client: eino_history_tester
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: eino_memory_async_benchmark_delete_workspace
+  client: eino_memory_async
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${eino_memory_async_benchmark_workspace}"
+- id: delete_eino_memory_async
+  client: eino_memory_async
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: delete_eino_memory_async_tester
+  client: eino_memory_async_tester
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: eino_memory_recall_benchmark_delete_workspace
+  client: eino_memory_recall
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${eino_memory_recall_benchmark_workspace}"
+- id: delete_eino_memory_recall
+  client: eino_memory_recall
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: delete_eino_memory_recall_tester
+  client: eino_memory_recall_tester
+  rpc:
+    method: server.peer.delete
+    request: {}
+report:
+  redact:
+  - registration_token

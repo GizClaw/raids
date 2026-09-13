@@ -39,7 +39,7 @@ for (const {raid, data, sources} of suites) {
       starCases.push({ID: `${raid}/${c.id}`, Input: {text: c.input, history: c.history || [], memory: c.memory || '', ...(c.eino_input || {})}, Speaker: c.expect.speaker});
     } catch (error) { throw new Error(`${raid}/${c.id}: ${error.message}`, {cause: error}); }
   }
-  cp.execFileSync('sh', ['scripts/test/test-starlark-routing.sh'], {
+  if (sources.eino) cp.execFileSync('sh', ['scripts/test/test-starlark-routing.sh'], {
     input: JSON.stringify({Source: sources.eino, Cases: starCases}), stdio: ['pipe', 'inherit', 'inherit']});
-  console.log(`validated ${raid} routing: ${data.cases.length} shared Flowcraft/Eino cases`);
+  console.log(`validated ${raid} routing: ${data.cases.length} ${Object.keys(sources).join("/")} cases`);
 }

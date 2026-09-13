@@ -130,7 +130,7 @@ Voice roles use the same Workflow namespace:
 | `doubao-realtime-conversation` | `assistant` |
 | `flowcraft-chat-assistant` | `assistant` |
 | each `ast-translate-*` Workflow | `translator` |
-| `flowcraft-murder-mystery` / `eino-murder-mystery` | `game-master`, `housekeeper`, `chef`, `heir`, `lawyer` |
+| `flowcraft-murder-mystery` | `game-master`, `housekeeper`, `chef`, `heir`, `lawyer` |
 | `flowcraft-journey-guide` | `narrator` |
 | each `flowcraft-story-*` / `eino-story-*` Workflow | `storyteller` plus every title-specific character role declared by its `raid.json` |
 | each `flowcraft-adventure-*` / `eino-adventure-*` Workflow | `adventure-guide` plus every scene-specific character role declared by its `raid.json` |
@@ -355,52 +355,25 @@ voice aliases the manifest lists.
 
 ## Declarative live tests
 
-[`tests/giztest`](tests/giztest/README.md) holds every live Raids test as one
-`gizclaw.test/v1alpha1` document: **324 `.giztest.yaml` files**, counted from
-this checkout (excluding README and generated reports). These include 106
-candidate/Tester relays across story, adventure, learn, Journey, and Murder
-Mystery targets, one assistant relay, 100 paced-audio RealTime roundtrips,
-62 dual-engine role probes across all 31 multi-voice raids, 38 story transition
-contracts, two Murder Mystery handoff/knowledge-boundary contracts, two Wizard
-of Oz English restart cases, and 13 benchmark/realtime/translation/external
-cases. File counts do not multiply configured qualification repeats.
-`gizclaw test run tests/giztest --parallel N` isolates each
-file and repeat in its own ephemeral Peers and Workspaces and schedules them
-through one global worker pool; `make test-e2e` runs them against a provisioned
-deployment and `make test-unit-resources` validates the corpus offline. Each scenario's single Tester Workflow (`workflows/<raid>/test.yaml`, id `<raid>-test`, shared by every engine implementation) speaks the
-`workspace_relay` text protocol: they drive the scripted route, audit the
-deterministic contracts over their own History. Long story routes end bounded
-segments in `CHECKPOINT PASS` and the final segment in `PASS`; each role probe
-requires complete text/audio EOS and non-empty synthesized Opus, then applies
-independent 2-second first-text and 3-second first-audio gates without waiting
-for the second probe's EOS. Provisioning stays outside the runner: `APPLY=1 make test-e2e`
-applies the catalog, the Testers, the `testing` RuntimeProfile, and the
-`testing-runtime` token with the selected Admin context before running.
+Live tests use `tests/giztest/{smoke,quality,soak}/<raid>.giztest.yaml`, with every implementation of one raid in the same file. There are **163 tier files**: **55 smoke**, **55 quality**, and **53 soak**. The two external H106 files remain separate, for **165 `.giztest.yaml` files** total; generated reports are excluded.
 
-CI is pinned to GizClaw v0.18.2, which drops the retired gameplay surface
-(PetDefs, the `pet` driver, and RuntimeProfile system Workflow roles) and
-names the Workspace initiative enum `CONVERSATION_PARAMETERS_INITIATIVE_*`.
-The merged multi-voice catalog requires v0.18.9 or later as described above.
-Earlier contracts originated in v0.7.19 for stories and v0.6.0 for the
-declarative runner (GizClaw #916, #921, #923). The bounded
-story-role first-response gates require the GizClaw #991/#992 contract first
-released in v0.7.13. GizClaw #994/#997 removed reload-time RuntimeProfile
-dependency revalidation in v0.7.16. The modality-selective first-response
-contract from GizClaw #1003/#1004 is first released in v0.7.19 and lets
-Eino RealTime tests enforce a text gate independently of audio acceptance.
-Reload is reported separately from the measured first-response gates. This corpus
-replaces the retired `tools/raidtest` Go runner: validating one locally edited
-Workflow is now `APPLY=1 make test-e2e RAID=<raid>/<engine>`, which applies that
-raid package and the testing closure before running its scenario.
+- **smoke** measures speed, latency and responsiveness, including complete audio and independent first-response probes.
+- **quality** enforces quality control and safety guardrails, including transitions, corrections, language and role boundaries.
+- **soak** runs long conversations between the Tester and target Workflow, including reload and memory continuity.
 
-Each story/adventure RealTime document synthesizes a short Chinese Opus fixture
-and sends it at 20 ms pacing through a warmed `WORKSPACE_INPUT_MODE_REALTIME`
-Workspace. Flowcraft requires complete assistant text and audio plus a separate
-2-second text / 3-second audio first-response sample. Existing Eino RealTime
-files still set `require_audio: false` and require complete text plus a separate
-2-second text first-response sample. This is their current test scope, not an
-Eino TTS limitation: dual-engine `roles` files verify complete role audio and
-2-second text / 3-second audio first response for all 31 multi-voice raids.
+The audio-only `ast-translate` and `doubao-realtime` targets have no soak protocol. Murder Mystery is Flowcraft-only. Journey tests all four implementations against equal gates, including recall; its history-only implementation has no recall exemption.
+
+```sh
+make test-e2e TIER=smoke RAID=story-aesop
+make test-e2e TIER=quality RAID=all
+make test-e2e TIER=soak RAID=journey-guide
+```
+
+Set `GIZCLAW_TEST_ENDPOINT` and `GIZCLAW_TEST_REGISTRATION_TOKEN` for live runs. Defaults are `TIER=all RAID=all PARALLEL=1 APPLY=0`; H106 is excluded. `REPORT` selects the output JSON. `APPLY=1` retains its existing behavior: apply the entire testing closure with the Admin context before running the selected files.
+
+`make test-unit-resources` validates schemas, tier inventory, manifest registration, Voice/role closure, internal routing fixtures and equivalent implementation steps offline. It compares complete inputs, assertions, captures, timeouts and relay plans after normalizing client identifiers and Workspace implementation settings. `make test-unit-voices` checks the Voice catalog.
+
+Smoke retains the 2-second first-text / 3-second first-audio probes and the original complete-response gates. Complete streams additionally require closed, non-overlapping audio, at most 150ms between packets and zero underruns. The CLI must support `/audio_integrity` and `/audio_pacing`. Necessary role setup can exceed the two-minute target; file budgets do not relax per-step gates. A failure stops subsequent steps: skipped steps are not passes, and cleanup is reported separately. See the [test guide](tests/giztest/README.md) for the full layout, selection rules and Tester protocol.
 
 ## Catalog behavior notes
 
@@ -416,8 +389,8 @@ checks, corrections, reasoning, provisional accusations, and conclusions.
 The housekeeper, chef, Shen Zhiqiu (沈知秋), and lawyer answer individual
 interviews in first person using their own testimony and public dialogue;
 they do not receive the host's private truth or raw recall notes. The host does
-not impersonate witnesses. Both engines retain the 26-response investigation
-regression and add five-role audio and handoff/leakage-guard tests.
+not impersonate witnesses. Flowcraft retains the 26-response investigation
+regression and five-role audio and handoff/leakage-guard tests.
 
 Murder Mystery follows the same History ownership for its full transcript and
 observes only its explicit authoritative shoe-size state into Memory. It does

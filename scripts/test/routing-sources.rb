@@ -18,6 +18,7 @@ Dir['workflows/*'].select { |p| File.directory?(p) }.sort.each do |package|
   abort "#{fixture}: unsupported version or empty cases" unless data['version'] == 1 && data['cases'].is_a?(Array) && !data['cases'].empty?
   sources = {}
   {'flowcraft'=>flow, 'eino'=>eino}.each do |engine, spec|
+    next unless manifest.fetch('implementations').key?(engine)
     id = data.fetch(engine).fetch('node', engine == 'flowcraft' ? 'control-story' : 'select-speaker')
     node = spec&.dig('graph', 'nodes')&.find { |n| n['id'] == id }
     abort "#{fixture}: missing #{engine} node #{id}" unless node

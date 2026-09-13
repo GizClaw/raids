@@ -16,13 +16,15 @@ Install an implementation into a RuntimeProfile with `raids install journey-guid
 
 ## Testing
 
-Tester: `test.yaml` (`journey-guide-test`, eino), shared by every implementation; one Giztest scenario per implementation:
+Tester: `test.yaml` (`journey-guide-test`, eino), shared by every implementation; one Giztest file per tier covering all implementations:
 
-- `tests/giztest/journey-guide/eino-history.giztest.yaml` (relay, with reload, timeout 45m)
-- `tests/giztest/journey-guide/eino-memory-async.giztest.yaml` (relay, with reload, timeout 45m)
-- `tests/giztest/journey-guide/eino-memory-recall.giztest.yaml` (relay, with reload, timeout 45m)
-- `tests/giztest/journey-guide/flowcraft.benchmark-6s.giztest.yaml` (single client, timeout 18m)
-- `tests/giztest/journey-guide/flowcraft.giztest.yaml` (relay, with reload, timeout 79m)
+- `tests/giztest/smoke/journey-guide.giztest.yaml`: speed, latency and responsiveness.
+- `tests/giztest/quality/journey-guide.giztest.yaml`: quality control and safety guardrails.
+- `tests/giztest/soak/journey-guide.giztest.yaml`: long-turn Tester relay with reload.
+
+Quality also preserves the seven-turn benchmark for all four implementations. Soak uses the intersection of the original gates and equal recall barriers; history-only Eino has no recall exemption.
+
+Run `make test-e2e TIER=smoke RAID=journey-guide`. Each tier file covers all implementations; see [the test guide](../../tests/giztest/README.md) for budgets and failure reporting.
 
 The route has 20 target responses:
 

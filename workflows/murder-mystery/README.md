@@ -9,41 +9,42 @@ Long-form detective mystery with free investigation, testimony checks, evidence 
 | File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |
 | --- | --- | --- | --- | --- | --- |
 | `flowcraft.yaml` | `flowcraft-murder-mystery` | flowcraft | adventure | `flowcraft-murder-mystery.model` | `.game-master`, `.housekeeper`, `.chef`, `.heir`, `.lawyer` |
-| `eino.yaml` | `eino-murder-mystery` | eino | adventure | `eino-murder-mystery.model` | `.game-master`, `.housekeeper`, `.chef`, `.heir`, `.lawyer` |
 
 Install an implementation into a RuntimeProfile with `raids install murder-mystery --impl <engine> --profile <file> --collection <name> --set model.<alias>=<model id> --set voice.<alias>=<voice id>`; the slots above are the parameters the installer asks for.
 
 
 ## 小剧场选角与分工
 
-仍属 `adventure`，保留 **12+ / mystery-death**。两个引擎每轮只发一种声音：Flowcraft 条件边选择独立节点；Eino 上游 Starlark 写 `selected_speaker`，唯一 primary chat_model 按身份 prompt 输出，`state_voices` 选择同一角色音色，保留 ASR。
+仍属 `adventure`，保留 **12+ / mystery-death**。Flowcraft 每轮只发一种声音，通过条件边选择独立角色节点。
 
 Voice 由 runtime profile 绑定。
 
-| role / 别名 | 场景行动与边界 | 两引擎完整 Voice 槽位 |
+| role / 别名 | 场景行动与边界 | Flowcraft Voice 槽位 |
 | --- | --- | --- |
-| `narrator` 主持人 | 开场主持、证据核对、更正、推理、暂定指控与结案；不代演证人 | `flowcraft-murder-mystery.game-master` / `eino-murder-mystery.game-master` |
-| `housekeeper` 管家 | 管家/老管家：受访时交代门厅位置与主钥匙，未知声响和开门过程明确不知道 | `flowcraft-murder-mystery.housekeeper` / `eino-murder-mystery.housekeeper` |
-| `chef` 厨师 | 厨师/大厨：受访时交代20:50至来电后揉面，自述不是物证 | `flowcraft-murder-mystery.chef` / `eino-murder-mystery.chef` |
-| `heir` 沈知秋 | 沈知秋/次子：受访时只答次子身份、回房拿烟与不清楚鞋印 | `flowcraft-murder-mystery.heir` / `eino-murder-mystery.heir` |
-| `lawyer` 律师 | 律师：受访时厘清上周修改遗嘱及知情者，不知道当晚是否谈过 | `flowcraft-murder-mystery.lawyer` / `eino-murder-mystery.lawyer` |
+| `narrator` 主持人 | 开场主持、证据核对、更正、推理、暂定指控与结案；不代演证人 | `flowcraft-murder-mystery.game-master` |
+| `housekeeper` 管家 | 管家/老管家：受访时交代门厅位置与主钥匙，未知声响和开门过程明确不知道 | `flowcraft-murder-mystery.housekeeper` |
+| `chef` 厨师 | 厨师/大厨：受访时交代20:50至来电后揉面，自述不是物证 | `flowcraft-murder-mystery.chef` |
+| `heir` 沈知秋 | 沈知秋/次子：受访时只答次子身份、回房拿烟与不清楚鞋印 | `flowcraft-murder-mystery.heir` |
+| `lawyer` 律师 | 律师：受访时厘清上周修改遗嘱及知情者，不知道当晚是否谈过 | `flowcraft-murder-mystery.lawyer` |
 
 本案保持自由调查，不新增线性章节。开场只列可采访人物；随后按玩家选择进入单独采访场景，四证人不同时登场、不轮流抢话，沈清如和死者不新增可采访身份或证词。角色名单恢复时按当前角色表归一化，丢弃旧名单；已有鞋印更正仍沿用原权威状态。
 
 点名示例：“我去问厨师：停电前后你在哪里？”、“管家”（只报名字也是选择）、“请先让律师说说，再让厨师说说”（本轮只选律师）、“不要让管家回答，请让厨师说说”（选厨师）。开场、转场、更正、安全、物品调查、证据核对和结案优先主持人；询问沈知秋房间不会误选沈知秋。匿名追问默认主持人，继续证人采访时请再点名。
 
-证人直接第一人称回答，不加“某某说/某某：”标签，只读自己的固定证词与已公开对话；不会收到主持人完整来源表、私密真相或原始召回笔记。Flowcraft 在调用前及回合结束时清理 channel 的 system/非文本消息，证人路径清空旧摘要；Eino 只把 user/assistant 公开正文作为 history 传给模型。主持人只在实际检查时披露对应来源；暂定指控厨师并要求反驳的复合回合仍先明确暂定，再第三人称转述固定厨师否认。
+证人直接第一人称回答，不加“某某说/某某：”标签，只读自己的固定证词与已公开对话；不会收到主持人完整来源表、私密真相或原始召回笔记。Flowcraft 在调用前及回合结束时清理 channel 的 system/非文本消息，证人路径清空旧摘要。主持人只在实际检查时披露对应来源；暂定指控厨师并要求反驳的复合回合仍先明确暂定，再第三人称转述固定厨师否认。
 
 离线校验能验证路由与 Voice 绑定，不能证明供应商开通、真实延迟或音质；在线 E2E、实际 Voice 日志与试听需另行执行。
 
 ## Testing
 
-Tester: `test.yaml` (`murder-mystery-test`, eino), shared by both implementations; the same 26 checkpoints and leakage guards run for each engine:
+Tester: `test.yaml` (`murder-mystery-test`, eino) drives the Flowcraft target through the same 26 checkpoints and leakage guards. The Tester engine is separate from the target implementation.
 
-- `tests/giztest/murder-mystery/{flowcraft,eino}.giztest.yaml`: 26-response relay, with reload, timeout 99m.
-- `{flowcraft,eino}.roles.giztest.yaml`: five isolated Workspaces per engine; witnesses receive the unchanged opening before their interview. Complete text/audio EOS and nonempty audio, plus 2s text / 3s audio first-response gates.
-- `{flowcraft,eino}.transitions.giztest.yaml`: seven turns covering name-only choice, witness knowledge boundary, negative naming/order, host accusation, unavailable witness and correction.
-- `routing-cases.json`: 77 shared offline cases, including every original checkpoint and legacy role normalization.
+- `tests/giztest/smoke/murder-mystery.giztest.yaml`: opening, five-role audio and independent 2s text / 3s audio response gates.
+- `tests/giztest/quality/murder-mystery.giztest.yaml`: investigation, witness knowledge, handoff and leakage contracts.
+- `tests/giztest/soak/murder-mystery.giztest.yaml`: 26-response Tester relay with reload.
+- `routing-cases.json`: 77 offline Flowcraft cases, including original checkpoints and legacy role normalization.
+
+Run `make test-e2e TIER=smoke RAID=murder-mystery`; see [the test guide](../../tests/giztest/README.md) for selection and budgets.
 
 The route has 26 target responses:
 

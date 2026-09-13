@@ -20,7 +20,8 @@ printf '%s\n' \
   'Variables:' \
   '  GIZCLAW=gizclaw        GizClaw CLI used for validation and Admin apply' \
   '  GIZCLAW_TEST_CLI       CLI providing `gizclaw test` (default: $GIZCLAW)' \
-  '  RAID=all               raid or single scenario for test-e2e, for example RAID=story-aesop or RAID=story-aesop/eino' \
+  '  TIER=all               smoke|quality|soak|all for test-e2e' \
+  '  RAID=all               raid name or all; example: TIER=smoke RAID=story-aesop' \
   '  PARALLEL=1             concurrent Giztest tasks for test-e2e' \
   '  APPLY=0                APPLY=1 applies the testing closure before test-e2e (needs Admin context)' \
   '  GIZCLAW_CONTEXT        Admin context used when APPLY=1' \

@@ -1,0 +1,1437 @@
+# User Story:
+# As a Raids catalog maintainer,
+# I want equal opening, role and realtime responsiveness gates for every implementation,
+# So that text and audio respond promptly without overlap or playback stalls.
+version: gizclaw.test/v1alpha1
+name: adventure-monster-maze.smoke
+clients:
+  flowcraft:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  eino:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+variables:
+  endpoint:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_ENDPOINT
+  registration_token:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_REGISTRATION_TOKEN
+    secret: true
+  flowcraft_text_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_text_workspace:
+    direction: input
+    type: string
+    generate: token
+  flowcraft_realtime_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_realtime_workspace:
+    direction: input
+    type: string
+    generate: token
+  input_audio:
+    direction: output
+    type: audio
+    max_bytes: 16777216
+    media_type: audio/ogg
+    codec: opus
+repeat: 1
+timeout: 12m
+steps:
+- id: flowcraft_register
+  client: flowcraft
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: eino_register
+  client: eino
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: flowcraft_create_text
+  client: flowcraft
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${flowcraft_text_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-adventure-monster-maze
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: flowcraft_select_text
+  client: flowcraft
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${flowcraft_text_workspace}"
+- id: flowcraft_warmup_text
+  client: flowcraft
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: eino_create_text
+  client: eino
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_text_workspace}"
+      collection: raidtest-targets
+      workflow_name: eino-adventure-monster-maze
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_select_text
+  client: eino
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${eino_text_workspace}"
+- id: eino_warmup_text
+  client: eino
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: flowcraft_create_realtime
+  client: flowcraft
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${flowcraft_realtime_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-adventure-monster-maze
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_REALTIME
+- id: eino_create_realtime
+  client: eino
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_realtime_workspace}"
+      collection: raidtest-targets
+      workflow_name: eino-adventure-monster-maze
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_REALTIME
+- id: probe_narrator
+  timeout: 2m
+  parallel:
+  - id: flowcraft_probe_narrator
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 开始怪兽迷宫，请简短介绍月亮、星星和太阳按钮。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: eino_probe_narrator
+    client: eino
+    peer_stream:
+      mode: text
+      input: 开始怪兽迷宫，请简短介绍月亮、星星和太阳按钮。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_probe_narrator/text_eos":
+      equals: true
+    "/flowcraft_probe_narrator/audio_eos":
+      equals: true
+    "/flowcraft_probe_narrator/audio_bytes":
+      minimum: 1
+    "/flowcraft_probe_narrator/first_text_ms":
+      maximum: 6000
+    "/flowcraft_probe_narrator/first_audio_ms":
+      maximum: 90000
+    "/flowcraft_probe_narrator/text":
+      not_contains:
+      - 攻击
+      - "###"
+      - "```"
+      - 旁白说
+      - 旁白：
+      contains_all:
+      - 月亮
+      - 星星
+      - 太阳
+      - 迷宫探险家
+      min_length: 20
+      max_length: 240
+      non_empty: true
+    "/flowcraft_probe_narrator/events":
+      non_empty: true
+    "/flowcraft_probe_narrator/text_eos_ms":
+      maximum: 90000
+    "/flowcraft_probe_narrator/audio_eos_ms":
+      maximum: 90000
+    "/flowcraft_probe_narrator/audio_integrity/streams":
+      minimum: 1
+    "/flowcraft_probe_narrator/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_probe_narrator/audio_integrity/open":
+      equals: 0
+    "/flowcraft_probe_narrator/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_probe_narrator/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/flowcraft_probe_narrator/audio_pacing/underruns":
+      equals: 0
+    "/eino_probe_narrator/text_eos":
+      equals: true
+    "/eino_probe_narrator/audio_eos":
+      equals: true
+    "/eino_probe_narrator/audio_bytes":
+      minimum: 1
+    "/eino_probe_narrator/first_text_ms":
+      maximum: 6000
+    "/eino_probe_narrator/first_audio_ms":
+      maximum: 90000
+    "/eino_probe_narrator/text":
+      not_contains:
+      - 攻击
+      - "###"
+      - "```"
+      - 旁白说
+      - 旁白：
+      contains_all:
+      - 月亮
+      - 星星
+      - 太阳
+      - 迷宫探险家
+      min_length: 20
+      max_length: 240
+      non_empty: true
+    "/eino_probe_narrator/events":
+      non_empty: true
+    "/eino_probe_narrator/text_eos_ms":
+      maximum: 90000
+    "/eino_probe_narrator/audio_eos_ms":
+      maximum: 90000
+    "/eino_probe_narrator/audio_integrity/streams":
+      minimum: 1
+    "/eino_probe_narrator/audio_integrity/max_active":
+      equals: 1
+    "/eino_probe_narrator/audio_integrity/open":
+      equals: 0
+    "/eino_probe_narrator/audio_integrity/violations":
+      equals: 0
+    "/eino_probe_narrator/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/eino_probe_narrator/audio_pacing/underruns":
+      equals: 0
+- id: probe_narrator_first_response
+  timeout: 15s
+  parallel:
+  - id: flowcraft_probe_narrator_first_response
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 开始迷宫
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+      require_text: true
+      require_audio: true
+  - id: eino_probe_narrator_first_response
+    client: eino
+    peer_stream:
+      mode: text
+      input: 开始迷宫
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_probe_narrator_first_response/events":
+      non_empty: true
+    "/flowcraft_probe_narrator_first_response/audio_bytes":
+      minimum: 1
+    "/flowcraft_probe_narrator_first_response/first_text_ms":
+      maximum: 2000
+    "/flowcraft_probe_narrator_first_response/first_audio_ms":
+      maximum: 3000
+    "/eino_probe_narrator_first_response/events":
+      non_empty: true
+    "/eino_probe_narrator_first_response/audio_bytes":
+      minimum: 1
+    "/eino_probe_narrator_first_response/first_text_ms":
+      maximum: 2000
+    "/eino_probe_narrator_first_response/first_audio_ms":
+      maximum: 3000
+- id: little-monster_scene_setup_1
+  timeout: 2m
+  parallel:
+  - id: flowcraft_little-monster_scene_setup_1
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 开始迷宫
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: eino_little-monster_scene_setup_1
+    client: eino
+    peer_stream:
+      mode: text
+      input: 开始迷宫
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_little-monster_scene_setup_1/text_eos":
+      equals: true
+    "/flowcraft_little-monster_scene_setup_1/audio_eos":
+      equals: true
+    "/flowcraft_little-monster_scene_setup_1/audio_bytes":
+      minimum: 1
+    "/flowcraft_little-monster_scene_setup_1/first_text_ms":
+      maximum: 6000
+    "/flowcraft_little-monster_scene_setup_1/first_audio_ms":
+      maximum: 90000
+    "/flowcraft_little-monster_scene_setup_1/events":
+      non_empty: true
+    "/flowcraft_little-monster_scene_setup_1/text":
+      non_empty: true
+    "/flowcraft_little-monster_scene_setup_1/text_eos_ms":
+      maximum: 90000
+    "/flowcraft_little-monster_scene_setup_1/audio_eos_ms":
+      maximum: 90000
+    "/flowcraft_little-monster_scene_setup_1/audio_integrity/streams":
+      minimum: 1
+    "/flowcraft_little-monster_scene_setup_1/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_little-monster_scene_setup_1/audio_integrity/open":
+      equals: 0
+    "/flowcraft_little-monster_scene_setup_1/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_little-monster_scene_setup_1/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/flowcraft_little-monster_scene_setup_1/audio_pacing/underruns":
+      equals: 0
+    "/eino_little-monster_scene_setup_1/text_eos":
+      equals: true
+    "/eino_little-monster_scene_setup_1/audio_eos":
+      equals: true
+    "/eino_little-monster_scene_setup_1/audio_bytes":
+      minimum: 1
+    "/eino_little-monster_scene_setup_1/first_text_ms":
+      maximum: 6000
+    "/eino_little-monster_scene_setup_1/first_audio_ms":
+      maximum: 90000
+    "/eino_little-monster_scene_setup_1/events":
+      non_empty: true
+    "/eino_little-monster_scene_setup_1/text":
+      non_empty: true
+    "/eino_little-monster_scene_setup_1/text_eos_ms":
+      maximum: 90000
+    "/eino_little-monster_scene_setup_1/audio_eos_ms":
+      maximum: 90000
+    "/eino_little-monster_scene_setup_1/audio_integrity/streams":
+      minimum: 1
+    "/eino_little-monster_scene_setup_1/audio_integrity/max_active":
+      equals: 1
+    "/eino_little-monster_scene_setup_1/audio_integrity/open":
+      equals: 0
+    "/eino_little-monster_scene_setup_1/audio_integrity/violations":
+      equals: 0
+    "/eino_little-monster_scene_setup_1/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/eino_little-monster_scene_setup_1/audio_pacing/underruns":
+      equals: 0
+- id: little-monster_scene_setup_2
+  timeout: 2m
+  parallel:
+  - id: flowcraft_little-monster_scene_setup_2
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 我按月亮按钮，先写门的反应。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: eino_little-monster_scene_setup_2
+    client: eino
+    peer_stream:
+      mode: text
+      input: 我按月亮按钮，先写门的反应。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_little-monster_scene_setup_2/text_eos":
+      equals: true
+    "/flowcraft_little-monster_scene_setup_2/audio_eos":
+      equals: true
+    "/flowcraft_little-monster_scene_setup_2/audio_bytes":
+      minimum: 1
+    "/flowcraft_little-monster_scene_setup_2/first_text_ms":
+      maximum: 6000
+    "/flowcraft_little-monster_scene_setup_2/first_audio_ms":
+      maximum: 90000
+    "/flowcraft_little-monster_scene_setup_2/events":
+      non_empty: true
+    "/flowcraft_little-monster_scene_setup_2/text":
+      non_empty: true
+    "/flowcraft_little-monster_scene_setup_2/text_eos_ms":
+      maximum: 90000
+    "/flowcraft_little-monster_scene_setup_2/audio_eos_ms":
+      maximum: 90000
+    "/flowcraft_little-monster_scene_setup_2/audio_integrity/streams":
+      minimum: 1
+    "/flowcraft_little-monster_scene_setup_2/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_little-monster_scene_setup_2/audio_integrity/open":
+      equals: 0
+    "/flowcraft_little-monster_scene_setup_2/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_little-monster_scene_setup_2/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/flowcraft_little-monster_scene_setup_2/audio_pacing/underruns":
+      equals: 0
+    "/eino_little-monster_scene_setup_2/text_eos":
+      equals: true
+    "/eino_little-monster_scene_setup_2/audio_eos":
+      equals: true
+    "/eino_little-monster_scene_setup_2/audio_bytes":
+      minimum: 1
+    "/eino_little-monster_scene_setup_2/first_text_ms":
+      maximum: 6000
+    "/eino_little-monster_scene_setup_2/first_audio_ms":
+      maximum: 90000
+    "/eino_little-monster_scene_setup_2/events":
+      non_empty: true
+    "/eino_little-monster_scene_setup_2/text":
+      non_empty: true
+    "/eino_little-monster_scene_setup_2/text_eos_ms":
+      maximum: 90000
+    "/eino_little-monster_scene_setup_2/audio_eos_ms":
+      maximum: 90000
+    "/eino_little-monster_scene_setup_2/audio_integrity/streams":
+      minimum: 1
+    "/eino_little-monster_scene_setup_2/audio_integrity/max_active":
+      equals: 1
+    "/eino_little-monster_scene_setup_2/audio_integrity/open":
+      equals: 0
+    "/eino_little-monster_scene_setup_2/audio_integrity/violations":
+      equals: 0
+    "/eino_little-monster_scene_setup_2/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/eino_little-monster_scene_setup_2/audio_pacing/underruns":
+      equals: 0
+- id: little-monster_scene_setup_3
+  timeout: 2m
+  parallel:
+  - id: flowcraft_little-monster_scene_setup_3
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 门后地图显示右边通往蘑菇花园，我走到右边门查看圆形、三角形、方形锁孔。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: eino_little-monster_scene_setup_3
+    client: eino
+    peer_stream:
+      mode: text
+      input: 门后地图显示右边通往蘑菇花园，我走到右边门查看圆形、三角形、方形锁孔。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_little-monster_scene_setup_3/text_eos":
+      equals: true
+    "/flowcraft_little-monster_scene_setup_3/audio_eos":
+      equals: true
+    "/flowcraft_little-monster_scene_setup_3/audio_bytes":
+      minimum: 1
+    "/flowcraft_little-monster_scene_setup_3/first_text_ms":
+      maximum: 6000
+    "/flowcraft_little-monster_scene_setup_3/first_audio_ms":
+      maximum: 90000
+    "/flowcraft_little-monster_scene_setup_3/events":
+      non_empty: true
+    "/flowcraft_little-monster_scene_setup_3/text":
+      non_empty: true
+    "/flowcraft_little-monster_scene_setup_3/text_eos_ms":
+      maximum: 90000
+    "/flowcraft_little-monster_scene_setup_3/audio_eos_ms":
+      maximum: 90000
+    "/flowcraft_little-monster_scene_setup_3/audio_integrity/streams":
+      minimum: 1
+    "/flowcraft_little-monster_scene_setup_3/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_little-monster_scene_setup_3/audio_integrity/open":
+      equals: 0
+    "/flowcraft_little-monster_scene_setup_3/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_little-monster_scene_setup_3/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/flowcraft_little-monster_scene_setup_3/audio_pacing/underruns":
+      equals: 0
+    "/eino_little-monster_scene_setup_3/text_eos":
+      equals: true
+    "/eino_little-monster_scene_setup_3/audio_eos":
+      equals: true
+    "/eino_little-monster_scene_setup_3/audio_bytes":
+      minimum: 1
+    "/eino_little-monster_scene_setup_3/first_text_ms":
+      maximum: 6000
+    "/eino_little-monster_scene_setup_3/first_audio_ms":
+      maximum: 90000
+    "/eino_little-monster_scene_setup_3/events":
+      non_empty: true
+    "/eino_little-monster_scene_setup_3/text":
+      non_empty: true
+    "/eino_little-monster_scene_setup_3/text_eos_ms":
+      maximum: 90000
+    "/eino_little-monster_scene_setup_3/audio_eos_ms":
+      maximum: 90000
+    "/eino_little-monster_scene_setup_3/audio_integrity/streams":
+      minimum: 1
+    "/eino_little-monster_scene_setup_3/audio_integrity/max_active":
+      equals: 1
+    "/eino_little-monster_scene_setup_3/audio_integrity/open":
+      equals: 0
+    "/eino_little-monster_scene_setup_3/audio_integrity/violations":
+      equals: 0
+    "/eino_little-monster_scene_setup_3/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/eino_little-monster_scene_setup_3/audio_pacing/underruns":
+      equals: 0
+- id: little-monster_scene_setup_4
+  timeout: 2m
+  parallel:
+  - id: flowcraft_little-monster_scene_setup_4
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 我解开锁后遇到一只打喷嚏的小怪兽。让它成为帮手。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: eino_little-monster_scene_setup_4
+    client: eino
+    peer_stream:
+      mode: text
+      input: 我解开锁后遇到一只打喷嚏的小怪兽。让它成为帮手。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_little-monster_scene_setup_4/text_eos":
+      equals: true
+    "/flowcraft_little-monster_scene_setup_4/audio_eos":
+      equals: true
+    "/flowcraft_little-monster_scene_setup_4/audio_bytes":
+      minimum: 1
+    "/flowcraft_little-monster_scene_setup_4/first_text_ms":
+      maximum: 6000
+    "/flowcraft_little-monster_scene_setup_4/first_audio_ms":
+      maximum: 90000
+    "/flowcraft_little-monster_scene_setup_4/events":
+      non_empty: true
+    "/flowcraft_little-monster_scene_setup_4/text":
+      non_empty: true
+    "/flowcraft_little-monster_scene_setup_4/text_eos_ms":
+      maximum: 90000
+    "/flowcraft_little-monster_scene_setup_4/audio_eos_ms":
+      maximum: 90000
+    "/flowcraft_little-monster_scene_setup_4/audio_integrity/streams":
+      minimum: 1
+    "/flowcraft_little-monster_scene_setup_4/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_little-monster_scene_setup_4/audio_integrity/open":
+      equals: 0
+    "/flowcraft_little-monster_scene_setup_4/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_little-monster_scene_setup_4/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/flowcraft_little-monster_scene_setup_4/audio_pacing/underruns":
+      equals: 0
+    "/eino_little-monster_scene_setup_4/text_eos":
+      equals: true
+    "/eino_little-monster_scene_setup_4/audio_eos":
+      equals: true
+    "/eino_little-monster_scene_setup_4/audio_bytes":
+      minimum: 1
+    "/eino_little-monster_scene_setup_4/first_text_ms":
+      maximum: 6000
+    "/eino_little-monster_scene_setup_4/first_audio_ms":
+      maximum: 90000
+    "/eino_little-monster_scene_setup_4/events":
+      non_empty: true
+    "/eino_little-monster_scene_setup_4/text":
+      non_empty: true
+    "/eino_little-monster_scene_setup_4/text_eos_ms":
+      maximum: 90000
+    "/eino_little-monster_scene_setup_4/audio_eos_ms":
+      maximum: 90000
+    "/eino_little-monster_scene_setup_4/audio_integrity/streams":
+      minimum: 1
+    "/eino_little-monster_scene_setup_4/audio_integrity/max_active":
+      equals: 1
+    "/eino_little-monster_scene_setup_4/audio_integrity/open":
+      equals: 0
+    "/eino_little-monster_scene_setup_4/audio_integrity/violations":
+      equals: 0
+    "/eino_little-monster_scene_setup_4/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/eino_little-monster_scene_setup_4/audio_pacing/underruns":
+      equals: 0
+- id: little-monster_confirm_scene
+  timeout: 2m
+  parallel:
+  - id: flowcraft_little-monster_confirm_scene
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 现在处于哪个阶段或区域？请用当前场景名称回答。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: eino_little-monster_confirm_scene
+    client: eino
+    peer_stream:
+      mode: text
+      input: 现在处于哪个阶段或区域？请用当前场景名称回答。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_little-monster_confirm_scene/text_eos":
+      equals: true
+    "/flowcraft_little-monster_confirm_scene/audio_eos":
+      equals: true
+    "/flowcraft_little-monster_confirm_scene/audio_bytes":
+      minimum: 1
+    "/flowcraft_little-monster_confirm_scene/first_text_ms":
+      maximum: 6000
+    "/flowcraft_little-monster_confirm_scene/first_audio_ms":
+      maximum: 90000
+    "/flowcraft_little-monster_confirm_scene/text":
+      contains: 怪兽合作
+      non_empty: true
+    "/flowcraft_little-monster_confirm_scene/events":
+      non_empty: true
+    "/flowcraft_little-monster_confirm_scene/text_eos_ms":
+      maximum: 90000
+    "/flowcraft_little-monster_confirm_scene/audio_eos_ms":
+      maximum: 90000
+    "/flowcraft_little-monster_confirm_scene/audio_integrity/streams":
+      minimum: 1
+    "/flowcraft_little-monster_confirm_scene/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_little-monster_confirm_scene/audio_integrity/open":
+      equals: 0
+    "/flowcraft_little-monster_confirm_scene/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_little-monster_confirm_scene/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/flowcraft_little-monster_confirm_scene/audio_pacing/underruns":
+      equals: 0
+    "/eino_little-monster_confirm_scene/text_eos":
+      equals: true
+    "/eino_little-monster_confirm_scene/audio_eos":
+      equals: true
+    "/eino_little-monster_confirm_scene/audio_bytes":
+      minimum: 1
+    "/eino_little-monster_confirm_scene/first_text_ms":
+      maximum: 6000
+    "/eino_little-monster_confirm_scene/first_audio_ms":
+      maximum: 90000
+    "/eino_little-monster_confirm_scene/text":
+      contains: 怪兽合作
+      non_empty: true
+    "/eino_little-monster_confirm_scene/events":
+      non_empty: true
+    "/eino_little-monster_confirm_scene/text_eos_ms":
+      maximum: 90000
+    "/eino_little-monster_confirm_scene/audio_eos_ms":
+      maximum: 90000
+    "/eino_little-monster_confirm_scene/audio_integrity/streams":
+      minimum: 1
+    "/eino_little-monster_confirm_scene/audio_integrity/max_active":
+      equals: 1
+    "/eino_little-monster_confirm_scene/audio_integrity/open":
+      equals: 0
+    "/eino_little-monster_confirm_scene/audio_integrity/violations":
+      equals: 0
+    "/eino_little-monster_confirm_scene/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/eino_little-monster_confirm_scene/audio_pacing/underruns":
+      equals: 0
+- id: little-monster_confirm_scene_first_response
+  timeout: 15s
+  parallel:
+  - id: flowcraft_little-monster_confirm_scene_first_response
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 现在处于哪个阶段或区域？请用当前场景名称回答。
+      require_text: true
+      require_audio: true
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+  - id: eino_little-monster_confirm_scene_first_response
+    client: eino
+    peer_stream:
+      mode: text
+      input: 现在处于哪个阶段或区域？请用当前场景名称回答。
+      require_text: true
+      require_audio: true
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+  expect:
+    "/flowcraft_little-monster_confirm_scene_first_response/events":
+      non_empty: true
+    "/flowcraft_little-monster_confirm_scene_first_response/audio_bytes":
+      minimum: 1
+    "/flowcraft_little-monster_confirm_scene_first_response/first_text_ms":
+      maximum: 2000
+    "/flowcraft_little-monster_confirm_scene_first_response/first_audio_ms":
+      maximum: 3000
+    "/eino_little-monster_confirm_scene_first_response/events":
+      non_empty: true
+    "/eino_little-monster_confirm_scene_first_response/audio_bytes":
+      minimum: 1
+    "/eino_little-monster_confirm_scene_first_response/first_text_ms":
+      maximum: 2000
+    "/eino_little-monster_confirm_scene_first_response/first_audio_ms":
+      maximum: 3000
+- id: probe_little-monster
+  timeout: 2m
+  parallel:
+  - id: flowcraft_probe_little-monster
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 请让小怪兽亲自回应。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: eino_probe_little-monster
+    client: eino
+    peer_stream:
+      mode: text
+      input: 请让小怪兽亲自回应。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_probe_little-monster/text_eos":
+      equals: true
+    "/flowcraft_probe_little-monster/audio_eos":
+      equals: true
+    "/flowcraft_probe_little-monster/audio_bytes":
+      minimum: 1
+    "/flowcraft_probe_little-monster/first_text_ms":
+      maximum: 6000
+    "/flowcraft_probe_little-monster/first_audio_ms":
+      maximum: 90000
+    "/flowcraft_probe_little-monster/text":
+      not_contains:
+      - 小怪兽说
+      - 小怪兽：
+      non_empty: true
+    "/flowcraft_probe_little-monster/events":
+      non_empty: true
+    "/flowcraft_probe_little-monster/text_eos_ms":
+      maximum: 90000
+    "/flowcraft_probe_little-monster/audio_eos_ms":
+      maximum: 90000
+    "/flowcraft_probe_little-monster/audio_integrity/streams":
+      minimum: 1
+    "/flowcraft_probe_little-monster/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_probe_little-monster/audio_integrity/open":
+      equals: 0
+    "/flowcraft_probe_little-monster/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_probe_little-monster/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/flowcraft_probe_little-monster/audio_pacing/underruns":
+      equals: 0
+    "/eino_probe_little-monster/text_eos":
+      equals: true
+    "/eino_probe_little-monster/audio_eos":
+      equals: true
+    "/eino_probe_little-monster/audio_bytes":
+      minimum: 1
+    "/eino_probe_little-monster/first_text_ms":
+      maximum: 6000
+    "/eino_probe_little-monster/first_audio_ms":
+      maximum: 90000
+    "/eino_probe_little-monster/text":
+      not_contains:
+      - 小怪兽说
+      - 小怪兽：
+      non_empty: true
+    "/eino_probe_little-monster/events":
+      non_empty: true
+    "/eino_probe_little-monster/text_eos_ms":
+      maximum: 90000
+    "/eino_probe_little-monster/audio_eos_ms":
+      maximum: 90000
+    "/eino_probe_little-monster/audio_integrity/streams":
+      minimum: 1
+    "/eino_probe_little-monster/audio_integrity/max_active":
+      equals: 1
+    "/eino_probe_little-monster/audio_integrity/open":
+      equals: 0
+    "/eino_probe_little-monster/audio_integrity/violations":
+      equals: 0
+    "/eino_probe_little-monster/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/eino_probe_little-monster/audio_pacing/underruns":
+      equals: 0
+- id: probe_little-monster_first_response
+  timeout: 15s
+  parallel:
+  - id: flowcraft_probe_little-monster_first_response
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 请让小怪兽亲自回应。
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+      require_text: true
+      require_audio: true
+  - id: eino_probe_little-monster_first_response
+    client: eino
+    peer_stream:
+      mode: text
+      input: 请让小怪兽亲自回应。
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_probe_little-monster_first_response/events":
+      non_empty: true
+    "/flowcraft_probe_little-monster_first_response/audio_bytes":
+      minimum: 1
+    "/flowcraft_probe_little-monster_first_response/first_text_ms":
+      maximum: 2000
+    "/flowcraft_probe_little-monster_first_response/first_audio_ms":
+      maximum: 3000
+    "/eino_probe_little-monster_first_response/events":
+      non_empty: true
+    "/eino_probe_little-monster_first_response/audio_bytes":
+      minimum: 1
+    "/eino_probe_little-monster_first_response/first_text_ms":
+      maximum: 2000
+    "/eino_probe_little-monster_first_response/first_audio_ms":
+      maximum: 3000
+- id: probe_gatekeeper
+  timeout: 2m
+  parallel:
+  - id: flowcraft_probe_gatekeeper
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 请让守门怪兽亲自回应。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: eino_probe_gatekeeper
+    client: eino
+    peer_stream:
+      mode: text
+      input: 请让守门怪兽亲自回应。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_probe_gatekeeper/text_eos":
+      equals: true
+    "/flowcraft_probe_gatekeeper/audio_eos":
+      equals: true
+    "/flowcraft_probe_gatekeeper/audio_bytes":
+      minimum: 1
+    "/flowcraft_probe_gatekeeper/first_text_ms":
+      maximum: 6000
+    "/flowcraft_probe_gatekeeper/first_audio_ms":
+      maximum: 90000
+    "/flowcraft_probe_gatekeeper/text":
+      not_contains:
+      - 守门怪兽说
+      - 守门怪兽：
+      non_empty: true
+    "/flowcraft_probe_gatekeeper/events":
+      non_empty: true
+    "/flowcraft_probe_gatekeeper/text_eos_ms":
+      maximum: 90000
+    "/flowcraft_probe_gatekeeper/audio_eos_ms":
+      maximum: 90000
+    "/flowcraft_probe_gatekeeper/audio_integrity/streams":
+      minimum: 1
+    "/flowcraft_probe_gatekeeper/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_probe_gatekeeper/audio_integrity/open":
+      equals: 0
+    "/flowcraft_probe_gatekeeper/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_probe_gatekeeper/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/flowcraft_probe_gatekeeper/audio_pacing/underruns":
+      equals: 0
+    "/eino_probe_gatekeeper/text_eos":
+      equals: true
+    "/eino_probe_gatekeeper/audio_eos":
+      equals: true
+    "/eino_probe_gatekeeper/audio_bytes":
+      minimum: 1
+    "/eino_probe_gatekeeper/first_text_ms":
+      maximum: 6000
+    "/eino_probe_gatekeeper/first_audio_ms":
+      maximum: 90000
+    "/eino_probe_gatekeeper/text":
+      not_contains:
+      - 守门怪兽说
+      - 守门怪兽：
+      non_empty: true
+    "/eino_probe_gatekeeper/events":
+      non_empty: true
+    "/eino_probe_gatekeeper/text_eos_ms":
+      maximum: 90000
+    "/eino_probe_gatekeeper/audio_eos_ms":
+      maximum: 90000
+    "/eino_probe_gatekeeper/audio_integrity/streams":
+      minimum: 1
+    "/eino_probe_gatekeeper/audio_integrity/max_active":
+      equals: 1
+    "/eino_probe_gatekeeper/audio_integrity/open":
+      equals: 0
+    "/eino_probe_gatekeeper/audio_integrity/violations":
+      equals: 0
+    "/eino_probe_gatekeeper/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/eino_probe_gatekeeper/audio_pacing/underruns":
+      equals: 0
+- id: probe_gatekeeper_first_response
+  timeout: 15s
+  parallel:
+  - id: flowcraft_probe_gatekeeper_first_response
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 请让守门怪兽亲自回应。
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+      require_text: true
+      require_audio: true
+  - id: eino_probe_gatekeeper_first_response
+    client: eino
+    peer_stream:
+      mode: text
+      input: 请让守门怪兽亲自回应。
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_probe_gatekeeper_first_response/events":
+      non_empty: true
+    "/flowcraft_probe_gatekeeper_first_response/audio_bytes":
+      minimum: 1
+    "/flowcraft_probe_gatekeeper_first_response/first_text_ms":
+      maximum: 2000
+    "/flowcraft_probe_gatekeeper_first_response/first_audio_ms":
+      maximum: 3000
+    "/eino_probe_gatekeeper_first_response/events":
+      non_empty: true
+    "/eino_probe_gatekeeper_first_response/audio_bytes":
+      minimum: 1
+    "/eino_probe_gatekeeper_first_response/first_text_ms":
+      maximum: 2000
+    "/eino_probe_gatekeeper_first_response/first_audio_ms":
+      maximum: 3000
+- id: riddle-spirit_confirm_scene
+  timeout: 2m
+  parallel:
+  - id: flowcraft_riddle-spirit_confirm_scene
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 现在处于哪个阶段或区域？请用当前场景名称回答。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: eino_riddle-spirit_confirm_scene
+    client: eino
+    peer_stream:
+      mode: text
+      input: 现在处于哪个阶段或区域？请用当前场景名称回答。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_riddle-spirit_confirm_scene/text_eos":
+      equals: true
+    "/flowcraft_riddle-spirit_confirm_scene/audio_eos":
+      equals: true
+    "/flowcraft_riddle-spirit_confirm_scene/audio_bytes":
+      minimum: 1
+    "/flowcraft_riddle-spirit_confirm_scene/first_text_ms":
+      maximum: 6000
+    "/flowcraft_riddle-spirit_confirm_scene/first_audio_ms":
+      maximum: 90000
+    "/flowcraft_riddle-spirit_confirm_scene/text":
+      contains: 锁孔谜题
+      non_empty: true
+    "/flowcraft_riddle-spirit_confirm_scene/events":
+      non_empty: true
+    "/flowcraft_riddle-spirit_confirm_scene/text_eos_ms":
+      maximum: 90000
+    "/flowcraft_riddle-spirit_confirm_scene/audio_eos_ms":
+      maximum: 90000
+    "/flowcraft_riddle-spirit_confirm_scene/audio_integrity/streams":
+      minimum: 1
+    "/flowcraft_riddle-spirit_confirm_scene/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_riddle-spirit_confirm_scene/audio_integrity/open":
+      equals: 0
+    "/flowcraft_riddle-spirit_confirm_scene/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_riddle-spirit_confirm_scene/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/flowcraft_riddle-spirit_confirm_scene/audio_pacing/underruns":
+      equals: 0
+    "/eino_riddle-spirit_confirm_scene/text_eos":
+      equals: true
+    "/eino_riddle-spirit_confirm_scene/audio_eos":
+      equals: true
+    "/eino_riddle-spirit_confirm_scene/audio_bytes":
+      minimum: 1
+    "/eino_riddle-spirit_confirm_scene/first_text_ms":
+      maximum: 6000
+    "/eino_riddle-spirit_confirm_scene/first_audio_ms":
+      maximum: 90000
+    "/eino_riddle-spirit_confirm_scene/text":
+      contains: 锁孔谜题
+      non_empty: true
+    "/eino_riddle-spirit_confirm_scene/events":
+      non_empty: true
+    "/eino_riddle-spirit_confirm_scene/text_eos_ms":
+      maximum: 90000
+    "/eino_riddle-spirit_confirm_scene/audio_eos_ms":
+      maximum: 90000
+    "/eino_riddle-spirit_confirm_scene/audio_integrity/streams":
+      minimum: 1
+    "/eino_riddle-spirit_confirm_scene/audio_integrity/max_active":
+      equals: 1
+    "/eino_riddle-spirit_confirm_scene/audio_integrity/open":
+      equals: 0
+    "/eino_riddle-spirit_confirm_scene/audio_integrity/violations":
+      equals: 0
+    "/eino_riddle-spirit_confirm_scene/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/eino_riddle-spirit_confirm_scene/audio_pacing/underruns":
+      equals: 0
+- id: riddle-spirit_confirm_scene_first_response
+  timeout: 15s
+  parallel:
+  - id: flowcraft_riddle-spirit_confirm_scene_first_response
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 现在处于哪个阶段或区域？请用当前场景名称回答。
+      require_text: true
+      require_audio: true
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+  - id: eino_riddle-spirit_confirm_scene_first_response
+    client: eino
+    peer_stream:
+      mode: text
+      input: 现在处于哪个阶段或区域？请用当前场景名称回答。
+      require_text: true
+      require_audio: true
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+  expect:
+    "/flowcraft_riddle-spirit_confirm_scene_first_response/events":
+      non_empty: true
+    "/flowcraft_riddle-spirit_confirm_scene_first_response/audio_bytes":
+      minimum: 1
+    "/flowcraft_riddle-spirit_confirm_scene_first_response/first_text_ms":
+      maximum: 2000
+    "/flowcraft_riddle-spirit_confirm_scene_first_response/first_audio_ms":
+      maximum: 3000
+    "/eino_riddle-spirit_confirm_scene_first_response/events":
+      non_empty: true
+    "/eino_riddle-spirit_confirm_scene_first_response/audio_bytes":
+      minimum: 1
+    "/eino_riddle-spirit_confirm_scene_first_response/first_text_ms":
+      maximum: 2000
+    "/eino_riddle-spirit_confirm_scene_first_response/first_audio_ms":
+      maximum: 3000
+- id: probe_riddle-spirit
+  timeout: 2m
+  parallel:
+  - id: flowcraft_probe_riddle-spirit
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 请让谜题精灵亲自回应。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: eino_probe_riddle-spirit
+    client: eino
+    peer_stream:
+      mode: text
+      input: 请让谜题精灵亲自回应。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_probe_riddle-spirit/text_eos":
+      equals: true
+    "/flowcraft_probe_riddle-spirit/audio_eos":
+      equals: true
+    "/flowcraft_probe_riddle-spirit/audio_bytes":
+      minimum: 1
+    "/flowcraft_probe_riddle-spirit/first_text_ms":
+      maximum: 6000
+    "/flowcraft_probe_riddle-spirit/first_audio_ms":
+      maximum: 90000
+    "/flowcraft_probe_riddle-spirit/text":
+      not_contains:
+      - 谜题精灵说
+      - 谜题精灵：
+      non_empty: true
+    "/flowcraft_probe_riddle-spirit/events":
+      non_empty: true
+    "/flowcraft_probe_riddle-spirit/text_eos_ms":
+      maximum: 90000
+    "/flowcraft_probe_riddle-spirit/audio_eos_ms":
+      maximum: 90000
+    "/flowcraft_probe_riddle-spirit/audio_integrity/streams":
+      minimum: 1
+    "/flowcraft_probe_riddle-spirit/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_probe_riddle-spirit/audio_integrity/open":
+      equals: 0
+    "/flowcraft_probe_riddle-spirit/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_probe_riddle-spirit/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/flowcraft_probe_riddle-spirit/audio_pacing/underruns":
+      equals: 0
+    "/eino_probe_riddle-spirit/text_eos":
+      equals: true
+    "/eino_probe_riddle-spirit/audio_eos":
+      equals: true
+    "/eino_probe_riddle-spirit/audio_bytes":
+      minimum: 1
+    "/eino_probe_riddle-spirit/first_text_ms":
+      maximum: 6000
+    "/eino_probe_riddle-spirit/first_audio_ms":
+      maximum: 90000
+    "/eino_probe_riddle-spirit/text":
+      not_contains:
+      - 谜题精灵说
+      - 谜题精灵：
+      non_empty: true
+    "/eino_probe_riddle-spirit/events":
+      non_empty: true
+    "/eino_probe_riddle-spirit/text_eos_ms":
+      maximum: 90000
+    "/eino_probe_riddle-spirit/audio_eos_ms":
+      maximum: 90000
+    "/eino_probe_riddle-spirit/audio_integrity/streams":
+      minimum: 1
+    "/eino_probe_riddle-spirit/audio_integrity/max_active":
+      equals: 1
+    "/eino_probe_riddle-spirit/audio_integrity/open":
+      equals: 0
+    "/eino_probe_riddle-spirit/audio_integrity/violations":
+      equals: 0
+    "/eino_probe_riddle-spirit/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/eino_probe_riddle-spirit/audio_pacing/underruns":
+      equals: 0
+- id: probe_riddle-spirit_first_response
+  timeout: 15s
+  parallel:
+  - id: flowcraft_probe_riddle-spirit_first_response
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 请让谜题精灵亲自回应。
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+      require_text: true
+      require_audio: true
+  - id: eino_probe_riddle-spirit_first_response
+    client: eino
+    peer_stream:
+      mode: text
+      input: 请让谜题精灵亲自回应。
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_probe_riddle-spirit_first_response/events":
+      non_empty: true
+    "/flowcraft_probe_riddle-spirit_first_response/audio_bytes":
+      minimum: 1
+    "/flowcraft_probe_riddle-spirit_first_response/first_text_ms":
+      maximum: 2000
+    "/flowcraft_probe_riddle-spirit_first_response/first_audio_ms":
+      maximum: 3000
+    "/eino_probe_riddle-spirit_first_response/events":
+      non_empty: true
+    "/eino_probe_riddle-spirit_first_response/audio_bytes":
+      minimum: 1
+    "/eino_probe_riddle-spirit_first_response/first_text_ms":
+      maximum: 2000
+    "/eino_probe_riddle-spirit_first_response/first_audio_ms":
+      maximum: 3000
+- id: flowcraft_select_realtime
+  client: flowcraft
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${flowcraft_realtime_workspace}"
+- id: flowcraft_warmup_realtime
+  client: flowcraft
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: eino_select_realtime
+  client: eino
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${eino_realtime_workspace}"
+- id: eino_warmup_realtime
+  client: eino
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: synthesize_input_audio
+  client: flowcraft
+  speech:
+    method: server.speech.synthesize
+    request:
+      voice_name: giztest-input.zh
+      text: 请简短介绍当前故事，并告诉我现在可以做什么。
+      accepted_content_types:
+      - audio/ogg
+    cache: run
+  save_as: input_audio
+- id: realtime_roundtrip
+  timeout: 2m
+  parallel:
+  - id: flowcraft_realtime_roundtrip
+    client: flowcraft
+    peer_stream:
+      mode: realtime
+      input: "${input_audio}"
+      pacing: 20ms
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: eino_realtime_roundtrip
+    client: eino
+    peer_stream:
+      mode: realtime
+      input: "${input_audio}"
+      pacing: 20ms
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_realtime_roundtrip/events":
+      non_empty: true
+    "/flowcraft_realtime_roundtrip/text":
+      non_empty: true
+    "/flowcraft_realtime_roundtrip/text_eos":
+      equals: true
+    "/flowcraft_realtime_roundtrip/audio_bytes":
+      minimum: 1
+    "/flowcraft_realtime_roundtrip/audio_eos":
+      equals: true
+    "/flowcraft_realtime_roundtrip/first_text_ms":
+      maximum: 6000
+    "/flowcraft_realtime_roundtrip/first_audio_ms":
+      maximum: 90000
+    "/flowcraft_realtime_roundtrip/text_eos_ms":
+      maximum: 90000
+    "/flowcraft_realtime_roundtrip/audio_eos_ms":
+      maximum: 90000
+    "/flowcraft_realtime_roundtrip/audio_integrity/streams":
+      minimum: 1
+    "/flowcraft_realtime_roundtrip/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_realtime_roundtrip/audio_integrity/open":
+      equals: 0
+    "/flowcraft_realtime_roundtrip/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_realtime_roundtrip/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/flowcraft_realtime_roundtrip/audio_pacing/underruns":
+      equals: 0
+    "/eino_realtime_roundtrip/events":
+      non_empty: true
+    "/eino_realtime_roundtrip/text":
+      non_empty: true
+    "/eino_realtime_roundtrip/text_eos":
+      equals: true
+    "/eino_realtime_roundtrip/audio_bytes":
+      minimum: 1
+    "/eino_realtime_roundtrip/audio_eos":
+      equals: true
+    "/eino_realtime_roundtrip/first_text_ms":
+      maximum: 6000
+    "/eino_realtime_roundtrip/first_audio_ms":
+      maximum: 90000
+    "/eino_realtime_roundtrip/text_eos_ms":
+      maximum: 90000
+    "/eino_realtime_roundtrip/audio_eos_ms":
+      maximum: 90000
+    "/eino_realtime_roundtrip/audio_integrity/streams":
+      minimum: 1
+    "/eino_realtime_roundtrip/audio_integrity/max_active":
+      equals: 1
+    "/eino_realtime_roundtrip/audio_integrity/open":
+      equals: 0
+    "/eino_realtime_roundtrip/audio_integrity/violations":
+      equals: 0
+    "/eino_realtime_roundtrip/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/eino_realtime_roundtrip/audio_pacing/underruns":
+      equals: 0
+- id: realtime_roundtrip_first_response
+  timeout: 15s
+  parallel:
+  - id: flowcraft_realtime_roundtrip_first_response
+    client: flowcraft
+    peer_stream:
+      mode: realtime
+      input: "${input_audio}"
+      pacing: 20ms
+      require_text: true
+      require_audio: true
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+  - id: eino_realtime_roundtrip_first_response
+    client: eino
+    peer_stream:
+      mode: realtime
+      input: "${input_audio}"
+      pacing: 20ms
+      require_text: true
+      require_audio: true
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+  expect:
+    "/flowcraft_realtime_roundtrip_first_response/events":
+      non_empty: true
+    "/flowcraft_realtime_roundtrip_first_response/audio_bytes":
+      minimum: 1
+    "/flowcraft_realtime_roundtrip_first_response/first_text_ms":
+      maximum: 2000
+    "/flowcraft_realtime_roundtrip_first_response/first_audio_ms":
+      maximum: 3000
+    "/eino_realtime_roundtrip_first_response/events":
+      non_empty: true
+    "/eino_realtime_roundtrip_first_response/audio_bytes":
+      minimum: 1
+    "/eino_realtime_roundtrip_first_response/first_text_ms":
+      maximum: 2000
+    "/eino_realtime_roundtrip_first_response/first_audio_ms":
+      maximum: 3000
+finally:
+- id: flowcraft_stop_run
+  client: flowcraft
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: eino_stop_run
+  client: eino
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: flowcraft_delete_text
+  client: flowcraft
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${flowcraft_text_workspace}"
+- id: eino_delete_text
+  client: eino
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${eino_text_workspace}"
+- id: flowcraft_delete_realtime
+  client: flowcraft
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${flowcraft_realtime_workspace}"
+- id: eino_delete_realtime
+  client: eino
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${eino_realtime_workspace}"
+- id: flowcraft_delete_peer
+  client: flowcraft
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: eino_delete_peer
+  client: eino
+  rpc:
+    method: server.peer.delete
+    request: {}
+report:
+  redact:
+  - registration_token

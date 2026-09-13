@@ -1,0 +1,2173 @@
+# User Story:
+# As a Raids catalog maintainer,
+# I want equal opening, role and realtime responsiveness gates for every implementation,
+# So that text and audio respond promptly without overlap or playback stalls.
+version: gizclaw.test/v1alpha1
+name: story-gulliver.smoke
+clients:
+  flowcraft:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  eino:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+variables:
+  endpoint:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_ENDPOINT
+  registration_token:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_REGISTRATION_TOKEN
+    secret: true
+  flowcraft_text_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_text_workspace:
+    direction: input
+    type: string
+    generate: token
+  flowcraft_realtime_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_realtime_workspace:
+    direction: input
+    type: string
+    generate: token
+  input_audio:
+    direction: output
+    type: audio
+    max_bytes: 16777216
+    media_type: audio/ogg
+    codec: opus
+repeat: 1
+timeout: 12m
+steps:
+- id: flowcraft_register
+  client: flowcraft
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: eino_register
+  client: eino
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: flowcraft_create_text
+  client: flowcraft
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${flowcraft_text_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-story-gulliver
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: flowcraft_select_text
+  client: flowcraft
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${flowcraft_text_workspace}"
+- id: flowcraft_warmup_text
+  client: flowcraft
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: eino_create_text
+  client: eino
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_text_workspace}"
+      collection: raidtest-targets
+      workflow_name: eino-story-gulliver
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_select_text
+  client: eino
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${eino_text_workspace}"
+- id: eino_warmup_text
+  client: eino
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: flowcraft_create_realtime
+  client: flowcraft
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${flowcraft_realtime_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-story-gulliver
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_REALTIME
+- id: eino_create_realtime
+  client: eino
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_realtime_workspace}"
+      collection: raidtest-targets
+      workflow_name: eino-story-gulliver
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_REALTIME
+- id: narrator_chapter_setup_1
+  timeout: 2m
+  parallel:
+  - id: flowcraft_narrator_chapter_setup_1
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 请从第一章开始《格列弗游记》。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: eino_narrator_chapter_setup_1
+    client: eino
+    peer_stream:
+      mode: text
+      input: 请从第一章开始《格列弗游记》。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_narrator_chapter_setup_1/text":
+      contains: 第 1 章：微小之城
+      non_empty: true
+    "/flowcraft_narrator_chapter_setup_1/text_eos":
+      equals: true
+    "/flowcraft_narrator_chapter_setup_1/audio_eos":
+      equals: true
+    "/flowcraft_narrator_chapter_setup_1/audio_bytes":
+      minimum: 1
+    "/flowcraft_narrator_chapter_setup_1/first_text_ms":
+      maximum: 6000
+    "/flowcraft_narrator_chapter_setup_1/first_audio_ms":
+      maximum: 90000
+    "/flowcraft_narrator_chapter_setup_1/events":
+      non_empty: true
+    "/flowcraft_narrator_chapter_setup_1/text_eos_ms":
+      maximum: 90000
+    "/flowcraft_narrator_chapter_setup_1/audio_eos_ms":
+      maximum: 90000
+    "/flowcraft_narrator_chapter_setup_1/audio_integrity/streams":
+      minimum: 1
+    "/flowcraft_narrator_chapter_setup_1/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_narrator_chapter_setup_1/audio_integrity/open":
+      equals: 0
+    "/flowcraft_narrator_chapter_setup_1/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_narrator_chapter_setup_1/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/flowcraft_narrator_chapter_setup_1/audio_pacing/underruns":
+      equals: 0
+    "/eino_narrator_chapter_setup_1/text":
+      contains: 第 1 章：微小之城
+      non_empty: true
+    "/eino_narrator_chapter_setup_1/text_eos":
+      equals: true
+    "/eino_narrator_chapter_setup_1/audio_eos":
+      equals: true
+    "/eino_narrator_chapter_setup_1/audio_bytes":
+      minimum: 1
+    "/eino_narrator_chapter_setup_1/first_text_ms":
+      maximum: 6000
+    "/eino_narrator_chapter_setup_1/first_audio_ms":
+      maximum: 90000
+    "/eino_narrator_chapter_setup_1/events":
+      non_empty: true
+    "/eino_narrator_chapter_setup_1/text_eos_ms":
+      maximum: 90000
+    "/eino_narrator_chapter_setup_1/audio_eos_ms":
+      maximum: 90000
+    "/eino_narrator_chapter_setup_1/audio_integrity/streams":
+      minimum: 1
+    "/eino_narrator_chapter_setup_1/audio_integrity/max_active":
+      equals: 1
+    "/eino_narrator_chapter_setup_1/audio_integrity/open":
+      equals: 0
+    "/eino_narrator_chapter_setup_1/audio_integrity/violations":
+      equals: 0
+    "/eino_narrator_chapter_setup_1/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/eino_narrator_chapter_setup_1/audio_pacing/underruns":
+      equals: 0
+- id: probe_narrator
+  timeout: 2m
+  parallel:
+  - id: flowcraft_probe_narrator
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 请从第一章开始《格列弗游记》，写出本地化章节标题并承接指定开场。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: eino_probe_narrator
+    client: eino
+    peer_stream:
+      mode: text
+      input: 请从第一章开始《格列弗游记》，写出本地化章节标题并承接指定开场。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_probe_narrator/text":
+      not_contains:
+      - "###"
+      - "```"
+      - "* "
+      - 旁白说
+      - 旁白：
+      contains_all:
+      - 第 1 章
+      - 微小之城
+      - 格列佛
+      - 当地向导
+      - 国王
+      - 葛兰达克利赤
+      - 下一章
+      min_length: 4
+      max_length: 360
+      non_empty: true
+    "/flowcraft_probe_narrator/text_eos":
+      equals: true
+    "/flowcraft_probe_narrator/audio_eos":
+      equals: true
+    "/flowcraft_probe_narrator/audio_bytes":
+      minimum: 1
+    "/flowcraft_probe_narrator/first_text_ms":
+      maximum: 6000
+    "/flowcraft_probe_narrator/first_audio_ms":
+      maximum: 90000
+    "/flowcraft_probe_narrator/events":
+      non_empty: true
+    "/flowcraft_probe_narrator/text_eos_ms":
+      maximum: 90000
+    "/flowcraft_probe_narrator/audio_eos_ms":
+      maximum: 90000
+    "/flowcraft_probe_narrator/audio_integrity/streams":
+      minimum: 1
+    "/flowcraft_probe_narrator/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_probe_narrator/audio_integrity/open":
+      equals: 0
+    "/flowcraft_probe_narrator/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_probe_narrator/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/flowcraft_probe_narrator/audio_pacing/underruns":
+      equals: 0
+    "/eino_probe_narrator/text":
+      not_contains:
+      - "###"
+      - "```"
+      - "* "
+      - 旁白说
+      - 旁白：
+      contains_all:
+      - 第 1 章
+      - 微小之城
+      - 格列佛
+      - 当地向导
+      - 国王
+      - 葛兰达克利赤
+      - 下一章
+      min_length: 4
+      max_length: 360
+      non_empty: true
+    "/eino_probe_narrator/text_eos":
+      equals: true
+    "/eino_probe_narrator/audio_eos":
+      equals: true
+    "/eino_probe_narrator/audio_bytes":
+      minimum: 1
+    "/eino_probe_narrator/first_text_ms":
+      maximum: 6000
+    "/eino_probe_narrator/first_audio_ms":
+      maximum: 90000
+    "/eino_probe_narrator/events":
+      non_empty: true
+    "/eino_probe_narrator/text_eos_ms":
+      maximum: 90000
+    "/eino_probe_narrator/audio_eos_ms":
+      maximum: 90000
+    "/eino_probe_narrator/audio_integrity/streams":
+      minimum: 1
+    "/eino_probe_narrator/audio_integrity/max_active":
+      equals: 1
+    "/eino_probe_narrator/audio_integrity/open":
+      equals: 0
+    "/eino_probe_narrator/audio_integrity/violations":
+      equals: 0
+    "/eino_probe_narrator/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/eino_probe_narrator/audio_pacing/underruns":
+      equals: 0
+- id: probe_narrator_first_response
+  timeout: 15s
+  parallel:
+  - id: flowcraft_probe_narrator_first_response
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 请让旁白亲自回应，只说这个角色知道的事。
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+      require_text: true
+      require_audio: true
+  - id: eino_probe_narrator_first_response
+    client: eino
+    peer_stream:
+      mode: text
+      input: 请让旁白亲自回应，只说这个角色知道的事。
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_probe_narrator_first_response/events":
+      non_empty: true
+    "/flowcraft_probe_narrator_first_response/audio_bytes":
+      minimum: 1
+    "/flowcraft_probe_narrator_first_response/first_text_ms":
+      maximum: 2000
+    "/flowcraft_probe_narrator_first_response/first_audio_ms":
+      maximum: 3000
+    "/eino_probe_narrator_first_response/events":
+      non_empty: true
+    "/eino_probe_narrator_first_response/audio_bytes":
+      minimum: 1
+    "/eino_probe_narrator_first_response/first_text_ms":
+      maximum: 2000
+    "/eino_probe_narrator_first_response/first_audio_ms":
+      maximum: 3000
+- id: probe_gulliver
+  timeout: 2m
+  parallel:
+  - id: flowcraft_probe_gulliver
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 请让格列佛亲自回应，只说这个角色知道的事。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: eino_probe_gulliver
+    client: eino
+    peer_stream:
+      mode: text
+      input: 请让格列佛亲自回应，只说这个角色知道的事。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_probe_gulliver/text":
+      not_contains:
+      - 格列佛说
+      - 格列佛：
+      non_empty: true
+    "/flowcraft_probe_gulliver/text_eos":
+      equals: true
+    "/flowcraft_probe_gulliver/audio_eos":
+      equals: true
+    "/flowcraft_probe_gulliver/audio_bytes":
+      minimum: 1
+    "/flowcraft_probe_gulliver/first_text_ms":
+      maximum: 6000
+    "/flowcraft_probe_gulliver/first_audio_ms":
+      maximum: 90000
+    "/flowcraft_probe_gulliver/events":
+      non_empty: true
+    "/flowcraft_probe_gulliver/text_eos_ms":
+      maximum: 90000
+    "/flowcraft_probe_gulliver/audio_eos_ms":
+      maximum: 90000
+    "/flowcraft_probe_gulliver/audio_integrity/streams":
+      minimum: 1
+    "/flowcraft_probe_gulliver/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_probe_gulliver/audio_integrity/open":
+      equals: 0
+    "/flowcraft_probe_gulliver/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_probe_gulliver/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/flowcraft_probe_gulliver/audio_pacing/underruns":
+      equals: 0
+    "/eino_probe_gulliver/text":
+      not_contains:
+      - 格列佛说
+      - 格列佛：
+      non_empty: true
+    "/eino_probe_gulliver/text_eos":
+      equals: true
+    "/eino_probe_gulliver/audio_eos":
+      equals: true
+    "/eino_probe_gulliver/audio_bytes":
+      minimum: 1
+    "/eino_probe_gulliver/first_text_ms":
+      maximum: 6000
+    "/eino_probe_gulliver/first_audio_ms":
+      maximum: 90000
+    "/eino_probe_gulliver/events":
+      non_empty: true
+    "/eino_probe_gulliver/text_eos_ms":
+      maximum: 90000
+    "/eino_probe_gulliver/audio_eos_ms":
+      maximum: 90000
+    "/eino_probe_gulliver/audio_integrity/streams":
+      minimum: 1
+    "/eino_probe_gulliver/audio_integrity/max_active":
+      equals: 1
+    "/eino_probe_gulliver/audio_integrity/open":
+      equals: 0
+    "/eino_probe_gulliver/audio_integrity/violations":
+      equals: 0
+    "/eino_probe_gulliver/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/eino_probe_gulliver/audio_pacing/underruns":
+      equals: 0
+- id: probe_gulliver_first_response
+  timeout: 15s
+  parallel:
+  - id: flowcraft_probe_gulliver_first_response
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 请让格列佛亲自回应，只说这个角色知道的事。
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+      require_text: true
+      require_audio: true
+  - id: eino_probe_gulliver_first_response
+    client: eino
+    peer_stream:
+      mode: text
+      input: 请让格列佛亲自回应，只说这个角色知道的事。
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_probe_gulliver_first_response/events":
+      non_empty: true
+    "/flowcraft_probe_gulliver_first_response/audio_bytes":
+      minimum: 1
+    "/flowcraft_probe_gulliver_first_response/first_text_ms":
+      maximum: 2000
+    "/flowcraft_probe_gulliver_first_response/first_audio_ms":
+      maximum: 3000
+    "/eino_probe_gulliver_first_response/events":
+      non_empty: true
+    "/eino_probe_gulliver_first_response/audio_bytes":
+      minimum: 1
+    "/eino_probe_gulliver_first_response/first_text_ms":
+      maximum: 2000
+    "/eino_probe_gulliver_first_response/first_audio_ms":
+      maximum: 3000
+- id: probe_local-guide
+  timeout: 2m
+  parallel:
+  - id: flowcraft_probe_local-guide
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 请让当地向导亲自回应，只说这个角色知道的事。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: eino_probe_local-guide
+    client: eino
+    peer_stream:
+      mode: text
+      input: 请让当地向导亲自回应，只说这个角色知道的事。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_probe_local-guide/text":
+      not_contains:
+      - 当地向导说
+      - 当地向导：
+      non_empty: true
+    "/flowcraft_probe_local-guide/text_eos":
+      equals: true
+    "/flowcraft_probe_local-guide/audio_eos":
+      equals: true
+    "/flowcraft_probe_local-guide/audio_bytes":
+      minimum: 1
+    "/flowcraft_probe_local-guide/first_text_ms":
+      maximum: 6000
+    "/flowcraft_probe_local-guide/first_audio_ms":
+      maximum: 90000
+    "/flowcraft_probe_local-guide/events":
+      non_empty: true
+    "/flowcraft_probe_local-guide/text_eos_ms":
+      maximum: 90000
+    "/flowcraft_probe_local-guide/audio_eos_ms":
+      maximum: 90000
+    "/flowcraft_probe_local-guide/audio_integrity/streams":
+      minimum: 1
+    "/flowcraft_probe_local-guide/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_probe_local-guide/audio_integrity/open":
+      equals: 0
+    "/flowcraft_probe_local-guide/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_probe_local-guide/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/flowcraft_probe_local-guide/audio_pacing/underruns":
+      equals: 0
+    "/eino_probe_local-guide/text":
+      not_contains:
+      - 当地向导说
+      - 当地向导：
+      non_empty: true
+    "/eino_probe_local-guide/text_eos":
+      equals: true
+    "/eino_probe_local-guide/audio_eos":
+      equals: true
+    "/eino_probe_local-guide/audio_bytes":
+      minimum: 1
+    "/eino_probe_local-guide/first_text_ms":
+      maximum: 6000
+    "/eino_probe_local-guide/first_audio_ms":
+      maximum: 90000
+    "/eino_probe_local-guide/events":
+      non_empty: true
+    "/eino_probe_local-guide/text_eos_ms":
+      maximum: 90000
+    "/eino_probe_local-guide/audio_eos_ms":
+      maximum: 90000
+    "/eino_probe_local-guide/audio_integrity/streams":
+      minimum: 1
+    "/eino_probe_local-guide/audio_integrity/max_active":
+      equals: 1
+    "/eino_probe_local-guide/audio_integrity/open":
+      equals: 0
+    "/eino_probe_local-guide/audio_integrity/violations":
+      equals: 0
+    "/eino_probe_local-guide/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/eino_probe_local-guide/audio_pacing/underruns":
+      equals: 0
+- id: probe_local-guide_first_response
+  timeout: 15s
+  parallel:
+  - id: flowcraft_probe_local-guide_first_response
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 请让当地向导亲自回应，只说这个角色知道的事。
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+      require_text: true
+      require_audio: true
+  - id: eino_probe_local-guide_first_response
+    client: eino
+    peer_stream:
+      mode: text
+      input: 请让当地向导亲自回应，只说这个角色知道的事。
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_probe_local-guide_first_response/events":
+      non_empty: true
+    "/flowcraft_probe_local-guide_first_response/audio_bytes":
+      minimum: 1
+    "/flowcraft_probe_local-guide_first_response/first_text_ms":
+      maximum: 2000
+    "/flowcraft_probe_local-guide_first_response/first_audio_ms":
+      maximum: 3000
+    "/eino_probe_local-guide_first_response/events":
+      non_empty: true
+    "/eino_probe_local-guide_first_response/audio_bytes":
+      minimum: 1
+    "/eino_probe_local-guide_first_response/first_text_ms":
+      maximum: 2000
+    "/eino_probe_local-guide_first_response/first_audio_ms":
+      maximum: 3000
+- id: king_chapter_1_0
+  timeout: 2m
+  parallel:
+  - id: flowcraft_king_chapter_1_0
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 我选择刚才的第一个方向，请推进一个直接结果。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: eino_king_chapter_1_0
+    client: eino
+    peer_stream:
+      mode: text
+      input: 我选择刚才的第一个方向，请推进一个直接结果。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_king_chapter_1_0/text_eos":
+      equals: true
+    "/flowcraft_king_chapter_1_0/audio_eos":
+      equals: true
+    "/flowcraft_king_chapter_1_0/audio_bytes":
+      minimum: 1
+    "/flowcraft_king_chapter_1_0/first_text_ms":
+      maximum: 6000
+    "/flowcraft_king_chapter_1_0/first_audio_ms":
+      maximum: 90000
+    "/flowcraft_king_chapter_1_0/events":
+      non_empty: true
+    "/flowcraft_king_chapter_1_0/text":
+      non_empty: true
+    "/flowcraft_king_chapter_1_0/text_eos_ms":
+      maximum: 90000
+    "/flowcraft_king_chapter_1_0/audio_eos_ms":
+      maximum: 90000
+    "/flowcraft_king_chapter_1_0/audio_integrity/streams":
+      minimum: 1
+    "/flowcraft_king_chapter_1_0/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_king_chapter_1_0/audio_integrity/open":
+      equals: 0
+    "/flowcraft_king_chapter_1_0/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_king_chapter_1_0/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/flowcraft_king_chapter_1_0/audio_pacing/underruns":
+      equals: 0
+    "/eino_king_chapter_1_0/text_eos":
+      equals: true
+    "/eino_king_chapter_1_0/audio_eos":
+      equals: true
+    "/eino_king_chapter_1_0/audio_bytes":
+      minimum: 1
+    "/eino_king_chapter_1_0/first_text_ms":
+      maximum: 6000
+    "/eino_king_chapter_1_0/first_audio_ms":
+      maximum: 90000
+    "/eino_king_chapter_1_0/events":
+      non_empty: true
+    "/eino_king_chapter_1_0/text":
+      non_empty: true
+    "/eino_king_chapter_1_0/text_eos_ms":
+      maximum: 90000
+    "/eino_king_chapter_1_0/audio_eos_ms":
+      maximum: 90000
+    "/eino_king_chapter_1_0/audio_integrity/streams":
+      minimum: 1
+    "/eino_king_chapter_1_0/audio_integrity/max_active":
+      equals: 1
+    "/eino_king_chapter_1_0/audio_integrity/open":
+      equals: 0
+    "/eino_king_chapter_1_0/audio_integrity/violations":
+      equals: 0
+    "/eino_king_chapter_1_0/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/eino_king_chapter_1_0/audio_pacing/underruns":
+      equals: 0
+- id: king_chapter_1_0_first_response
+  timeout: 15s
+  parallel:
+  - id: flowcraft_king_chapter_1_0_first_response
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 我选择刚才的第一个方向，请推进一个直接结果。
+      require_text: true
+      require_audio: true
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+  - id: eino_king_chapter_1_0_first_response
+    client: eino
+    peer_stream:
+      mode: text
+      input: 我选择刚才的第一个方向，请推进一个直接结果。
+      require_text: true
+      require_audio: true
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+  expect:
+    "/flowcraft_king_chapter_1_0_first_response/events":
+      non_empty: true
+    "/flowcraft_king_chapter_1_0_first_response/audio_bytes":
+      minimum: 1
+    "/flowcraft_king_chapter_1_0_first_response/first_text_ms":
+      maximum: 2000
+    "/flowcraft_king_chapter_1_0_first_response/first_audio_ms":
+      maximum: 3000
+    "/eino_king_chapter_1_0_first_response/events":
+      non_empty: true
+    "/eino_king_chapter_1_0_first_response/audio_bytes":
+      minimum: 1
+    "/eino_king_chapter_1_0_first_response/first_text_ms":
+      maximum: 2000
+    "/eino_king_chapter_1_0_first_response/first_audio_ms":
+      maximum: 3000
+- id: king_chapter_1_1
+  timeout: 2m
+  parallel:
+  - id: flowcraft_king_chapter_1_1
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 请让格列佛亲自回应，说出不同立场。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: eino_king_chapter_1_1
+    client: eino
+    peer_stream:
+      mode: text
+      input: 请让格列佛亲自回应，说出不同立场。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_king_chapter_1_1/text_eos":
+      equals: true
+    "/flowcraft_king_chapter_1_1/audio_eos":
+      equals: true
+    "/flowcraft_king_chapter_1_1/audio_bytes":
+      minimum: 1
+    "/flowcraft_king_chapter_1_1/first_text_ms":
+      maximum: 6000
+    "/flowcraft_king_chapter_1_1/first_audio_ms":
+      maximum: 90000
+    "/flowcraft_king_chapter_1_1/events":
+      non_empty: true
+    "/flowcraft_king_chapter_1_1/text":
+      non_empty: true
+    "/flowcraft_king_chapter_1_1/text_eos_ms":
+      maximum: 90000
+    "/flowcraft_king_chapter_1_1/audio_eos_ms":
+      maximum: 90000
+    "/flowcraft_king_chapter_1_1/audio_integrity/streams":
+      minimum: 1
+    "/flowcraft_king_chapter_1_1/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_king_chapter_1_1/audio_integrity/open":
+      equals: 0
+    "/flowcraft_king_chapter_1_1/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_king_chapter_1_1/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/flowcraft_king_chapter_1_1/audio_pacing/underruns":
+      equals: 0
+    "/eino_king_chapter_1_1/text_eos":
+      equals: true
+    "/eino_king_chapter_1_1/audio_eos":
+      equals: true
+    "/eino_king_chapter_1_1/audio_bytes":
+      minimum: 1
+    "/eino_king_chapter_1_1/first_text_ms":
+      maximum: 6000
+    "/eino_king_chapter_1_1/first_audio_ms":
+      maximum: 90000
+    "/eino_king_chapter_1_1/events":
+      non_empty: true
+    "/eino_king_chapter_1_1/text":
+      non_empty: true
+    "/eino_king_chapter_1_1/text_eos_ms":
+      maximum: 90000
+    "/eino_king_chapter_1_1/audio_eos_ms":
+      maximum: 90000
+    "/eino_king_chapter_1_1/audio_integrity/streams":
+      minimum: 1
+    "/eino_king_chapter_1_1/audio_integrity/max_active":
+      equals: 1
+    "/eino_king_chapter_1_1/audio_integrity/open":
+      equals: 0
+    "/eino_king_chapter_1_1/audio_integrity/violations":
+      equals: 0
+    "/eino_king_chapter_1_1/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/eino_king_chapter_1_1/audio_pacing/underruns":
+      equals: 0
+- id: king_chapter_1_1_first_response
+  timeout: 15s
+  parallel:
+  - id: flowcraft_king_chapter_1_1_first_response
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 请让格列佛亲自回应，说出不同立场。
+      require_text: true
+      require_audio: true
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+  - id: eino_king_chapter_1_1_first_response
+    client: eino
+    peer_stream:
+      mode: text
+      input: 请让格列佛亲自回应，说出不同立场。
+      require_text: true
+      require_audio: true
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+  expect:
+    "/flowcraft_king_chapter_1_1_first_response/events":
+      non_empty: true
+    "/flowcraft_king_chapter_1_1_first_response/audio_bytes":
+      minimum: 1
+    "/flowcraft_king_chapter_1_1_first_response/first_text_ms":
+      maximum: 2000
+    "/flowcraft_king_chapter_1_1_first_response/first_audio_ms":
+      maximum: 3000
+    "/eino_king_chapter_1_1_first_response/events":
+      non_empty: true
+    "/eino_king_chapter_1_1_first_response/audio_bytes":
+      minimum: 1
+    "/eino_king_chapter_1_1_first_response/first_text_ms":
+      maximum: 2000
+    "/eino_king_chapter_1_1_first_response/first_audio_ms":
+      maximum: 3000
+- id: king_chapter_1_2
+  timeout: 2m
+  parallel:
+  - id: flowcraft_king_chapter_1_2
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 进入下一章。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: eino_king_chapter_1_2
+    client: eino
+    peer_stream:
+      mode: text
+      input: 进入下一章。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_king_chapter_1_2/text_eos":
+      equals: true
+    "/flowcraft_king_chapter_1_2/audio_eos":
+      equals: true
+    "/flowcraft_king_chapter_1_2/audio_bytes":
+      minimum: 1
+    "/flowcraft_king_chapter_1_2/first_text_ms":
+      maximum: 6000
+    "/flowcraft_king_chapter_1_2/first_audio_ms":
+      maximum: 90000
+    "/flowcraft_king_chapter_1_2/text":
+      contains: 第 2 章：礼节冲突
+      non_empty: true
+    "/flowcraft_king_chapter_1_2/events":
+      non_empty: true
+    "/flowcraft_king_chapter_1_2/text_eos_ms":
+      maximum: 90000
+    "/flowcraft_king_chapter_1_2/audio_eos_ms":
+      maximum: 90000
+    "/flowcraft_king_chapter_1_2/audio_integrity/streams":
+      minimum: 1
+    "/flowcraft_king_chapter_1_2/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_king_chapter_1_2/audio_integrity/open":
+      equals: 0
+    "/flowcraft_king_chapter_1_2/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_king_chapter_1_2/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/flowcraft_king_chapter_1_2/audio_pacing/underruns":
+      equals: 0
+    "/eino_king_chapter_1_2/text_eos":
+      equals: true
+    "/eino_king_chapter_1_2/audio_eos":
+      equals: true
+    "/eino_king_chapter_1_2/audio_bytes":
+      minimum: 1
+    "/eino_king_chapter_1_2/first_text_ms":
+      maximum: 6000
+    "/eino_king_chapter_1_2/first_audio_ms":
+      maximum: 90000
+    "/eino_king_chapter_1_2/text":
+      contains: 第 2 章：礼节冲突
+      non_empty: true
+    "/eino_king_chapter_1_2/events":
+      non_empty: true
+    "/eino_king_chapter_1_2/text_eos_ms":
+      maximum: 90000
+    "/eino_king_chapter_1_2/audio_eos_ms":
+      maximum: 90000
+    "/eino_king_chapter_1_2/audio_integrity/streams":
+      minimum: 1
+    "/eino_king_chapter_1_2/audio_integrity/max_active":
+      equals: 1
+    "/eino_king_chapter_1_2/audio_integrity/open":
+      equals: 0
+    "/eino_king_chapter_1_2/audio_integrity/violations":
+      equals: 0
+    "/eino_king_chapter_1_2/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/eino_king_chapter_1_2/audio_pacing/underruns":
+      equals: 0
+- id: king_chapter_1_2_first_response
+  timeout: 15s
+  parallel:
+  - id: flowcraft_king_chapter_1_2_first_response
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 进入下一章。
+      require_text: true
+      require_audio: true
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+  - id: eino_king_chapter_1_2_first_response
+    client: eino
+    peer_stream:
+      mode: text
+      input: 进入下一章。
+      require_text: true
+      require_audio: true
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+  expect:
+    "/flowcraft_king_chapter_1_2_first_response/events":
+      non_empty: true
+    "/flowcraft_king_chapter_1_2_first_response/audio_bytes":
+      minimum: 1
+    "/flowcraft_king_chapter_1_2_first_response/first_text_ms":
+      maximum: 2000
+    "/flowcraft_king_chapter_1_2_first_response/first_audio_ms":
+      maximum: 3000
+    "/eino_king_chapter_1_2_first_response/events":
+      non_empty: true
+    "/eino_king_chapter_1_2_first_response/audio_bytes":
+      minimum: 1
+    "/eino_king_chapter_1_2_first_response/first_text_ms":
+      maximum: 2000
+    "/eino_king_chapter_1_2_first_response/first_audio_ms":
+      maximum: 3000
+- id: probe_king
+  timeout: 2m
+  parallel:
+  - id: flowcraft_probe_king
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 请让国王亲自回应，只说这个角色知道的事。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: eino_probe_king
+    client: eino
+    peer_stream:
+      mode: text
+      input: 请让国王亲自回应，只说这个角色知道的事。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_probe_king/text":
+      not_contains:
+      - 国王说
+      - 国王：
+      non_empty: true
+    "/flowcraft_probe_king/text_eos":
+      equals: true
+    "/flowcraft_probe_king/audio_eos":
+      equals: true
+    "/flowcraft_probe_king/audio_bytes":
+      minimum: 1
+    "/flowcraft_probe_king/first_text_ms":
+      maximum: 6000
+    "/flowcraft_probe_king/first_audio_ms":
+      maximum: 90000
+    "/flowcraft_probe_king/events":
+      non_empty: true
+    "/flowcraft_probe_king/text_eos_ms":
+      maximum: 90000
+    "/flowcraft_probe_king/audio_eos_ms":
+      maximum: 90000
+    "/flowcraft_probe_king/audio_integrity/streams":
+      minimum: 1
+    "/flowcraft_probe_king/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_probe_king/audio_integrity/open":
+      equals: 0
+    "/flowcraft_probe_king/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_probe_king/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/flowcraft_probe_king/audio_pacing/underruns":
+      equals: 0
+    "/eino_probe_king/text":
+      not_contains:
+      - 国王说
+      - 国王：
+      non_empty: true
+    "/eino_probe_king/text_eos":
+      equals: true
+    "/eino_probe_king/audio_eos":
+      equals: true
+    "/eino_probe_king/audio_bytes":
+      minimum: 1
+    "/eino_probe_king/first_text_ms":
+      maximum: 6000
+    "/eino_probe_king/first_audio_ms":
+      maximum: 90000
+    "/eino_probe_king/events":
+      non_empty: true
+    "/eino_probe_king/text_eos_ms":
+      maximum: 90000
+    "/eino_probe_king/audio_eos_ms":
+      maximum: 90000
+    "/eino_probe_king/audio_integrity/streams":
+      minimum: 1
+    "/eino_probe_king/audio_integrity/max_active":
+      equals: 1
+    "/eino_probe_king/audio_integrity/open":
+      equals: 0
+    "/eino_probe_king/audio_integrity/violations":
+      equals: 0
+    "/eino_probe_king/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/eino_probe_king/audio_pacing/underruns":
+      equals: 0
+- id: probe_king_first_response
+  timeout: 15s
+  parallel:
+  - id: flowcraft_probe_king_first_response
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 请让国王亲自回应，只说这个角色知道的事。
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+      require_text: true
+      require_audio: true
+  - id: eino_probe_king_first_response
+    client: eino
+    peer_stream:
+      mode: text
+      input: 请让国王亲自回应，只说这个角色知道的事。
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_probe_king_first_response/events":
+      non_empty: true
+    "/flowcraft_probe_king_first_response/audio_bytes":
+      minimum: 1
+    "/flowcraft_probe_king_first_response/first_text_ms":
+      maximum: 2000
+    "/flowcraft_probe_king_first_response/first_audio_ms":
+      maximum: 3000
+    "/eino_probe_king_first_response/events":
+      non_empty: true
+    "/eino_probe_king_first_response/audio_bytes":
+      minimum: 1
+    "/eino_probe_king_first_response/first_text_ms":
+      maximum: 2000
+    "/eino_probe_king_first_response/first_audio_ms":
+      maximum: 3000
+- id: glumdalclitch_chapter_1_0
+  timeout: 2m
+  parallel:
+  - id: flowcraft_glumdalclitch_chapter_1_0
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 我选择刚才的第一个方向，请推进一个直接结果。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: eino_glumdalclitch_chapter_1_0
+    client: eino
+    peer_stream:
+      mode: text
+      input: 我选择刚才的第一个方向，请推进一个直接结果。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_glumdalclitch_chapter_1_0/text_eos":
+      equals: true
+    "/flowcraft_glumdalclitch_chapter_1_0/audio_eos":
+      equals: true
+    "/flowcraft_glumdalclitch_chapter_1_0/audio_bytes":
+      minimum: 1
+    "/flowcraft_glumdalclitch_chapter_1_0/first_text_ms":
+      maximum: 6000
+    "/flowcraft_glumdalclitch_chapter_1_0/first_audio_ms":
+      maximum: 90000
+    "/flowcraft_glumdalclitch_chapter_1_0/events":
+      non_empty: true
+    "/flowcraft_glumdalclitch_chapter_1_0/text":
+      non_empty: true
+    "/flowcraft_glumdalclitch_chapter_1_0/text_eos_ms":
+      maximum: 90000
+    "/flowcraft_glumdalclitch_chapter_1_0/audio_eos_ms":
+      maximum: 90000
+    "/flowcraft_glumdalclitch_chapter_1_0/audio_integrity/streams":
+      minimum: 1
+    "/flowcraft_glumdalclitch_chapter_1_0/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_glumdalclitch_chapter_1_0/audio_integrity/open":
+      equals: 0
+    "/flowcraft_glumdalclitch_chapter_1_0/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_glumdalclitch_chapter_1_0/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/flowcraft_glumdalclitch_chapter_1_0/audio_pacing/underruns":
+      equals: 0
+    "/eino_glumdalclitch_chapter_1_0/text_eos":
+      equals: true
+    "/eino_glumdalclitch_chapter_1_0/audio_eos":
+      equals: true
+    "/eino_glumdalclitch_chapter_1_0/audio_bytes":
+      minimum: 1
+    "/eino_glumdalclitch_chapter_1_0/first_text_ms":
+      maximum: 6000
+    "/eino_glumdalclitch_chapter_1_0/first_audio_ms":
+      maximum: 90000
+    "/eino_glumdalclitch_chapter_1_0/events":
+      non_empty: true
+    "/eino_glumdalclitch_chapter_1_0/text":
+      non_empty: true
+    "/eino_glumdalclitch_chapter_1_0/text_eos_ms":
+      maximum: 90000
+    "/eino_glumdalclitch_chapter_1_0/audio_eos_ms":
+      maximum: 90000
+    "/eino_glumdalclitch_chapter_1_0/audio_integrity/streams":
+      minimum: 1
+    "/eino_glumdalclitch_chapter_1_0/audio_integrity/max_active":
+      equals: 1
+    "/eino_glumdalclitch_chapter_1_0/audio_integrity/open":
+      equals: 0
+    "/eino_glumdalclitch_chapter_1_0/audio_integrity/violations":
+      equals: 0
+    "/eino_glumdalclitch_chapter_1_0/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/eino_glumdalclitch_chapter_1_0/audio_pacing/underruns":
+      equals: 0
+- id: glumdalclitch_chapter_1_0_first_response
+  timeout: 15s
+  parallel:
+  - id: flowcraft_glumdalclitch_chapter_1_0_first_response
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 我选择刚才的第一个方向，请推进一个直接结果。
+      require_text: true
+      require_audio: true
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+  - id: eino_glumdalclitch_chapter_1_0_first_response
+    client: eino
+    peer_stream:
+      mode: text
+      input: 我选择刚才的第一个方向，请推进一个直接结果。
+      require_text: true
+      require_audio: true
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+  expect:
+    "/flowcraft_glumdalclitch_chapter_1_0_first_response/events":
+      non_empty: true
+    "/flowcraft_glumdalclitch_chapter_1_0_first_response/audio_bytes":
+      minimum: 1
+    "/flowcraft_glumdalclitch_chapter_1_0_first_response/first_text_ms":
+      maximum: 2000
+    "/flowcraft_glumdalclitch_chapter_1_0_first_response/first_audio_ms":
+      maximum: 3000
+    "/eino_glumdalclitch_chapter_1_0_first_response/events":
+      non_empty: true
+    "/eino_glumdalclitch_chapter_1_0_first_response/audio_bytes":
+      minimum: 1
+    "/eino_glumdalclitch_chapter_1_0_first_response/first_text_ms":
+      maximum: 2000
+    "/eino_glumdalclitch_chapter_1_0_first_response/first_audio_ms":
+      maximum: 3000
+- id: glumdalclitch_chapter_1_1
+  timeout: 2m
+  parallel:
+  - id: flowcraft_glumdalclitch_chapter_1_1
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 请让格列佛亲自回应，说出不同立场。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: eino_glumdalclitch_chapter_1_1
+    client: eino
+    peer_stream:
+      mode: text
+      input: 请让格列佛亲自回应，说出不同立场。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_glumdalclitch_chapter_1_1/text_eos":
+      equals: true
+    "/flowcraft_glumdalclitch_chapter_1_1/audio_eos":
+      equals: true
+    "/flowcraft_glumdalclitch_chapter_1_1/audio_bytes":
+      minimum: 1
+    "/flowcraft_glumdalclitch_chapter_1_1/first_text_ms":
+      maximum: 6000
+    "/flowcraft_glumdalclitch_chapter_1_1/first_audio_ms":
+      maximum: 90000
+    "/flowcraft_glumdalclitch_chapter_1_1/events":
+      non_empty: true
+    "/flowcraft_glumdalclitch_chapter_1_1/text":
+      non_empty: true
+    "/flowcraft_glumdalclitch_chapter_1_1/text_eos_ms":
+      maximum: 90000
+    "/flowcraft_glumdalclitch_chapter_1_1/audio_eos_ms":
+      maximum: 90000
+    "/flowcraft_glumdalclitch_chapter_1_1/audio_integrity/streams":
+      minimum: 1
+    "/flowcraft_glumdalclitch_chapter_1_1/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_glumdalclitch_chapter_1_1/audio_integrity/open":
+      equals: 0
+    "/flowcraft_glumdalclitch_chapter_1_1/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_glumdalclitch_chapter_1_1/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/flowcraft_glumdalclitch_chapter_1_1/audio_pacing/underruns":
+      equals: 0
+    "/eino_glumdalclitch_chapter_1_1/text_eos":
+      equals: true
+    "/eino_glumdalclitch_chapter_1_1/audio_eos":
+      equals: true
+    "/eino_glumdalclitch_chapter_1_1/audio_bytes":
+      minimum: 1
+    "/eino_glumdalclitch_chapter_1_1/first_text_ms":
+      maximum: 6000
+    "/eino_glumdalclitch_chapter_1_1/first_audio_ms":
+      maximum: 90000
+    "/eino_glumdalclitch_chapter_1_1/events":
+      non_empty: true
+    "/eino_glumdalclitch_chapter_1_1/text":
+      non_empty: true
+    "/eino_glumdalclitch_chapter_1_1/text_eos_ms":
+      maximum: 90000
+    "/eino_glumdalclitch_chapter_1_1/audio_eos_ms":
+      maximum: 90000
+    "/eino_glumdalclitch_chapter_1_1/audio_integrity/streams":
+      minimum: 1
+    "/eino_glumdalclitch_chapter_1_1/audio_integrity/max_active":
+      equals: 1
+    "/eino_glumdalclitch_chapter_1_1/audio_integrity/open":
+      equals: 0
+    "/eino_glumdalclitch_chapter_1_1/audio_integrity/violations":
+      equals: 0
+    "/eino_glumdalclitch_chapter_1_1/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/eino_glumdalclitch_chapter_1_1/audio_pacing/underruns":
+      equals: 0
+- id: glumdalclitch_chapter_1_1_first_response
+  timeout: 15s
+  parallel:
+  - id: flowcraft_glumdalclitch_chapter_1_1_first_response
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 请让格列佛亲自回应，说出不同立场。
+      require_text: true
+      require_audio: true
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+  - id: eino_glumdalclitch_chapter_1_1_first_response
+    client: eino
+    peer_stream:
+      mode: text
+      input: 请让格列佛亲自回应，说出不同立场。
+      require_text: true
+      require_audio: true
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+  expect:
+    "/flowcraft_glumdalclitch_chapter_1_1_first_response/events":
+      non_empty: true
+    "/flowcraft_glumdalclitch_chapter_1_1_first_response/audio_bytes":
+      minimum: 1
+    "/flowcraft_glumdalclitch_chapter_1_1_first_response/first_text_ms":
+      maximum: 2000
+    "/flowcraft_glumdalclitch_chapter_1_1_first_response/first_audio_ms":
+      maximum: 3000
+    "/eino_glumdalclitch_chapter_1_1_first_response/events":
+      non_empty: true
+    "/eino_glumdalclitch_chapter_1_1_first_response/audio_bytes":
+      minimum: 1
+    "/eino_glumdalclitch_chapter_1_1_first_response/first_text_ms":
+      maximum: 2000
+    "/eino_glumdalclitch_chapter_1_1_first_response/first_audio_ms":
+      maximum: 3000
+- id: glumdalclitch_chapter_1_2
+  timeout: 2m
+  parallel:
+  - id: flowcraft_glumdalclitch_chapter_1_2
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 进入下一章。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: eino_glumdalclitch_chapter_1_2
+    client: eino
+    peer_stream:
+      mode: text
+      input: 进入下一章。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_glumdalclitch_chapter_1_2/text_eos":
+      equals: true
+    "/flowcraft_glumdalclitch_chapter_1_2/audio_eos":
+      equals: true
+    "/flowcraft_glumdalclitch_chapter_1_2/audio_bytes":
+      minimum: 1
+    "/flowcraft_glumdalclitch_chapter_1_2/first_text_ms":
+      maximum: 6000
+    "/flowcraft_glumdalclitch_chapter_1_2/first_audio_ms":
+      maximum: 90000
+    "/flowcraft_glumdalclitch_chapter_1_2/text":
+      contains: 第 2 章：礼节冲突
+      non_empty: true
+    "/flowcraft_glumdalclitch_chapter_1_2/events":
+      non_empty: true
+    "/flowcraft_glumdalclitch_chapter_1_2/text_eos_ms":
+      maximum: 90000
+    "/flowcraft_glumdalclitch_chapter_1_2/audio_eos_ms":
+      maximum: 90000
+    "/flowcraft_glumdalclitch_chapter_1_2/audio_integrity/streams":
+      minimum: 1
+    "/flowcraft_glumdalclitch_chapter_1_2/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_glumdalclitch_chapter_1_2/audio_integrity/open":
+      equals: 0
+    "/flowcraft_glumdalclitch_chapter_1_2/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_glumdalclitch_chapter_1_2/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/flowcraft_glumdalclitch_chapter_1_2/audio_pacing/underruns":
+      equals: 0
+    "/eino_glumdalclitch_chapter_1_2/text_eos":
+      equals: true
+    "/eino_glumdalclitch_chapter_1_2/audio_eos":
+      equals: true
+    "/eino_glumdalclitch_chapter_1_2/audio_bytes":
+      minimum: 1
+    "/eino_glumdalclitch_chapter_1_2/first_text_ms":
+      maximum: 6000
+    "/eino_glumdalclitch_chapter_1_2/first_audio_ms":
+      maximum: 90000
+    "/eino_glumdalclitch_chapter_1_2/text":
+      contains: 第 2 章：礼节冲突
+      non_empty: true
+    "/eino_glumdalclitch_chapter_1_2/events":
+      non_empty: true
+    "/eino_glumdalclitch_chapter_1_2/text_eos_ms":
+      maximum: 90000
+    "/eino_glumdalclitch_chapter_1_2/audio_eos_ms":
+      maximum: 90000
+    "/eino_glumdalclitch_chapter_1_2/audio_integrity/streams":
+      minimum: 1
+    "/eino_glumdalclitch_chapter_1_2/audio_integrity/max_active":
+      equals: 1
+    "/eino_glumdalclitch_chapter_1_2/audio_integrity/open":
+      equals: 0
+    "/eino_glumdalclitch_chapter_1_2/audio_integrity/violations":
+      equals: 0
+    "/eino_glumdalclitch_chapter_1_2/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/eino_glumdalclitch_chapter_1_2/audio_pacing/underruns":
+      equals: 0
+- id: glumdalclitch_chapter_1_2_first_response
+  timeout: 15s
+  parallel:
+  - id: flowcraft_glumdalclitch_chapter_1_2_first_response
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 进入下一章。
+      require_text: true
+      require_audio: true
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+  - id: eino_glumdalclitch_chapter_1_2_first_response
+    client: eino
+    peer_stream:
+      mode: text
+      input: 进入下一章。
+      require_text: true
+      require_audio: true
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+  expect:
+    "/flowcraft_glumdalclitch_chapter_1_2_first_response/events":
+      non_empty: true
+    "/flowcraft_glumdalclitch_chapter_1_2_first_response/audio_bytes":
+      minimum: 1
+    "/flowcraft_glumdalclitch_chapter_1_2_first_response/first_text_ms":
+      maximum: 2000
+    "/flowcraft_glumdalclitch_chapter_1_2_first_response/first_audio_ms":
+      maximum: 3000
+    "/eino_glumdalclitch_chapter_1_2_first_response/events":
+      non_empty: true
+    "/eino_glumdalclitch_chapter_1_2_first_response/audio_bytes":
+      minimum: 1
+    "/eino_glumdalclitch_chapter_1_2_first_response/first_text_ms":
+      maximum: 2000
+    "/eino_glumdalclitch_chapter_1_2_first_response/first_audio_ms":
+      maximum: 3000
+- id: glumdalclitch_chapter_2_0
+  timeout: 2m
+  parallel:
+  - id: flowcraft_glumdalclitch_chapter_2_0
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 我选择刚才的第一个方向，请推进一个直接结果。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: eino_glumdalclitch_chapter_2_0
+    client: eino
+    peer_stream:
+      mode: text
+      input: 我选择刚才的第一个方向，请推进一个直接结果。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_glumdalclitch_chapter_2_0/text_eos":
+      equals: true
+    "/flowcraft_glumdalclitch_chapter_2_0/audio_eos":
+      equals: true
+    "/flowcraft_glumdalclitch_chapter_2_0/audio_bytes":
+      minimum: 1
+    "/flowcraft_glumdalclitch_chapter_2_0/first_text_ms":
+      maximum: 6000
+    "/flowcraft_glumdalclitch_chapter_2_0/first_audio_ms":
+      maximum: 90000
+    "/flowcraft_glumdalclitch_chapter_2_0/events":
+      non_empty: true
+    "/flowcraft_glumdalclitch_chapter_2_0/text":
+      non_empty: true
+    "/flowcraft_glumdalclitch_chapter_2_0/text_eos_ms":
+      maximum: 90000
+    "/flowcraft_glumdalclitch_chapter_2_0/audio_eos_ms":
+      maximum: 90000
+    "/flowcraft_glumdalclitch_chapter_2_0/audio_integrity/streams":
+      minimum: 1
+    "/flowcraft_glumdalclitch_chapter_2_0/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_glumdalclitch_chapter_2_0/audio_integrity/open":
+      equals: 0
+    "/flowcraft_glumdalclitch_chapter_2_0/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_glumdalclitch_chapter_2_0/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/flowcraft_glumdalclitch_chapter_2_0/audio_pacing/underruns":
+      equals: 0
+    "/eino_glumdalclitch_chapter_2_0/text_eos":
+      equals: true
+    "/eino_glumdalclitch_chapter_2_0/audio_eos":
+      equals: true
+    "/eino_glumdalclitch_chapter_2_0/audio_bytes":
+      minimum: 1
+    "/eino_glumdalclitch_chapter_2_0/first_text_ms":
+      maximum: 6000
+    "/eino_glumdalclitch_chapter_2_0/first_audio_ms":
+      maximum: 90000
+    "/eino_glumdalclitch_chapter_2_0/events":
+      non_empty: true
+    "/eino_glumdalclitch_chapter_2_0/text":
+      non_empty: true
+    "/eino_glumdalclitch_chapter_2_0/text_eos_ms":
+      maximum: 90000
+    "/eino_glumdalclitch_chapter_2_0/audio_eos_ms":
+      maximum: 90000
+    "/eino_glumdalclitch_chapter_2_0/audio_integrity/streams":
+      minimum: 1
+    "/eino_glumdalclitch_chapter_2_0/audio_integrity/max_active":
+      equals: 1
+    "/eino_glumdalclitch_chapter_2_0/audio_integrity/open":
+      equals: 0
+    "/eino_glumdalclitch_chapter_2_0/audio_integrity/violations":
+      equals: 0
+    "/eino_glumdalclitch_chapter_2_0/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/eino_glumdalclitch_chapter_2_0/audio_pacing/underruns":
+      equals: 0
+- id: glumdalclitch_chapter_2_0_first_response
+  timeout: 15s
+  parallel:
+  - id: flowcraft_glumdalclitch_chapter_2_0_first_response
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 我选择刚才的第一个方向，请推进一个直接结果。
+      require_text: true
+      require_audio: true
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+  - id: eino_glumdalclitch_chapter_2_0_first_response
+    client: eino
+    peer_stream:
+      mode: text
+      input: 我选择刚才的第一个方向，请推进一个直接结果。
+      require_text: true
+      require_audio: true
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+  expect:
+    "/flowcraft_glumdalclitch_chapter_2_0_first_response/events":
+      non_empty: true
+    "/flowcraft_glumdalclitch_chapter_2_0_first_response/audio_bytes":
+      minimum: 1
+    "/flowcraft_glumdalclitch_chapter_2_0_first_response/first_text_ms":
+      maximum: 2000
+    "/flowcraft_glumdalclitch_chapter_2_0_first_response/first_audio_ms":
+      maximum: 3000
+    "/eino_glumdalclitch_chapter_2_0_first_response/events":
+      non_empty: true
+    "/eino_glumdalclitch_chapter_2_0_first_response/audio_bytes":
+      minimum: 1
+    "/eino_glumdalclitch_chapter_2_0_first_response/first_text_ms":
+      maximum: 2000
+    "/eino_glumdalclitch_chapter_2_0_first_response/first_audio_ms":
+      maximum: 3000
+- id: glumdalclitch_chapter_2_1
+  timeout: 2m
+  parallel:
+  - id: flowcraft_glumdalclitch_chapter_2_1
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 请让格列佛亲自回应，说出不同立场。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: eino_glumdalclitch_chapter_2_1
+    client: eino
+    peer_stream:
+      mode: text
+      input: 请让格列佛亲自回应，说出不同立场。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_glumdalclitch_chapter_2_1/text_eos":
+      equals: true
+    "/flowcraft_glumdalclitch_chapter_2_1/audio_eos":
+      equals: true
+    "/flowcraft_glumdalclitch_chapter_2_1/audio_bytes":
+      minimum: 1
+    "/flowcraft_glumdalclitch_chapter_2_1/first_text_ms":
+      maximum: 6000
+    "/flowcraft_glumdalclitch_chapter_2_1/first_audio_ms":
+      maximum: 90000
+    "/flowcraft_glumdalclitch_chapter_2_1/events":
+      non_empty: true
+    "/flowcraft_glumdalclitch_chapter_2_1/text":
+      non_empty: true
+    "/flowcraft_glumdalclitch_chapter_2_1/text_eos_ms":
+      maximum: 90000
+    "/flowcraft_glumdalclitch_chapter_2_1/audio_eos_ms":
+      maximum: 90000
+    "/flowcraft_glumdalclitch_chapter_2_1/audio_integrity/streams":
+      minimum: 1
+    "/flowcraft_glumdalclitch_chapter_2_1/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_glumdalclitch_chapter_2_1/audio_integrity/open":
+      equals: 0
+    "/flowcraft_glumdalclitch_chapter_2_1/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_glumdalclitch_chapter_2_1/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/flowcraft_glumdalclitch_chapter_2_1/audio_pacing/underruns":
+      equals: 0
+    "/eino_glumdalclitch_chapter_2_1/text_eos":
+      equals: true
+    "/eino_glumdalclitch_chapter_2_1/audio_eos":
+      equals: true
+    "/eino_glumdalclitch_chapter_2_1/audio_bytes":
+      minimum: 1
+    "/eino_glumdalclitch_chapter_2_1/first_text_ms":
+      maximum: 6000
+    "/eino_glumdalclitch_chapter_2_1/first_audio_ms":
+      maximum: 90000
+    "/eino_glumdalclitch_chapter_2_1/events":
+      non_empty: true
+    "/eino_glumdalclitch_chapter_2_1/text":
+      non_empty: true
+    "/eino_glumdalclitch_chapter_2_1/text_eos_ms":
+      maximum: 90000
+    "/eino_glumdalclitch_chapter_2_1/audio_eos_ms":
+      maximum: 90000
+    "/eino_glumdalclitch_chapter_2_1/audio_integrity/streams":
+      minimum: 1
+    "/eino_glumdalclitch_chapter_2_1/audio_integrity/max_active":
+      equals: 1
+    "/eino_glumdalclitch_chapter_2_1/audio_integrity/open":
+      equals: 0
+    "/eino_glumdalclitch_chapter_2_1/audio_integrity/violations":
+      equals: 0
+    "/eino_glumdalclitch_chapter_2_1/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/eino_glumdalclitch_chapter_2_1/audio_pacing/underruns":
+      equals: 0
+- id: glumdalclitch_chapter_2_1_first_response
+  timeout: 15s
+  parallel:
+  - id: flowcraft_glumdalclitch_chapter_2_1_first_response
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 请让格列佛亲自回应，说出不同立场。
+      require_text: true
+      require_audio: true
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+  - id: eino_glumdalclitch_chapter_2_1_first_response
+    client: eino
+    peer_stream:
+      mode: text
+      input: 请让格列佛亲自回应，说出不同立场。
+      require_text: true
+      require_audio: true
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+  expect:
+    "/flowcraft_glumdalclitch_chapter_2_1_first_response/events":
+      non_empty: true
+    "/flowcraft_glumdalclitch_chapter_2_1_first_response/audio_bytes":
+      minimum: 1
+    "/flowcraft_glumdalclitch_chapter_2_1_first_response/first_text_ms":
+      maximum: 2000
+    "/flowcraft_glumdalclitch_chapter_2_1_first_response/first_audio_ms":
+      maximum: 3000
+    "/eino_glumdalclitch_chapter_2_1_first_response/events":
+      non_empty: true
+    "/eino_glumdalclitch_chapter_2_1_first_response/audio_bytes":
+      minimum: 1
+    "/eino_glumdalclitch_chapter_2_1_first_response/first_text_ms":
+      maximum: 2000
+    "/eino_glumdalclitch_chapter_2_1_first_response/first_audio_ms":
+      maximum: 3000
+- id: glumdalclitch_chapter_2_2
+  timeout: 2m
+  parallel:
+  - id: flowcraft_glumdalclitch_chapter_2_2
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 进入下一章。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: eino_glumdalclitch_chapter_2_2
+    client: eino
+    peer_stream:
+      mode: text
+      input: 进入下一章。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_glumdalclitch_chapter_2_2/text_eos":
+      equals: true
+    "/flowcraft_glumdalclitch_chapter_2_2/audio_eos":
+      equals: true
+    "/flowcraft_glumdalclitch_chapter_2_2/audio_bytes":
+      minimum: 1
+    "/flowcraft_glumdalclitch_chapter_2_2/first_text_ms":
+      maximum: 6000
+    "/flowcraft_glumdalclitch_chapter_2_2/first_audio_ms":
+      maximum: 90000
+    "/flowcraft_glumdalclitch_chapter_2_2/text":
+      contains: 第 3 章：尺度反转
+      non_empty: true
+    "/flowcraft_glumdalclitch_chapter_2_2/events":
+      non_empty: true
+    "/flowcraft_glumdalclitch_chapter_2_2/text_eos_ms":
+      maximum: 90000
+    "/flowcraft_glumdalclitch_chapter_2_2/audio_eos_ms":
+      maximum: 90000
+    "/flowcraft_glumdalclitch_chapter_2_2/audio_integrity/streams":
+      minimum: 1
+    "/flowcraft_glumdalclitch_chapter_2_2/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_glumdalclitch_chapter_2_2/audio_integrity/open":
+      equals: 0
+    "/flowcraft_glumdalclitch_chapter_2_2/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_glumdalclitch_chapter_2_2/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/flowcraft_glumdalclitch_chapter_2_2/audio_pacing/underruns":
+      equals: 0
+    "/eino_glumdalclitch_chapter_2_2/text_eos":
+      equals: true
+    "/eino_glumdalclitch_chapter_2_2/audio_eos":
+      equals: true
+    "/eino_glumdalclitch_chapter_2_2/audio_bytes":
+      minimum: 1
+    "/eino_glumdalclitch_chapter_2_2/first_text_ms":
+      maximum: 6000
+    "/eino_glumdalclitch_chapter_2_2/first_audio_ms":
+      maximum: 90000
+    "/eino_glumdalclitch_chapter_2_2/text":
+      contains: 第 3 章：尺度反转
+      non_empty: true
+    "/eino_glumdalclitch_chapter_2_2/events":
+      non_empty: true
+    "/eino_glumdalclitch_chapter_2_2/text_eos_ms":
+      maximum: 90000
+    "/eino_glumdalclitch_chapter_2_2/audio_eos_ms":
+      maximum: 90000
+    "/eino_glumdalclitch_chapter_2_2/audio_integrity/streams":
+      minimum: 1
+    "/eino_glumdalclitch_chapter_2_2/audio_integrity/max_active":
+      equals: 1
+    "/eino_glumdalclitch_chapter_2_2/audio_integrity/open":
+      equals: 0
+    "/eino_glumdalclitch_chapter_2_2/audio_integrity/violations":
+      equals: 0
+    "/eino_glumdalclitch_chapter_2_2/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/eino_glumdalclitch_chapter_2_2/audio_pacing/underruns":
+      equals: 0
+- id: glumdalclitch_chapter_2_2_first_response
+  timeout: 15s
+  parallel:
+  - id: flowcraft_glumdalclitch_chapter_2_2_first_response
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 进入下一章。
+      require_text: true
+      require_audio: true
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+  - id: eino_glumdalclitch_chapter_2_2_first_response
+    client: eino
+    peer_stream:
+      mode: text
+      input: 进入下一章。
+      require_text: true
+      require_audio: true
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+  expect:
+    "/flowcraft_glumdalclitch_chapter_2_2_first_response/events":
+      non_empty: true
+    "/flowcraft_glumdalclitch_chapter_2_2_first_response/audio_bytes":
+      minimum: 1
+    "/flowcraft_glumdalclitch_chapter_2_2_first_response/first_text_ms":
+      maximum: 2000
+    "/flowcraft_glumdalclitch_chapter_2_2_first_response/first_audio_ms":
+      maximum: 3000
+    "/eino_glumdalclitch_chapter_2_2_first_response/events":
+      non_empty: true
+    "/eino_glumdalclitch_chapter_2_2_first_response/audio_bytes":
+      minimum: 1
+    "/eino_glumdalclitch_chapter_2_2_first_response/first_text_ms":
+      maximum: 2000
+    "/eino_glumdalclitch_chapter_2_2_first_response/first_audio_ms":
+      maximum: 3000
+- id: probe_glumdalclitch
+  timeout: 2m
+  parallel:
+  - id: flowcraft_probe_glumdalclitch
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 请让葛兰达克利赤亲自回应，只说这个角色知道的事。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: eino_probe_glumdalclitch
+    client: eino
+    peer_stream:
+      mode: text
+      input: 请让葛兰达克利赤亲自回应，只说这个角色知道的事。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_probe_glumdalclitch/text":
+      not_contains:
+      - 葛兰达克利赤说
+      - 葛兰达克利赤：
+      non_empty: true
+    "/flowcraft_probe_glumdalclitch/text_eos":
+      equals: true
+    "/flowcraft_probe_glumdalclitch/audio_eos":
+      equals: true
+    "/flowcraft_probe_glumdalclitch/audio_bytes":
+      minimum: 1
+    "/flowcraft_probe_glumdalclitch/first_text_ms":
+      maximum: 6000
+    "/flowcraft_probe_glumdalclitch/first_audio_ms":
+      maximum: 90000
+    "/flowcraft_probe_glumdalclitch/events":
+      non_empty: true
+    "/flowcraft_probe_glumdalclitch/text_eos_ms":
+      maximum: 90000
+    "/flowcraft_probe_glumdalclitch/audio_eos_ms":
+      maximum: 90000
+    "/flowcraft_probe_glumdalclitch/audio_integrity/streams":
+      minimum: 1
+    "/flowcraft_probe_glumdalclitch/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_probe_glumdalclitch/audio_integrity/open":
+      equals: 0
+    "/flowcraft_probe_glumdalclitch/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_probe_glumdalclitch/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/flowcraft_probe_glumdalclitch/audio_pacing/underruns":
+      equals: 0
+    "/eino_probe_glumdalclitch/text":
+      not_contains:
+      - 葛兰达克利赤说
+      - 葛兰达克利赤：
+      non_empty: true
+    "/eino_probe_glumdalclitch/text_eos":
+      equals: true
+    "/eino_probe_glumdalclitch/audio_eos":
+      equals: true
+    "/eino_probe_glumdalclitch/audio_bytes":
+      minimum: 1
+    "/eino_probe_glumdalclitch/first_text_ms":
+      maximum: 6000
+    "/eino_probe_glumdalclitch/first_audio_ms":
+      maximum: 90000
+    "/eino_probe_glumdalclitch/events":
+      non_empty: true
+    "/eino_probe_glumdalclitch/text_eos_ms":
+      maximum: 90000
+    "/eino_probe_glumdalclitch/audio_eos_ms":
+      maximum: 90000
+    "/eino_probe_glumdalclitch/audio_integrity/streams":
+      minimum: 1
+    "/eino_probe_glumdalclitch/audio_integrity/max_active":
+      equals: 1
+    "/eino_probe_glumdalclitch/audio_integrity/open":
+      equals: 0
+    "/eino_probe_glumdalclitch/audio_integrity/violations":
+      equals: 0
+    "/eino_probe_glumdalclitch/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/eino_probe_glumdalclitch/audio_pacing/underruns":
+      equals: 0
+- id: probe_glumdalclitch_first_response
+  timeout: 15s
+  parallel:
+  - id: flowcraft_probe_glumdalclitch_first_response
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 请让葛兰达克利赤亲自回应，只说这个角色知道的事。
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+      require_text: true
+      require_audio: true
+  - id: eino_probe_glumdalclitch_first_response
+    client: eino
+    peer_stream:
+      mode: text
+      input: 请让葛兰达克利赤亲自回应，只说这个角色知道的事。
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_probe_glumdalclitch_first_response/events":
+      non_empty: true
+    "/flowcraft_probe_glumdalclitch_first_response/audio_bytes":
+      minimum: 1
+    "/flowcraft_probe_glumdalclitch_first_response/first_text_ms":
+      maximum: 2000
+    "/flowcraft_probe_glumdalclitch_first_response/first_audio_ms":
+      maximum: 3000
+    "/eino_probe_glumdalclitch_first_response/events":
+      non_empty: true
+    "/eino_probe_glumdalclitch_first_response/audio_bytes":
+      minimum: 1
+    "/eino_probe_glumdalclitch_first_response/first_text_ms":
+      maximum: 2000
+    "/eino_probe_glumdalclitch_first_response/first_audio_ms":
+      maximum: 3000
+- id: flowcraft_select_realtime
+  client: flowcraft
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${flowcraft_realtime_workspace}"
+- id: flowcraft_warmup_realtime
+  client: flowcraft
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: eino_select_realtime
+  client: eino
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${eino_realtime_workspace}"
+- id: eino_warmup_realtime
+  client: eino
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: synthesize_input_audio
+  client: flowcraft
+  speech:
+    method: server.speech.synthesize
+    request:
+      voice_name: giztest-input.zh
+      text: 请简短介绍当前故事，并告诉我现在可以做什么。
+      accepted_content_types:
+      - audio/ogg
+    cache: run
+  save_as: input_audio
+- id: realtime_roundtrip
+  timeout: 2m
+  parallel:
+  - id: flowcraft_realtime_roundtrip
+    client: flowcraft
+    peer_stream:
+      mode: realtime
+      input: "${input_audio}"
+      pacing: 20ms
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: eino_realtime_roundtrip
+    client: eino
+    peer_stream:
+      mode: realtime
+      input: "${input_audio}"
+      pacing: 20ms
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_realtime_roundtrip/events":
+      non_empty: true
+    "/flowcraft_realtime_roundtrip/text":
+      non_empty: true
+    "/flowcraft_realtime_roundtrip/text_eos":
+      equals: true
+    "/flowcraft_realtime_roundtrip/audio_bytes":
+      minimum: 1
+    "/flowcraft_realtime_roundtrip/audio_eos":
+      equals: true
+    "/flowcraft_realtime_roundtrip/first_text_ms":
+      maximum: 6000
+    "/flowcraft_realtime_roundtrip/first_audio_ms":
+      maximum: 90000
+    "/flowcraft_realtime_roundtrip/text_eos_ms":
+      maximum: 90000
+    "/flowcraft_realtime_roundtrip/audio_eos_ms":
+      maximum: 90000
+    "/flowcraft_realtime_roundtrip/audio_integrity/streams":
+      minimum: 1
+    "/flowcraft_realtime_roundtrip/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_realtime_roundtrip/audio_integrity/open":
+      equals: 0
+    "/flowcraft_realtime_roundtrip/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_realtime_roundtrip/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/flowcraft_realtime_roundtrip/audio_pacing/underruns":
+      equals: 0
+    "/eino_realtime_roundtrip/events":
+      non_empty: true
+    "/eino_realtime_roundtrip/text":
+      non_empty: true
+    "/eino_realtime_roundtrip/text_eos":
+      equals: true
+    "/eino_realtime_roundtrip/audio_bytes":
+      minimum: 1
+    "/eino_realtime_roundtrip/audio_eos":
+      equals: true
+    "/eino_realtime_roundtrip/first_text_ms":
+      maximum: 6000
+    "/eino_realtime_roundtrip/first_audio_ms":
+      maximum: 90000
+    "/eino_realtime_roundtrip/text_eos_ms":
+      maximum: 90000
+    "/eino_realtime_roundtrip/audio_eos_ms":
+      maximum: 90000
+    "/eino_realtime_roundtrip/audio_integrity/streams":
+      minimum: 1
+    "/eino_realtime_roundtrip/audio_integrity/max_active":
+      equals: 1
+    "/eino_realtime_roundtrip/audio_integrity/open":
+      equals: 0
+    "/eino_realtime_roundtrip/audio_integrity/violations":
+      equals: 0
+    "/eino_realtime_roundtrip/audio_pacing/max_interval_ms":
+      maximum: 150
+    "/eino_realtime_roundtrip/audio_pacing/underruns":
+      equals: 0
+- id: realtime_roundtrip_first_response
+  timeout: 15s
+  parallel:
+  - id: flowcraft_realtime_roundtrip_first_response
+    client: flowcraft
+    peer_stream:
+      mode: realtime
+      input: "${input_audio}"
+      pacing: 20ms
+      require_text: true
+      require_audio: true
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+  - id: eino_realtime_roundtrip_first_response
+    client: eino
+    peer_stream:
+      mode: realtime
+      input: "${input_audio}"
+      pacing: 20ms
+      require_text: true
+      require_audio: true
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+  expect:
+    "/flowcraft_realtime_roundtrip_first_response/events":
+      non_empty: true
+    "/flowcraft_realtime_roundtrip_first_response/audio_bytes":
+      minimum: 1
+    "/flowcraft_realtime_roundtrip_first_response/first_text_ms":
+      maximum: 2000
+    "/flowcraft_realtime_roundtrip_first_response/first_audio_ms":
+      maximum: 3000
+    "/eino_realtime_roundtrip_first_response/events":
+      non_empty: true
+    "/eino_realtime_roundtrip_first_response/audio_bytes":
+      minimum: 1
+    "/eino_realtime_roundtrip_first_response/first_text_ms":
+      maximum: 2000
+    "/eino_realtime_roundtrip_first_response/first_audio_ms":
+      maximum: 3000
+finally:
+- id: flowcraft_stop_run
+  client: flowcraft
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: eino_stop_run
+  client: eino
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: flowcraft_delete_text
+  client: flowcraft
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${flowcraft_text_workspace}"
+- id: eino_delete_text
+  client: eino
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${eino_text_workspace}"
+- id: flowcraft_delete_realtime
+  client: flowcraft
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${flowcraft_realtime_workspace}"
+- id: eino_delete_realtime
+  client: eino
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${eino_realtime_workspace}"
+- id: flowcraft_delete_peer
+  client: flowcraft
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: eino_delete_peer
+  client: eino
+  rpc:
+    method: server.peer.delete
+    request: {}
+report:
+  redact:
+  - registration_token

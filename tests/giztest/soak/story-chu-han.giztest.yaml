@@ -1,0 +1,392 @@
+# User Story:
+# As a Raids catalog maintainer,
+# I want every available story-chu-han implementation to complete the same bounded Tester relay,
+# So that chapter, correction, reload, role, and continuity behavior remain reproducible.
+version: gizclaw.test/v1alpha1
+name: soak.story-chu-han
+clients:
+  flowcraft:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  flowcraft_tester:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  eino:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  eino_tester:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+variables:
+  endpoint:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_ENDPOINT
+  registration_token:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_REGISTRATION_TOKEN
+    secret: true
+  test_brief:
+    direction: input
+    type: string
+    value: BEGIN flowcraft-story-chu-han long-form-story
+  flowcraft_candidate_workspace:
+    direction: input
+    type: string
+    generate: token
+  flowcraft_tester_workspace:
+    direction: input
+    type: string
+    generate: token
+  flowcraft_verdict:
+    direction: output
+    type: string
+  eino_candidate_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_tester_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_verdict:
+    direction: output
+    type: string
+repeat: 1
+timeout: 180m
+steps:
+- id: flowcraft_register_candidate
+  client: flowcraft
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: flowcraft_register_tester
+  client: flowcraft_tester
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: flowcraft_create_candidate_workspace
+  client: flowcraft
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${flowcraft_candidate_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-story-chu-han
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: flowcraft_create_tester_workspace
+  client: flowcraft_tester
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${flowcraft_tester_workspace}"
+      collection: raidtest-testers
+      workflow_name: story-chu-han-test
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: flowcraft_select_candidate_workspace
+  client: flowcraft
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${flowcraft_candidate_workspace}"
+- id: flowcraft_warmup_candidate_workspace
+  client: flowcraft
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: flowcraft_select_tester_workspace
+  client: flowcraft_tester
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${flowcraft_tester_workspace}"
+- id: flowcraft_relay_responses_1_8
+  timeout: 32m
+  workspace_relay:
+    first_client: flowcraft_tester
+    second_client: flowcraft
+    input: "${test_brief}"
+    media: text
+    idle_timeout: 90s
+    max_turns: 17
+    terminal_client: flowcraft_tester
+  expect:
+    "/terminal/client":
+      equals: flowcraft_tester
+    "/terminal/text":
+      pattern: "^\\s*CHECKPOINT PASS\\s*$"
+    "/completed_turns":
+      equals: 17
+    "/turns/flowcraft/count":
+      equals: 8
+    "/turns/flowcraft_tester/count":
+      equals: 9
+    "/turns/flowcraft/first_text_ms/max":
+      maximum: 6000
+    "/turns/flowcraft/text_runes/min":
+      minimum: 4
+    "/turns/flowcraft/text_runes/max":
+      maximum: 360
+- id: flowcraft_recall_barrier
+  client: flowcraft
+  rpc:
+    method: server.run.workspace.recall
+    request:
+      query: 月光七码
+  timeout: 60s
+  expect:
+    "/available":
+      equals: true
+    "/hits":
+      non_empty: true
+- id: flowcraft_reload_candidate_workspace
+  client: flowcraft
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+- id: flowcraft_relay_responses_9_16
+  timeout: 32m
+  workspace_relay:
+    first_client: flowcraft_tester
+    second_client: flowcraft
+    input: CONTINUE 8
+    media: text
+    idle_timeout: 90s
+    max_turns: 17
+    terminal_client: flowcraft_tester
+  capture:
+    flowcraft_verdict: "/terminal/text"
+  expect:
+    "/terminal/client":
+      equals: flowcraft_tester
+    "/terminal/text":
+      pattern: "^\\s*PASS\\s*$"
+    "/completed_turns":
+      equals: 17
+    "/turns/flowcraft/count":
+      equals: 8
+    "/turns/flowcraft_tester/count":
+      equals: 9
+    "/turns/flowcraft/first_text_ms/max":
+      maximum: 6000
+    "/turns/flowcraft/text_runes/min":
+      minimum: 4
+    "/turns/flowcraft/text_runes/max":
+      maximum: 360
+- id: flowcraft_emit_verdict
+  output:
+    variable: flowcraft_verdict
+- id: eino_register_candidate
+  client: eino
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: eino_register_tester
+  client: eino_tester
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: eino_create_candidate_workspace
+  client: eino
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_candidate_workspace}"
+      collection: raidtest-targets
+      workflow_name: eino-story-chu-han
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_create_tester_workspace
+  client: eino_tester
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_tester_workspace}"
+      collection: raidtest-testers
+      workflow_name: story-chu-han-test
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_select_candidate_workspace
+  client: eino
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${eino_candidate_workspace}"
+- id: eino_warmup_candidate_workspace
+  client: eino
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: eino_select_tester_workspace
+  client: eino_tester
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${eino_tester_workspace}"
+- id: eino_relay_responses_1_8
+  timeout: 32m
+  workspace_relay:
+    first_client: eino_tester
+    second_client: eino
+    input: "${test_brief}"
+    media: text
+    idle_timeout: 90s
+    max_turns: 17
+    terminal_client: eino_tester
+  expect:
+    "/terminal/client":
+      equals: eino_tester
+    "/terminal/text":
+      pattern: "^\\s*CHECKPOINT PASS\\s*$"
+    "/completed_turns":
+      equals: 17
+    "/turns/eino/count":
+      equals: 8
+    "/turns/eino_tester/count":
+      equals: 9
+    "/turns/eino/first_text_ms/max":
+      maximum: 6000
+    "/turns/eino/text_runes/min":
+      minimum: 4
+    "/turns/eino/text_runes/max":
+      maximum: 360
+- id: eino_recall_barrier
+  client: eino
+  rpc:
+    method: server.run.workspace.recall
+    request:
+      query: 月光七码
+  timeout: 60s
+  expect:
+    "/available":
+      equals: true
+    "/hits":
+      non_empty: true
+- id: eino_reload_candidate_workspace
+  client: eino
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+- id: eino_relay_responses_9_16
+  timeout: 32m
+  workspace_relay:
+    first_client: eino_tester
+    second_client: eino
+    input: CONTINUE 8
+    media: text
+    idle_timeout: 90s
+    max_turns: 17
+    terminal_client: eino_tester
+  capture:
+    eino_verdict: "/terminal/text"
+  expect:
+    "/terminal/client":
+      equals: eino_tester
+    "/terminal/text":
+      pattern: "^\\s*PASS\\s*$"
+    "/completed_turns":
+      equals: 17
+    "/turns/eino/count":
+      equals: 8
+    "/turns/eino_tester/count":
+      equals: 9
+    "/turns/eino/first_text_ms/max":
+      maximum: 6000
+    "/turns/eino/text_runes/min":
+      minimum: 4
+    "/turns/eino/text_runes/max":
+      maximum: 360
+- id: eino_emit_verdict
+  output:
+    variable: eino_verdict
+finally:
+- id: flowcraft_stop_candidate_run
+  client: flowcraft
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: flowcraft_stop_tester_run
+  client: flowcraft_tester
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: flowcraft_delete_candidate_workspace
+  client: flowcraft
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${flowcraft_candidate_workspace}"
+- id: flowcraft_delete_tester_workspace
+  client: flowcraft_tester
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${flowcraft_tester_workspace}"
+- id: flowcraft_delete_candidate_peer
+  client: flowcraft
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: flowcraft_delete_tester_peer
+  client: flowcraft_tester
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: eino_stop_candidate_run
+  client: eino
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: eino_stop_tester_run
+  client: eino_tester
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: eino_delete_candidate_workspace
+  client: eino
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${eino_candidate_workspace}"
+- id: eino_delete_tester_workspace
+  client: eino_tester
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${eino_tester_workspace}"
+- id: eino_delete_candidate_peer
+  client: eino
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: eino_delete_tester_peer
+  client: eino_tester
+  rpc:
+    method: server.peer.delete
+    request: {}
+report:
+  redact:
+  - registration_token
