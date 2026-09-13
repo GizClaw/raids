@@ -13,6 +13,10 @@
 
 Install an implementation into a RuntimeProfile with `raids install journey-guide --impl <engine> --profile <file> --collection <name> --set model.<alias>=<model id> --set voice.<alias>=<voice id>`; the slots above are the parameters the installer asks for.
 
+All four implementations accept text and push-to-talk input and synthesize spoken
+output. Bind the shared `asr` Model alias in the RuntimeProfile alongside the
+implementation-specific Model and Voice slots above; the bundled default/testing
+profiles already provide this binding.
 
 ## Testing
 
