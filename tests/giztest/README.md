@@ -8,13 +8,16 @@ one global worker pool. This corpus replaced the retired `tools/raidtest` Go
 runner, which owned paired, catalog, and default qualification before the raid
 package layout.
 
-Requires GizClaw v0.6.0 or later, the first release containing the declarative
-runner, assertion matchers, and `workspace_relay` operation (GizClaw #916,
-#921, #923). The bounded story-role latency probes additionally require the
+The merged corpus requires **GizClaw >= v0.18.9** for Eino
+`voice_adapter.state_voices` ([#1270](https://github.com/GizClaw/gizclaw/issues/1270)).
+The declarative runner, assertion matchers, and `workspace_relay` originated
+in v0.6.0 (GizClaw #916, #921, #923). The bounded story-role latency probes
+additionally require the
 `peer_stream.completion: first_response` contract from GizClaw #991/#992,
-first released in v0.7.13. CI uses GizClaw v0.18.2, which also contains the
+first released in v0.7.13. CI still pins GizClaw v0.18.2, which predates
+`state_voices` and needs a separate upgrade. That release contains the
 RuntimeProfile reload repair from GizClaw #994/#997 and the modality-selective
-first-response contract from GizClaw #1003/#1004 for text-only Eino probes.
+first-response contract from GizClaw #1003/#1004 for Eino probes that only assert text.
 `make test-unit-resources` validates the corpus offline.
 
 ## Layout
@@ -35,14 +38,22 @@ tests/giztest/h106/…                                  # targets outside this c
 | --- | --- | --- |
 | 50 story/adventure/learn raids × `flowcraft` + `eino` | 100 | `workspace_relay` against the raid's `<raid>-test` Tester |
 | 50 story/adventure/learn raids × `flowcraft.realtime` + `eino.realtime` | 100 | warmed, paced-audio RealTime roundtrip; Flowcraft enforces 2 s text / 3 s audio first response and Eino enforces 2 s text first response |
-| 19 `story-*` Flowcraft role probes | 19 | three isolated narrator/character Workspaces requiring complete text/audio EOS evidence plus bounded 2 s text / 3 s audio first-response probes |
+| 31 story/adventure/Murder Mystery raids × `flowcraft.roles` + `eino.roles` | 62 | one isolated Workspace per narrator/character, requiring complete text/audio EOS and nonempty audio plus 2 s text / 3 s audio first-response probes |
 | 19 `story-*` × `flowcraft.transitions` + `eino.transitions` | 38 | single-client stateful contract: guided opening, natural progress, negated choice, choice that prompts “进入下一章”, adjacent transition whose heading is followed by story text, and same-chapter continuation |
 | `story-wizard-oz/english-restart*` | 2 | direct Flowcraft audio plus Eino relay preserving English restart and non-reset continuation |
 | `journey-guide/` (`flowcraft`, `eino-history`, `eino-memory-recall`, `eino-memory-async`, `flowcraft.benchmark-6s`) | 5 | 4 relays sharing `journey-guide-test` + 1 single-client TTFT benchmark |
-| `murder-mystery/`, `chat-assistant/` | 2 | relay |
+| `murder-mystery/` relays and transitions | 4 | 2 dual-engine 26-response relays + 2 handoff/knowledge-boundary contracts; roles counted above |
+| `chat-assistant/` | 1 | relay |
 | `doubao-realtime/` | 2 | single client, realtime audio |
 | `ast-translate/` | 8 | single client, push-to-talk audio, one per direction |
 | `h106/` | 2 | single client; external targets |
+
+There are **324 `.giztest.yaml` files** in this checkout, excluding this README
+and generated reports; `repeat` does not add files. Recount from actual files:
+
+```sh
+rg --files tests/giztest -g '*.giztest.yaml' | wc -l
+```
 
 The giztest files live beside `tests/giztest` rather than inside `workflows/`
 only because the deploy catalog walker reads every `*.yaml` under `workflows/`
@@ -78,12 +89,14 @@ and verifies a non-empty terminal assistant response after an explicit warm-up.
 Flowcraft already declares an ASR/TTS `voice_adapter`, so its terminal check
 requires text EOS, audio EOS, and positive audio bytes; a second
 `completion: first_response` turn requires text within 2 seconds and audio
-within 3 seconds. Eino remains text-only: its Workflow declares `asr_model:
-asr` for realtime input, while the test sets `require_audio: false` and requires
-non-empty assistant text plus text EOS. A second text-only
-`completion: first_response` turn requires Eino text within 2 seconds while
-leaving audio out of the acceptance contract. This avoids representing absent
-Eino TTS as an audio pass.
+within 3 seconds. The existing Eino RealTime files set `require_audio: false`,
+require non-empty
+assistant text and text EOS, and use a second `completion: first_response`
+turn with a 2-second text gate. Those files do not assert TTS or audio latency.
+Story and adventure Eino Workflows now select character TTS via
+`selected_speaker` and `voice_adapter.state_voices`; their dual-engine `roles`
+files provide the complete audio and 2 s text / 3 s audio acceptance contracts.
+The 100 RealTime files also include all 20 learn raids on both engines.
 
 The relay-protocol Tester Workflows (`workflows/<raid>/test.yaml`, one per
 scenario and shared by its Flowcraft and Eino implementations) are generated
@@ -113,11 +126,15 @@ and ends at response 64. Checkpoints keep each audit inside the 50-message Eino
 History window; a missing round, deterministic failure, timeout, or non-strict
 verdict fails that segment.
 
-Every `flowcraft.roles.giztest.yaml` uses three isolated Workspaces so a prior
-speaker cannot influence the next probe. The narrator Workspace also proves
-that a fresh direct chapter-two request remains in chapter one until the
-completion conditions are satisfied. A natural direct request reaches the
-narrator or one named character, while `peer_stream mode: text` requires text
+All 19 stories, 11 adventures, and `murder-mystery` have both
+`flowcraft.roles.giztest.yaml` and `eino.roles.giztest.yaml`. Each uses one
+isolated Workspace per role, with the count registered in `raid.json`: stories
+have a narrator plus three to five characters; adventures have a narrator plus
+three (four for space rescue); Murder Mystery has a host plus four witnesses.
+Later arrivals receive the required chapter or scene setup before probing.
+Story narrator probes also check that a fresh chapter-two request stays in
+chapter one until the completion conditions are satisfied.
+A natural direct request reaches the narrator or one named character, while `peer_stream mode: text` requires text
 EOS, audio EOS, positive `audio_bytes`, and direct, speaker-label-free role text. After each
 role's complete semantic response, a final
 `peer_stream.completion: first_response` step on that isolated Workspace
@@ -164,6 +181,34 @@ non-empty `/hits` before the reload.
   `APPLY=1 make test-e2e`; `RAID=all` skips the directory, and running it with
   `RAID=h106` requires a deployment whose `testing` profile exposes those
   Workflows in the `assistants` collection.
+
+## Offline multi-voice gates
+
+`make test-unit-resources` validates resources and this corpus, checks Voice
+bindings from manifests through Flowcraft `node_voices` and Eino
+`state_voices` to both RuntimeProfiles and real Voice files, rejects duplicate
+Voice IDs within an implementation, and checks equal Voice IDs for matching
+roles across engines. Registered Eino role probes require full EOS/nonempty
+audio and 2 s text / 3 s audio gates; story Flowcraft probes also check role
+branches, speaker-label guards, and persistence paths.
+
+All 31 migrated raids have `workflows/<raid>/routing-cases.json` (version 1).
+Each case runs the real Flowcraft JavaScript and Eino Starlark against the same
+expected speaker, including negation, request order, chapter/scene eligibility,
+management priority, choices, old-memory recovery, and transitions. Missing
+fixtures for expanded Voice mappings or `state_voices` fail the gate. Ruby,
+Node.js, and a local Go toolchain with cached Starlark dependencies are needed;
+the Starlark runner disables Go module downloads.
+
+Murder Mystery remains **12+ / mystery-death**: the host owns evidence checks,
+corrections, reasoning, and conclusions; the four witnesses answer individual
+interviews from their testimony and public dialogue. Both engines preserve the
+26-response investigation and add role-audio and handoff/leakage contracts.
+
+The [10-Voice casting pool](../../README.md#narrator-and-character-voices)
+includes five `ICL_*` Voices not yet verified online for the tenant. Offline
+success does not prove provider access, actual Voice selection, latency, or
+sound quality; live Voice logs and listening remain separate evidence.
 
 ## Running
 
