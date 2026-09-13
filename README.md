@@ -358,7 +358,7 @@ voice aliases the manifest lists.
 Live tests use `tests/giztest/{smoke,quality,soak}/<raid>.giztest.yaml`, with every implementation of one raid in the same file. There are **163 tier files**: **55 smoke**, **55 quality**, and **53 soak**. The two external H106 files remain separate, for **165 `.giztest.yaml` files** total; generated reports are excluded.
 
 - **smoke** measures speed, latency and responsiveness, including complete audio and independent first-response probes.
-- **quality** enforces quality control and safety guardrails, including transitions, corrections, language and role boundaries.
+- **quality** enforces deterministic quality and safety guardrails, including transitions, corrections, language and role boundaries. Equivalent engine responses run in parallel within a 10-minute file budget; long Tester relays live in soak.
 - **soak** runs long conversations between the Tester and target Workflow, including reload and memory continuity.
 
 The audio-only `ast-translate` and `doubao-realtime` targets have no soak protocol. Murder Mystery is Flowcraft-only. Journey tests all four implementations against equal gates, including recall; its history-only implementation has no recall exemption.
@@ -373,7 +373,7 @@ Set `GIZCLAW_TEST_ENDPOINT` and `GIZCLAW_TEST_REGISTRATION_TOKEN` for live runs.
 
 `make test-unit-resources` validates schemas, tier inventory, manifest registration, Voice/role closure, internal routing fixtures and equivalent implementation steps offline. It compares complete inputs, assertions, captures, timeouts and relay plans after normalizing client identifiers and Workspace implementation settings. `make test-unit-voices` checks the Voice catalog.
 
-Smoke retains the 2-second first-text / 3-second first-audio probes and the original complete-response gates. Complete streams additionally require closed, non-overlapping audio, at most 150ms between packets and zero underruns. The CLI must support `/audio_integrity` and `/audio_pacing`. Necessary role setup can exceed the two-minute target; file budgets do not relax per-step gates. A failure stops subsequent steps: skipped steps are not passes, and cleanup is reported separately. See the [test guide](tests/giztest/README.md) for the full layout, selection rules and Tester protocol.
+Smoke retains the 2-second first-text / 3-second first-audio probes and the original complete-response gates. Complete streams additionally require closed, non-overlapping audio, zero underruns and a nonnegative minimum playback buffer under Giztest’s 500ms prebuffer model; packet gaps remain diagnostic evidence. The CLI must support `/audio_integrity` and `/audio_pacing`. Necessary role setup can exceed the two-minute target; file budgets do not relax per-step gates. A failure stops subsequent steps: skipped steps are not passes, and cleanup is reported separately. See the [test guide](tests/giztest/README.md) for the full layout, selection rules and Tester protocol.
 
 ## Catalog behavior notes
 
