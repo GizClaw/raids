@@ -23,12 +23,14 @@ Learn planning, making, observation, and seeking help through an island survival
 
 Flowcraft 每轮选择一个 published 节点；Eino 保留一个 primary chat_model，由 Starlark 写入 selected_speaker，state_voices 绑定音色。两引擎保留 ASR 和原记忆链路。
 
-| 角色（别名） | 章节 | 动机与行动 | 两引擎槽位 | Voice ID |
-| --- | --- | --- | --- | --- |
-| 旁白 (旁白/narrator) | 1,2,3,4 | 可见事实与转场，不代演 | `flowcraft-story-robinson-crusoe.storyteller` / `eino-story-robinson-crusoe.storyteller` | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_uranus_bigtts` |
-| 鲁滨逊 (鲁滨逊/robinson) | 1,2,3,4 | 想建立可持续的营地；清晰理性，第1章清点退潮物资。 | `flowcraft-story-robinson-crusoe.robinson` / `eino-story-robinson-crusoe.robinson` | `volc-tenant:volc-cn-beijing:zh_male_jieshuoxiaoming_uranus_bigtts` |
-| 星期五 (星期五/friday) | 1,2,3,4 | 想作为平等伙伴合作；清爽坦率，第1章建议标记安全营地，第3章核对脚印，不凭空认定危险。 | `flowcraft-story-robinson-crusoe.friday` / `eino-story-robinson-crusoe.friday` | `volc-tenant:volc-cn-beijing:ICL_zh_male_qingshuangshaonian_tob` |
-| 船长 (船长/captain) | 4 | 想带全员安全归航；幽默稳重，第4章核对人数与天气，并商议带走哪些物资。 | `flowcraft-story-robinson-crusoe.captain` / `eino-story-robinson-crusoe.captain` | `volc-tenant:volc-cn-beijing:ICL_zh_male_youmodaye_tob` |
+Voice 由 runtime profile 绑定。
+
+| 角色（别名） | 章节 | 动机与行动 | 两引擎槽位 |
+| --- | --- | --- | --- |
+| 旁白 (旁白/narrator) | 1,2,3,4 | 可见事实与转场，不代演 | `flowcraft-story-robinson-crusoe.storyteller` / `eino-story-robinson-crusoe.storyteller` |
+| 鲁滨逊 (鲁滨逊/robinson) | 1,2,3,4 | 想建立可持续的营地；清晰理性，第1章清点退潮物资。 | `flowcraft-story-robinson-crusoe.robinson` / `eino-story-robinson-crusoe.robinson` |
+| 星期五 (星期五/friday) | 1,2,3,4 | 想作为平等伙伴合作；清爽坦率，第1章建议标记安全营地，第3章核对脚印，不凭空认定危险。 | `flowcraft-story-robinson-crusoe.friday` / `eino-story-robinson-crusoe.friday` |
+| 船长 (船长/captain) | 4 | 想带全员安全归航；幽默稳重，第4章核对人数与天气，并商议带走哪些物资。 | `flowcraft-story-robinson-crusoe.captain` / `eino-story-robinson-crusoe.captain` |
 
 角色表：narrator 旁白（别名 旁白/narrator），只在第1、2、3、4章在场，只述可见事实，不代演角色；robinson 鲁滨逊（别名 鲁滨逊/robinson），只在第1、2、3、4章在场，想建立可持续的营地；清晰理性，第1章清点退潮物资；friday 星期五（别名 星期五/friday），只在第1、2、3、4章在场，想作为平等伙伴合作；清爽坦率，第1章建议标记安全营地，第3章核对脚印，不凭空认定危险；captain 船长（别名 船长/captain），只在第4章在场，想带全员安全归航；幽默稳重，第4章核对人数与天气，并商议带走哪些物资。所有角色只说亲历或已公开信息，不知他人私密想法及未来结果。每章比较至少两种立场，不要求全员发声。章节行动属于本仓库儿童互动原创改编，不等同原典情节。本改编让星期五从第1章即作为平等伙伴在场，不采用主仆叙事。
 

@@ -43,12 +43,14 @@ make test-e2e RAID=adventure-treasure PARALLEL=2
 
 两引擎每轮只发声一次；Flowcraft 按 published 节点绑定，Eino 保持单一 primary chat_model，通过 `selected_speaker` / `state_voices` 选音色。旁白槽位保留 `.adventure-guide`。
 
-| 角色 key / 中文名（均可点名） | 出场场景与行动 | Voice resource_id |
+Voice 由 runtime profile 绑定。
+
+| 角色 key / 中文名（均可点名） | 出场场景与行动 | Voice aliases |
 | --- | --- | --- |
-| `narrator` / 旁白 | 地图观察、诗句解谜、航路回顾；只负责叙述、管理和公开信息整理，不代演角色。 | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_uranus_bigtts` |
-| `cartographer` / 地图员 | 地图观察、诗句解谜；比较指南针与已有地图的方向，不添加未发现路线。 | `volc-tenant:volc-cn-beijing:zh_male_jieshuoxiaoming_uranus_bigtts` |
-| `codebreaker` / 解谜伙伴 | 诗句解谜；逐步分析押韵提示与数字线索，不直接替玩家做决定。 | `volc-tenant:volc-cn-beijing:ICL_zh_female_huoponvhai_tob` |
-| `old-sailor` / 老水手 | 航路回顾；回顾已验证的虚构航路，提出合作比财物更重要的观点。 | `volc-tenant:volc-cn-beijing:ICL_zh_male_youmodaye_tob` |
+| `narrator` / 旁白 | 地图观察、诗句解谜、航路回顾；只负责叙述、管理和公开信息整理，不代演角色。 | `flowcraft-adventure-treasure.adventure-guide` / `eino-adventure-treasure.adventure-guide` |
+| `cartographer` / 地图员 | 地图观察、诗句解谜；比较指南针与已有地图的方向，不添加未发现路线。 | `flowcraft-adventure-treasure.cartographer` / `eino-adventure-treasure.cartographer` |
+| `codebreaker` / 解谜伙伴 | 诗句解谜；逐步分析押韵提示与数字线索，不直接替玩家做决定。 | `flowcraft-adventure-treasure.codebreaker` / `eino-adventure-treasure.codebreaker` |
+| `old-sailor` / 老水手 | 航路回顾；回顾已验证的虚构航路，提出合作比财物更重要的观点。 | `flowcraft-adventure-treasure.old-sailor` / `eino-adventure-treasure.old-sailor` |
 
 这是儿童互动冒险的原创配角安排。按场景出场，不让所有人物同时在场；角色不能获知未来场景、私密信息或未验证的结果。每轮仍只发声一次。
 场景1“地图观察”：地图员：比较指南针与已有地图的方向，不添加未发现路线。

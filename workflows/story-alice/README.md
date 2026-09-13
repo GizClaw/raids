@@ -23,14 +23,16 @@ Explore a dreamlike world through strange rules, wordplay, and logic puzzles.
 
 Flowcraft 每轮选择一个 published speak 节点；Eino 保留单一 primary chat_model，由上游 Starlark 写入 `selected_speaker`，通过 `state_voices` 选择 TTS。两个引擎均保留 ASR，使用同一角色音色。
 
-| 角色 / 别名 | 出场章节 | 动机、行动与口吻 | Voice ID |
+Voice 由 runtime profile 绑定。
+
+| 角色 / 别名 | 出场章节 | 动机、行动与口吻 | Voice aliases |
 | --- | --- | --- | --- |
-| narrator 旁白 | 1–4 | 只述可见事实、选择后果与转场，不代演角色 | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_uranus_bigtts` |
-| `alice` 爱丽丝 / 爱丽丝、alice | 1、2、3、4 | 我想弄懂奇妙规则；活泼好奇，第1章检查怀表，第2章比较门的大小，第3章用反例提问，第4章提出公平规则。 | `volc-tenant:volc-cn-beijing:ICL_zh_female_huoponvhai_tob` |
-| `white-rabbit` 白兔 / 白兔、小白兔、white rabbit、white-rabbit | 1、2、3、4 | 我想准时到达；清晰急切，第1章核对时间，第2章试验门的刻度，第3章核对茶会顺序，第4章公布怀表记录。 | `volc-tenant:volc-cn-beijing:zh_male_jieshuoxiaoming_uranus_bigtts` |
-| `hatter` 帽匠 / 帽匠、疯帽匠、hatter | 3 | 我想让茶会有趣；幽默爱举例，第3章摆放茶杯并提出一个能检验规则的反例，茶会结束留在原地。 | `volc-tenant:volc-cn-beijing:ICL_zh_male_youmodaye_tob` |
-| `cheshire-cat` 柴郡猫 / 柴郡猫、笑脸猫、cheshire cat、cheshire-cat | 2、3 | 我想让旅伴先想清目的；机敏反问，第2章指出门上两种刻度，第3章比较两种茶会规则，之后留在茶会。 | `volc-tenant:volc-cn-beijing:ICL_zh_male_qingshuangshaonian_tob` |
-| `queen-of-hearts` 红心王后 / 红心王后、王后、queen of hearts、queen-of-hearts | 4 | 我想维持花园秩序；稳重清楚，第4章展示花园规则、听取反例后修改不公平的一条，不恐吓或伤害任何人。 | `volc-tenant:volc-cn-beijing:zh_female_wenroushunv_uranus_bigtts` |
+| narrator 旁白 | 1–4 | 只述可见事实、选择后果与转场，不代演角色 | `flowcraft-story-alice.storyteller` / `eino-story-alice.storyteller` |
+| `alice` 爱丽丝 / 爱丽丝、alice | 1、2、3、4 | 我想弄懂奇妙规则；活泼好奇，第1章检查怀表，第2章比较门的大小，第3章用反例提问，第4章提出公平规则。 | `flowcraft-story-alice.alice` / `eino-story-alice.alice` |
+| `white-rabbit` 白兔 / 白兔、小白兔、white rabbit、white-rabbit | 1、2、3、4 | 我想准时到达；清晰急切，第1章核对时间，第2章试验门的刻度，第3章核对茶会顺序，第4章公布怀表记录。 | `flowcraft-story-alice.white-rabbit` / `eino-story-alice.white-rabbit` |
+| `hatter` 帽匠 / 帽匠、疯帽匠、hatter | 3 | 我想让茶会有趣；幽默爱举例，第3章摆放茶杯并提出一个能检验规则的反例，茶会结束留在原地。 | `flowcraft-story-alice.hatter` / `eino-story-alice.hatter` |
+| `cheshire-cat` 柴郡猫 / 柴郡猫、笑脸猫、cheshire cat、cheshire-cat | 2、3 | 我想让旅伴先想清目的；机敏反问，第2章指出门上两种刻度，第3章比较两种茶会规则，之后留在茶会。 | `flowcraft-story-alice.cheshire-cat` / `eino-story-alice.cheshire-cat` |
+| `queen-of-hearts` 红心王后 / 红心王后、王后、queen of hearts、queen-of-hearts | 4 | 我想维持花园秩序；稳重清楚，第4章展示花园规则、听取反例后修改不公平的一条，不恐吓或伤害任何人。 | `flowcraft-story-alice.queen-of-hearts` / `eino-story-alice.queen-of-hearts` |
 
 音色槽位：
 

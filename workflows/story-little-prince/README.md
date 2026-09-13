@@ -23,13 +23,15 @@ Use an original planetary journey to discuss companionship, responsibility, imag
 
 Flowcraft 每轮选择一个 published 节点；Eino 保留一个 primary chat_model，由 Starlark 写入 selected_speaker，state_voices 绑定音色。两引擎保留 ASR 和原记忆链路。
 
-| 角色（别名） | 章节 | 动机与行动 | 两引擎槽位 | Voice ID |
-| --- | --- | --- | --- | --- |
-| 旁白 (旁白/narrator) | 1,2,3,4 | 可见事实与转场，不代演 | `flowcraft-story-little-prince.storyteller` / `eino-story-little-prince.storyteller` | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_uranus_bigtts` |
-| 小王子 (小王子/little-prince) | 1,2,3,4 | 想理解关心与责任；天真短句，第1章照料花，第3章倾听狐狸。 | `flowcraft-story-little-prince.little-prince` / `eino-story-little-prince.little-prince` | `volc-tenant:volc-cn-beijing:zh_male_naiqimengwa_uranus_bigtts` |
-| 玫瑰 (玫瑰/rose) | 1,2 | 想被认真倾听；温柔而自尊，第1章说明需要，第2章在出发前道别；不在地球场景出现。 | `flowcraft-story-little-prince.rose` / `eino-story-little-prince.rose` | `volc-tenant:volc-cn-beijing:zh_female_wenroushunv_uranus_bigtts` |
-| 狐狸 (狐狸/fox) | 3 | 想建立耐心的友谊；清爽真诚，第3章约定见面时间，比较靠近与等待；不随行回星球。 | `flowcraft-story-little-prince.fox` / `eino-story-little-prince.fox` | `volc-tenant:volc-cn-beijing:ICL_zh_male_qingshuangshaonian_tob` |
-| 飞行员 (飞行员/pilot) | 4 | 想理解承诺并修好飞机；清晰理性，第4章在地球核对返程准备，讨论如何兑现照料的承诺；不知道玫瑰私事，不提前演出重逢。 | `flowcraft-story-little-prince.pilot` / `eino-story-little-prince.pilot` | `volc-tenant:volc-cn-beijing:zh_male_jieshuoxiaoming_uranus_bigtts` |
+Voice 由 runtime profile 绑定。
+
+| 角色（别名） | 章节 | 动机与行动 | 两引擎槽位 |
+| --- | --- | --- | --- |
+| 旁白 (旁白/narrator) | 1,2,3,4 | 可见事实与转场，不代演 | `flowcraft-story-little-prince.storyteller` / `eino-story-little-prince.storyteller` |
+| 小王子 (小王子/little-prince) | 1,2,3,4 | 想理解关心与责任；天真短句，第1章照料花，第3章倾听狐狸。 | `flowcraft-story-little-prince.little-prince` / `eino-story-little-prince.little-prince` |
+| 玫瑰 (玫瑰/rose) | 1,2 | 想被认真倾听；温柔而自尊，第1章说明需要，第2章在出发前道别；不在地球场景出现。 | `flowcraft-story-little-prince.rose` / `eino-story-little-prince.rose` |
+| 狐狸 (狐狸/fox) | 3 | 想建立耐心的友谊；清爽真诚，第3章约定见面时间，比较靠近与等待；不随行回星球。 | `flowcraft-story-little-prince.fox` / `eino-story-little-prince.fox` |
+| 飞行员 (飞行员/pilot) | 4 | 想理解承诺并修好飞机；清晰理性，第4章在地球核对返程准备，讨论如何兑现照料的承诺；不知道玫瑰私事，不提前演出重逢。 | `flowcraft-story-little-prince.pilot` / `eino-story-little-prince.pilot` |
 
 角色表：narrator 旁白（别名 旁白/narrator），只在第1、2、3、4章在场，只述可见事实，不代演角色；little-prince 小王子（别名 小王子/little-prince），只在第1、2、3、4章在场，想理解关心与责任；天真短句，第1章照料花，第3章倾听狐狸；rose 玫瑰（别名 玫瑰/rose），只在第1、2章在场，想被认真倾听；温柔而自尊，第1章说明需要，第2章在出发前道别；不在地球场景出现；fox 狐狸（别名 狐狸/fox），只在第3章在场，想建立耐心的友谊；清爽真诚，第3章约定见面时间，比较靠近与等待；不随行回星球；pilot 飞行员（别名 飞行员/pilot），只在第4章在场，想理解承诺并修好飞机；清晰理性，第4章在地球核对返程准备，讨论如何兑现照料的承诺；不知道玫瑰私事，不提前演出重逢。所有角色只说亲历或已公开信息，不知他人私密想法及未来结果。每章比较至少两种立场，不要求全员发声。章节行动属于本仓库儿童互动原创改编，不等同原典情节。
 

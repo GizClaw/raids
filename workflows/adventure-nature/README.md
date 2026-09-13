@@ -43,12 +43,14 @@ make test-e2e RAID=adventure-nature PARALLEL=2
 
 两引擎每轮只发声一次；Flowcraft 按 published 节点绑定，Eino 保持单一 primary chat_model，通过 `selected_speaker` / `state_voices` 选音色。旁白槽位保留 `.adventure-guide`。
 
-| 角色 key / 中文名（均可点名） | 出场场景与行动 | Voice resource_id |
+Voice 由 runtime profile 绑定。
+
+| 角色 key / 中文名（均可点名） | 出场场景与行动 | Voice aliases |
 | --- | --- | --- |
-| `narrator` / 旁白 | 步道观察、叶片观察、足迹观察；只负责叙述、管理和公开信息整理，不代演角色。 | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_uranus_bigtts` |
-| `ranger` / 护林员 | 步道观察、足迹观察；检查标记步道和观察距离，解释不留痕迹的理由。 | `volc-tenant:volc-cn-beijing:ICL_zh_male_hanhoudunshi_tob` |
-| `botanist` / 植物观察员 | 步道观察、叶片观察；比较叶片水珠与叶形，只描述可见特征，不鼓励尝食。 | `volc-tenant:volc-cn-beijing:zh_female_wenroushunv_uranus_bigtts` |
-| `tracker` / 足迹观察员 | 足迹观察；比较足迹方向和形状，不凭一个脚印断言物种。 | `volc-tenant:volc-cn-beijing:ICL_zh_male_qingshuangshaonian_tob` |
+| `narrator` / 旁白 | 步道观察、叶片观察、足迹观察；只负责叙述、管理和公开信息整理，不代演角色。 | `flowcraft-adventure-nature.adventure-guide` / `eino-adventure-nature.adventure-guide` |
+| `ranger` / 护林员 | 步道观察、足迹观察；检查标记步道和观察距离，解释不留痕迹的理由。 | `flowcraft-adventure-nature.ranger` / `eino-adventure-nature.ranger` |
+| `botanist` / 植物观察员 | 步道观察、叶片观察；比较叶片水珠与叶形，只描述可见特征，不鼓励尝食。 | `flowcraft-adventure-nature.botanist` / `eino-adventure-nature.botanist` |
+| `tracker` / 足迹观察员 | 足迹观察；比较足迹方向和形状，不凭一个脚印断言物种。 | `flowcraft-adventure-nature.tracker` / `eino-adventure-nature.tracker` |
 
 这是儿童互动冒险的原创配角安排。按场景出场，不让所有人物同时在场；角色不能获知未来场景、私密信息或未验证的结果。每轮仍只发声一次。
 场景1“步道观察”：护林员：检查标记步道和观察距离，解释不留痕迹的理由。；植物观察员：比较叶片水珠与叶形，只描述可见特征，不鼓励尝食。

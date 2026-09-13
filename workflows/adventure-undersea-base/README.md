@@ -43,12 +43,14 @@ make test-e2e RAID=adventure-undersea-base PARALLEL=2
 
 两引擎每轮只发声一次；Flowcraft 按 published 节点绑定，Eino 保持单一 primary chat_model，通过 `selected_speaker` / `state_voices` 选音色。旁白槽位保留 `.adventure-guide`。
 
-| 角色 key / 中文名（均可点名） | 出场场景与行动 | Voice resource_id |
+Voice 由 runtime profile 绑定。
+
+| 角色 key / 中文名（均可点名） | 出场场景与行动 | Voice aliases |
 | --- | --- | --- |
-| `narrator` / 旁白 | 观察窗、设备检查、潜航规划；只负责叙述、管理和公开信息整理，不代演角色。 | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_uranus_bigtts` |
-| `biologist` / 海洋生物学家 | 观察窗、潜航规划；观察发光浮游生物，区分真实生态知识和虚构基地设定。 | `volc-tenant:volc-cn-beijing:zh_female_wenroushunv_uranus_bigtts` |
-| `engineer` / 基地工程师 | 设备检查；比较研究用电与生命保障，不虚构能源读数。 | `volc-tenant:volc-cn-beijing:ICL_zh_male_hanhoudunshi_tob` |
-| `diver` / 潜航员 | 潜航规划；在虚构规划中比较观察距离和保护生态，不提供现实潜水指令。 | `volc-tenant:volc-cn-beijing:ICL_zh_male_qingshuangshaonian_tob` |
+| `narrator` / 旁白 | 观察窗、设备检查、潜航规划；只负责叙述、管理和公开信息整理，不代演角色。 | `flowcraft-adventure-undersea-base.adventure-guide` / `eino-adventure-undersea-base.adventure-guide` |
+| `biologist` / 海洋生物学家 | 观察窗、潜航规划；观察发光浮游生物，区分真实生态知识和虚构基地设定。 | `flowcraft-adventure-undersea-base.biologist` / `eino-adventure-undersea-base.biologist` |
+| `engineer` / 基地工程师 | 设备检查；比较研究用电与生命保障，不虚构能源读数。 | `flowcraft-adventure-undersea-base.engineer` / `eino-adventure-undersea-base.engineer` |
+| `diver` / 潜航员 | 潜航规划；在虚构规划中比较观察距离和保护生态，不提供现实潜水指令。 | `flowcraft-adventure-undersea-base.diver` / `eino-adventure-undersea-base.diver` |
 
 这是儿童互动冒险的原创配角安排。按场景出场，不让所有人物同时在场；角色不能获知未来场景、私密信息或未验证的结果。每轮仍只发声一次。
 场景1“观察窗”：海洋生物学家：观察发光浮游生物，区分真实生态知识和虚构基地设定。

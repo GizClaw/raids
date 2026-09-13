@@ -23,13 +23,15 @@ Learn about habitats, behavior, and ecosystems through animal stories.
 
 Flowcraft 每轮选择一个 published speak 节点；Eino 保留单一 primary chat_model，由上游 Starlark 写入 `selected_speaker`，通过 `state_voices` 选择 TTS。两个引擎均保留 ASR，使用同一角色音色。
 
-| 角色 / 别名 | 出场章节 | 动机、行动与口吻 | Voice ID |
+Voice 由 runtime profile 绑定。
+
+| 角色 / 别名 | 出场章节 | 动机、行动与口吻 | Voice aliases |
 | --- | --- | --- | --- |
-| narrator 旁白 | 1–4 | 只述可见事实、选择后果与转场，不代演角色 | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_uranus_bigtts` |
-| `explorer` 探险者 / 探险者、explorer | 1、2、3、4 | 我想找到河流变浅的原因；活泼认真，第1章记录水位，第2章比对足迹，第3章记录协作结果，第4章约定继续观察。 | `volc-tenant:volc-cn-beijing:ICL_zh_female_huoponvhai_tob` |
-| `animal-guide` 动物向导 / 动物向导、向导、animal guide、animal-guide | 1、2、3、4 | 我想保护栖息地；清晰理性，第1章提醒保持距离，第2章解释迁徙证据，第3章划出安静通道，第4章核对生态约定。 | `volc-tenant:volc-cn-beijing:zh_male_jieshuoxiaoming_uranus_bigtts` |
-| `elephant` 大象 / 大象、elephant | 2、3、4 | 我想带象群找到饮水处；憨厚稳重，第2章指出亲自走过的浅滩，第3章挪开倒枝保留通道，第4章承诺轮流饮水。 | `volc-tenant:volc-cn-beijing:ICL_zh_male_hanhoudunshi_tob` |
-| `owl` 猫头鹰 / 猫头鹰、owl | 2、3、4 | 我想保留安静的栖息树；和蔼缓慢，第2章报告夜里看见的鸟群方向，第3章建议不打扰巢穴，第4章约定夜间观察边界。 | `volc-tenant:volc-cn-beijing:ICL_zh_female_heainainai_tob` |
+| narrator 旁白 | 1–4 | 只述可见事实、选择后果与转场，不代演角色 | `flowcraft-story-animal-kingdom.storyteller` / `eino-story-animal-kingdom.storyteller` |
+| `explorer` 探险者 / 探险者、explorer | 1、2、3、4 | 我想找到河流变浅的原因；活泼认真，第1章记录水位，第2章比对足迹，第3章记录协作结果，第4章约定继续观察。 | `flowcraft-story-animal-kingdom.explorer` / `eino-story-animal-kingdom.explorer` |
+| `animal-guide` 动物向导 / 动物向导、向导、animal guide、animal-guide | 1、2、3、4 | 我想保护栖息地；清晰理性，第1章提醒保持距离，第2章解释迁徙证据，第3章划出安静通道，第4章核对生态约定。 | `flowcraft-story-animal-kingdom.animal-guide` / `eino-story-animal-kingdom.animal-guide` |
+| `elephant` 大象 / 大象、elephant | 2、3、4 | 我想带象群找到饮水处；憨厚稳重，第2章指出亲自走过的浅滩，第3章挪开倒枝保留通道，第4章承诺轮流饮水。 | `flowcraft-story-animal-kingdom.elephant` / `eino-story-animal-kingdom.elephant` |
+| `owl` 猫头鹰 / 猫头鹰、owl | 2、3、4 | 我想保留安静的栖息树；和蔼缓慢，第2章报告夜里看见的鸟群方向，第3章建议不打扰巢穴，第4章约定夜间观察边界。 | `flowcraft-story-animal-kingdom.owl` / `eino-story-animal-kingdom.owl` |
 
 音色槽位：
 

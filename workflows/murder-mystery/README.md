@@ -18,13 +18,15 @@ Install an implementation into a RuntimeProfile with `raids install murder-myste
 
 仍属 `adventure`，保留 **12+ / mystery-death**。两个引擎每轮只发一种声音：Flowcraft 条件边选择独立节点；Eino 上游 Starlark 写 `selected_speaker`，唯一 primary chat_model 按身份 prompt 输出，`state_voices` 选择同一角色音色，保留 ASR。
 
-| role / 别名 | 场景行动与边界 | 两引擎完整 Voice 槽位 | Voice resource_id |
-| --- | --- | --- | --- |
-| `narrator` 主持人 | 开场主持、证据核对、更正、推理、暂定指控与结案；不代演证人 | `flowcraft-murder-mystery.game-master` / `eino-murder-mystery.game-master` | `volc-tenant:volc-cn-beijing:zh_male_xuanyijieshuo_uranus_bigtts` |
-| `housekeeper` 管家 | 管家/老管家：受访时交代门厅位置与主钥匙，未知声响和开门过程明确不知道 | `flowcraft-murder-mystery.housekeeper` / `eino-murder-mystery.housekeeper` | `volc-tenant:volc-cn-beijing:ICL_zh_male_youmodaye_tob` |
-| `chef` 厨师 | 厨师/大厨：受访时交代20:50至来电后揉面，自述不是物证 | `flowcraft-murder-mystery.chef` / `eino-murder-mystery.chef` | `volc-tenant:volc-cn-beijing:ICL_zh_male_hanhoudunshi_tob` |
-| `heir` 沈知秋 | 沈知秋/次子：受访时只答次子身份、回房拿烟与不清楚鞋印 | `flowcraft-murder-mystery.heir` / `eino-murder-mystery.heir` | `volc-tenant:volc-cn-beijing:ICL_zh_male_qingshuangshaonian_tob` |
-| `lawyer` 律师 | 律师：受访时厘清上周修改遗嘱及知情者，不知道当晚是否谈过 | `flowcraft-murder-mystery.lawyer` / `eino-murder-mystery.lawyer` | `volc-tenant:volc-cn-beijing:zh_male_jieshuoxiaoming_uranus_bigtts` |
+Voice 由 runtime profile 绑定。
+
+| role / 别名 | 场景行动与边界 | 两引擎完整 Voice 槽位 |
+| --- | --- | --- |
+| `narrator` 主持人 | 开场主持、证据核对、更正、推理、暂定指控与结案；不代演证人 | `flowcraft-murder-mystery.game-master` / `eino-murder-mystery.game-master` |
+| `housekeeper` 管家 | 管家/老管家：受访时交代门厅位置与主钥匙，未知声响和开门过程明确不知道 | `flowcraft-murder-mystery.housekeeper` / `eino-murder-mystery.housekeeper` |
+| `chef` 厨师 | 厨师/大厨：受访时交代20:50至来电后揉面，自述不是物证 | `flowcraft-murder-mystery.chef` / `eino-murder-mystery.chef` |
+| `heir` 沈知秋 | 沈知秋/次子：受访时只答次子身份、回房拿烟与不清楚鞋印 | `flowcraft-murder-mystery.heir` / `eino-murder-mystery.heir` |
+| `lawyer` 律师 | 律师：受访时厘清上周修改遗嘱及知情者，不知道当晚是否谈过 | `flowcraft-murder-mystery.lawyer` / `eino-murder-mystery.lawyer` |
 
 本案保持自由调查，不新增线性章节。开场只列可采访人物；随后按玩家选择进入单独采访场景，四证人不同时登场、不轮流抢话，沈清如和死者不新增可采访身份或证词。角色名单恢复时按当前角色表归一化，丢弃旧名单；已有鞋印更正仍沿用原权威状态。
 

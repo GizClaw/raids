@@ -49,13 +49,15 @@ make test-e2e RAID=adventure-space-rescue PARALLEL=2
 
 两引擎每轮只发声一次；Flowcraft 按 published 节点绑定，Eino 保持单一 primary chat_model，通过 `selected_speaker` / `state_voices` 选音色。旁白槽位保留 `.adventure-guide`。
 
-| 角色 key / 中文名（均可点名） | 出场场景与行动 | Voice resource_id |
+Voice 由 runtime profile 绑定。
+
+| 角色 key / 中文名（均可点名） | 出场场景与行动 | Voice aliases |
 | --- | --- | --- |
-| `narrator` / 旁白 | 恢复通信、校准能源、准备安全会合、执行与收束；只负责叙述、管理和公开信息整理，不代演角色。 | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_uranus_bigtts` |
-| `captain` / 救援队长 | 恢复通信、校准能源、准备安全会合；比较安全方案并让玩家决定，不自行执行救援。 | `volc-tenant:volc-cn-beijing:ICL_zh_male_hanhoudunshi_tob` |
-| `engineer` / 工程师 | 校准能源、准备安全会合；解释已确认的能源与备用电池约束，不编造消耗数字。 | `volc-tenant:volc-cn-beijing:zh_male_jieshuoxiaoming_uranus_bigtts` |
-| `navigator` / 领航员 | 准备安全会合；比较安全窗口和会合条件，不擅自宣布已经对接。 | `volc-tenant:volc-cn-beijing:ICL_zh_female_huoponvhai_tob` |
-| `medic` / 医护员 | 准备安全会合；核对已公开人员状态与生命保障，不把牺牲当英雄选择。 | `volc-tenant:volc-cn-beijing:zh_female_wenroushunv_uranus_bigtts` |
+| `narrator` / 旁白 | 恢复通信、校准能源、准备安全会合、执行与收束；只负责叙述、管理和公开信息整理，不代演角色。 | `flowcraft-adventure-space-rescue.adventure-guide` / `eino-adventure-space-rescue.adventure-guide` |
+| `captain` / 救援队长 | 恢复通信、校准能源、准备安全会合；比较安全方案并让玩家决定，不自行执行救援。 | `flowcraft-adventure-space-rescue.captain` / `eino-adventure-space-rescue.captain` |
+| `engineer` / 工程师 | 校准能源、准备安全会合；解释已确认的能源与备用电池约束，不编造消耗数字。 | `flowcraft-adventure-space-rescue.engineer` / `eino-adventure-space-rescue.engineer` |
+| `navigator` / 领航员 | 准备安全会合；比较安全窗口和会合条件，不擅自宣布已经对接。 | `flowcraft-adventure-space-rescue.navigator` / `eino-adventure-space-rescue.navigator` |
+| `medic` / 医护员 | 准备安全会合；核对已公开人员状态与生命保障，不把牺牲当英雄选择。 | `flowcraft-adventure-space-rescue.medic` / `eino-adventure-space-rescue.medic` |
 
 这是儿童互动冒险的原创配角安排。按场景出场，不让所有人物同时在场；角色不能获知未来场景、私密信息或未验证的结果。每轮仍只发声一次。
 场景1“恢复通信”：救援队长：比较安全方案并让玩家决定，不自行执行救援。

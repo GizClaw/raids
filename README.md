@@ -241,28 +241,22 @@ implementation. Narrator defaults preserve `.storyteller`, `.adventure-guide`,
 and `.game-master` slots. Eino state-selected TTS requires **GizClaw >= v0.18.9**
 ([#1270](https://github.com/GizClaw/gizclaw/issues/1270)).
 
-The shared casting pool contains these 10 Volc Voice IDs. Their full resource
-IDs use the prefix `volc-tenant:volc-cn-beijing:`; pool labels describe casting
-and are not RuntimeProfile aliases. Per-raid READMEs list the exact roles,
-chapter eligibility, aliases, and bindings.
+Workflows and `raid.json` reference only Voice aliases named
+`flowcraft-<raid>.<role>` or `eino-<raid>.<role>`. Narrator slots retain
+`.storyteller` for stories, `.adventure-guide` for adventures, and `.game-master`
+for murder mystery. Within each raid implementation, narrator and character
+slots must bind to distinct voices; the same role uses the same voice across
+engines. Per-raid READMEs document roles, Chinese names, aliases, and engine
+selection mechanisms.
 
-| Pool label | Voice ID | Casting |
-| --- | --- | --- |
-| narrator | `zh_female_shaoergushi_uranus_bigtts` | Warm adult female narrator for stories and adventures |
-| clear | `zh_male_jieshuoxiaoming_uranus_bigtts` | Clear, rational male scholar, guide, or companion |
-| gentle | `zh_female_wenroushunv_uranus_bigtts` | Gentle adult female caregiver, scientist, or mature character |
-| child | `zh_male_naiqimengwa_uranus_bigtts` | Young boy, small animal, or sprite |
-| mystery | `zh_male_xuanyijieshuo_uranus_bigtts` | Adult male mystery host or composed character |
-| girl | `ICL_zh_female_huoponvhai_tob` | Lively girl or quick-witted companion |
-| youth | `ICL_zh_male_qingshuangshaonian_tob` | Youthful male protagonist or active companion |
-| solid | `ICL_zh_male_hanhoudunshi_tob` | Steady adult male, large animal, or reliable teammate |
-| grandma | `ICL_zh_female_heainainai_tob` | Kind older woman or elder guide |
-| grandpa | `ICL_zh_male_youmodaye_tob` | Humorous older man, captain, mentor, or housekeeper |
+Concrete Voice resources are bound at runtime through `runtime-profiles/*.yaml`
+under `spec.resources.voices`; deployment bindings are owned by deploy's profile.
+Workflow and raid documentation does not pin concrete Voice resource IDs.
 
-The five `ICL_*` Voices have **not yet been verified online for this tenant**.
-Catalog bindings and offline checks do not establish provider access, actual
-selected Voice IDs, latency, or sound quality; synthesis logs and listening
-remain separate acceptance evidence.
+New voices require **online verification in the tenant**. Catalog bindings and
+offline checks do not establish provider access, actual selected voices,
+latency, or sound quality; synthesis logs and listening remain separate
+acceptance evidence.
 
 Each Layout defines portable Flowcraft, Mem0, and Volc Mem0 policy. The public
 default profile selects Flowcraft with `connection.type: flowcraft_bbh`; it
@@ -567,7 +561,7 @@ The Volc `seed-tts-2.0` snapshot comes from the public
 `1257544` updated `2026-08-20T07:24:41Z`. It contains 444 Voices: 93 system,
 200 public ICL, and 151 multilingual entries. Provider-documented synthesis
 mode restrictions are descriptive selection metadata; the provider remains
-the enforcement point. The public `ICL_uranus_*_tob` entries still use
+the enforcement point. The public ICL entries still use
 `seed-tts-2.0`; `seed-icl-2.0` is reserved for account-private trained Voices
 and remains outside this snapshot.
 

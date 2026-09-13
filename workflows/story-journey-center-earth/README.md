@@ -23,12 +23,14 @@ Explore rocks, strata, and Earth science through a fictional underground journey
 
 Flowcraft 每轮选择一个 published 节点；Eino 保留一个 primary chat_model，由 Starlark 写入 selected_speaker，state_voices 绑定音色。两引擎保留 ASR 和原记忆链路。
 
-| 角色（别名） | 章节 | 动机与行动 | 两引擎槽位 | Voice ID |
-| --- | --- | --- | --- | --- |
-| 旁白 (旁白/narrator) | 1,2,3,4 | 可见事实与转场，不代演 | `flowcraft-story-journey-center-earth.storyteller` / `eino-story-journey-center-earth.storyteller` | `volc-tenant:volc-cn-beijing:zh_female_shaoergushi_uranus_bigtts` |
-| 阿克塞尔 (阿克塞尔/axel) | 1,2,3,4 | 想探索也担心危险；少年直率，第1章观察岩层并提出先核对路线。 | `flowcraft-story-journey-center-earth.axel` / `eino-story-journey-center-earth.axel` | `volc-tenant:volc-cn-beijing:ICL_zh_male_qingshuangshaonian_tob` |
-| 黎登布洛克 (黎登布洛克/lidenbrock) | 1,2,3,4 | 希望找到证据；幽默耐心，第1章解释岩层观察。 | `flowcraft-story-journey-center-earth.lidenbrock` / `eino-story-journey-center-earth.lidenbrock` | `volc-tenant:volc-cn-beijing:ICL_zh_male_youmodaye_tob` |
-| 汉斯 (汉斯/hans) | 2,3,4 | 想让全队安全前进；憨厚少言，第2章辨认水流方向，第3章带大家退到稳固岩壁，第4章整理路线记录。 | `flowcraft-story-journey-center-earth.hans` / `eino-story-journey-center-earth.hans` | `volc-tenant:volc-cn-beijing:ICL_zh_male_hanhoudunshi_tob` |
+Voice 由 runtime profile 绑定。
+
+| 角色（别名） | 章节 | 动机与行动 | 两引擎槽位 |
+| --- | --- | --- | --- |
+| 旁白 (旁白/narrator) | 1,2,3,4 | 可见事实与转场，不代演 | `flowcraft-story-journey-center-earth.storyteller` / `eino-story-journey-center-earth.storyteller` |
+| 阿克塞尔 (阿克塞尔/axel) | 1,2,3,4 | 想探索也担心危险；少年直率，第1章观察岩层并提出先核对路线。 | `flowcraft-story-journey-center-earth.axel` / `eino-story-journey-center-earth.axel` |
+| 黎登布洛克 (黎登布洛克/lidenbrock) | 1,2,3,4 | 希望找到证据；幽默耐心，第1章解释岩层观察。 | `flowcraft-story-journey-center-earth.lidenbrock` / `eino-story-journey-center-earth.lidenbrock` |
+| 汉斯 (汉斯/hans) | 2,3,4 | 想让全队安全前进；憨厚少言，第2章辨认水流方向，第3章带大家退到稳固岩壁，第4章整理路线记录。 | `flowcraft-story-journey-center-earth.hans` / `eino-story-journey-center-earth.hans` |
 
 角色表：narrator 旁白（别名 旁白/narrator），只在第1、2、3、4章在场，只述可见事实，不代演角色；axel 阿克塞尔（别名 阿克塞尔/axel），只在第1、2、3、4章在场，想探索也担心危险；少年直率，第1章观察岩层并提出先核对路线；lidenbrock 黎登布洛克（别名 黎登布洛克/lidenbrock），只在第1、2、3、4章在场，希望找到证据；幽默耐心，第1章解释岩层观察；hans 汉斯（别名 汉斯/hans），只在第2、3、4章在场，想让全队安全前进；憨厚少言，第2章辨认水流方向，第3章带大家退到稳固岩壁，第4章整理路线记录。所有角色只说亲历或已公开信息，不知他人私密想法及未来结果。每章比较至少两种立场，不要求全员发声。章节行动属于本仓库儿童互动原创改编，不等同原典情节。
 
