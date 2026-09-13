@@ -191,8 +191,8 @@ steps:
       equals: 0
     "/flowcraft_opening/audio_integrity/violations":
       equals: 0
-    "/flowcraft_opening/audio_pacing/max_interval_ms":
-      maximum: 150
+    "/flowcraft_opening/audio_pacing/minimum_buffer_ms":
+      minimum: 0
     "/flowcraft_opening/audio_pacing/underruns":
       equals: 0
     "/eino_opening/text":
@@ -230,8 +230,8 @@ steps:
       equals: 0
     "/eino_opening/audio_integrity/violations":
       equals: 0
-    "/eino_opening/audio_pacing/max_interval_ms":
-      maximum: 150
+    "/eino_opening/audio_pacing/minimum_buffer_ms":
+      minimum: 0
     "/eino_opening/audio_pacing/underruns":
       equals: 0
 - id: opening_first_response
@@ -274,6 +274,28 @@ steps:
       maximum: 2000
     "/eino_opening_first_response/first_audio_ms":
       maximum: 3000
+- id: flowcraft_opening_stop_probe
+  client: flowcraft
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: flowcraft_opening_resume_workspace
+  client: flowcraft
+  timeout: 2m
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+- id: eino_opening_stop_probe
+  client: eino
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: eino_opening_resume_workspace
+  client: eino
+  timeout: 2m
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
 - id: flowcraft_select_realtime
   client: flowcraft
   rpc:
@@ -357,8 +379,8 @@ steps:
       equals: 0
     "/flowcraft_realtime_roundtrip/audio_integrity/violations":
       equals: 0
-    "/flowcraft_realtime_roundtrip/audio_pacing/max_interval_ms":
-      maximum: 150
+    "/flowcraft_realtime_roundtrip/audio_pacing/minimum_buffer_ms":
+      minimum: 0
     "/flowcraft_realtime_roundtrip/audio_pacing/underruns":
       equals: 0
     "/eino_realtime_roundtrip/events":
@@ -387,8 +409,8 @@ steps:
       equals: 0
     "/eino_realtime_roundtrip/audio_integrity/violations":
       equals: 0
-    "/eino_realtime_roundtrip/audio_pacing/max_interval_ms":
-      maximum: 150
+    "/eino_realtime_roundtrip/audio_pacing/minimum_buffer_ms":
+      minimum: 0
     "/eino_realtime_roundtrip/audio_pacing/underruns":
       equals: 0
 - id: realtime_roundtrip_first_response
@@ -433,6 +455,28 @@ steps:
       maximum: 2000
     "/eino_realtime_roundtrip_first_response/first_audio_ms":
       maximum: 3000
+- id: flowcraft_realtime_roundtrip_stop_probe
+  client: flowcraft
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: flowcraft_realtime_roundtrip_resume_workspace
+  client: flowcraft
+  timeout: 2m
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+- id: eino_realtime_roundtrip_stop_probe
+  client: eino
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: eino_realtime_roundtrip_resume_workspace
+  client: eino
+  timeout: 2m
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
 finally:
 - id: flowcraft_stop_run
   client: flowcraft

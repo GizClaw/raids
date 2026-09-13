@@ -116,7 +116,7 @@ packages.each do |package|
   end
   check(branches.size == roles.size, "#{package}: unexpected speaker branches")
   check(flow.fetch('voice_adapter').fetch('default_voice') == bindings.fetch('speak-narrator'), "#{package}: wrong narrator default Voice")
-  check(probes.select { |p| p['id'].start_with?('probe_') && !p['id'].end_with?('_first_response') }.size == roles.size, "#{package}: role probe count mismatch")
+  check(probes.select { |p| p['peer_stream'] && p['id'].start_with?('probe_') && !p['id'].end_with?('_first_response') }.size == roles.size, "#{package}: role probe count mismatch")
   slots.each do |name, slot|
     role = slot.fetch('role') == 'storyteller' ? 'narrator' : slot.fetch('role')
     id = "speak-#{role}"

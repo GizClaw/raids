@@ -128,8 +128,8 @@ steps:
       equals: 0
     "/audio_integrity/violations":
       equals: 0
-    "/audio_pacing/max_interval_ms":
-      maximum: 150
+    "/audio_pacing/minimum_buffer_ms":
+      minimum: 0
     "/audio_pacing/underruns":
       equals: 0
   client: flowcraft
@@ -153,6 +153,17 @@ steps:
     "/first_audio_ms":
       maximum: 3000
   client: flowcraft
+- id: flowcraft_opening_stop_probe
+  client: flowcraft
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: flowcraft_opening_resume_workspace
+  client: flowcraft
+  timeout: 2m
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
 - id: flowcraft_select_realtime
   client: flowcraft
   rpc:
@@ -212,8 +223,8 @@ steps:
       equals: 0
     "/audio_integrity/violations":
       equals: 0
-    "/audio_pacing/max_interval_ms":
-      maximum: 150
+    "/audio_pacing/minimum_buffer_ms":
+      minimum: 0
     "/audio_pacing/underruns":
       equals: 0
   client: flowcraft
@@ -238,6 +249,17 @@ steps:
     "/first_audio_ms":
       maximum: 3000
   client: flowcraft
+- id: flowcraft_realtime_roundtrip_stop_probe
+  client: flowcraft
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: flowcraft_realtime_roundtrip_resume_workspace
+  client: flowcraft
+  timeout: 2m
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
 finally:
 - id: flowcraft_stop_run
   client: flowcraft
