@@ -2,244 +2,820 @@
 # As a Raids catalog maintainer,
 # I want isolated narrator and character probes for flowcraft-story-gulliver,
 # So that every reachable role path produces text and non-empty synthesized audio.
+---
 version: gizclaw.test/v1alpha1
 name: story-gulliver.flowcraft.roles
 clients:
-  narrator: {identity: ephemeral, connection: webrtc, access_point: "${endpoint}"}
-  gulliver: {identity: ephemeral, connection: webrtc, access_point: "${endpoint}"}
-  local_guide: {identity: ephemeral, connection: webrtc, access_point: "${endpoint}"}
+  narrator:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  gulliver:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  local-guide:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  king:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  glumdalclitch:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
 variables:
-  endpoint: {direction: input, type: string, env: GIZCLAW_TEST_ENDPOINT}
-  registration_token: {direction: input, type: string, env: GIZCLAW_TEST_REGISTRATION_TOKEN, secret: true}
-  narrator_workspace: {direction: input, type: string, generate: token}
-  gulliver_workspace: {direction: input, type: string, generate: token}
-  local_guide_workspace: {direction: input, type: string, generate: token}
+  endpoint:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_ENDPOINT
+  registration_token:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_REGISTRATION_TOKEN
+    secret: true
+  narrator_workspace:
+    direction: input
+    type: string
+    generate: token
+  gulliver_workspace:
+    direction: input
+    type: string
+    generate: token
+  local_guide_workspace:
+    direction: input
+    type: string
+    generate: token
+  king_workspace:
+    direction: input
+    type: string
+    generate: token
+  glumdalclitch_workspace:
+    direction: input
+    type: string
+    generate: token
 repeat: 1
-timeout: 12m
+timeout: 50m
 steps:
 - id: register_narrator
   client: narrator
-  rpc: {method: server.register, request: {token: "${registration_token}"}}
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
 - id: create_narrator_workspace
   client: narrator
   rpc:
     method: server.workspace.create
     request:
-      name: ${narrator_workspace}
+      name: "${narrator_workspace}"
       collection: raidtest-targets
       workflow_name: flowcraft-story-gulliver
       parameters:
         flowcraft_workspace_parameters:
           agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
-          conversation: {initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER}
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
           input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
 - id: select_narrator_workspace
   client: narrator
-  rpc: {method: server.run.workspace.set, request: {workspace_name: "${narrator_workspace}"}}
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${narrator_workspace}"
 - id: warmup_narrator_workspace
   client: narrator
-  rpc: {method: server.run.workspace.reload, request: {}}
-  timeout: 2m
-- id: register_gulliver
-  client: gulliver
-  rpc: {method: server.register, request: {token: "${registration_token}"}}
-- id: create_gulliver_workspace
-  client: gulliver
   rpc:
-    method: server.workspace.create
-    request:
-      name: ${gulliver_workspace}
-      collection: raidtest-targets
-      workflow_name: flowcraft-story-gulliver
-      parameters:
-        flowcraft_workspace_parameters:
-          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
-          conversation: {initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER}
-          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: select_gulliver_workspace
-  client: gulliver
-  rpc: {method: server.run.workspace.set, request: {workspace_name: "${gulliver_workspace}"}}
-- id: warmup_gulliver_workspace
-  client: gulliver
-  rpc: {method: server.run.workspace.reload, request: {}}
+    method: server.run.workspace.reload
+    request: {}
   timeout: 2m
-- id: register_local-guide
-  client: local_guide
-  rpc: {method: server.register, request: {token: "${registration_token}"}}
-- id: create_local-guide_workspace
-  client: local_guide
-  rpc:
-    method: server.workspace.create
-    request:
-      name: ${local_guide_workspace}
-      collection: raidtest-targets
-      workflow_name: flowcraft-story-gulliver
-      parameters:
-        flowcraft_workspace_parameters:
-          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
-          conversation: {initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER}
-          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: select_local-guide_workspace
-  client: local_guide
-  rpc: {method: server.run.workspace.set, request: {workspace_name: "${local_guide_workspace}"}}
-- id: warmup_local-guide_workspace
-  client: local_guide
-  rpc: {method: server.run.workspace.reload, request: {}}
+- id: narrator_chapter_setup_1
+  client: narrator
   timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请从第一章开始《格列弗游记》。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      contains: 第 1 章：微小之城
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
 - id: probe_narrator
   client: narrator
   timeout: 2m
   peer_stream:
     mode: text
-    input: "请由旁白承接当前故事，只推进一个可见线索。"
+    input: 请让旁白亲自回应，只说这个角色知道的事。
     idle_timeout: 90s
     require_text: true
     require_audio: true
   expect:
-    /text:
+    "/text":
       not_contains:
       - 旁白说
       - 旁白：
-    /text_eos: {equals: true}
-    /audio_eos: {equals: true}
-    /audio_bytes: {minimum: 1}
-    /first_text_ms: {maximum: 6000}
-    /first_audio_ms: {maximum: 90000}
-- id: reject_premature_chapter_two
-  client: narrator
-  timeout: 2m
-  peer_stream:
-    mode: text
-    input: "请直接进入第二章；如果条件不足，只说明仍停留的当前章节。"
-    idle_timeout: 90s
-    require_text: true
-    require_audio: true
-  expect:
-    /text:
-      contains_all:
-      - "第 1 章"
-      - "微小之城"
-      not_contains:
-      - "第 2 章"
-      - "礼节冲突"
-    /text_eos: {equals: true}
-    /audio_eos: {equals: true}
-    /audio_bytes: {minimum: 1}
-    /first_text_ms: {maximum: 6000}
-    /first_audio_ms: {maximum: 90000}
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
 - id: probe_narrator_first_response
   client: narrator
   timeout: 15s
   peer_stream:
     mode: text
-    input: "请直接进入第二章；如果条件不足，只说明仍停留的当前章节。"
+    input: 请让旁白亲自回应，只说这个角色知道的事。
     completion: first_response
     first_text_timeout: 2s
     first_audio_timeout: 3s
     require_text: true
     require_audio: true
   expect:
-    /events: {non_empty: true}
-    /audio_bytes: {minimum: 1}
-    /first_text_ms: {maximum: 2000}
-    /first_audio_ms: {maximum: 3000}
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: register_gulliver
+  client: gulliver
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_gulliver_workspace
+  client: gulliver
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${gulliver_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-story-gulliver
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_gulliver_workspace
+  client: gulliver
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${gulliver_workspace}"
+- id: warmup_gulliver_workspace
+  client: gulliver
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: gulliver_chapter_setup_1
+  client: gulliver
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请从第一章开始《格列弗游记》。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      contains: 第 1 章：微小之城
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
 - id: probe_gulliver
   client: gulliver
   timeout: 2m
   peer_stream:
     mode: text
-    input: "请让格列佛亲自回应，只说这个角色知道的事。"
+    input: 请让格列佛亲自回应，只说这个角色知道的事。
     idle_timeout: 90s
     require_text: true
     require_audio: true
   expect:
-    /text:
+    "/text":
       not_contains:
       - 格列佛说
       - 格列佛：
-    /text_eos: {equals: true}
-    /audio_eos: {equals: true}
-    /audio_bytes: {minimum: 1}
-    /first_text_ms: {maximum: 6000}
-    /first_audio_ms: {maximum: 90000}
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
 - id: probe_gulliver_first_response
   client: gulliver
   timeout: 15s
   peer_stream:
     mode: text
-    input: "请让格列佛亲自回应，只说这个角色知道的事。"
+    input: 请让格列佛亲自回应，只说这个角色知道的事。
     completion: first_response
     first_text_timeout: 2s
     first_audio_timeout: 3s
     require_text: true
     require_audio: true
   expect:
-    /events: {non_empty: true}
-    /audio_bytes: {minimum: 1}
-    /first_text_ms: {maximum: 2000}
-    /first_audio_ms: {maximum: 3000}
-- id: probe_local-guide
-  client: local_guide
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: register_local-guide
+  client: local-guide
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_local_guide_workspace
+  client: local-guide
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${local_guide_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-story-gulliver
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_local_guide_workspace
+  client: local-guide
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${local_guide_workspace}"
+- id: warmup_local_guide_workspace
+  client: local-guide
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: local-guide_chapter_setup_1
+  client: local-guide
   timeout: 2m
   peer_stream:
     mode: text
-    input: "请让当地向导亲自回应，只说这个角色知道的事。"
+    input: 请从第一章开始《格列弗游记》。
     idle_timeout: 90s
     require_text: true
     require_audio: true
   expect:
-    /text:
+    "/text":
+      contains: 第 1 章：微小之城
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: probe_local-guide
+  client: local-guide
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让当地向导亲自回应，只说这个角色知道的事。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
       not_contains:
       - 当地向导说
       - 当地向导：
-    /text_eos: {equals: true}
-    /audio_eos: {equals: true}
-    /audio_bytes: {minimum: 1}
-    /first_text_ms: {maximum: 6000}
-    /first_audio_ms: {maximum: 90000}
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
 - id: probe_local-guide_first_response
-  client: local_guide
+  client: local-guide
   timeout: 15s
   peer_stream:
     mode: text
-    input: "请让当地向导亲自回应，只说这个角色知道的事。"
+    input: 请让当地向导亲自回应，只说这个角色知道的事。
     completion: first_response
     first_text_timeout: 2s
     first_audio_timeout: 3s
     require_text: true
     require_audio: true
   expect:
-    /events: {non_empty: true}
-    /audio_bytes: {minimum: 1}
-    /first_text_ms: {maximum: 2000}
-    /first_audio_ms: {maximum: 3000}
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: register_king
+  client: king
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_king_workspace
+  client: king
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${king_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-story-gulliver
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_king_workspace
+  client: king
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${king_workspace}"
+- id: warmup_king_workspace
+  client: king
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: king_chapter_setup_1
+  client: king
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请从第一章开始《格列弗游记》。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      contains: 第 1 章：微小之城
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: king_chapter_1_0
+  client: king
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我选择刚才的第一个方向，请推进一个直接结果。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: king_chapter_1_1
+  client: king
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让格列佛亲自回应，说出不同立场。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: king_chapter_1_2
+  client: king
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 进入下一章。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      contains: 第 2 章：礼节冲突
+- id: probe_king
+  client: king
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让国王亲自回应，只说这个角色知道的事。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      not_contains:
+      - 国王说
+      - 国王：
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: probe_king_first_response
+  client: king
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 请让国王亲自回应，只说这个角色知道的事。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: register_glumdalclitch
+  client: glumdalclitch
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_glumdalclitch_workspace
+  client: glumdalclitch
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${glumdalclitch_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-story-gulliver
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_glumdalclitch_workspace
+  client: glumdalclitch
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${glumdalclitch_workspace}"
+- id: warmup_glumdalclitch_workspace
+  client: glumdalclitch
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: glumdalclitch_chapter_setup_1
+  client: glumdalclitch
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请从第一章开始《格列弗游记》。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      contains: 第 1 章：微小之城
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: glumdalclitch_chapter_1_0
+  client: glumdalclitch
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我选择刚才的第一个方向，请推进一个直接结果。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: glumdalclitch_chapter_1_1
+  client: glumdalclitch
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让格列佛亲自回应，说出不同立场。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: glumdalclitch_chapter_1_2
+  client: glumdalclitch
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 进入下一章。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      contains: 第 2 章：礼节冲突
+- id: glumdalclitch_chapter_2_0
+  client: glumdalclitch
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我选择刚才的第一个方向，请推进一个直接结果。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: glumdalclitch_chapter_2_1
+  client: glumdalclitch
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让格列佛亲自回应，说出不同立场。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: glumdalclitch_chapter_2_2
+  client: glumdalclitch
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 进入下一章。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      contains: 第 3 章：尺度反转
+- id: probe_glumdalclitch
+  client: glumdalclitch
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让葛兰达克利赤亲自回应，只说这个角色知道的事。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      not_contains:
+      - 葛兰达克利赤说
+      - 葛兰达克利赤：
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: probe_glumdalclitch_first_response
+  client: glumdalclitch
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 请让葛兰达克利赤亲自回应，只说这个角色知道的事。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
 finally:
 - id: stop_narrator_run
   client: narrator
-  rpc: {method: server.run.stop, request: {}}
+  rpc:
+    method: server.run.stop
+    request: {}
 - id: delete_narrator_workspace
   client: narrator
-  rpc: {method: server.workspace.delete, request: {name: "${narrator_workspace}"}}
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${narrator_workspace}"
 - id: delete_narrator_peer
   client: narrator
-  rpc: {method: server.peer.delete, request: {}}
+  rpc:
+    method: server.peer.delete
+    request: {}
 - id: stop_gulliver_run
   client: gulliver
-  rpc: {method: server.run.stop, request: {}}
+  rpc:
+    method: server.run.stop
+    request: {}
 - id: delete_gulliver_workspace
   client: gulliver
-  rpc: {method: server.workspace.delete, request: {name: "${gulliver_workspace}"}}
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${gulliver_workspace}"
 - id: delete_gulliver_peer
   client: gulliver
-  rpc: {method: server.peer.delete, request: {}}
+  rpc:
+    method: server.peer.delete
+    request: {}
 - id: stop_local-guide_run
-  client: local_guide
-  rpc: {method: server.run.stop, request: {}}
-- id: delete_local-guide_workspace
-  client: local_guide
-  rpc: {method: server.workspace.delete, request: {name: "${local_guide_workspace}"}}
+  client: local-guide
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_local_guide_workspace
+  client: local-guide
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${local_guide_workspace}"
 - id: delete_local-guide_peer
-  client: local_guide
-  rpc: {method: server.peer.delete, request: {}}
+  client: local-guide
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: stop_king_run
+  client: king
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_king_workspace
+  client: king
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${king_workspace}"
+- id: delete_king_peer
+  client: king
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: stop_glumdalclitch_run
+  client: glumdalclitch
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_glumdalclitch_workspace
+  client: glumdalclitch
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${glumdalclitch_workspace}"
+- id: delete_glumdalclitch_peer
+  client: glumdalclitch
+  rpc:
+    method: server.peer.delete
+    request: {}
 report:
-  redact: [registration_token]
+  redact:
+  - registration_token

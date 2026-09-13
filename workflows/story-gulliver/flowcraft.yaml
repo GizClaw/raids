@@ -1,3 +1,4 @@
+---
 apiVersion: gizclaw.admin/v1alpha1
 kind: Workflow
 metadata:
@@ -20,12 +21,22 @@ spec:
         to: recall-progress
       - from: recall-progress
         to: control-story
+      - from: persist-story
+        to: observe-story
+      - from: observe-story
+        to: __end__
       - from: control-story
         to: speak-gulliver
         condition: selected_speaker == "gulliver"
       - from: control-story
         to: speak-local-guide
         condition: selected_speaker == "local-guide"
+      - from: control-story
+        to: speak-king
+        condition: selected_speaker == "king"
+      - from: control-story
+        to: speak-glumdalclitch
+        condition: selected_speaker == "glumdalclitch"
       - from: control-story
         to: speak-narrator
       - from: speak-narrator
@@ -34,10 +45,10 @@ spec:
         to: persist-story
       - from: speak-local-guide
         to: persist-story
-      - from: persist-story
-        to: observe-story
-      - from: observe-story
-        to: __end__
+      - from: speak-king
+        to: persist-story
+      - from: speak-glumdalclitch
+        to: persist-story
       nodes:
       - id: route-recall
         type: script
@@ -58,11 +69,13 @@ spec:
         config:
           query:
             text_from: scenario_recall_query
-            lanes: [story_progress]
-            kinds: [state]
+            lanes:
+            - story_progress
+            kinds:
+            - state
           output: scenario_memory
           render:
-            header: "Confirmed story state:"
+            header: 'Confirmed story state:'
             item_prefix: "- "
             max_items: 16
           top_k: 16
@@ -72,7 +85,8 @@ spec:
           source: |
             const current = String(board.getVar("input") || "").trim();
             const memory = String(board.getVar("scenario_memory") || "");
-            const defaults = {"schema":"story_contract_v1","revision":0,"chapter":1,"chapter_title":"微小之城","completed_beats":[],"chapter_progress_beats":[],"chapter_choice_made":false,"location":"微小之城","active_roles":["narrator","gulliver","local-guide"],"player_choices":[],"explicit_corrections":{},"durable_objects":["旅程代号"],"unresolved_hooks":["礼节冲突尚未解决"]};
+            const roleTable = [{"key":"narrator","name":"旁白","aliases":["旁白","narrator"],"chapters":[1,2,3,4]},{"key":"gulliver","name":"格列佛","aliases":["格列佛","gulliver"],"chapters":[1,2,3,4]},{"key":"local-guide","name":"当地向导","aliases":["当地向导","local-guide"],"chapters":[1,2]},{"key":"king","name":"国王","aliases":["国王","king"],"chapters":[2]},{"key":"glumdalclitch","name":"葛兰达克利赤","aliases":["葛兰达克利赤","glumdalclitch"],"chapters":[3,4]}];
+            const defaults = {"schema":"story_contract_v1","revision":0,"chapter":1,"chapter_title":"微小之城","completed_beats":[],"chapter_progress_beats":[],"chapter_choice_made":false,"location":"微小之城","active_roles":roleTable.filter((role) => role.chapters.includes(1)).map((role) => role.key),"player_choices":[],"explicit_corrections":{},"durable_objects":["旅程代号"],"unresolved_hooks":["礼节冲突尚未解决"]};
             let state = Object.assign({}, defaults, board.getVar("story_state") || {});
             for (const line of memory.split("\n")) {
               const start = line.indexOf('{"schema":"story_contract_v1"');
@@ -82,8 +96,9 @@ spec:
                 if (candidate.schema === "story_contract_v1" && Number(candidate.revision || 0) >= Number(state.revision || 0)) state = Object.assign({}, defaults, candidate);
               } catch (_) {}
             }
+            state.chapter = Math.max(1, Math.min(4, Math.floor(Number(state.chapter) || 1)));
             const chapters = ["微小之城", "礼节冲突", "尺度反转", "平等约定"];
-            const enteringFirst = Number(state.revision || 0) === 0 && (current.includes("第一章") || current.includes("第 1 章"));
+            const enteringFirst = Number(state.revision || 0) === 0 && (current.includes("第一章") || current.includes("第 1 章") || /(?:start|begin|restart).{0,20}(?:chapter\s*1|first chapter)/i.test(current));
             let transitionTarget = 0;
             if (current.includes("第二章") || current.includes("第2章") || current.includes("第 2 章")) transitionTarget = 2;
             if (current.includes("第三章") || current.includes("第3章") || current.includes("第 3 章")) transitionTarget = 3;
@@ -124,7 +139,7 @@ spec:
             }
             const asksBlockedExplanation = ["为什么还不能", "为何不能", "说明为什么", "why can't", "why cannot", "why not ready"].some((cue) => lower.includes(cue));
             const transitionBlocked = transitionTarget > 0 && transitionTarget !== currentChapter && !transition && ((transitionIntent && !transitionDenied) || asksBlockedExplanation);
-            const administrativeTurn = ["旅程代号", "更正", "作废", "重连", "回忆", "事实", "传说", "原创设定", "总结", "说明当前章节"].some((cue) => current.includes(cue)) || current.includes("不要推进") || current.includes("不推进章节") || current.includes("只确认");
+            const administrativeTurn = ["旅程代号", "更正", "改成", "纠正", "修正", "作废", "重连", "回忆", "事实", "传说", "原创设定", "总结", "说明当前章节"].some((cue) => current.includes(cue)) || current.includes("不要推进") || current.includes("不推进章节") || current.includes("只确认") || /\b(correct|correction|reconnect|recall)\b/i.test(current);
             const requestsOutcome = ["直接结果", "直接后果", "具体后果", "眼前结果", "新局面", "新线索", "推进一个场景", "推进当前章"].some((cue) => current.includes(cue));
             const requestsPerspective = ["亲自回应", "不同立场", "不同回应", "比较两名角色"].some((cue) => current.includes(cue));
             const safetyOnly = current.includes("现实中模仿") && !requestsOutcome;
@@ -140,11 +155,34 @@ spec:
               state.player_choices = choices;
             }
             state.revision = Number(state.revision || 0) + 1;
-            let speaker = "narrator";
-            const explicitlyRequests = (name) => current.includes("请让" + name) || current.includes("由" + name) || current.includes(name + "亲自");
-            if (!transition && !transitionBlocked && !enteringFirst && explicitlyRequests("格列佛")) speaker = "gulliver";
-            if (!transition && !transitionBlocked && !enteringFirst && explicitlyRequests("当地向导")) speaker = "local-guide";
+            // Always rebuild derived cast after recall and chapter changes; old arrays are not authoritative.
+            state.active_roles = roleTable.filter((role) => role.chapters.includes(state.chapter)).map((role) => role.key);
+            state.chapter_title = chapters[state.chapter - 1];
+            state.location = state.chapter_title;
             const announce = (!current && Number(state.chapter || 1) === 1) || enteringFirst || transition;
+            const safetyManagement = current.includes("现实中模仿") || current.includes("现实模仿");
+            let speaker = "narrator";
+            // Option-only names are choices, not requests for a character performance.
+            const optionOnly = roleTable.some((role) => role.aliases.includes(lower.replace(/[。！!,.，]/g, "")));
+            const mentions = [];
+            for (const role of roleTable) {
+              for (const alias of role.aliases) {
+                let index = lower.indexOf(alias);
+                while (index >= 0) {
+                  const prefix = lower.slice(0, index).split(/[，；！？,;!?]|但是|而是|不过|但/).pop();
+                  const suffix = lower.slice(index + alias.length).split(/[，；！？,;!?]/)[0];
+                  const negated = /(不要|别|不让|不用|不想|不请|不由|不听|不选|do not|don't|not|never).{0,16}$/.test(prefix) || /^(先|暂时)?(不要|别|不用|不必)/.test(suffix);
+                  const requestedRole = /(请让|请|让|由|听|ask|let|hear)\s*$/.test(prefix) || /^(亲自|说|讲|回应|回答|来讲)/.test(suffix);
+                  if (!negated && requestedRole) mentions.push({key: role.key, index});
+                  index = lower.indexOf(alias, index + alias.length);
+                }
+              }
+            }
+            mentions.sort((a, b) => a.index - b.index);
+            if (!announce && !transitionBlocked && !administrativeTurn && !safetyManagement && !optionOnly) {
+              const selected = mentions.find((mention) => state.active_roles.includes(mention.key));
+              if (selected) speaker = selected.key;
+            }
             const countProgress = !transition && !transitionBlocked && !enteringFirst && current !== "" && !administrativeTurn && !safetyOnly && (requested === 0 || requested === currentChapter);
             const beatsAfterTurn = priorProgressBeats.slice();
             if (countProgress && (speaker === "narrator" || requestsOutcome) && !beatsAfterTurn.includes("consequence")) beatsAfterTurn.push("consequence");
@@ -162,7 +200,7 @@ spec:
             board.setVar("response_requests_perspective", requestsPerspective);
             board.setVar("story_state", state);
             board.setVar("story_state_text", JSON.stringify(state));
-            board.setVar("story_bible", "故事：格列弗游记。前提：从不同尺度和社会规则中学习换位思考。\n玩家是能改变局面但不能替代角色作决定的同行者。\n四章依次为：第1章《微小之城》；第2章《礼节冲突》；第3章《尺度反转》；第4章《平等约定》。\n第1章《微小之城》：进入条件=收到首次开场请求；目标=解决《微小之城》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，并明确要求进入第2章；结束条件=转场回合只出现一次下一章标题“第 2 章：礼节冲突”，并紧接新章开场。\n第2章《礼节冲突》：进入条件=第1章的当前选择已完成转场条件，且用户明确要求继续；目标=解决《礼节冲突》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，并明确要求进入第3章；结束条件=转场回合只出现一次下一章标题“第 3 章：尺度反转”，并紧接新章开场。\n第3章《尺度反转》：进入条件=第2章的当前选择已完成转场条件，且用户明确要求继续；目标=解决《尺度反转》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，并明确要求进入第4章；结束条件=转场回合只出现一次下一章标题“第 4 章：平等约定”，并紧接新章开场。\n第4章《平等约定》：进入条件=第3章的当前选择已完成转场条件，且用户明确要求继续；目标=解决《平等约定》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家确认角色的持久选择，并保留一个结局后的责任线索；结束条件=保持第4章，不再创建第五章，并以仍需兑现的责任收束。\n角色表：旁白只陈述可见事实与转场；格列佛坚持自身动机、只知道亲历信息；当地向导提供不同立场、不得知道未公开事实。\n世界规则：每轮只推进一个场景、线索或选择；最多一个问题，请孩子做选择时要在这个问题里直接说出两三个具体选项，不能只问“你想怎么做”；给孩子的选项必须适合儿童，不能包含杀害、伤害、威胁或报复任何人；当前用户更正覆盖历史旧值。\n事实边界：经典来源、传说与本剧本原创设定必须区分；不得复制完整出版译文。\n安全边界：面向儿童，危险非血腥；现实模仿请求必须明确说“不要模仿”，并建议找可信任的成年人、家长或老师帮助。\n反重复：不得重复确认句、场景开头、上一轮选择、同一个问题、回顾或寓意总结。");
+            board.setVar("story_bible", "故事：格列弗游记。前提：从不同尺度和社会规则中学习换位思考。\n玩家是能改变局面但不能替代角色作决定的同行者。\n四章依次为：第1章《微小之城》；第2章《礼节冲突》；第3章《尺度反转》；第4章《平等约定》。\n第1章《微小之城》：进入条件=收到首次开场请求；目标=解决《微小之城》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，并明确要求进入第2章；结束条件=转场回合只出现一次下一章标题“第 2 章：礼节冲突”，并紧接新章开场。\n第2章《礼节冲突》：进入条件=第1章的当前选择已完成转场条件，且用户明确要求继续；目标=解决《礼节冲突》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，并明确要求进入第3章；结束条件=转场回合只出现一次下一章标题“第 3 章：尺度反转”，并紧接新章开场。\n第3章《尺度反转》：进入条件=第2章的当前选择已完成转场条件，且用户明确要求继续；目标=解决《尺度反转》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，并明确要求进入第4章；结束条件=转场回合只出现一次下一章标题“第 4 章：平等约定”，并紧接新章开场。\n第4章《平等约定》：进入条件=第3章的当前选择已完成转场条件，且用户明确要求继续；目标=解决《平等约定》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家确认角色的持久选择，并保留一个结局后的责任线索；结束条件=保持第4章，不再创建第五章，并以仍需兑现的责任收束。\n角色表：narrator 旁白（别名 旁白/narrator），只在第1、2、3、4章在场，只述可见事实，不代演角色；gulliver 格列佛（别名 格列佛/gulliver），只在第1、2、3、4章在场，想平等交流；清晰理性，第1章先放低身姿；local-guide 当地向导（别名 当地向导/local-guide），只在第1、2章在场，想保护小人国的生活；活泼机灵，第1章解释礼节，第2章提醒尊重居民；不随行巨人国；king 国王（别名 国王/king），只在第2章在场，希望礼节维持秩序；年长幽默，第2章听取格列佛意见，讨论修改不公平礼节；这是小人国国王；glumdalclitch 葛兰达克利赤（别名 葛兰达克利赤/glumdalclitch），只在第3、4章在场，想照料微小的客人且尊重自主；温柔稳重，第3章安置安全住处，第4章提议先征求格列佛同意。所有角色只说亲历或已公开信息，不知他人私密想法及未来结果。每章比较至少两种立场，不要求全员发声。章节行动属于本仓库儿童互动原创改编，不等同原典情节。\n世界规则：每轮只推进一个场景、线索或选择；最多一个问题，请孩子做选择时要在这个问题里直接说出两三个具体选项，不能只问“你想怎么做”；给孩子的选项必须适合儿童，不能包含杀害、伤害、威胁或报复任何人；当前用户更正覆盖历史旧值。\n事实边界：经典来源、传说与本剧本原创设定必须区分；不得复制完整出版译文。\n安全边界：面向儿童，危险非血腥；现实模仿请求必须明确说“不要模仿”，并建议找可信任的成年人、家长或老师帮助。\n反重复：不得重复确认句、场景开头、上一轮选择、同一个问题、回顾或寓意总结。");
       - id: speak-narrator
         type: llm
         publish: true
@@ -177,7 +215,7 @@ spec:
             本轮安全请求：${board.safety_request}。若该值为 true，回复中必须明确包含“不要模仿”和“找家长、老师或可信任成年人帮助”，并承接玩家所选安全替代带来的一个直接结果。
             本轮转场阻塞：${board.transition_blocked}。若该值为 true，用“第 N 章：标题”格式写出当前章节及标题，再用孩子听得懂的话说明这一章还差孩子自己的选择或还没看到选择的结果，所以暂时还不能去下一章，最后用一个问题说出本章问题的具体选项；不得说“节拍”“转场条件”“悬念”等内部用语，也不要把“先听某个角色说说”当作选项，并且绝不输出用户请求的下一章标题。
             若 announce_chapter 为 true，第一行只写一次“第 N 章：标题”，其中“第”与数字、数字与“章”之间各有一个空格，标题后必须在同一条回复里紧接着讲这一章的开场：先用一两句话交代新场景在哪里、谁在场、发生了什么，再用一个问题说出孩子可以选的两三个具体选项；绝不能只输出章节标题就结束。若 announce_chapter 和 transition_blocked 均为 false，则不得输出章节标题。
-            首次进入第一章时，章节标题后必须依次完整说出这段开场，先交代背景，再说明玩法，最后提出开场问题：你和旅行家格列佛一起漂到了一个小人国，当地向导会带你们认识这里的规矩。你可以直接说出你的选择，也可以说“请让格列佛说说”或“请让当地向导说说”，听他们自己讲；这一章的选择做完后，说“进入下一章”就能继续听下去。你来到一个所有东西都比你小十倍的城市，第一步应该证明自己很强大，还是先学会他们的礼节？（玩法说明里“说‘进入下一章’就能继续听下去”这一句不得省略）
+            首次进入第一章时，章节标题后必须依次完整说出这段开场，先交代背景，再说明玩法，最后提出开场问题：你和旅行家格列佛一起漂到了一个小人国，当地向导会带你们认识这里的规矩。当前可点名格列佛、当地向导；国王在第2章可点名；葛兰达克利赤在第3、4章可点名。你可以直接说出你的选择，也可以说“请让格列佛说说”或“请让当地向导说说”，听当前在场者自己讲；这一章的选择做完后，说“进入下一章”就能继续听下去。你来到一个所有东西都比你小十倍的城市，第一步应该证明自己很强大，还是先学会他们的礼节？（玩法说明里“说‘进入下一章’就能继续听下去”这一句不得省略）
             若用户只要求回忆或确认旅程代号，只回答当前代号；存在更正时绝不输出旧值。
             ${board.next_chapter_instruction}
             普通回合输出2至4个完整中文句子、30至220个Unicode字符；首次开场和进入新章的回合可以写到6个句子、320个Unicode字符以内。不输出Markdown、列表、emoji、舞台说明、系统字段或重复问题。
@@ -192,7 +230,8 @@ spec:
           system_prompt: |-
             ${board.story_bible}
             当前权威状态：${board.story_state_text}
-            本轮只能由格列佛说话，直接以角色口吻说台词，不得添加“格列佛说”“格列佛：”等说话人标签；只说该角色亲历或已公开的信息，不替旁白或另一角色发言。
+            角色动机与说话方式：想平等交流；清晰理性，第1章先放低身姿。
+            本轮只能由格列佛说话，直接以第一人称角色口吻说台词，不得添加“格列佛说”“格列佛：”等说话人标签；只说亲历或已公开的信息，不替旁白或另一角色发言。
             本轮不得输出章节标题。承接玩家当前选择，推进一个直接后果或线索，最多一个问题。
             输出2至4个完整中文句子、30至220个Unicode字符，不输出Markdown、列表、emoji、舞台说明或系统字段。
           track_steps: true
@@ -206,7 +245,38 @@ spec:
           system_prompt: |-
             ${board.story_bible}
             当前权威状态：${board.story_state_text}
-            本轮只能由当地向导说话，直接以角色口吻说台词，不得添加“当地向导说”“当地向导：”等说话人标签；只说该角色亲历或已公开的信息，不替旁白或另一角色发言。
+            角色动机与说话方式：想保护小人国的生活；活泼机灵，第1章解释礼节，第2章提醒尊重居民；不随行巨人国。
+            本轮只能由当地向导说话，直接以第一人称角色口吻说台词，不得添加“当地向导说”“当地向导：”等说话人标签；只说亲历或已公开的信息，不替旁白或另一角色发言。
+            本轮不得输出章节标题。承接玩家当前选择，推进一个直接后果或线索，最多一个问题。
+            输出2至4个完整中文句子、30至220个Unicode字符，不输出Markdown、列表、emoji、舞台说明或系统字段。
+          track_steps: true
+      - id: speak-king
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-story-gulliver.model
+          max_tokens: 1024
+          output_key: answer
+          system_prompt: |-
+            ${board.story_bible}
+            当前权威状态：${board.story_state_text}
+            角色动机与说话方式：希望礼节维持秩序；年长幽默，第2章听取格列佛意见，讨论修改不公平礼节；这是小人国国王。
+            本轮只能由国王说话，直接以第一人称角色口吻说台词，不得添加“国王说”“国王：”等说话人标签；只说亲历或已公开的信息，不替旁白或另一角色发言。
+            本轮不得输出章节标题。承接玩家当前选择，推进一个直接后果或线索，最多一个问题。
+            输出2至4个完整中文句子、30至220个Unicode字符，不输出Markdown、列表、emoji、舞台说明或系统字段。
+          track_steps: true
+      - id: speak-glumdalclitch
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-story-gulliver.model
+          max_tokens: 1024
+          output_key: answer
+          system_prompt: |-
+            ${board.story_bible}
+            当前权威状态：${board.story_state_text}
+            角色动机与说话方式：想照料微小的客人且尊重自主；温柔稳重，第3章安置安全住处，第4章提议先征求格列佛同意。
+            本轮只能由葛兰达克利赤说话，直接以第一人称角色口吻说台词，不得添加“葛兰达克利赤说”“葛兰达克利赤：”等说话人标签；只说亲历或已公开的信息，不替旁白或另一角色发言。
             本轮不得输出章节标题。承接玩家当前选择，推进一个直接后果或线索，最多一个问题。
             输出2至4个完整中文句子、30至220个Unicode字符，不输出Markdown、列表、emoji、舞台说明或系统字段。
           track_steps: true
@@ -230,7 +300,9 @@ spec:
           observations:
           - facts:
             - text_from: story_state_fact
-              attributes: {lane: story_progress, kind: state}
+              attributes:
+                lane: story_progress
+                kind: state
           wait_for_completion: true
     max_iterations: 10
     conversation:
@@ -242,4 +314,6 @@ spec:
         speak-narrator: flowcraft-story-gulliver.storyteller
         speak-gulliver: flowcraft-story-gulliver.gulliver
         speak-local-guide: flowcraft-story-gulliver.local-guide
+        speak-king: flowcraft-story-gulliver.king
+        speak-glumdalclitch: flowcraft-story-gulliver.glumdalclitch
   memory: story-teller

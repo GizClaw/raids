@@ -1,28 +1,24 @@
 # User Story:
 # As a Raids catalog maintainer,
-# I want isolated narrator and character probes for flowcraft-story-little-prince,
+# I want isolated narrator and character probes for eino-story-robinson-crusoe,
 # So that every reachable role path produces text and non-empty synthesized audio.
 ---
 version: gizclaw.test/v1alpha1
-name: story-little-prince.flowcraft.roles
+name: story-robinson-crusoe.eino.roles
 clients:
   narrator:
     identity: ephemeral
     connection: webrtc
     access_point: "${endpoint}"
-  little-prince:
+  robinson:
     identity: ephemeral
     connection: webrtc
     access_point: "${endpoint}"
-  rose:
+  friday:
     identity: ephemeral
     connection: webrtc
     access_point: "${endpoint}"
-  fox:
-    identity: ephemeral
-    connection: webrtc
-    access_point: "${endpoint}"
-  pilot:
+  captain:
     identity: ephemeral
     connection: webrtc
     access_point: "${endpoint}"
@@ -40,19 +36,15 @@ variables:
     direction: input
     type: string
     generate: token
-  little_prince_workspace:
+  robinson_workspace:
     direction: input
     type: string
     generate: token
-  rose_workspace:
+  friday_workspace:
     direction: input
     type: string
     generate: token
-  fox_workspace:
-    direction: input
-    type: string
-    generate: token
-  pilot_workspace:
+  captain_workspace:
     direction: input
     type: string
     generate: token
@@ -72,10 +64,10 @@ steps:
     request:
       name: "${narrator_workspace}"
       collection: raidtest-targets
-      workflow_name: flowcraft-story-little-prince
+      workflow_name: eino-story-robinson-crusoe
       parameters:
-        flowcraft_workspace_parameters:
-          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
           conversation:
             initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
           input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
@@ -96,13 +88,13 @@ steps:
   timeout: 2m
   peer_stream:
     mode: text
-    input: 请从第一章开始《小王子》。
+    input: 请从第一章开始《鲁滨逊漂流记》。
     idle_timeout: 90s
     require_text: true
     require_audio: true
   expect:
     "/text":
-      contains: 第 1 章：唯一的花
+      contains: 第 1 章：退潮物资
     "/text_eos":
       equals: true
     "/audio_eos":
@@ -157,50 +149,50 @@ steps:
       maximum: 2000
     "/first_audio_ms":
       maximum: 3000
-- id: register_little-prince
-  client: little-prince
+- id: register_robinson
+  client: robinson
   rpc:
     method: server.register
     request:
       token: "${registration_token}"
-- id: create_little_prince_workspace
-  client: little-prince
+- id: create_robinson_workspace
+  client: robinson
   rpc:
     method: server.workspace.create
     request:
-      name: "${little_prince_workspace}"
+      name: "${robinson_workspace}"
       collection: raidtest-targets
-      workflow_name: flowcraft-story-little-prince
+      workflow_name: eino-story-robinson-crusoe
       parameters:
-        flowcraft_workspace_parameters:
-          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
           conversation:
             initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
           input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: select_little_prince_workspace
-  client: little-prince
+- id: select_robinson_workspace
+  client: robinson
   rpc:
     method: server.run.workspace.set
     request:
-      workspace_name: "${little_prince_workspace}"
-- id: warmup_little_prince_workspace
-  client: little-prince
+      workspace_name: "${robinson_workspace}"
+- id: warmup_robinson_workspace
+  client: robinson
   rpc:
     method: server.run.workspace.reload
     request: {}
   timeout: 2m
-- id: little-prince_chapter_setup_1
-  client: little-prince
+- id: robinson_chapter_setup_1
+  client: robinson
   timeout: 2m
   peer_stream:
     mode: text
-    input: 请从第一章开始《小王子》。
+    input: 请从第一章开始《鲁滨逊漂流记》。
     idle_timeout: 90s
     require_text: true
     require_audio: true
   expect:
     "/text":
-      contains: 第 1 章：唯一的花
+      contains: 第 1 章：退潮物资
     "/text_eos":
       equals: true
     "/audio_eos":
@@ -211,20 +203,20 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: probe_little-prince
-  client: little-prince
+- id: probe_robinson
+  client: robinson
   timeout: 2m
   peer_stream:
     mode: text
-    input: 请让小王子亲自回应，只说这个角色知道的事。
+    input: 请让鲁滨逊亲自回应，只说这个角色知道的事。
     idle_timeout: 90s
     require_text: true
     require_audio: true
   expect:
     "/text":
       not_contains:
-      - 小王子说
-      - 小王子：
+      - 鲁滨逊说
+      - 鲁滨逊：
     "/text_eos":
       equals: true
     "/audio_eos":
@@ -235,12 +227,12 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: probe_little-prince_first_response
-  client: little-prince
+- id: probe_robinson_first_response
+  client: robinson
   timeout: 15s
   peer_stream:
     mode: text
-    input: 请让小王子亲自回应，只说这个角色知道的事。
+    input: 请让鲁滨逊亲自回应，只说这个角色知道的事。
     completion: first_response
     first_text_timeout: 2s
     first_audio_timeout: 3s
@@ -255,50 +247,50 @@ steps:
       maximum: 2000
     "/first_audio_ms":
       maximum: 3000
-- id: register_rose
-  client: rose
+- id: register_friday
+  client: friday
   rpc:
     method: server.register
     request:
       token: "${registration_token}"
-- id: create_rose_workspace
-  client: rose
+- id: create_friday_workspace
+  client: friday
   rpc:
     method: server.workspace.create
     request:
-      name: "${rose_workspace}"
+      name: "${friday_workspace}"
       collection: raidtest-targets
-      workflow_name: flowcraft-story-little-prince
+      workflow_name: eino-story-robinson-crusoe
       parameters:
-        flowcraft_workspace_parameters:
-          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
           conversation:
             initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
           input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: select_rose_workspace
-  client: rose
+- id: select_friday_workspace
+  client: friday
   rpc:
     method: server.run.workspace.set
     request:
-      workspace_name: "${rose_workspace}"
-- id: warmup_rose_workspace
-  client: rose
+      workspace_name: "${friday_workspace}"
+- id: warmup_friday_workspace
+  client: friday
   rpc:
     method: server.run.workspace.reload
     request: {}
   timeout: 2m
-- id: rose_chapter_setup_1
-  client: rose
+- id: friday_chapter_setup_1
+  client: friday
   timeout: 2m
   peer_stream:
     mode: text
-    input: 请从第一章开始《小王子》。
+    input: 请从第一章开始《鲁滨逊漂流记》。
     idle_timeout: 90s
     require_text: true
     require_audio: true
   expect:
     "/text":
-      contains: 第 1 章：唯一的花
+      contains: 第 1 章：退潮物资
     "/text_eos":
       equals: true
     "/audio_eos":
@@ -309,20 +301,20 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: probe_rose
-  client: rose
+- id: probe_friday
+  client: friday
   timeout: 2m
   peer_stream:
     mode: text
-    input: 请让玫瑰亲自回应，只说这个角色知道的事。
+    input: 请让星期五亲自回应，只说这个角色知道的事。
     idle_timeout: 90s
     require_text: true
     require_audio: true
   expect:
     "/text":
       not_contains:
-      - 玫瑰说
-      - 玫瑰：
+      - 星期五说
+      - 星期五：
     "/text_eos":
       equals: true
     "/audio_eos":
@@ -333,12 +325,12 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: probe_rose_first_response
-  client: rose
+- id: probe_friday_first_response
+  client: friday
   timeout: 15s
   peer_stream:
     mode: text
-    input: 请让玫瑰亲自回应，只说这个角色知道的事。
+    input: 请让星期五亲自回应，只说这个角色知道的事。
     completion: first_response
     first_text_timeout: 2s
     first_audio_timeout: 3s
@@ -353,50 +345,50 @@ steps:
       maximum: 2000
     "/first_audio_ms":
       maximum: 3000
-- id: register_fox
-  client: fox
+- id: register_captain
+  client: captain
   rpc:
     method: server.register
     request:
       token: "${registration_token}"
-- id: create_fox_workspace
-  client: fox
+- id: create_captain_workspace
+  client: captain
   rpc:
     method: server.workspace.create
     request:
-      name: "${fox_workspace}"
+      name: "${captain_workspace}"
       collection: raidtest-targets
-      workflow_name: flowcraft-story-little-prince
+      workflow_name: eino-story-robinson-crusoe
       parameters:
-        flowcraft_workspace_parameters:
-          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
           conversation:
             initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
           input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: select_fox_workspace
-  client: fox
+- id: select_captain_workspace
+  client: captain
   rpc:
     method: server.run.workspace.set
     request:
-      workspace_name: "${fox_workspace}"
-- id: warmup_fox_workspace
-  client: fox
+      workspace_name: "${captain_workspace}"
+- id: warmup_captain_workspace
+  client: captain
   rpc:
     method: server.run.workspace.reload
     request: {}
   timeout: 2m
-- id: fox_chapter_setup_1
-  client: fox
+- id: captain_chapter_setup_1
+  client: captain
   timeout: 2m
   peer_stream:
     mode: text
-    input: 请从第一章开始《小王子》。
+    input: 请从第一章开始《鲁滨逊漂流记》。
     idle_timeout: 90s
     require_text: true
     require_audio: true
   expect:
     "/text":
-      contains: 第 1 章：唯一的花
+      contains: 第 1 章：退潮物资
     "/text_eos":
       equals: true
     "/audio_eos":
@@ -407,8 +399,8 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: fox_chapter_1_0
-  client: fox
+- id: captain_chapter_1_0
+  client: captain
   timeout: 2m
   peer_stream:
     mode: text
@@ -427,12 +419,12 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: fox_chapter_1_1
-  client: fox
+- id: captain_chapter_1_1
+  client: captain
   timeout: 2m
   peer_stream:
     mode: text
-    input: 请让小王子亲自回应，说出不同立场。
+    input: 请让鲁滨逊亲自回应，说出不同立场。
     idle_timeout: 90s
     require_text: true
     require_audio: true
@@ -447,8 +439,8 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: fox_chapter_1_2
-  client: fox
+- id: captain_chapter_1_2
+  client: captain
   timeout: 2m
   peer_stream:
     mode: text
@@ -468,9 +460,9 @@ steps:
     "/first_audio_ms":
       maximum: 90000
     "/text":
-      contains: 第 2 章：迁徙星群
-- id: fox_chapter_2_0
-  client: fox
+      contains: 第 2 章：荒岛营地
+- id: captain_chapter_2_0
+  client: captain
   timeout: 2m
   peer_stream:
     mode: text
@@ -489,12 +481,12 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: fox_chapter_2_1
-  client: fox
+- id: captain_chapter_2_1
+  client: captain
   timeout: 2m
   peer_stream:
     mode: text
-    input: 请让小王子亲自回应，说出不同立场。
+    input: 请让鲁滨逊亲自回应，说出不同立场。
     idle_timeout: 90s
     require_text: true
     require_audio: true
@@ -509,8 +501,8 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: fox_chapter_2_2
-  client: fox
+- id: captain_chapter_2_2
+  client: captain
   timeout: 2m
   peer_stream:
     mode: text
@@ -530,21 +522,83 @@ steps:
     "/first_audio_ms":
       maximum: 90000
     "/text":
-      contains: 第 3 章：狐狸的约定
-- id: probe_fox
-  client: fox
+      contains: 第 3 章：陌生脚印
+- id: captain_chapter_3_0
+  client: captain
   timeout: 2m
   peer_stream:
     mode: text
-    input: 请让狐狸亲自回应，只说这个角色知道的事。
+    input: 我选择刚才的第一个方向，请推进一个直接结果。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: captain_chapter_3_1
+  client: captain
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让鲁滨逊亲自回应，说出不同立场。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: captain_chapter_3_2
+  client: captain
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 进入下一章。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      contains: 第 4 章：共同归航
+- id: probe_captain
+  client: captain
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让船长亲自回应，只说这个角色知道的事。
     idle_timeout: 90s
     require_text: true
     require_audio: true
   expect:
     "/text":
       not_contains:
-      - 狐狸说
-      - 狐狸：
+      - 船长说
+      - 船长：
     "/text_eos":
       equals: true
     "/audio_eos":
@@ -555,296 +609,12 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: probe_fox_first_response
-  client: fox
+- id: probe_captain_first_response
+  client: captain
   timeout: 15s
   peer_stream:
     mode: text
-    input: 请让狐狸亲自回应，只说这个角色知道的事。
-    completion: first_response
-    first_text_timeout: 2s
-    first_audio_timeout: 3s
-    require_text: true
-    require_audio: true
-  expect:
-    "/events":
-      non_empty: true
-    "/audio_bytes":
-      minimum: 1
-    "/first_text_ms":
-      maximum: 2000
-    "/first_audio_ms":
-      maximum: 3000
-- id: register_pilot
-  client: pilot
-  rpc:
-    method: server.register
-    request:
-      token: "${registration_token}"
-- id: create_pilot_workspace
-  client: pilot
-  rpc:
-    method: server.workspace.create
-    request:
-      name: "${pilot_workspace}"
-      collection: raidtest-targets
-      workflow_name: flowcraft-story-little-prince
-      parameters:
-        flowcraft_workspace_parameters:
-          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
-          conversation:
-            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
-          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: select_pilot_workspace
-  client: pilot
-  rpc:
-    method: server.run.workspace.set
-    request:
-      workspace_name: "${pilot_workspace}"
-- id: warmup_pilot_workspace
-  client: pilot
-  rpc:
-    method: server.run.workspace.reload
-    request: {}
-  timeout: 2m
-- id: pilot_chapter_setup_1
-  client: pilot
-  timeout: 2m
-  peer_stream:
-    mode: text
-    input: 请从第一章开始《小王子》。
-    idle_timeout: 90s
-    require_text: true
-    require_audio: true
-  expect:
-    "/text":
-      contains: 第 1 章：唯一的花
-    "/text_eos":
-      equals: true
-    "/audio_eos":
-      equals: true
-    "/audio_bytes":
-      minimum: 1
-    "/first_text_ms":
-      maximum: 6000
-    "/first_audio_ms":
-      maximum: 90000
-- id: pilot_chapter_1_0
-  client: pilot
-  timeout: 2m
-  peer_stream:
-    mode: text
-    input: 我选择刚才的第一个方向，请推进一个直接结果。
-    idle_timeout: 90s
-    require_text: true
-    require_audio: true
-  expect:
-    "/text_eos":
-      equals: true
-    "/audio_eos":
-      equals: true
-    "/audio_bytes":
-      minimum: 1
-    "/first_text_ms":
-      maximum: 6000
-    "/first_audio_ms":
-      maximum: 90000
-- id: pilot_chapter_1_1
-  client: pilot
-  timeout: 2m
-  peer_stream:
-    mode: text
-    input: 请让小王子亲自回应，说出不同立场。
-    idle_timeout: 90s
-    require_text: true
-    require_audio: true
-  expect:
-    "/text_eos":
-      equals: true
-    "/audio_eos":
-      equals: true
-    "/audio_bytes":
-      minimum: 1
-    "/first_text_ms":
-      maximum: 6000
-    "/first_audio_ms":
-      maximum: 90000
-- id: pilot_chapter_1_2
-  client: pilot
-  timeout: 2m
-  peer_stream:
-    mode: text
-    input: 进入下一章。
-    idle_timeout: 90s
-    require_text: true
-    require_audio: true
-  expect:
-    "/text_eos":
-      equals: true
-    "/audio_eos":
-      equals: true
-    "/audio_bytes":
-      minimum: 1
-    "/first_text_ms":
-      maximum: 6000
-    "/first_audio_ms":
-      maximum: 90000
-    "/text":
-      contains: 第 2 章：迁徙星群
-- id: pilot_chapter_2_0
-  client: pilot
-  timeout: 2m
-  peer_stream:
-    mode: text
-    input: 我选择刚才的第一个方向，请推进一个直接结果。
-    idle_timeout: 90s
-    require_text: true
-    require_audio: true
-  expect:
-    "/text_eos":
-      equals: true
-    "/audio_eos":
-      equals: true
-    "/audio_bytes":
-      minimum: 1
-    "/first_text_ms":
-      maximum: 6000
-    "/first_audio_ms":
-      maximum: 90000
-- id: pilot_chapter_2_1
-  client: pilot
-  timeout: 2m
-  peer_stream:
-    mode: text
-    input: 请让小王子亲自回应，说出不同立场。
-    idle_timeout: 90s
-    require_text: true
-    require_audio: true
-  expect:
-    "/text_eos":
-      equals: true
-    "/audio_eos":
-      equals: true
-    "/audio_bytes":
-      minimum: 1
-    "/first_text_ms":
-      maximum: 6000
-    "/first_audio_ms":
-      maximum: 90000
-- id: pilot_chapter_2_2
-  client: pilot
-  timeout: 2m
-  peer_stream:
-    mode: text
-    input: 进入下一章。
-    idle_timeout: 90s
-    require_text: true
-    require_audio: true
-  expect:
-    "/text_eos":
-      equals: true
-    "/audio_eos":
-      equals: true
-    "/audio_bytes":
-      minimum: 1
-    "/first_text_ms":
-      maximum: 6000
-    "/first_audio_ms":
-      maximum: 90000
-    "/text":
-      contains: 第 3 章：狐狸的约定
-- id: pilot_chapter_3_0
-  client: pilot
-  timeout: 2m
-  peer_stream:
-    mode: text
-    input: 我选择刚才的第一个方向，请推进一个直接结果。
-    idle_timeout: 90s
-    require_text: true
-    require_audio: true
-  expect:
-    "/text_eos":
-      equals: true
-    "/audio_eos":
-      equals: true
-    "/audio_bytes":
-      minimum: 1
-    "/first_text_ms":
-      maximum: 6000
-    "/first_audio_ms":
-      maximum: 90000
-- id: pilot_chapter_3_1
-  client: pilot
-  timeout: 2m
-  peer_stream:
-    mode: text
-    input: 请让小王子亲自回应，说出不同立场。
-    idle_timeout: 90s
-    require_text: true
-    require_audio: true
-  expect:
-    "/text_eos":
-      equals: true
-    "/audio_eos":
-      equals: true
-    "/audio_bytes":
-      minimum: 1
-    "/first_text_ms":
-      maximum: 6000
-    "/first_audio_ms":
-      maximum: 90000
-- id: pilot_chapter_3_2
-  client: pilot
-  timeout: 2m
-  peer_stream:
-    mode: text
-    input: 进入下一章。
-    idle_timeout: 90s
-    require_text: true
-    require_audio: true
-  expect:
-    "/text_eos":
-      equals: true
-    "/audio_eos":
-      equals: true
-    "/audio_bytes":
-      minimum: 1
-    "/first_text_ms":
-      maximum: 6000
-    "/first_audio_ms":
-      maximum: 90000
-    "/text":
-      contains: 第 4 章：回望责任
-- id: probe_pilot
-  client: pilot
-  timeout: 2m
-  peer_stream:
-    mode: text
-    input: 请让飞行员亲自回应，只说这个角色知道的事。
-    idle_timeout: 90s
-    require_text: true
-    require_audio: true
-  expect:
-    "/text":
-      not_contains:
-      - 飞行员说
-      - 飞行员：
-    "/text_eos":
-      equals: true
-    "/audio_eos":
-      equals: true
-    "/audio_bytes":
-      minimum: 1
-    "/first_text_ms":
-      maximum: 6000
-    "/first_audio_ms":
-      maximum: 90000
-- id: probe_pilot_first_response
-  client: pilot
-  timeout: 15s
-  peer_stream:
-    mode: text
-    input: 请让飞行员亲自回应，只说这个角色知道的事。
+    input: 请让船长亲自回应，只说这个角色知道的事。
     completion: first_response
     first_text_timeout: 2s
     first_audio_timeout: 3s
@@ -876,67 +646,51 @@ finally:
   rpc:
     method: server.peer.delete
     request: {}
-- id: stop_little-prince_run
-  client: little-prince
+- id: stop_robinson_run
+  client: robinson
   rpc:
     method: server.run.stop
     request: {}
-- id: delete_little_prince_workspace
-  client: little-prince
+- id: delete_robinson_workspace
+  client: robinson
   rpc:
     method: server.workspace.delete
     request:
-      name: "${little_prince_workspace}"
-- id: delete_little-prince_peer
-  client: little-prince
+      name: "${robinson_workspace}"
+- id: delete_robinson_peer
+  client: robinson
   rpc:
     method: server.peer.delete
     request: {}
-- id: stop_rose_run
-  client: rose
+- id: stop_friday_run
+  client: friday
   rpc:
     method: server.run.stop
     request: {}
-- id: delete_rose_workspace
-  client: rose
+- id: delete_friday_workspace
+  client: friday
   rpc:
     method: server.workspace.delete
     request:
-      name: "${rose_workspace}"
-- id: delete_rose_peer
-  client: rose
+      name: "${friday_workspace}"
+- id: delete_friday_peer
+  client: friday
   rpc:
     method: server.peer.delete
     request: {}
-- id: stop_fox_run
-  client: fox
+- id: stop_captain_run
+  client: captain
   rpc:
     method: server.run.stop
     request: {}
-- id: delete_fox_workspace
-  client: fox
+- id: delete_captain_workspace
+  client: captain
   rpc:
     method: server.workspace.delete
     request:
-      name: "${fox_workspace}"
-- id: delete_fox_peer
-  client: fox
-  rpc:
-    method: server.peer.delete
-    request: {}
-- id: stop_pilot_run
-  client: pilot
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: delete_pilot_workspace
-  client: pilot
-  rpc:
-    method: server.workspace.delete
-    request:
-      name: "${pilot_workspace}"
-- id: delete_pilot_peer
-  client: pilot
+      name: "${captain_workspace}"
+- id: delete_captain_peer
+  client: captain
   rpc:
     method: server.peer.delete
     request: {}

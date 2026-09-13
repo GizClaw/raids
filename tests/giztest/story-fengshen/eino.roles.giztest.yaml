@@ -1,28 +1,28 @@
 # User Story:
 # As a Raids catalog maintainer,
-# I want isolated narrator and character probes for flowcraft-story-little-prince,
+# I want isolated narrator and character probes for eino-story-fengshen,
 # So that every reachable role path produces text and non-empty synthesized audio.
 ---
 version: gizclaw.test/v1alpha1
-name: story-little-prince.flowcraft.roles
+name: story-fengshen.eino.roles
 clients:
   narrator:
     identity: ephemeral
     connection: webrtc
     access_point: "${endpoint}"
-  little-prince:
+  nezha:
     identity: ephemeral
     connection: webrtc
     access_point: "${endpoint}"
-  rose:
+  jiang-ziya:
     identity: ephemeral
     connection: webrtc
     access_point: "${endpoint}"
-  fox:
+  yang-jian:
     identity: ephemeral
     connection: webrtc
     access_point: "${endpoint}"
-  pilot:
+  lei-zhenzi:
     identity: ephemeral
     connection: webrtc
     access_point: "${endpoint}"
@@ -40,19 +40,19 @@ variables:
     direction: input
     type: string
     generate: token
-  little_prince_workspace:
+  nezha_workspace:
     direction: input
     type: string
     generate: token
-  rose_workspace:
+  jiang_ziya_workspace:
     direction: input
     type: string
     generate: token
-  fox_workspace:
+  yang_jian_workspace:
     direction: input
     type: string
     generate: token
-  pilot_workspace:
+  lei_zhenzi_workspace:
     direction: input
     type: string
     generate: token
@@ -72,10 +72,10 @@ steps:
     request:
       name: "${narrator_workspace}"
       collection: raidtest-targets
-      workflow_name: flowcraft-story-little-prince
+      workflow_name: eino-story-fengshen
       parameters:
-        flowcraft_workspace_parameters:
-          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
           conversation:
             initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
           input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
@@ -96,13 +96,13 @@ steps:
   timeout: 2m
   peer_stream:
     mode: text
-    input: 请从第一章开始《小王子》。
+    input: 请从第一章开始《封神榜》。
     idle_timeout: 90s
     require_text: true
     require_audio: true
   expect:
     "/text":
-      contains: 第 1 章：唯一的花
+      contains: 第 1 章：法宝择主
     "/text_eos":
       equals: true
     "/audio_eos":
@@ -157,50 +157,50 @@ steps:
       maximum: 2000
     "/first_audio_ms":
       maximum: 3000
-- id: register_little-prince
-  client: little-prince
+- id: register_nezha
+  client: nezha
   rpc:
     method: server.register
     request:
       token: "${registration_token}"
-- id: create_little_prince_workspace
-  client: little-prince
+- id: create_nezha_workspace
+  client: nezha
   rpc:
     method: server.workspace.create
     request:
-      name: "${little_prince_workspace}"
+      name: "${nezha_workspace}"
       collection: raidtest-targets
-      workflow_name: flowcraft-story-little-prince
+      workflow_name: eino-story-fengshen
       parameters:
-        flowcraft_workspace_parameters:
-          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
           conversation:
             initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
           input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: select_little_prince_workspace
-  client: little-prince
+- id: select_nezha_workspace
+  client: nezha
   rpc:
     method: server.run.workspace.set
     request:
-      workspace_name: "${little_prince_workspace}"
-- id: warmup_little_prince_workspace
-  client: little-prince
+      workspace_name: "${nezha_workspace}"
+- id: warmup_nezha_workspace
+  client: nezha
   rpc:
     method: server.run.workspace.reload
     request: {}
   timeout: 2m
-- id: little-prince_chapter_setup_1
-  client: little-prince
+- id: nezha_chapter_setup_1
+  client: nezha
   timeout: 2m
   peer_stream:
     mode: text
-    input: 请从第一章开始《小王子》。
+    input: 请从第一章开始《封神榜》。
     idle_timeout: 90s
     require_text: true
     require_audio: true
   expect:
     "/text":
-      contains: 第 1 章：唯一的花
+      contains: 第 1 章：法宝择主
     "/text_eos":
       equals: true
     "/audio_eos":
@@ -211,20 +211,20 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: probe_little-prince
-  client: little-prince
+- id: probe_nezha
+  client: nezha
   timeout: 2m
   peer_stream:
     mode: text
-    input: 请让小王子亲自回应，只说这个角色知道的事。
+    input: 请让哪吒亲自回应，只说这个角色知道的事。
     idle_timeout: 90s
     require_text: true
     require_audio: true
   expect:
     "/text":
       not_contains:
-      - 小王子说
-      - 小王子：
+      - 哪吒说
+      - 哪吒：
     "/text_eos":
       equals: true
     "/audio_eos":
@@ -235,12 +235,12 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: probe_little-prince_first_response
-  client: little-prince
+- id: probe_nezha_first_response
+  client: nezha
   timeout: 15s
   peer_stream:
     mode: text
-    input: 请让小王子亲自回应，只说这个角色知道的事。
+    input: 请让哪吒亲自回应，只说这个角色知道的事。
     completion: first_response
     first_text_timeout: 2s
     first_audio_timeout: 3s
@@ -255,50 +255,50 @@ steps:
       maximum: 2000
     "/first_audio_ms":
       maximum: 3000
-- id: register_rose
-  client: rose
+- id: register_jiang-ziya
+  client: jiang-ziya
   rpc:
     method: server.register
     request:
       token: "${registration_token}"
-- id: create_rose_workspace
-  client: rose
+- id: create_jiang_ziya_workspace
+  client: jiang-ziya
   rpc:
     method: server.workspace.create
     request:
-      name: "${rose_workspace}"
+      name: "${jiang_ziya_workspace}"
       collection: raidtest-targets
-      workflow_name: flowcraft-story-little-prince
+      workflow_name: eino-story-fengshen
       parameters:
-        flowcraft_workspace_parameters:
-          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
           conversation:
             initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
           input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: select_rose_workspace
-  client: rose
+- id: select_jiang_ziya_workspace
+  client: jiang-ziya
   rpc:
     method: server.run.workspace.set
     request:
-      workspace_name: "${rose_workspace}"
-- id: warmup_rose_workspace
-  client: rose
+      workspace_name: "${jiang_ziya_workspace}"
+- id: warmup_jiang_ziya_workspace
+  client: jiang-ziya
   rpc:
     method: server.run.workspace.reload
     request: {}
   timeout: 2m
-- id: rose_chapter_setup_1
-  client: rose
+- id: jiang-ziya_chapter_setup_1
+  client: jiang-ziya
   timeout: 2m
   peer_stream:
     mode: text
-    input: 请从第一章开始《小王子》。
+    input: 请从第一章开始《封神榜》。
     idle_timeout: 90s
     require_text: true
     require_audio: true
   expect:
     "/text":
-      contains: 第 1 章：唯一的花
+      contains: 第 1 章：法宝择主
     "/text_eos":
       equals: true
     "/audio_eos":
@@ -309,20 +309,20 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: probe_rose
-  client: rose
+- id: probe_jiang-ziya
+  client: jiang-ziya
   timeout: 2m
   peer_stream:
     mode: text
-    input: 请让玫瑰亲自回应，只说这个角色知道的事。
+    input: 请让姜子牙亲自回应，只说这个角色知道的事。
     idle_timeout: 90s
     require_text: true
     require_audio: true
   expect:
     "/text":
       not_contains:
-      - 玫瑰说
-      - 玫瑰：
+      - 姜子牙说
+      - 姜子牙：
     "/text_eos":
       equals: true
     "/audio_eos":
@@ -333,12 +333,12 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: probe_rose_first_response
-  client: rose
+- id: probe_jiang-ziya_first_response
+  client: jiang-ziya
   timeout: 15s
   peer_stream:
     mode: text
-    input: 请让玫瑰亲自回应，只说这个角色知道的事。
+    input: 请让姜子牙亲自回应，只说这个角色知道的事。
     completion: first_response
     first_text_timeout: 2s
     first_audio_timeout: 3s
@@ -353,50 +353,50 @@ steps:
       maximum: 2000
     "/first_audio_ms":
       maximum: 3000
-- id: register_fox
-  client: fox
+- id: register_yang-jian
+  client: yang-jian
   rpc:
     method: server.register
     request:
       token: "${registration_token}"
-- id: create_fox_workspace
-  client: fox
+- id: create_yang_jian_workspace
+  client: yang-jian
   rpc:
     method: server.workspace.create
     request:
-      name: "${fox_workspace}"
+      name: "${yang_jian_workspace}"
       collection: raidtest-targets
-      workflow_name: flowcraft-story-little-prince
+      workflow_name: eino-story-fengshen
       parameters:
-        flowcraft_workspace_parameters:
-          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
           conversation:
             initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
           input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: select_fox_workspace
-  client: fox
+- id: select_yang_jian_workspace
+  client: yang-jian
   rpc:
     method: server.run.workspace.set
     request:
-      workspace_name: "${fox_workspace}"
-- id: warmup_fox_workspace
-  client: fox
+      workspace_name: "${yang_jian_workspace}"
+- id: warmup_yang_jian_workspace
+  client: yang-jian
   rpc:
     method: server.run.workspace.reload
     request: {}
   timeout: 2m
-- id: fox_chapter_setup_1
-  client: fox
+- id: yang-jian_chapter_setup_1
+  client: yang-jian
   timeout: 2m
   peer_stream:
     mode: text
-    input: 请从第一章开始《小王子》。
+    input: 请从第一章开始《封神榜》。
     idle_timeout: 90s
     require_text: true
     require_audio: true
   expect:
     "/text":
-      contains: 第 1 章：唯一的花
+      contains: 第 1 章：法宝择主
     "/text_eos":
       equals: true
     "/audio_eos":
@@ -407,8 +407,8 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: fox_chapter_1_0
-  client: fox
+- id: yang-jian_chapter_1_0
+  client: yang-jian
   timeout: 2m
   peer_stream:
     mode: text
@@ -427,12 +427,12 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: fox_chapter_1_1
-  client: fox
+- id: yang-jian_chapter_1_1
+  client: yang-jian
   timeout: 2m
   peer_stream:
     mode: text
-    input: 请让小王子亲自回应，说出不同立场。
+    input: 请让哪吒亲自回应，说出不同立场。
     idle_timeout: 90s
     require_text: true
     require_audio: true
@@ -447,8 +447,8 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: fox_chapter_1_2
-  client: fox
+- id: yang-jian_chapter_1_2
+  client: yang-jian
   timeout: 2m
   peer_stream:
     mode: text
@@ -468,83 +468,21 @@ steps:
     "/first_audio_ms":
       maximum: 90000
     "/text":
-      contains: 第 2 章：迁徙星群
-- id: fox_chapter_2_0
-  client: fox
+      contains: 第 2 章：责任试炼
+- id: probe_yang-jian
+  client: yang-jian
   timeout: 2m
   peer_stream:
     mode: text
-    input: 我选择刚才的第一个方向，请推进一个直接结果。
-    idle_timeout: 90s
-    require_text: true
-    require_audio: true
-  expect:
-    "/text_eos":
-      equals: true
-    "/audio_eos":
-      equals: true
-    "/audio_bytes":
-      minimum: 1
-    "/first_text_ms":
-      maximum: 6000
-    "/first_audio_ms":
-      maximum: 90000
-- id: fox_chapter_2_1
-  client: fox
-  timeout: 2m
-  peer_stream:
-    mode: text
-    input: 请让小王子亲自回应，说出不同立场。
-    idle_timeout: 90s
-    require_text: true
-    require_audio: true
-  expect:
-    "/text_eos":
-      equals: true
-    "/audio_eos":
-      equals: true
-    "/audio_bytes":
-      minimum: 1
-    "/first_text_ms":
-      maximum: 6000
-    "/first_audio_ms":
-      maximum: 90000
-- id: fox_chapter_2_2
-  client: fox
-  timeout: 2m
-  peer_stream:
-    mode: text
-    input: 进入下一章。
-    idle_timeout: 90s
-    require_text: true
-    require_audio: true
-  expect:
-    "/text_eos":
-      equals: true
-    "/audio_eos":
-      equals: true
-    "/audio_bytes":
-      minimum: 1
-    "/first_text_ms":
-      maximum: 6000
-    "/first_audio_ms":
-      maximum: 90000
-    "/text":
-      contains: 第 3 章：狐狸的约定
-- id: probe_fox
-  client: fox
-  timeout: 2m
-  peer_stream:
-    mode: text
-    input: 请让狐狸亲自回应，只说这个角色知道的事。
+    input: 请让杨戬亲自回应，只说这个角色知道的事。
     idle_timeout: 90s
     require_text: true
     require_audio: true
   expect:
     "/text":
       not_contains:
-      - 狐狸说
-      - 狐狸：
+      - 杨戬说
+      - 杨戬：
     "/text_eos":
       equals: true
     "/audio_eos":
@@ -555,12 +493,12 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: probe_fox_first_response
-  client: fox
+- id: probe_yang-jian_first_response
+  client: yang-jian
   timeout: 15s
   peer_stream:
     mode: text
-    input: 请让狐狸亲自回应，只说这个角色知道的事。
+    input: 请让杨戬亲自回应，只说这个角色知道的事。
     completion: first_response
     first_text_timeout: 2s
     first_audio_timeout: 3s
@@ -575,50 +513,50 @@ steps:
       maximum: 2000
     "/first_audio_ms":
       maximum: 3000
-- id: register_pilot
-  client: pilot
+- id: register_lei-zhenzi
+  client: lei-zhenzi
   rpc:
     method: server.register
     request:
       token: "${registration_token}"
-- id: create_pilot_workspace
-  client: pilot
+- id: create_lei_zhenzi_workspace
+  client: lei-zhenzi
   rpc:
     method: server.workspace.create
     request:
-      name: "${pilot_workspace}"
+      name: "${lei_zhenzi_workspace}"
       collection: raidtest-targets
-      workflow_name: flowcraft-story-little-prince
+      workflow_name: eino-story-fengshen
       parameters:
-        flowcraft_workspace_parameters:
-          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
           conversation:
             initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
           input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: select_pilot_workspace
-  client: pilot
+- id: select_lei_zhenzi_workspace
+  client: lei-zhenzi
   rpc:
     method: server.run.workspace.set
     request:
-      workspace_name: "${pilot_workspace}"
-- id: warmup_pilot_workspace
-  client: pilot
+      workspace_name: "${lei_zhenzi_workspace}"
+- id: warmup_lei_zhenzi_workspace
+  client: lei-zhenzi
   rpc:
     method: server.run.workspace.reload
     request: {}
   timeout: 2m
-- id: pilot_chapter_setup_1
-  client: pilot
+- id: lei-zhenzi_chapter_setup_1
+  client: lei-zhenzi
   timeout: 2m
   peer_stream:
     mode: text
-    input: 请从第一章开始《小王子》。
+    input: 请从第一章开始《封神榜》。
     idle_timeout: 90s
     require_text: true
     require_audio: true
   expect:
     "/text":
-      contains: 第 1 章：唯一的花
+      contains: 第 1 章：法宝择主
     "/text_eos":
       equals: true
     "/audio_eos":
@@ -629,8 +567,8 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: pilot_chapter_1_0
-  client: pilot
+- id: lei-zhenzi_chapter_1_0
+  client: lei-zhenzi
   timeout: 2m
   peer_stream:
     mode: text
@@ -649,12 +587,12 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: pilot_chapter_1_1
-  client: pilot
+- id: lei-zhenzi_chapter_1_1
+  client: lei-zhenzi
   timeout: 2m
   peer_stream:
     mode: text
-    input: 请让小王子亲自回应，说出不同立场。
+    input: 请让哪吒亲自回应，说出不同立场。
     idle_timeout: 90s
     require_text: true
     require_audio: true
@@ -669,8 +607,8 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: pilot_chapter_1_2
-  client: pilot
+- id: lei-zhenzi_chapter_1_2
+  client: lei-zhenzi
   timeout: 2m
   peer_stream:
     mode: text
@@ -690,9 +628,9 @@ steps:
     "/first_audio_ms":
       maximum: 90000
     "/text":
-      contains: 第 2 章：迁徙星群
-- id: pilot_chapter_2_0
-  client: pilot
+      contains: 第 2 章：责任试炼
+- id: lei-zhenzi_chapter_2_0
+  client: lei-zhenzi
   timeout: 2m
   peer_stream:
     mode: text
@@ -711,12 +649,12 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: pilot_chapter_2_1
-  client: pilot
+- id: lei-zhenzi_chapter_2_1
+  client: lei-zhenzi
   timeout: 2m
   peer_stream:
     mode: text
-    input: 请让小王子亲自回应，说出不同立场。
+    input: 请让哪吒亲自回应，说出不同立场。
     idle_timeout: 90s
     require_text: true
     require_audio: true
@@ -731,8 +669,8 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: pilot_chapter_2_2
-  client: pilot
+- id: lei-zhenzi_chapter_2_2
+  client: lei-zhenzi
   timeout: 2m
   peer_stream:
     mode: text
@@ -752,83 +690,21 @@ steps:
     "/first_audio_ms":
       maximum: 90000
     "/text":
-      contains: 第 3 章：狐狸的约定
-- id: pilot_chapter_3_0
-  client: pilot
+      contains: 第 3 章：盟友分歧
+- id: probe_lei-zhenzi
+  client: lei-zhenzi
   timeout: 2m
   peer_stream:
     mode: text
-    input: 我选择刚才的第一个方向，请推进一个直接结果。
-    idle_timeout: 90s
-    require_text: true
-    require_audio: true
-  expect:
-    "/text_eos":
-      equals: true
-    "/audio_eos":
-      equals: true
-    "/audio_bytes":
-      minimum: 1
-    "/first_text_ms":
-      maximum: 6000
-    "/first_audio_ms":
-      maximum: 90000
-- id: pilot_chapter_3_1
-  client: pilot
-  timeout: 2m
-  peer_stream:
-    mode: text
-    input: 请让小王子亲自回应，说出不同立场。
-    idle_timeout: 90s
-    require_text: true
-    require_audio: true
-  expect:
-    "/text_eos":
-      equals: true
-    "/audio_eos":
-      equals: true
-    "/audio_bytes":
-      minimum: 1
-    "/first_text_ms":
-      maximum: 6000
-    "/first_audio_ms":
-      maximum: 90000
-- id: pilot_chapter_3_2
-  client: pilot
-  timeout: 2m
-  peer_stream:
-    mode: text
-    input: 进入下一章。
-    idle_timeout: 90s
-    require_text: true
-    require_audio: true
-  expect:
-    "/text_eos":
-      equals: true
-    "/audio_eos":
-      equals: true
-    "/audio_bytes":
-      minimum: 1
-    "/first_text_ms":
-      maximum: 6000
-    "/first_audio_ms":
-      maximum: 90000
-    "/text":
-      contains: 第 4 章：回望责任
-- id: probe_pilot
-  client: pilot
-  timeout: 2m
-  peer_stream:
-    mode: text
-    input: 请让飞行员亲自回应，只说这个角色知道的事。
+    input: 请让雷震子亲自回应，只说这个角色知道的事。
     idle_timeout: 90s
     require_text: true
     require_audio: true
   expect:
     "/text":
       not_contains:
-      - 飞行员说
-      - 飞行员：
+      - 雷震子说
+      - 雷震子：
     "/text_eos":
       equals: true
     "/audio_eos":
@@ -839,12 +715,12 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: probe_pilot_first_response
-  client: pilot
+- id: probe_lei-zhenzi_first_response
+  client: lei-zhenzi
   timeout: 15s
   peer_stream:
     mode: text
-    input: 请让飞行员亲自回应，只说这个角色知道的事。
+    input: 请让雷震子亲自回应，只说这个角色知道的事。
     completion: first_response
     first_text_timeout: 2s
     first_audio_timeout: 3s
@@ -876,67 +752,67 @@ finally:
   rpc:
     method: server.peer.delete
     request: {}
-- id: stop_little-prince_run
-  client: little-prince
+- id: stop_nezha_run
+  client: nezha
   rpc:
     method: server.run.stop
     request: {}
-- id: delete_little_prince_workspace
-  client: little-prince
+- id: delete_nezha_workspace
+  client: nezha
   rpc:
     method: server.workspace.delete
     request:
-      name: "${little_prince_workspace}"
-- id: delete_little-prince_peer
-  client: little-prince
+      name: "${nezha_workspace}"
+- id: delete_nezha_peer
+  client: nezha
   rpc:
     method: server.peer.delete
     request: {}
-- id: stop_rose_run
-  client: rose
+- id: stop_jiang-ziya_run
+  client: jiang-ziya
   rpc:
     method: server.run.stop
     request: {}
-- id: delete_rose_workspace
-  client: rose
+- id: delete_jiang_ziya_workspace
+  client: jiang-ziya
   rpc:
     method: server.workspace.delete
     request:
-      name: "${rose_workspace}"
-- id: delete_rose_peer
-  client: rose
+      name: "${jiang_ziya_workspace}"
+- id: delete_jiang-ziya_peer
+  client: jiang-ziya
   rpc:
     method: server.peer.delete
     request: {}
-- id: stop_fox_run
-  client: fox
+- id: stop_yang-jian_run
+  client: yang-jian
   rpc:
     method: server.run.stop
     request: {}
-- id: delete_fox_workspace
-  client: fox
+- id: delete_yang_jian_workspace
+  client: yang-jian
   rpc:
     method: server.workspace.delete
     request:
-      name: "${fox_workspace}"
-- id: delete_fox_peer
-  client: fox
+      name: "${yang_jian_workspace}"
+- id: delete_yang-jian_peer
+  client: yang-jian
   rpc:
     method: server.peer.delete
     request: {}
-- id: stop_pilot_run
-  client: pilot
+- id: stop_lei-zhenzi_run
+  client: lei-zhenzi
   rpc:
     method: server.run.stop
     request: {}
-- id: delete_pilot_workspace
-  client: pilot
+- id: delete_lei_zhenzi_workspace
+  client: lei-zhenzi
   rpc:
     method: server.workspace.delete
     request:
-      name: "${pilot_workspace}"
-- id: delete_pilot_peer
-  client: pilot
+      name: "${lei_zhenzi_workspace}"
+- id: delete_lei-zhenzi_peer
+  client: lei-zhenzi
   rpc:
     method: server.peer.delete
     request: {}
