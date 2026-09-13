@@ -1,0 +1,628 @@
+# User Story:
+# As a Raids catalog maintainer,
+# I want isolated narrator and character probes for adventure-monster-maze,
+# So that every role produces complete text and non-empty audio within the response gates.
+version: gizclaw.test/v1alpha1
+name: adventure-monster-maze.flowcraft.roles
+clients:
+  narrator:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  little-monster:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  gatekeeper:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  riddle-spirit:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+variables:
+  endpoint:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_ENDPOINT
+  registration_token:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_REGISTRATION_TOKEN
+    secret: true
+  narrator_workspace:
+    direction: input
+    type: string
+    generate: token
+  little_monster_workspace:
+    direction: input
+    type: string
+    generate: token
+  gatekeeper_workspace:
+    direction: input
+    type: string
+    generate: token
+  riddle_spirit_workspace:
+    direction: input
+    type: string
+    generate: token
+repeat: 1
+timeout: 24m
+steps:
+- id: register_narrator
+  client: narrator
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${narrator_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-adventure-monster-maze
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${narrator_workspace}"
+- id: warmup_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: probe_narrator
+  client: narrator
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 开始迷宫
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      not_contains:
+      - 旁白说
+      - 旁白：
+- id: probe_narrator_first_response
+  client: narrator
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 开始迷宫
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: register_little-monster
+  client: little-monster
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_little_monster_workspace
+  client: little-monster
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${little_monster_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-adventure-monster-maze
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_little_monster_workspace
+  client: little-monster
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${little_monster_workspace}"
+- id: warmup_little_monster_workspace
+  client: little-monster
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: little-monster_scene_setup_1
+  client: little-monster
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 开始迷宫
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: little-monster_scene_setup_2
+  client: little-monster
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我按月亮按钮，先写门的反应。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: little-monster_scene_setup_3
+  client: little-monster
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 门后地图显示右边通往蘑菇花园，我走到右边门查看圆形、三角形、方形锁孔。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: little-monster_scene_setup_4
+  client: little-monster
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我解开锁后遇到一只打喷嚏的小怪兽。让它成为帮手。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: little-monster_confirm_scene
+  client: little-monster
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 现在处于哪个阶段或区域？请用当前场景名称回答。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      contains: 怪兽合作
+- id: probe_little-monster
+  client: little-monster
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让小怪兽亲自回应。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      not_contains:
+      - 小怪兽说
+      - 小怪兽：
+- id: probe_little-monster_first_response
+  client: little-monster
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 请让小怪兽亲自回应。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: register_gatekeeper
+  client: gatekeeper
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_gatekeeper_workspace
+  client: gatekeeper
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${gatekeeper_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-adventure-monster-maze
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_gatekeeper_workspace
+  client: gatekeeper
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${gatekeeper_workspace}"
+- id: warmup_gatekeeper_workspace
+  client: gatekeeper
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: gatekeeper_scene_setup_1
+  client: gatekeeper
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 开始迷宫
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: probe_gatekeeper
+  client: gatekeeper
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让守门怪兽亲自回应。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      not_contains:
+      - 守门怪兽说
+      - 守门怪兽：
+- id: probe_gatekeeper_first_response
+  client: gatekeeper
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 请让守门怪兽亲自回应。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: register_riddle-spirit
+  client: riddle-spirit
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_riddle_spirit_workspace
+  client: riddle-spirit
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${riddle_spirit_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-adventure-monster-maze
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_riddle_spirit_workspace
+  client: riddle-spirit
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${riddle_spirit_workspace}"
+- id: warmup_riddle_spirit_workspace
+  client: riddle-spirit
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: riddle-spirit_scene_setup_1
+  client: riddle-spirit
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 开始迷宫
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: riddle-spirit_scene_setup_2
+  client: riddle-spirit
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 我按月亮按钮，先写门的反应。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: riddle-spirit_scene_setup_3
+  client: riddle-spirit
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 门后地图显示右边通往蘑菇花园，我走到右边门查看圆形、三角形、方形锁孔。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: riddle-spirit_confirm_scene
+  client: riddle-spirit
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 现在处于哪个阶段或区域？请用当前场景名称回答。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      contains: 锁孔谜题
+- id: probe_riddle-spirit
+  client: riddle-spirit
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让谜题精灵亲自回应。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      not_contains:
+      - 谜题精灵说
+      - 谜题精灵：
+- id: probe_riddle-spirit_first_response
+  client: riddle-spirit
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 请让谜题精灵亲自回应。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+finally:
+- id: stop_narrator_run
+  client: narrator
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${narrator_workspace}"
+- id: delete_narrator_peer
+  client: narrator
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: stop_little-monster_run
+  client: little-monster
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_little_monster_workspace
+  client: little-monster
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${little_monster_workspace}"
+- id: delete_little-monster_peer
+  client: little-monster
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: stop_gatekeeper_run
+  client: gatekeeper
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_gatekeeper_workspace
+  client: gatekeeper
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${gatekeeper_workspace}"
+- id: delete_gatekeeper_peer
+  client: gatekeeper
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: stop_riddle-spirit_run
+  client: riddle-spirit
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_riddle_spirit_workspace
+  client: riddle-spirit
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${riddle_spirit_workspace}"
+- id: delete_riddle-spirit_peer
+  client: riddle-spirit
+  rpc:
+    method: server.peer.delete
+    request: {}
+report:
+  redact:
+  - registration_token

@@ -10,6 +10,14 @@ spec:
   eino:
     voice_adapter:
       asr_model: asr
+      default_voice: eino-adventure-monster-maze.adventure-guide
+      state_voices:
+        field: selected_speaker
+        voices:
+          narrator: eino-adventure-monster-maze.adventure-guide
+          little-monster: eino-adventure-monster-maze.little-monster
+          gatekeeper: eino-adventure-monster-maze.gatekeeper
+          riddle-spirit: eino-adventure-monster-maze.riddle-spirit
     graph:
       name: adventure-monster-maze-eino
       compile:
@@ -50,7 +58,152 @@ spec:
         - name: progress-kind
           type: string
           merge: replace
+        - name: selected_speaker
+          type: string
+          merge: replace
+        - name: speaker-direction
+          type: string
+          merge: replace
+        - name: voice-scene
+          type: string
+          merge: replace
+        - name: voice-revision
+          type: string
+          merge: replace
       nodes:
+      - id: select-speaker
+        type: script
+        inputs:
+          text:
+            from: input.text
+          history:
+            from: input.messages
+          memory:
+            from: recalled
+          stage_route:
+            from: stage-route
+        outputs:
+          speaker: selected_speaker
+          direction: speaker-direction
+          scene: voice-scene
+          revision: voice-revision
+        language: starlark
+        entrypoint: run
+        source: |
+          def any_cue(text, cues):
+              return any([cue in text for cue in cues])
+
+          def clause(text):
+              for sep in ["，", "。", "；", "！", "？", ",", ";", "!", "?"]:
+                  text = text.replace(sep, "|")
+              for sep in ["但是", "而是", "再让", "改请", "改让", "but "]:
+                  text = text.replace(sep, "|")
+              return text
+
+          def run(input):
+              current = input["text"].strip().lower()
+              memory = input.get("memory", "")
+              scenes = ["月亮机关", "路线校准", "锁孔谜题", "怪兽合作"]
+              roles = [{"key": "narrator", "name": "旁白", "aliases": ["旁白", "narrator"], "chapters": [1, 2, 3, 4], "duty": "只负责叙述、管理和公开信息整理，不代演角色。"}, {"key": "little-monster", "name": "小怪兽", "aliases": ["小怪兽", "little-monster"], "chapters": [4], "duty": "在玩家解锁相遇后提出一起帮忙的方法，不恐吓。"}, {"key": "gatekeeper", "name": "守门怪兽", "aliases": ["守门怪兽", "gatekeeper"], "chapters": [1, 2], "duty": "指向已经可见的按钮与路线，不替玩家按按钮。"}, {"key": "riddle-spirit", "name": "谜题精灵", "aliases": ["谜题精灵", "riddle-spirit"], "chapters": [3], "duty": "比较圆形三角形方形锁孔，给渐进提示，不替玩家解锁。"}]
+              scene = 1
+              revision = -1
+              # Read only graph-authored state fields; legacy active_roles is never authoritative.
+              for line in memory.split("\n"):
+                  compact = line.replace(" ", "")
+                  if '"schema":"raid_scenario_state_v2"' not in compact:
+                      continue
+                  rev = 0
+                  if '"revision":' in compact:
+                      value = compact.split('"revision":')[1].split(",")[0].split("}")[0]
+                      if value.isdigit():
+                          rev = int(value)
+                  if rev >= revision and '"voice_scene":' not in compact:
+                      for i in range(len(scenes)):
+                          if scenes[i] in compact:
+                              scene = i+1
+                  if rev >= revision and '"voice_scene":' in compact:
+                      value = compact.split('"voice_scene":')[1].split(",")[0].split("}")[0]
+                      if value.isdigit():
+                          scene = max(1, min(len(scenes), int(value)))
+                          revision = rev
+              for message in input.get("history", []):
+                  if message.get("role", "") != "assistant":
+                      continue
+                  text = message.get("content", "")
+                  for i in range(len(scenes)):
+                      if "当前场景："+scenes[i] in text or "来到"+scenes[i] in text:
+                          scene = i+1
+              transition = False
+              if not current or any_cue(current, ["重新开始", "restart", "开场", "介绍这个体验", "开始体验"]):
+                  scene = 1
+              elif any_cue(current, ["进入下一章", "进入下一场景"]):
+                  scene = min(len(scenes), scene+1)
+                  transition = True
+              else:
+                  for i in range(len(scenes)):
+                      if any_cue(current, ["进入"+scenes[i], "前往"+scenes[i], "来到"+scenes[i]]):
+                          scene = i+1
+                          transition = True
+                  if any_cue(current, ["按下月亮", "打开月亮机关"]):
+                      scene = 2
+                      transition = True
+                  if any_cue(current, ["走进右边门", "查看锁孔"]):
+                      scene = 3
+                      transition = True
+                  if any_cue(current, ["解开锁后遇到小怪兽"]):
+                      scene = 4
+                      transition = True
+              if not current or any_cue(current, ['开始迷宫', '进入迷宫', '怪兽迷宫']):
+                  phase = "opening"
+              elif any_cue(current, ['更正', '只确认', '有效路线', '正确路线', '正确颜色', '只说有效', '回忆', '重连', '隔了几轮', '只说']):
+                  phase = "correction"
+              elif any_cue(current, ['总结', '路线图', '结合线索', '出口', '回顾', '用一句话说出']):
+                  phase = "conclusion"
+              elif any_cue(current, ['我猜', '可能', '一定', '危险', '捷径', '牺牲', '尚不能', '不要替我']):
+                  phase = "challenge"
+              else:
+                  phase = "explore"
+              stage_route = input.get("stage_route", "")
+              for i in range(len(scenes)):
+                  if scenes[i] in stage_route:
+                      scene = i+1
+              active_roles = [r["key"] for r in roles if scene in r["chapters"]]
+              speaker = "narrator"
+              management_text = current
+              for role in roles:
+                  for alias in role["aliases"]:
+                      management_text = management_text.replace(alias, "")
+              management = not current or transition or any_cue(management_text, ["更正", "纠正", "修正", "改成", "改变主意", "其实", "安全", "危险", "现实", "模仿", "受伤", "攻击", "牺牲", "停止", "总结", "结论", "回忆", "重连", "恢复", "请记住", "只确认", "只说", "换边", "correction", "correct", "actually", "danger", "safety", "restart", "重新开始", "开场", "介绍这个体验", "进入下一", "下一章", "下一场景", "转场", "开始体验", "从头开始", "第一章", "第1章", "开始冒险", "start", "begin", "介绍体验", "喝生水", "吃野果", "爬高墙", "关闭生命保障", "直视太阳", "尝陌生植物"]) or phase != "explore"
+              first = len(current)+1
+              if not management:
+                  for role in roles:
+                      for alias in role["aliases"]:
+                          start = 0
+                          for attempt in range(32):
+                              at = current.find(alias, start)
+                              if at < 0:
+                                  break
+                              start = at+len(alias)
+                              prefix = clause(current[:at]).split("|")[-1]
+                              tail = clause(current[at+len(alias):]).split("|")[0]
+                              neg = any_cue(prefix, ["不要", "别让", "别请", "不让", "不请", "不想让", "不想听", "不用", "无需", "别", "不需要", "do not", "don't", "not", "instead of"]) or any_cue(tail, ["不要说", "别说", "不用回答", "不要回答"])
+                              requested = any_cue(prefix+alias+tail, ["说说", "说话", "发言", "回应", "回答", "解释", "问问", "采访", "talk", "speak", "answer", "explain"])
+                              if not neg and requested and role["key"] in active_roles and at < first:
+                                  first = at
+                                  speaker = role["key"]
+              direction = "这是儿童互动冒险的原创配角安排。按场景出场，不让所有人物同时在场；角色不能获知未来场景、私密信息或未验证的结果。每轮仍只发声一次。\n场景1“月亮机关”：守门怪兽：指向已经可见的按钮与路线，不替玩家按按钮。\n场景2“路线校准”：守门怪兽：指向已经可见的按钮与路线，不替玩家按按钮。\n场景3“锁孔谜题”：谜题精灵：比较圆形三角形方形锁孔，给渐进提示，不替玩家解锁。\n场景4“怪兽合作”：小怪兽：在玩家解锁相遇后提出一起帮忙的方法，不恐吓。\n明确点名例如“请让小怪兽说说”才请求角色说话；只报名字或支持某人仍是玩家选项，由旁白承接。多人按文本顺序只选第一个在场且未被否定者。开场、转场、更正、安全、结论由旁白负责；旁白不代演角色，不加“旁白说”“旁白：”等说话人标签。严格开场结束后，下一次探索才简短介绍在场角色及点名玩法。" + "\n当前场景："+scenes[scene-1]+"。当前在场角色："+"、".join([r["name"] for r in roles if r["key"] in active_roles])+"。"
+              if transition:
+                  direction += "本轮由旁白说出‘来到"+scenes[scene-1]+"’，描写该处角色的一项具体行动并给一个观察选项，不替人物说台词。"
+              direction += "本轮仅由"+speaker+"发声。"
+              for role in roles:
+                  if role["key"] == speaker:
+                      direction += "你是"+role["name"]+"。"+role["duty"]+"直接以第一人称发言，不添加‘"+role["name"]+"说’‘"+role["name"]+"：’等说话人标签，不替他人发言；只说亲历或公开信息，不知道就说明不知道。"
+              return {"speaker": speaker, "direction": direction, "scene": str(scene), "revision": str(max(revision, len(input.get("history", [])))+1)}
+        limits:
+          max_execution_steps: 100000
+          timeout: 250ms
+          max_input_bytes: 262144
+          max_output_bytes: 65536
       - id: prepare-memory-query
         type: script
         inputs:
@@ -99,9 +252,9 @@ spec:
 
           def run(input):
               current = input["text"].strip()
-              combined = input["memory"] + "\n" + current
+              combined = input["memory"] + "\n" + ("" if contains_any(current, ["说说","说话","发言","回应","回答","talk","speak","answer"]) else current)
               for message in input["history"]:
-                  if "content" in message:
+                  if "content" in message and not contains_any(message["content"], ["说说","说话","发言","回应","回答","talk","speak","answer"]):
                       combined += "\n" + message["content"]
               if not current or contains_any(current, ['开始迷宫', '进入迷宫', '怪兽迷宫']):
                   phase = "opening"
@@ -113,9 +266,9 @@ spec:
                   phase = "challenge"
               else:
                   phase = "explore"
-              if contains_any(combined, ["小怪兽", "怪兽成为帮手", "打喷嚏", "刚遇到的角色"]):
+              if contains_any(combined, ["解开锁后遇到", "遇到一只打喷嚏", "怪兽成为帮手", "第四区", "怪兽合作"]):
                   route = "第四区‘怪兽合作’"
-              elif contains_any(combined, ["锁孔", "圆形", "三角形", "方形", "小提示"]):
+              elif contains_any(combined, ["锁孔谜题", "锁孔", "圆形", "三角形", "方形", "小提示"]):
                   route = "第三区‘锁孔谜题’"
               elif contains_any(combined, ["蘑菇花园", "右边", "右侧", "向右", "左边", "路线", "地图"]):
                   route = "第二区‘路线校准’"
@@ -138,6 +291,8 @@ spec:
             from: stage-route
           policy:
             from: scenario-policy
+          direction:
+            from: speaker-direction
         outputs:
           messages: answer-messages
         format: f_string
@@ -149,6 +304,8 @@ spec:
             本轮专用路径要求：本轮必须先逐字说出这段身份和玩法介绍：「欢迎来到怪兽迷宫，你是聪明的迷宫探险家，这里的怪兽都很友好，只是爱出谜题。每一关你都可以说想按哪个按钮、往哪边走，想不出来就说“给我一个提示”。」然后再按下面的要求写。本轮只建立安全的迷宫入口、可选道路和玩家自主选择，不替玩家迈出第一步。
             相关长期进度只用于核对，不得覆盖更新的对话：
             {memory}
+            本轮发声身份与在场约束（优先于主持人身份；严格开场文字仍保持）：
+            {direction}
         - placeholder: history
       - id: prompt-explore
         type: prompt
@@ -161,6 +318,8 @@ spec:
             from: stage-route
           policy:
             from: scenario-policy
+          direction:
+            from: speaker-direction
         outputs:
           messages: answer-messages
         format: f_string
@@ -172,6 +331,8 @@ spec:
             本轮专用路径要求：本轮只推进玩家当前选择的一段路线，给一个眼前结果和至多一个分级提示，不擅自走完迷宫。最新用户要求只描述机关可见规则时，当前意图优先于历史区域，只写机关上可见的形状、对应关系和规则，不添加怪兽、其他角色、角色位置、动作或意图。
             相关长期进度只用于核对，不得覆盖更新的对话：
             {memory}
+            本轮发声身份与在场约束（优先于主持人身份；严格开场文字仍保持）：
+            {direction}
         - placeholder: history
       - id: prompt-correction
         type: prompt
@@ -184,6 +345,8 @@ spec:
             from: stage-route
           policy:
             from: scenario-policy
+          direction:
+            from: speaker-direction
         outputs:
           messages: answer-messages
         format: f_string
@@ -195,6 +358,8 @@ spec:
             本轮专用路径要求：本轮只确认最新路线、标记或颜色；旧值失效且不得再次输出，也不得推进位置。
             相关长期进度只用于核对，不得覆盖更新的对话：
             {memory}
+            本轮发声身份与在场约束（优先于主持人身份；严格开场文字仍保持）：
+            {direction}
         - placeholder: history
       - id: prompt-challenge
         type: prompt
@@ -207,6 +372,8 @@ spec:
             from: stage-route
           policy:
             from: scenario-policy
+          direction:
+            from: speaker-direction
         outputs:
           messages: answer-messages
         format: f_string
@@ -218,6 +385,8 @@ spec:
             本轮专用路径要求：本轮拒绝危险牺牲和无证据捷径，说明风险与可验证线索，把最终选择留给玩家。
             相关长期进度只用于核对，不得覆盖更新的对话：
             {memory}
+            本轮发声身份与在场约束（优先于主持人身份；严格开场文字仍保持）：
+            {direction}
         - placeholder: history
       - id: prompt-conclusion
         type: prompt
@@ -230,6 +399,8 @@ spec:
             from: stage-route
           policy:
             from: scenario-policy
+          direction:
+            from: speaker-direction
         outputs:
           messages: answer-messages
         format: f_string
@@ -241,6 +412,8 @@ spec:
             本轮专用路径要求：本轮按有效路线、标记和已见机关回顾，不恢复旧路线，不宣称未验证的出口。
             相关长期进度只用于核对，不得覆盖更新的对话：
             {memory}
+            本轮发声身份与在场约束（优先于主持人身份；严格开场文字仍保持）：
+            {direction}
         - placeholder: history
       - id: narrator-model
         type: chat_model
@@ -261,6 +434,10 @@ spec:
             from: stage-route
           text:
             from: input.text
+          scene:
+            from: voice-scene
+          voice_revision:
+            from: voice-revision
         outputs:
           progress: progress-fact
           lane: progress-lane
@@ -269,6 +446,7 @@ spec:
         entrypoint: run
         source: |
           def run(input):
+              routing = '{"schema":"raid_scenario_state_v2","voice_scene":' + input["scene"] + ',"revision":' + input["voice_revision"] + '}\n'
               progress = "schema=raid_scenario_progress_v2; phase=" + input["phase"] + "; route=" + input["route"]
               if input["phase"] == "correction":
                   correction = "latest_valid_facts_preserved_from_history"
@@ -279,7 +457,7 @@ spec:
                   progress += "; correction_authority=latest_user_value; " + correction
               else:
                   progress += "; latest_input=" + input["text"]
-              return {"progress": progress, "lane": "case_state", "kind": "state"}
+              return {"progress": routing + progress, "lane": "case_state", "kind": "state"}
         limits:
           max_execution_steps: 10000
           timeout: 250ms
@@ -316,8 +494,10 @@ spec:
         to: observe-progress
       - from: observe-progress
         to: end
-      branches:
       - from: route-stage
+        to: select-speaker
+      branches:
+      - from: select-speaker
         mode: first_match
         routes:
         - when:
