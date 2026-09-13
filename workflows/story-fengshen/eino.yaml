@@ -181,7 +181,25 @@ spec:
                                   best = index
                               offset = index + len(alias)
               styles = {'narrator': '本轮由旁白叙述可见事实和后果，不代演角色，不使用角色第一人称。', 'nezha': '本轮你就是哪吒：想保护别人；天真短句，第1章提出用法宝护人。', 'jiang-ziya': '本轮你就是姜子牙：希望力量承担责任；幽默耐心，第1章核对承诺。', 'yang-jian': '本轮你就是杨戬：想先查明情况；清爽果断，第2章查看受困者的位置，第3章反对贸然使用法宝。', 'lei-zhenzi': '本轮你就是雷震子：想稳妥护送伙伴；憨厚直接，第3章提出轮流护送，第4章承担巡护责任。'}
-              return {"speaker": speaker, "direction": styles[speaker] + "非旁白角色必须直接第一人称发言，不加某某说、某某：等说话人标签；不得换成其他角色或重播首次开场。选人所依据的已确认章节（本轮转场可进入下一章）：" + str(chapter)}
+              # Content obligations follow voice style so role brevity cannot suppress them.
+              safety_request = any([cue in current for cue in ["现实", "模仿", "照做", "安全", "危险", "受伤", "喝生水", "吃野果", "爬高墙", "关闭生命保障", "直视太阳", "尝陌生植物", "danger", "safety", "imitate"]])
+              turn_contract = ""
+              if "未解决" in current:
+                  turn_contract = "本轮明确要求保留未解决线索：说出一项具体仍未解决的问题，并明确使用‘未解决’一词，不得只含糊说还在纠结。"
+              if safety_request:
+                  turn_contract = "本轮是安全请求，优先于角色风格和章节推进：回复必须逐字包含‘不要模仿’和‘找家长、老师或可信任成年人帮助’，不得近义改写或省略。说明具体危险，并承接安全替代的直接结果；不追加问题，不提示进入下一章。"
+              choice_positive = ["我选择", "我选", "我决定", "我支持", "我愿意", "我要走", "我会走", "我来帮助", "我跟随", "走需要", "i choose", "my choice is", "i decide", "i support", "i’ll take", "i'll take", "i will take", "i’ll follow", "i'll follow", "i will follow", "let's take", "let's follow"]
+              choice_denial = ["不选择", "不选", "没选择", "没有选择", "尚未选择", "还没选择", "还没有选择", "不决定", "没决定", "没有决定", "尚未决定", "还没决定", "还未决定", "还没有决定", "不支持", "不想选", "do not choose", "don't choose", "did not choose", "didn't choose", "have not chosen", "haven't chosen", "has not chosen", "hasn't chosen", "will not choose", "won't choose", "not choose", "not to choose", "no choice", "do not decide", "don't decide", "did not decide", "didn't decide", "have not decided", "haven't decided", "will not decide", "won't decide", "not decided", "not to decide", "undecided", "do not support", "don't support", "not support"]
+              last_positive = max([current.rfind(cue) for cue in choice_positive])
+              last_denial = max([current.rfind(cue) for cue in choice_denial])
+              choice_completed = (option_only or last_positive >= 0) and not (last_denial >= 0 and last_denial > last_positive) and not opening and not management and not transition and speaker == "narrator"
+              if not safety_request and choice_completed:
+                  turn_contract = "本轮孩子已亲口做出选择，角色名是选择而非角色发言请求。必须用旁白讲出该选择的具体直接结果，不代演角色、不使用角色第一人称、不再提问。"
+                  if chapter < 4:
+                      turn_contract += "回复最后一句必须逐字是：这一章的选择完成啦，想继续听就说‘进入下一章’。"
+                  else:
+                      turn_contract += "保持第4章，以仍需兑现的责任收束，不提示下一章。"
+              return {"speaker": speaker, "direction": styles[speaker] + "非旁白角色必须直接第一人称发言，不加某某说、某某：等说话人标签；不得换成其他角色或重播首次开场。选人所依据的已确认章节（本轮转场可进入下一章）：" + str(chapter) + "\n本轮内容硬约束：" + turn_contract}
         limits:
           max_execution_steps: 100000
           timeout: 250ms
