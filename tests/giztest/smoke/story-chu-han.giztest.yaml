@@ -1268,6 +1268,88 @@ steps:
   rpc:
     method: server.run.workspace.reload
     request: {}
+- id: zhang-liang_chapter_setup_1
+  timeout: 2m
+  parallel:
+  - id: flowcraft_zhang-liang_chapter_setup_1
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 请从第一章开始《楚汉风云》。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: eino_zhang-liang_chapter_setup_1
+    client: eino
+    peer_stream:
+      mode: text
+      input: 请从第一章开始《楚汉风云》。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_zhang-liang_chapter_setup_1/text_eos":
+      equals: true
+    "/flowcraft_zhang-liang_chapter_setup_1/audio_eos":
+      equals: true
+    "/flowcraft_zhang-liang_chapter_setup_1/audio_bytes":
+      minimum: 1
+    "/flowcraft_zhang-liang_chapter_setup_1/first_text_ms":
+      maximum: 6000
+    "/flowcraft_zhang-liang_chapter_setup_1/first_audio_ms":
+      maximum: 90000
+    "/flowcraft_zhang-liang_chapter_setup_1/text":
+      contains: 承诺与力量
+      non_empty: true
+    "/flowcraft_zhang-liang_chapter_setup_1/events":
+      non_empty: true
+    "/flowcraft_zhang-liang_chapter_setup_1/text_eos_ms":
+      maximum: 90000
+    "/flowcraft_zhang-liang_chapter_setup_1/audio_eos_ms":
+      maximum: 90000
+    "/flowcraft_zhang-liang_chapter_setup_1/audio_integrity/streams":
+      minimum: 1
+    "/flowcraft_zhang-liang_chapter_setup_1/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_zhang-liang_chapter_setup_1/audio_integrity/open":
+      equals: 0
+    "/flowcraft_zhang-liang_chapter_setup_1/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_zhang-liang_chapter_setup_1/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/flowcraft_zhang-liang_chapter_setup_1/audio_pacing/underruns":
+      equals: 0
+    "/eino_zhang-liang_chapter_setup_1/text_eos":
+      equals: true
+    "/eino_zhang-liang_chapter_setup_1/audio_eos":
+      equals: true
+    "/eino_zhang-liang_chapter_setup_1/audio_bytes":
+      minimum: 1
+    "/eino_zhang-liang_chapter_setup_1/first_text_ms":
+      maximum: 6000
+    "/eino_zhang-liang_chapter_setup_1/first_audio_ms":
+      maximum: 90000
+    "/eino_zhang-liang_chapter_setup_1/text":
+      contains: 承诺与力量
+      non_empty: true
+    "/eino_zhang-liang_chapter_setup_1/events":
+      non_empty: true
+    "/eino_zhang-liang_chapter_setup_1/text_eos_ms":
+      maximum: 90000
+    "/eino_zhang-liang_chapter_setup_1/audio_eos_ms":
+      maximum: 90000
+    "/eino_zhang-liang_chapter_setup_1/audio_integrity/streams":
+      minimum: 1
+    "/eino_zhang-liang_chapter_setup_1/audio_integrity/max_active":
+      equals: 1
+    "/eino_zhang-liang_chapter_setup_1/audio_integrity/open":
+      equals: 0
+    "/eino_zhang-liang_chapter_setup_1/audio_integrity/violations":
+      equals: 0
+    "/eino_zhang-liang_chapter_setup_1/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/eino_zhang-liang_chapter_setup_1/audio_pacing/underruns":
+      equals: 0
 - id: zhang-liang_chapter_1_choice
   timeout: 2m
   parallel:

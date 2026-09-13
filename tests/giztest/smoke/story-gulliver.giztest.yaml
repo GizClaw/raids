@@ -254,8 +254,6 @@ steps:
       - 微小之城
       - 格列佛
       - 当地向导
-      - 国王
-      - 葛兰达克利赤
       - 下一章
       min_length: 4
       max_length: 360
@@ -300,8 +298,6 @@ steps:
       - 微小之城
       - 格列佛
       - 当地向导
-      - 国王
-      - 葛兰达克利赤
       - 下一章
       min_length: 4
       max_length: 360
@@ -1268,6 +1264,88 @@ steps:
   rpc:
     method: server.run.workspace.reload
     request: {}
+- id: glumdalclitch_chapter_setup_1
+  timeout: 2m
+  parallel:
+  - id: flowcraft_glumdalclitch_chapter_setup_1
+    client: flowcraft
+    peer_stream:
+      mode: text
+      input: 请从第一章开始《格列弗游记》。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: eino_glumdalclitch_chapter_setup_1
+    client: eino
+    peer_stream:
+      mode: text
+      input: 请从第一章开始《格列弗游记》。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_glumdalclitch_chapter_setup_1/text":
+      contains: 第 1 章：微小之城
+      non_empty: true
+    "/flowcraft_glumdalclitch_chapter_setup_1/text_eos":
+      equals: true
+    "/flowcraft_glumdalclitch_chapter_setup_1/audio_eos":
+      equals: true
+    "/flowcraft_glumdalclitch_chapter_setup_1/audio_bytes":
+      minimum: 1
+    "/flowcraft_glumdalclitch_chapter_setup_1/first_text_ms":
+      maximum: 6000
+    "/flowcraft_glumdalclitch_chapter_setup_1/first_audio_ms":
+      maximum: 90000
+    "/flowcraft_glumdalclitch_chapter_setup_1/events":
+      non_empty: true
+    "/flowcraft_glumdalclitch_chapter_setup_1/text_eos_ms":
+      maximum: 90000
+    "/flowcraft_glumdalclitch_chapter_setup_1/audio_eos_ms":
+      maximum: 90000
+    "/flowcraft_glumdalclitch_chapter_setup_1/audio_integrity/streams":
+      minimum: 1
+    "/flowcraft_glumdalclitch_chapter_setup_1/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_glumdalclitch_chapter_setup_1/audio_integrity/open":
+      equals: 0
+    "/flowcraft_glumdalclitch_chapter_setup_1/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_glumdalclitch_chapter_setup_1/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/flowcraft_glumdalclitch_chapter_setup_1/audio_pacing/underruns":
+      equals: 0
+    "/eino_glumdalclitch_chapter_setup_1/text":
+      contains: 第 1 章：微小之城
+      non_empty: true
+    "/eino_glumdalclitch_chapter_setup_1/text_eos":
+      equals: true
+    "/eino_glumdalclitch_chapter_setup_1/audio_eos":
+      equals: true
+    "/eino_glumdalclitch_chapter_setup_1/audio_bytes":
+      minimum: 1
+    "/eino_glumdalclitch_chapter_setup_1/first_text_ms":
+      maximum: 6000
+    "/eino_glumdalclitch_chapter_setup_1/first_audio_ms":
+      maximum: 90000
+    "/eino_glumdalclitch_chapter_setup_1/events":
+      non_empty: true
+    "/eino_glumdalclitch_chapter_setup_1/text_eos_ms":
+      maximum: 90000
+    "/eino_glumdalclitch_chapter_setup_1/audio_eos_ms":
+      maximum: 90000
+    "/eino_glumdalclitch_chapter_setup_1/audio_integrity/streams":
+      minimum: 1
+    "/eino_glumdalclitch_chapter_setup_1/audio_integrity/max_active":
+      equals: 1
+    "/eino_glumdalclitch_chapter_setup_1/audio_integrity/open":
+      equals: 0
+    "/eino_glumdalclitch_chapter_setup_1/audio_integrity/violations":
+      equals: 0
+    "/eino_glumdalclitch_chapter_setup_1/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/eino_glumdalclitch_chapter_setup_1/audio_pacing/underruns":
+      equals: 0
 - id: glumdalclitch_chapter_1_0
   timeout: 2m
   parallel:

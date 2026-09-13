@@ -108,7 +108,7 @@ spec:
             else if (any(current, ["总结", "救援状态", "任务状态", "回顾", "用一句话说出"])) phase = "conclusion";
             else if (any(current, ["牺牲", "攻击", "直接炸", "危险", "拒绝", "窗口", "角色分工"])) phase = "challenge";
             const stageRoute = String(board.getVar("scenario_route") || state.route || "");
-            for (let i=0;i<scenes.length;i++) if(stageRoute.includes(scenes[i])) scene=i+1;
+            if (!transition && phase !== "opening") for (let i=0;i<scenes.length;i++) if(stageRoute.includes(scenes[i])) scene=i+1;
             state.voice_scene=scene;
             state.active_roles=roleTable.filter(r=>r.chapters.includes(scene)).map(r=>r.key);
             let speaker="narrator";
@@ -187,27 +187,30 @@ spec:
                 // Recall may also contain natural-language notes; only Graph-authored JSON state is authoritative.
               }
             }
-            const isSpeechRequest = text => ["说说","说话","发言","回应","回答","talk","speak","answer"].some(c => text.includes(c));
-            let combined = memory + "\n" + (isSpeechRequest(current) ? "" : current);
-            const messages = board.channel(board.MAIN_CHANNEL) || [];
-            for (const message of messages) {
-              if (message && typeof message.content === "string" && !isSpeechRequest(message.content)) combined += "\n" + message.content;
-              const parts = message && Array.isArray(message.parts) ? message.parts : [];
-              const text = parts.map((part) => part && part.type === "text" && typeof part.text === "string" ? part.text : "").join("");
-              if (text && !isSpeechRequest(text)) combined += "\n" + text;
+            // Only player actions advance the stage; system prompts and suggested actions do not.
+            const actions = [];
+            for (const message of board.channel(board.MAIN_CHANNEL) || []) {
+              if (!message || message.role !== "user") continue;
+              const parts = Array.isArray(message.parts) ? message.parts : [];
+              actions.push(typeof message.content === "string" ? message.content : parts.filter(p => p && p.type === "text").map(p => p.text || "").join(""));
             }
+            actions.push(current);
             const containsAnyText = (text, values) => values.some((value) => text.includes(value));
             let phase = "explore";
             if (!current || containsAnyText(current, ["开始太空", "开始救援", "宇宙救援", "空间站"])) phase = "opening";
             else if (containsAnyText(current, ["更正", "只确认", "有效坐标", "正确坐标", "有效能量", "只说有效", "回忆", "重连", "隔了几轮", "只说"])) phase = "correction";
             else if (containsAnyText(current, ["总结", "救援状态", "任务状态", "回顾", "用一句话说出"])) phase = "conclusion";
             else if (containsAnyText(current, ["牺牲", "攻击", "直接炸", "危险", "拒绝", "窗口", "角色分工"])) phase = "challenge";
-            let route = "";
-            const execute = containsAnyText(current, ["现在执行会合", "开始执行会合", "开始对接", "完成救援"]);
-            if (execute && !current.includes("不要") && !current.includes("不提前")) route = "第四阶段‘执行与收束’";
-            else if (containsAnyText(combined, ["安全窗口", "备用电池", "领航员", "工程师", "生命保障", "会合"])) route = "第三阶段‘准备安全会合’";
-            else if (containsAnyText(combined, ["能源", "能量", "百分之六十", "百分之四十五", "校准"])) route = "第二阶段‘校准能源’";
-            else route = "第一阶段‘恢复通信’";
+            const stages = ["第一阶段‘恢复通信’", "第二阶段‘校准能源’", "第三阶段‘准备安全会合’", "第四阶段‘执行与收束’"];
+            let stage = Math.max(1, Math.min(4, Number(prior.voice_scene || 1)));
+            for (const action of actions) {
+              if (containsAnyText(action, ["开始太空", "开始救援", "宇宙救援", "重新开始", "restart"])) stage = 1;
+              if (containsAnyText(action, ["说说", "说话", "发言", "回应", "回答", "talk", "speak", "answer"])) continue;
+              if (containsAnyText(action, ["检查能源", "校准能源"])) stage = Math.max(stage, 2);
+              if (containsAnyText(action, ["等待安全窗口", "准备会合"])) stage = Math.max(stage, 3);
+              if (containsAnyText(action, ["现在执行会合", "开始执行会合", "开始对接", "完成救援"]) && !containsAnyText(action, ["不要", "不提前"])) stage = 4;
+            }
+            const route = stages[stage - 1];
             board.setVar("scenario_phase", phase);
             board.setVar("scenario_route", route);
             board.setVar("scenario_state", prior);

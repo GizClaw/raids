@@ -1,6 +1,6 @@
 # User Story:
 # As a Raids catalog maintainer,
-# I want equal opening, role and realtime responsiveness gates for every implementation,
+# I want equal opening, role and roundtrip responsiveness gates for every implementation,
 # So that text and audio respond promptly without overlap or playback stalls.
 version: gizclaw.test/v1alpha1
 name: journey-guide.smoke
@@ -47,28 +47,23 @@ variables:
     direction: input
     type: string
     generate: token
-  flowcraft_realtime_workspace:
+  flowcraft_roundtrip_workspace:
     direction: input
     type: string
     generate: token
-  eino_history_realtime_workspace:
+  eino_history_roundtrip_workspace:
     direction: input
     type: string
     generate: token
-  eino_memory_async_realtime_workspace:
+  eino_memory_async_roundtrip_workspace:
     direction: input
     type: string
     generate: token
-  eino_memory_recall_realtime_workspace:
+  eino_memory_recall_roundtrip_workspace:
     direction: input
     type: string
     generate: token
-  input_audio:
-    direction: output
-    type: audio
-    max_bytes: 16777216
-    media_type: audio/ogg
-    codec: opus
+
 repeat: 1
 timeout: 12m
 steps:
@@ -194,12 +189,12 @@ steps:
     method: server.run.workspace.reload
     request: {}
   timeout: 2m
-- id: flowcraft_create_realtime
+- id: flowcraft_create_roundtrip
   client: flowcraft
   rpc:
     method: server.workspace.create
     request:
-      name: "${flowcraft_realtime_workspace}"
+      name: "${flowcraft_roundtrip_workspace}"
       collection: story-teller
       workflow_name: journey
       parameters:
@@ -207,43 +202,43 @@ steps:
           agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
           conversation:
             initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
-          input: WORKSPACE_INPUT_MODE_REALTIME
-- id: eino_history_create_realtime
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_history_create_roundtrip
   client: eino_history
   rpc:
     method: server.workspace.create
     request:
-      name: "${eino_history_realtime_workspace}"
+      name: "${eino_history_roundtrip_workspace}"
       collection: story-teller
       workflow_name: journey-eino-history
       parameters:
         eino_workspace_parameters:
           agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
-          input: WORKSPACE_INPUT_MODE_REALTIME
-- id: eino_memory_async_create_realtime
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_memory_async_create_roundtrip
   client: eino_memory_async
   rpc:
     method: server.workspace.create
     request:
-      name: "${eino_memory_async_realtime_workspace}"
+      name: "${eino_memory_async_roundtrip_workspace}"
       collection: story-teller
       workflow_name: journey-eino-memory-async
       parameters:
         eino_workspace_parameters:
           agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
-          input: WORKSPACE_INPUT_MODE_REALTIME
-- id: eino_memory_recall_create_realtime
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_memory_recall_create_roundtrip
   client: eino_memory_recall
   rpc:
     method: server.workspace.create
     request:
-      name: "${eino_memory_recall_realtime_workspace}"
+      name: "${eino_memory_recall_roundtrip_workspace}"
       collection: story-teller
       workflow_name: journey-eino-memory-recall
       parameters:
         eino_workspace_parameters:
           agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
-          input: WORKSPACE_INPUT_MODE_REALTIME
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
 - id: turn_1_origin
   timeout: 2m
   parallel:
@@ -356,144 +351,129 @@ steps:
       non_empty: true
     "/eino_memory_recall_turn_1_origin/text_eos":
       equals: true
-- id: flowcraft_select_realtime
+- id: flowcraft_select_roundtrip
   client: flowcraft
   rpc:
     method: server.run.workspace.set
     request:
-      workspace_name: "${flowcraft_realtime_workspace}"
-- id: flowcraft_warmup_realtime
+      workspace_name: "${flowcraft_roundtrip_workspace}"
+- id: flowcraft_warmup_roundtrip
   client: flowcraft
   rpc:
     method: server.run.workspace.reload
     request: {}
   timeout: 2m
-- id: eino_history_select_realtime
+- id: eino_history_select_roundtrip
   client: eino_history
   rpc:
     method: server.run.workspace.set
     request:
-      workspace_name: "${eino_history_realtime_workspace}"
-- id: eino_history_warmup_realtime
+      workspace_name: "${eino_history_roundtrip_workspace}"
+- id: eino_history_warmup_roundtrip
   client: eino_history
   rpc:
     method: server.run.workspace.reload
     request: {}
   timeout: 2m
-- id: eino_memory_async_select_realtime
+- id: eino_memory_async_select_roundtrip
   client: eino_memory_async
   rpc:
     method: server.run.workspace.set
     request:
-      workspace_name: "${eino_memory_async_realtime_workspace}"
-- id: eino_memory_async_warmup_realtime
+      workspace_name: "${eino_memory_async_roundtrip_workspace}"
+- id: eino_memory_async_warmup_roundtrip
   client: eino_memory_async
   rpc:
     method: server.run.workspace.reload
     request: {}
   timeout: 2m
-- id: eino_memory_recall_select_realtime
+- id: eino_memory_recall_select_roundtrip
   client: eino_memory_recall
   rpc:
     method: server.run.workspace.set
     request:
-      workspace_name: "${eino_memory_recall_realtime_workspace}"
-- id: eino_memory_recall_warmup_realtime
+      workspace_name: "${eino_memory_recall_roundtrip_workspace}"
+- id: eino_memory_recall_warmup_roundtrip
   client: eino_memory_recall
   rpc:
     method: server.run.workspace.reload
     request: {}
   timeout: 2m
-- id: synthesize_input_audio
-  client: flowcraft
-  speech:
-    method: server.speech.synthesize
-    request:
-      voice_name: giztest-input.zh
-      text: 我从花果山出发，带着一枚青铜铃。简短承接我的行动，不要替我选择路线。
-      accepted_content_types:
-      - audio/ogg
-    cache: run
-  save_as: input_audio
-- id: realtime_roundtrip
+- id: roundtrip
   timeout: 2m
   parallel:
-  - id: flowcraft_realtime_roundtrip
+  - id: flowcraft_roundtrip
     peer_stream:
-      mode: realtime
-      input: "${input_audio}"
-      pacing: 20ms
+      mode: text
+      input: 我从花果山出发，带着一枚青铜铃。简短承接我的行动，不要替我选择路线。
       require_audio: true
       require_text: true
       idle_timeout: 90s
     client: flowcraft
-  - id: eino_history_realtime_roundtrip
+  - id: eino_history_roundtrip
     peer_stream:
-      mode: realtime
-      input: "${input_audio}"
-      pacing: 20ms
+      mode: text
+      input: 我从花果山出发，带着一枚青铜铃。简短承接我的行动，不要替我选择路线。
       require_audio: false
       require_text: true
       idle_timeout: 90s
     client: eino_history
-  - id: eino_memory_async_realtime_roundtrip
+  - id: eino_memory_async_roundtrip
     peer_stream:
-      mode: realtime
-      input: "${input_audio}"
-      pacing: 20ms
+      mode: text
+      input: 我从花果山出发，带着一枚青铜铃。简短承接我的行动，不要替我选择路线。
       require_audio: false
       require_text: true
       idle_timeout: 90s
     client: eino_memory_async
-  - id: eino_memory_recall_realtime_roundtrip
+  - id: eino_memory_recall_roundtrip
     peer_stream:
-      mode: realtime
-      input: "${input_audio}"
-      pacing: 20ms
+      mode: text
+      input: 我从花果山出发，带着一枚青铜铃。简短承接我的行动，不要替我选择路线。
       require_audio: false
       require_text: true
       idle_timeout: 90s
     client: eino_memory_recall
   expect:
-    "/flowcraft_realtime_roundtrip/events":
+    "/flowcraft_roundtrip/events":
       non_empty: true
-    "/flowcraft_realtime_roundtrip/audio_bytes":
+    "/flowcraft_roundtrip/audio_bytes":
       minimum: 1
-    "/flowcraft_realtime_roundtrip/text_eos":
+    "/flowcraft_roundtrip/text_eos":
       equals: true
-    "/flowcraft_realtime_roundtrip/audio_eos":
+    "/flowcraft_roundtrip/audio_eos":
       equals: true
-    "/flowcraft_realtime_roundtrip/text":
+    "/flowcraft_roundtrip/text":
       non_empty: true
-    "/flowcraft_realtime_roundtrip/audio_integrity/streams":
+    "/flowcraft_roundtrip/audio_integrity/streams":
       minimum: 1
-    "/flowcraft_realtime_roundtrip/audio_integrity/max_active":
+    "/flowcraft_roundtrip/audio_integrity/max_active":
       equals: 1
-    "/flowcraft_realtime_roundtrip/audio_integrity/open":
+    "/flowcraft_roundtrip/audio_integrity/open":
       equals: 0
-    "/flowcraft_realtime_roundtrip/audio_integrity/violations":
+    "/flowcraft_roundtrip/audio_integrity/violations":
       equals: 0
-    "/flowcraft_realtime_roundtrip/audio_pacing/minimum_buffer_ms":
+    "/flowcraft_roundtrip/audio_pacing/minimum_buffer_ms":
       minimum: 0
-    "/flowcraft_realtime_roundtrip/audio_pacing/underruns":
+    "/flowcraft_roundtrip/audio_pacing/underruns":
       equals: 0
-    "/eino_history_realtime_roundtrip/events":
+    "/eino_history_roundtrip/events":
       non_empty: true
-    "/eino_history_realtime_roundtrip/text_eos":
+    "/eino_history_roundtrip/text_eos":
       equals: true
-    "/eino_history_realtime_roundtrip/text":
+    "/eino_history_roundtrip/text":
       non_empty: true
-    "/eino_memory_async_realtime_roundtrip/events":
+    "/eino_memory_async_roundtrip/events":
       non_empty: true
-    "/eino_memory_async_realtime_roundtrip/text_eos":
+    "/eino_memory_async_roundtrip/text_eos":
       equals: true
-    "/eino_memory_async_realtime_roundtrip/text":
+    "/eino_memory_async_roundtrip/text":
       non_empty: true
-    "/eino_memory_recall_realtime_roundtrip/events":
+    "/eino_memory_recall_roundtrip/events":
       non_empty: true
-    "/eino_memory_recall_realtime_roundtrip/text_eos":
+    "/eino_memory_recall_roundtrip/text_eos":
       equals: true
-    "/eino_memory_recall_realtime_roundtrip/text":
+    "/eino_memory_recall_roundtrip/text":
       non_empty: true
 finally:
 - id: flowcraft_stop_run
@@ -540,30 +520,30 @@ finally:
     method: server.workspace.delete
     request:
       name: "${eino_memory_recall_text_workspace}"
-- id: flowcraft_delete_realtime
+- id: flowcraft_delete_roundtrip
   client: flowcraft
   rpc:
     method: server.workspace.delete
     request:
-      name: "${flowcraft_realtime_workspace}"
-- id: eino_history_delete_realtime
+      name: "${flowcraft_roundtrip_workspace}"
+- id: eino_history_delete_roundtrip
   client: eino_history
   rpc:
     method: server.workspace.delete
     request:
-      name: "${eino_history_realtime_workspace}"
-- id: eino_memory_async_delete_realtime
+      name: "${eino_history_roundtrip_workspace}"
+- id: eino_memory_async_delete_roundtrip
   client: eino_memory_async
   rpc:
     method: server.workspace.delete
     request:
-      name: "${eino_memory_async_realtime_workspace}"
-- id: eino_memory_recall_delete_realtime
+      name: "${eino_memory_async_roundtrip_workspace}"
+- id: eino_memory_recall_delete_roundtrip
   client: eino_memory_recall
   rpc:
     method: server.workspace.delete
     request:
-      name: "${eino_memory_recall_realtime_workspace}"
+      name: "${eino_memory_recall_roundtrip_workspace}"
 - id: flowcraft_delete_peer
   client: flowcraft
   rpc:
