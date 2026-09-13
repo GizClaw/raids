@@ -1,0 +1,506 @@
+# User Story:
+# As a Raids catalog maintainer,
+# I want isolated narrator and character probes for adventure-science,
+# So that every role produces complete text and non-empty audio within the response gates.
+version: gizclaw.test/v1alpha1
+name: adventure-science.flowcraft.roles
+clients:
+  narrator:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  experimenter:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  observer:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  safety-teacher:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+variables:
+  endpoint:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_ENDPOINT
+  registration_token:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_REGISTRATION_TOKEN
+    secret: true
+  narrator_workspace:
+    direction: input
+    type: string
+    generate: token
+  experimenter_workspace:
+    direction: input
+    type: string
+    generate: token
+  observer_workspace:
+    direction: input
+    type: string
+    generate: token
+  safety_teacher_workspace:
+    direction: input
+    type: string
+    generate: token
+repeat: 1
+timeout: 24m
+steps:
+- id: register_narrator
+  client: narrator
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${narrator_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-adventure-science
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${narrator_workspace}"
+- id: warmup_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: probe_narrator
+  client: narrator
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 开始体验。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      not_contains:
+      - 旁白说
+      - 旁白：
+- id: probe_narrator_first_response
+  client: narrator
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 开始体验。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: register_experimenter
+  client: experimenter
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_experimenter_workspace
+  client: experimenter
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${experimenter_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-adventure-science
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_experimenter_workspace
+  client: experimenter
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${experimenter_workspace}"
+- id: warmup_experimenter_workspace
+  client: experimenter
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: experimenter_scene_setup_1
+  client: experimenter
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 开始体验。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: probe_experimenter
+  client: experimenter
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让实验伙伴亲自回应。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      not_contains:
+      - 实验伙伴说
+      - 实验伙伴：
+- id: probe_experimenter_first_response
+  client: experimenter
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 请让实验伙伴亲自回应。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: register_observer
+  client: observer
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_observer_workspace
+  client: observer
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${observer_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-adventure-science
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_observer_workspace
+  client: observer
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${observer_workspace}"
+- id: warmup_observer_workspace
+  client: observer
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: observer_scene_setup_1
+  client: observer
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 开始体验。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: observer_scene_setup_2
+  client: observer
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 进入观察比较。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      contains: 观察比较
+- id: probe_observer
+  client: observer
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让观察记录员亲自回应。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      not_contains:
+      - 观察记录员说
+      - 观察记录员：
+- id: probe_observer_first_response
+  client: observer
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 请让观察记录员亲自回应。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: register_safety-teacher
+  client: safety-teacher
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_safety_teacher_workspace
+  client: safety-teacher
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${safety_teacher_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-adventure-science
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_safety_teacher_workspace
+  client: safety-teacher
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${safety_teacher_workspace}"
+- id: warmup_safety_teacher_workspace
+  client: safety-teacher
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: safety-teacher_scene_setup_1
+  client: safety-teacher
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 开始体验。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: probe_safety-teacher
+  client: safety-teacher
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让安全老师亲自回应。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      not_contains:
+      - 安全老师说
+      - 安全老师：
+- id: probe_safety-teacher_first_response
+  client: safety-teacher
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 请让安全老师亲自回应。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+finally:
+- id: stop_narrator_run
+  client: narrator
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${narrator_workspace}"
+- id: delete_narrator_peer
+  client: narrator
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: stop_experimenter_run
+  client: experimenter
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_experimenter_workspace
+  client: experimenter
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${experimenter_workspace}"
+- id: delete_experimenter_peer
+  client: experimenter
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: stop_observer_run
+  client: observer
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_observer_workspace
+  client: observer
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${observer_workspace}"
+- id: delete_observer_peer
+  client: observer
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: stop_safety-teacher_run
+  client: safety-teacher
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_safety_teacher_workspace
+  client: safety-teacher
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${safety_teacher_workspace}"
+- id: delete_safety-teacher_peer
+  client: safety-teacher
+  rpc:
+    method: server.peer.delete
+    request: {}
+report:
+  redact:
+  - registration_token

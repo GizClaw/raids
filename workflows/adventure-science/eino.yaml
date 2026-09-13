@@ -10,6 +10,14 @@ spec:
   eino:
     voice_adapter:
       asr_model: asr
+      default_voice: eino-adventure-science.adventure-guide
+      state_voices:
+        field: selected_speaker
+        voices:
+          narrator: eino-adventure-science.adventure-guide
+          experimenter: eino-adventure-science.experimenter
+          observer: eino-adventure-science.observer
+          safety-teacher: eino-adventure-science.safety-teacher
     graph:
       name: adventure-science-eino
       compile:
@@ -35,7 +43,125 @@ spec:
         - name: observation
           type: string
           merge: replace
+        - name: selected_speaker
+          type: string
+          merge: replace
+        - name: speaker-direction
+          type: string
+          merge: replace
+        - name: voice-scene
+          type: string
+          merge: replace
+        - name: voice-revision
+          type: string
+          merge: replace
       nodes:
+      - id: select-speaker
+        type: script
+        inputs:
+          text:
+            from: input.text
+          history:
+            from: input.messages
+          memory:
+            from: recalled
+        outputs:
+          speaker: selected_speaker
+          direction: speaker-direction
+          scene: voice-scene
+          revision: voice-revision
+        language: starlark
+        entrypoint: run
+        source: |
+          def any_cue(text, cues):
+              return any([cue in text for cue in cues])
+
+          def clause(text):
+              for sep in ["，", "。", "；", "！", "？", ",", ";", "!", "?"]:
+                  text = text.replace(sep, "|")
+              for sep in ["但是", "而是", "再让", "改请", "改让", "but "]:
+                  text = text.replace(sep, "|")
+              return text
+
+          def run(input):
+              current = input["text"].strip().lower()
+              memory = input.get("memory", "")
+              scenes = ["实验猜想", "观察比较", "安全复盘"]
+              roles = [{"key": "narrator", "name": "旁白", "aliases": ["旁白", "narrator"], "chapters": [1, 2, 3], "duty": "只负责叙述、管理和公开信息整理，不代演角色。"}, {"key": "experimenter", "name": "实验伙伴", "aliases": ["实验伙伴", "experimenter"], "chapters": [1, 2], "duty": "提出温水冷水的可检验猜想，不把猜想当结果。"}, {"key": "observer", "name": "观察记录员", "aliases": ["观察记录员", "observer"], "chapters": [2], "duty": "记录已经展示的溶解现象，比较观察与预测。"}, {"key": "safety-teacher", "name": "安全老师", "aliases": ["安全老师", "safety-teacher"], "chapters": [1, 3], "duty": "指出实验中需要成年人协助的边界，区分思想实验与证据。"}]
+              scene = 1
+              revision = -1
+              # Read only graph-authored state fields; legacy active_roles is never authoritative.
+              for line in memory.split("\n"):
+                  compact = line.replace(" ", "")
+                  if '"schema":"raid_scenario_state_v2"' not in compact:
+                      continue
+                  rev = 0
+                  if '"revision":' in compact:
+                      value = compact.split('"revision":')[1].split(",")[0].split("}")[0]
+                      if value.isdigit():
+                          rev = int(value)
+                  if rev >= revision and '"voice_scene":' in compact:
+                      value = compact.split('"voice_scene":')[1].split(",")[0].split("}")[0]
+                      if value.isdigit():
+                          scene = max(1, min(len(scenes), int(value)))
+                          revision = rev
+              for message in input.get("history", []):
+                  if message.get("role", "") != "assistant":
+                      continue
+                  text = message.get("content", "")
+                  for i in range(len(scenes)):
+                      if "当前场景："+scenes[i] in text or "来到"+scenes[i] in text:
+                          scene = i+1
+              transition = False
+              if not current or any_cue(current, ["重新开始", "restart", "开场", "介绍这个体验", "开始体验"]):
+                  scene = 1
+              elif any_cue(current, ["进入下一章", "进入下一场景"]):
+                  scene = min(len(scenes), scene+1)
+                  transition = True
+              else:
+                  for i in range(len(scenes)):
+                      if any_cue(current, ["进入"+scenes[i], "前往"+scenes[i], "来到"+scenes[i]]):
+                          scene = i+1
+                          transition = True
+                  pass
+              phase = "explore"
+              active_roles = [r["key"] for r in roles if scene in r["chapters"]]
+              speaker = "narrator"
+              management_text = current
+              for role in roles:
+                  for alias in role["aliases"]:
+                      management_text = management_text.replace(alias, "")
+              management = not current or transition or any_cue(management_text, ["更正", "纠正", "修正", "改成", "改变主意", "其实", "安全", "危险", "现实", "模仿", "受伤", "攻击", "牺牲", "停止", "总结", "结论", "回忆", "重连", "恢复", "请记住", "只确认", "只说", "换边", "correction", "correct", "actually", "danger", "safety", "restart", "重新开始", "开场", "介绍这个体验", "进入下一", "下一章", "下一场景", "转场", "开始体验", "从头开始", "第一章", "第1章", "开始冒险", "start", "begin", "介绍体验", "喝生水", "吃野果", "爬高墙", "关闭生命保障", "直视太阳", "尝陌生植物"]) or phase != "explore"
+              first = len(current)+1
+              if not management:
+                  for role in roles:
+                      for alias in role["aliases"]:
+                          start = 0
+                          for attempt in range(32):
+                              at = current.find(alias, start)
+                              if at < 0:
+                                  break
+                              start = at+len(alias)
+                              prefix = clause(current[:at]).split("|")[-1]
+                              tail = clause(current[at+len(alias):]).split("|")[0]
+                              neg = any_cue(prefix, ["不要", "别让", "别请", "不让", "不请", "不想让", "不想听", "不用", "无需", "别", "不需要", "do not", "don't", "not", "instead of"]) or any_cue(tail, ["不要说", "别说", "不用回答", "不要回答"])
+                              requested = any_cue(prefix+alias+tail, ["说说", "说话", "发言", "回应", "回答", "解释", "问问", "采访", "talk", "speak", "answer", "explain"])
+                              if not neg and requested and role["key"] in active_roles and at < first:
+                                  first = at
+                                  speaker = role["key"]
+              direction = "这是儿童互动冒险的原创配角安排。按场景出场，不让所有人物同时在场；角色不能获知未来场景、私密信息或未验证的结果。每轮仍只发声一次。\n场景1“实验猜想”：实验伙伴：提出温水冷水的可检验猜想，不把猜想当结果。；安全老师：指出实验中需要成年人协助的边界，区分思想实验与证据。\n场景2“观察比较”：实验伙伴：提出温水冷水的可检验猜想，不把猜想当结果。；观察记录员：记录已经展示的溶解现象，比较观察与预测。\n场景3“安全复盘”：安全老师：指出实验中需要成年人协助的边界，区分思想实验与证据。\n明确点名例如“请让实验伙伴说说”才请求角色说话；只报名字或支持某人仍是玩家选项，由旁白承接。多人按文本顺序只选第一个在场且未被否定者。开场、转场、更正、安全、结论由旁白负责；旁白不代演角色，不加“旁白说”“旁白：”等说话人标签。严格开场结束后，下一次探索才简短介绍在场角色及点名玩法。" + "\n当前场景："+scenes[scene-1]+"。当前在场角色："+"、".join([r["name"] for r in roles if r["key"] in active_roles])+"。"
+              if transition:
+                  direction += "本轮由旁白说出‘来到"+scenes[scene-1]+"’，描写该处角色的一项具体行动并给一个观察选项，不替人物说台词。"
+              direction += "本轮仅由"+speaker+"发声。"
+              for role in roles:
+                  if role["key"] == speaker:
+                      direction += "你是"+role["name"]+"。"+role["duty"]+"直接以第一人称发言，不添加‘"+role["name"]+"说’‘"+role["name"]+"：’等说话人标签，不替他人发言；只说亲历或公开信息，不知道就说明不知道。"
+              return {"speaker": speaker, "direction": direction, "scene": str(scene), "revision": str(max(revision, len(input.get("history", [])))+1)}
+        limits:
+          max_execution_steps: 100000
+          timeout: 250ms
+          max_input_bytes: 262144
+          max_output_bytes: 65536
       - id: prepare-memory-query
         type: script
         inputs:
@@ -51,7 +177,7 @@ spec:
           def run(input):
               text = input["text"].strip()
               base = "当前互动剧本的已确认选择、场景进度、事实和用户明确要求记住的信息"
-              route = "opening" if not text else ("recall" if "重连后" in text else "continue")
+              route = "opening" if not text else ("recall" if any([cue in text for cue in ["重连", "恢复", "回忆", "上次", "之前", "更正", "改成", "还记得", "代号", "resume", "recall", "previous"]]) else "continue")
               return {"query": base + ("；当前请求：" + text if text else ""), "route": route, "memory": ""}
         limits:
           max_execution_steps: 10000
@@ -70,6 +196,8 @@ spec:
             from: input.messages
           memory:
             from: recalled
+          direction:
+            from: speaker-direction
         outputs:
           messages: answer-messages
         format: f_string
@@ -77,7 +205,7 @@ spec:
         - role: system
           template: |-
             你是儿童友好的互动冒险主持人。
-            如果当前是没有用户输入的新对话，或者用户要求介绍体验并从指定中文开场开始，必须逐字输出下面这段开场并立即停止：欢迎来到小小实验室，我是你的实验助手，我们用猜想、动手和观察来找答案。你先说出你的猜想，我们再一起看看实验结果。实验台上有两杯水，一杯温一杯冷，你猜哪一杯里的糖会溶得更快？为什么？ 只输出这段开场，不得再添加其他介绍、解释、前后缀或段落。
+            如果当前是没有用户输入的新对话，或者用户要求开始体验、介绍体验并从指定中文开场开始，必须逐字输出下面这段开场并立即停止：欢迎来到小小实验室，我是你的实验助手，我们用猜想、动手和观察来找答案。你先说出你的猜想，我们再一起看看实验结果。实验台上有两杯水，一杯温一杯冷，你猜哪一杯里的糖会溶得更快？为什么？ 只输出这段开场，不得再添加其他介绍、解释、前后缀或段落。
             如果当前上下文明确要求英文，或用户要求用英文介绍或重新开始，必须逐字输出这一句并立即停止：There are warm and cold cups of water. In which will sugar dissolve faster, and why? 只输出该句，不得添加介绍、解释、前后缀或第二段。
             后续必须承接孩子上一轮的选择，不得重置场景。每轮只推进一个有意义的场景、问题、线索或选择，并且最多问一个清楚的问题。需要孩子选择或调查时，要在问题里直接说出两三个具体选项；孩子说不知道或想要提示时，先给一个小提示，再重新说出可选的选项。
             体验要求：Ask for a prediction, describe or run a safe observation, compare evidence with the prediction, and invite a revised explanation.
@@ -88,6 +216,8 @@ spec:
 
             相关长期记忆只用于承接已确认内容；为空时忽略，不得让旧记忆覆盖当前用户更正：
             {memory}
+            本轮发声身份与在场约束（优先于主持人身份；严格开场文字仍保持）：
+            {direction}
         - placeholder: history
       - id: narrator-model
         type: chat_model
@@ -106,14 +236,19 @@ spec:
             from: input.text
           answer:
             from: answer
+          scene:
+            from: voice-scene
+          voice_revision:
+            from: voice-revision
         outputs:
           fact: observation
         language: starlark
         entrypoint: run
         source: |
           def run(input):
+              routing = '{"schema":"raid_scenario_state_v2","voice_scene":' + input["scene"] + ',"revision":' + input["voice_revision"] + '}\n'
               text = input["text"].strip()
-              return {"fact": "用户本轮输入：" + text + "；助手本轮确认：" + input["answer"]}
+              return {"fact": routing + "用户本轮输入：" + text + "；助手本轮确认：" + input["answer"]}
         limits:
           max_execution_steps: 10000
           timeout: 250ms
@@ -128,13 +263,15 @@ spec:
       - from: start
         to: prepare-memory-query
       - from: recall-memory
-        to: build-prompt
+        to: select-speaker
       - from: build-prompt
         to: narrator-model
       - from: capture-observation
         to: observe-memory
       - from: observe-memory
         to: end
+      - from: select-speaker
+        to: build-prompt
       branches:
       - from: prepare-memory-query
         mode: first_match
@@ -144,7 +281,7 @@ spec:
             op: eq
             value: recall
           to: recall-memory
-        default: build-prompt
+        default: select-speaker
       - from: narrator-model
         mode: first_match
         routes:
