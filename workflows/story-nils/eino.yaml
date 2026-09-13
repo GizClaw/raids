@@ -1,3 +1,4 @@
+---
 apiVersion: gizclaw.admin/v1alpha1
 kind: Workflow
 metadata:
@@ -10,6 +11,15 @@ spec:
   eino:
     voice_adapter:
       asr_model: asr
+      default_voice: eino-story-nils.storyteller
+      state_voices:
+        field: selected_speaker
+        voices:
+          narrator: eino-story-nils.storyteller
+          nils: eino-story-nils.nils
+          akka: eino-story-nils.akka
+          morten: eino-story-nils.morten
+          smirre: eino-story-nils.smirre
     graph:
       name: story-nils-eino
       compile:
@@ -17,17 +27,36 @@ spec:
         max_run_steps: 12
       state:
         fields:
-        - {name: memory-query, type: string, merge: replace}
-        - {name: memory-route, type: string, merge: replace}
-        - {name: recalled, type: string, merge: replace}
-        - {name: answer-messages, type: messages, merge: replace}
-        - {name: answer, type: string, merge: replace}
-        - {name: observation, type: string, merge: replace}
+        - name: selected_speaker
+          type: string
+          merge: replace
+        - name: speaker-direction
+          type: string
+          merge: replace
+        - name: memory-query
+          type: string
+          merge: replace
+        - name: memory-route
+          type: string
+          merge: replace
+        - name: recalled
+          type: string
+          merge: replace
+        - name: answer-messages
+          type: messages
+          merge: replace
+        - name: answer
+          type: string
+          merge: replace
+        - name: observation
+          type: string
+          merge: replace
       nodes:
       - id: prepare-memory-query
         type: script
         inputs:
-          text: {from: input.text}
+          text:
+            from: input.text
         outputs:
           query: memory-query
           route: memory-route
@@ -44,23 +73,135 @@ spec:
                       recall = True
               route = "opening" if not text else ("recall" if recall else "continue")
               return {"query": "尼尔斯骑鹅旅行记故事状态、章节、角色、选择、更正、旅程代号和未解决线索；当前请求：" + text, "route": route, "memory": ""}
-        limits: {max_execution_steps: 10000, timeout: 250ms, max_input_bytes: 65536, max_output_bytes: 65536}
+        limits:
+          max_execution_steps: 10000
+          timeout: 250ms
+          max_input_bytes: 65536
+          max_output_bytes: 65536
       - id: recall-memory
         type: memory_recall
         query_from: memory-query
         output: recalled
         top_k: 16
+      - id: select-speaker
+        type: script
+        inputs:
+          text:
+            from: input.text
+          history:
+            from: input.messages
+          memory:
+            from: recalled
+        outputs:
+          speaker: selected_speaker
+          direction: speaker-direction
+        language: starlark
+        entrypoint: run
+        source: |
+          def contains_any(text, cues):
+              return any([cue in text for cue in cues])
+
+          def run(input):
+              current = input["text"].strip().lower()
+              # Only delivered assistant headings establish chapter eligibility; user requests
+              # and opening cast previews (fox joins chapter two) are not transitions.
+              chapter = 1
+              history = input.get("history", [])
+              # Recall may contain the legacy structured state; never trust active_roles.
+              memory = input.get("memory", "")
+              for line in memory.split("\n"):
+                  compact = line.replace(" ", "")
+                  if '"schema":"story_contract_v1"' in compact and '"chapter":' in compact:
+                      raw = compact.split('"chapter":', 1)[1].split(",", 1)[0].split("}", 1)[0]
+                      if raw in ["1", "2", "3", "4"]:
+                          chapter = int(raw)
+              context = [memory]
+              context.extend([m["content"] for m in history if m["role"] == "assistant"])
+              for content in context:
+                  for line in content.split("\n"):
+                      line = line.strip()
+                      for number, title in [(1, "湿地风向"), (2, "雁群协作"), (3, "北方风暴"), (4, "归乡选择")]:
+                          if line.startswith("第 " + str(number) + " 章：" + title) or line.startswith("第 " + str(number) + " 章:" + title):
+                              chapter = number
+              roles = [('narrator', ['旁白', 'narrator']), ('nils', ['尼尔斯', 'nils']), ('akka', ['阿卡', 'akka']), ('morten', ['莫顿', 'morten']), ('smirre', ['斯密尔', 'smirre'])]
+              option = current
+              for mark in ["。", "！", "!", ",", ".", "，"]:
+                  option = option.replace(mark, "")
+              option_only = any([option in aliases for _, aliases in roles])
+              opening = not current or (not any([m["role"] == "assistant" for m in history]) and (contains_any(current, ["第一章", "第 1 章"]) or (contains_any(current, ["start", "begin", "restart"]) and contains_any(current, ["chapter 1", "first chapter"]))))
+              management = contains_any(current, ["旅程代号", "更正", "改成", "纠正", "修正", "作废", "重连", "回忆", "事实", "传说", "原创设定", "总结", "说明当前章节", "不要推进", "不推进章节", "只确认", "correct", "correction", "reconnect", "recall", "现实中模仿", "现实模仿"])
+              target = 0
+              for number, chinese in [(2, "二"), (3, "三"), (4, "四")]:
+                  if contains_any(current, ["第" + chinese + "章", "第" + str(number) + "章", "第 " + str(number) + " 章"]):
+                      target = number
+              if target == 0 and "下一章" in current and chapter < 4:
+                  target = chapter + 1
+              transition = target > 0 and target != chapter and contains_any(current, ["下一章", "进入", "继续", "切换", "开始", "go to", "continue", "start", "为什么还不能", "为何不能", "说明为什么"])
+              # A denied transition is not a management turn (same as control-story).
+              denied_transition = False
+              for denial in ["不要", "别", "不能", "暂不", "不想", "先不", "不去", "不听", "do not", "don't", "cannot", "can't", "not ready to"]:
+                  if denial in current:
+                      tail = current.rsplit(denial, 1)[-1]
+                      for action in ["进入", "继续", "切换", "开始", "下一章", "enter", "continue", "switch", "start", "go to"]:
+                          if action in tail and len(list(tail.split(action, 1)[0].codepoints())) <= (12 if action in ["enter", "continue", "switch", "start", "go to"] else 6):
+                              denied_transition = True
+              if denied_transition:
+                  transition = False
+              speaker = "narrator"
+              best = len(current) + 1
+              if not opening and not management and not transition and not option_only:
+                  for role, aliases in roles:
+                      if chapter not in {'narrator': [1, 2, 3, 4], 'nils': [1, 2, 3, 4], 'akka': [1, 2, 3, 4], 'morten': [1, 2, 3, 4], 'smirre': [2]}[role]:
+                          continue
+                      for alias in aliases:
+                          # split yields every occurrence without a while loop (Starlark).
+                          offset = 0
+                          pieces = current.split(alias)
+                          for piece in pieces[:-1]:
+                              index = offset + len(piece)
+                              prefix = current[:index]
+                              suffix = current[index + len(alias):]
+                              for separator in ["，", "。", "；", "！", "？", ",", ";", "!", "?", "但是", "而是", "不过", "但"]:
+                                  prefix = prefix.replace(separator, "\n")
+                              prefix = prefix.split("\n")[-1]
+                              for separator in ["，", "。", "；", "！", "？", ",", ";", "!", "?"]:
+                                  suffix = suffix.replace(separator, "\n")
+                              suffix = suffix.split("\n")[0]
+                              negated = False
+                              for cue in ["不要", "别", "不让", "不用", "不想", "不请", "不由", "不听", "不选", "do not", "don't", "not", "never"]:
+                                  if cue in prefix and len(list(prefix.rsplit(cue, 1)[-1].codepoints())) <= 16:
+                                      negated = True
+                              for lead in ["", "先", "暂时"]:
+                                  for cue in ["不要", "别", "不用", "不必"]:
+                                      if suffix.startswith(lead + cue):
+                                          negated = True
+                              requested = any([prefix.rstrip().endswith(cue) for cue in ["请让", "请", "让", "由", "听", "ask", "let", "hear"]]) or any([suffix.startswith(cue) for cue in ["亲自", "说", "讲", "回应", "回答", "来讲"]])
+                              if not negated and requested and index < best:
+                                  speaker = role
+                                  best = index
+                              offset = index + len(alias)
+              styles = {'narrator': '本轮由旁白叙述可见事实和后果，不代演角色，不使用角色第一人称。', 'nils': '本轮你就是尼尔斯：想学会照顾伙伴；天真直接，第1章观察风向。', 'akka': '本轮你就是阿卡：想让雁群平安迁徙；和蔼沉稳，第1章比较休息地。', 'morten': '本轮你就是莫顿：想证明自己能跟上队伍；清爽热心，第1章载着尼尔斯，第2章承认疲惫并接受轮换。', 'smirre': '本轮你就是斯密尔：想寻找食物；理性谨慎，第2章在湿地岸边提出自己的觅食需求，与雁群商量保持距离；不追随北方雁群，不知空中经历。'}
+              return {"speaker": speaker, "direction": styles[speaker] + "非旁白角色必须直接第一人称发言，不加某某说、某某：等说话人标签；不得换成其他角色或重播首次开场。选人所依据的已确认章节（本轮转场可进入下一章）：" + str(chapter)}
+        limits:
+          max_execution_steps: 100000
+          timeout: 250ms
+          max_input_bytes: 262144
+          max_output_bytes: 65536
       - id: build-prompt
         type: prompt
         inputs:
-          history: {from: input.messages}
-          memory: {from: recalled}
+          history:
+            from: input.messages
+          memory:
+            from: recalled
+          speaker_direction:
+            from: speaker-direction
         outputs:
           messages: answer-messages
         format: f_string
         messages:
         - role: system
-          template: |-
+          template: |
             你负责《尼尔斯骑鹅旅行记》的长期互动故事。前提：跟随候鸟旅行，认识地理、生态和尊重生命。
             玩家是同行者，当前选择和明确更正优先于旧 History/Memory。
             四章依次是：第1章《湿地风向》、第2章《雁群协作》、第3章《北方风暴》、第4章《归乡选择》。
@@ -68,22 +209,25 @@ spec:
             第2章《雁群协作》：进入条件=第1章的当前选择已完成转场条件，且用户明确要求继续；目标=解决《雁群协作》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，并明确要求进入第3章；结束条件=转场回合只出现一次下一章标题“第 3 章：北方风暴”，并紧接新章开场。
             第3章《北方风暴》：进入条件=第2章的当前选择已完成转场条件，且用户明确要求继续；目标=解决《北方风暴》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，并明确要求进入第4章；结束条件=转场回合只出现一次下一章标题“第 4 章：归乡选择”，并紧接新章开场。
             第4章《归乡选择》：进入条件=第3章的当前选择已完成转场条件，且用户明确要求继续；目标=解决《归乡选择》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家确认角色的持久选择，并保留一个结局后的责任线索；结束条件=保持第4章，不再创建第五章，并以仍需兑现的责任收束。
-            稳定角色是旁白、尼尔斯、阿卡；角色只能知道亲历或已经公开的信息，并保持不同立场和说话方式。
+            角色表：narrator 旁白（别名 旁白/narrator），只在第1、2、3、4章在场，只述可见事实，不代演角色；nils 尼尔斯（别名 尼尔斯/nils），只在第1、2、3、4章在场，想学会照顾伙伴；天真直接，第1章观察风向；akka 阿卡（别名 阿卡/akka），只在第1、2、3、4章在场，想让雁群平安迁徙；和蔼沉稳，第1章比较休息地；morten 莫顿（别名 莫顿/morten），只在第1、2、3、4章在场，想证明自己能跟上队伍；清爽热心，第1章载着尼尔斯，第2章承认疲惫并接受轮换；smirre 斯密尔（别名 斯密尔/smirre），只在第2章在场，想寻找食物；理性谨慎，第2章在湿地岸边提出自己的觅食需求，与雁群商量保持距离；不追随北方雁群，不知空中经历。所有角色只说亲历或已公开信息，不知他人私密想法及未来结果。每章比较至少两种立场，不要求全员发声。章节行动属于本仓库儿童互动原创改编，不等同原典情节。
             只有用户明确要求进入紧邻的下一章（包括直接说“进入下一章”）时才转场；转场回合第一行只写一次“第 N 章：标题”，其中“第”与数字、数字与“章”之间各有一个空格，标题后必须在同一条回复里紧接着讲这一章的开场：先用一两句话交代新场景在哪里、谁在场、发生了什么，再用一个问题说出孩子可以选的两三个具体选项；绝不能只输出章节标题就结束；孩子在同一句话里还要求确认章节、旅程代号等信息时，也要在这条回复里用一句话说出来。章节标题必须和上面四章列表里的标题一字不差。普通回合绝不重复章节标题。给孩子的选项必须适合儿童，不能包含杀害、伤害、威胁或报复任何人。
             本轮涉及现实模仿或安全问题时，先完成安全提醒，这一轮不提醒进入下一章。孩子没有亲口说出选择时，不得替孩子做选择，也不得写“你选择了……”，但仍要照常推进：孩子只说“继续”时，绝不能只催孩子先做选择，要讲一个新发生的变化，不提章节名，再用问题说出可选项。只有孩子本轮亲口说出本章问题的选择（例如直接说出某个选项）时，才讲出这个选择带来的直接结果，不再追加新问题，并以这句话结尾：“这一章的选择完成啦，想继续听就说‘进入下一章’。”；第4章不提醒。孩子问为什么还不能进入下一章时，要用孩子听得懂的话说清现在仍在第 N 章《标题》，以及还差哪个选择；不要说出下一章的章节号或标题，也不要说“悬念”“转场条件”“节拍”等内部用语。
             每轮只推进一个场景、线索或选择，最多一个问题，请孩子做选择时要在这个问题里直接说出两三个具体选项，不能只问“你想怎么做”；不得重置场景、重复开头、复述上一轮或给出重复总结。
             旅程代号只采用用户在当前时点明确提供的最新值；更正后覆盖旧值，不得预告或杜撰尚未由用户给出的值。
             区分真实事实、传说和原创设定；儿童危险非血腥，任何现实模仿或照做请求，回复都必须逐字包含“不要模仿”和“找家长、老师或可信任成年人帮助”，不得用近义改写替代；不得复制完整出版译文。
-            首次第一章必须输出“第 1 章：湿地风向”，随后依次完整说出这段开场，先交代背景，再说明玩法，最后提出开场问题：你和变小的男孩尼尔斯一起骑在大鹅背上，跟着领头雁阿卡往北方飞。你可以直接说出你的选择，也可以说“请让尼尔斯说说”或“请让阿卡说说”，听他们自己讲；这一章的选择做完后，说“进入下一章”就能继续听下去。雁群准备跨越一片陌生湿地，你想先查看风向，还是寻找安全的休息地？（玩法说明里“说‘进入下一章’就能继续听下去”这一句不得省略）
+            首次第一章必须输出“第 1 章：湿地风向”，随后依次完整说出这段开场，先交代背景，再说明玩法，最后提出开场问题：你和变小的男孩尼尔斯一起骑在大鹅背上，跟着领头雁阿卡往北方飞。当前可点名尼尔斯、阿卡、莫顿；斯密尔在第2章可点名。你可以直接说出你的选择，也可以说“请让尼尔斯说说”或“请让阿卡说说”，听当前在场者自己讲；这一章的选择做完后，说“进入下一章”就能继续听下去。雁群准备跨越一片陌生湿地，你想先查看风向，还是寻找安全的休息地？（玩法说明里“说‘进入下一章’就能继续听下去”这一句不得省略）
             只输出适合朗读的中文正文；普通回合2至4个完整句子、30至220个Unicode字符，首次开场和进入新章的回合可以写到6个句子、320个Unicode字符以内；不输出Markdown、列表、emoji、舞台说明或系统字段。
 
             相关长期状态如下；为空时忽略，且旧值不得覆盖当前用户更正：
             {memory}
+            旧记忆中的角色表必须按当前章节重新归一化；上游已按开场/转场/更正/安全优先旁白、文本顺序第一个明确点名且在场者、否则旁白选人。否定点名不触发，只报名字算选项。每轮只由一人发声，第一人称不加标签。
+            本轮必须遵守的身份与说话方式：{speaker_direction}
         - placeholder: history
       - id: narrator-model
         type: chat_model
         inputs:
-          messages: {from: answer-messages}
+          messages:
+            from: answer-messages
         outputs:
           text: answer
         model: eino-story-nils.model
@@ -92,8 +236,10 @@ spec:
       - id: capture-observation
         type: script
         inputs:
-          text: {from: input.text}
-          answer: {from: answer}
+          text:
+            from: input.text
+          answer:
+            from: answer
         outputs:
           fact: observation
         language: starlark
@@ -101,33 +247,54 @@ spec:
         source: |
           def run(input):
               return {"fact": "story_contract_v1；用户本轮输入：" + input["text"].strip() + "；故事本轮确认：" + input["answer"]}
-        limits: {max_execution_steps: 10000, timeout: 250ms, max_input_bytes: 262144, max_output_bytes: 262144}
+        limits:
+          max_execution_steps: 10000
+          timeout: 250ms
+          max_input_bytes: 262144
+          max_output_bytes: 262144
       - id: observe-memory
         type: memory_observe
         facts:
         - text_from: observation
         wait_for_completion: true
       edges:
-      - {from: start, to: prepare-memory-query}
-      - {from: recall-memory, to: build-prompt}
-      - {from: build-prompt, to: narrator-model}
-      - {from: capture-observation, to: observe-memory}
-      - {from: observe-memory, to: end}
+      - from: start
+        to: prepare-memory-query
+      - from: recall-memory
+        to: select-speaker
+      - from: build-prompt
+        to: narrator-model
+      - from: capture-observation
+        to: observe-memory
+      - from: observe-memory
+        to: end
+      - from: select-speaker
+        to: build-prompt
       branches:
       - from: prepare-memory-query
         mode: first_match
         routes:
-        - when: {field: memory-route, op: eq, value: recall}
+        - when:
+            field: memory-route
+            op: eq
+            value: recall
           to: recall-memory
-        default: build-prompt
+        default: select-speaker
       - from: narrator-model
         mode: first_match
         routes:
-        - when: {field: memory-route, op: eq, value: opening}
+        - when:
+            field: memory-route
+            op: eq
+            value: opening
           to: end
         default: capture-observation
       outputs:
-      - {node: narrator-model, field: answer, name: assistant, mime_type: text/plain, primary: true}
+      - node: narrator-model
+        field: answer
+        name: assistant
+        mime_type: text/plain
+        primary: true
     conversation:
       starts: peer
     limits:
