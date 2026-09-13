@@ -1,0 +1,506 @@
+# User Story:
+# As a Raids catalog maintainer,
+# I want isolated narrator and character probes for adventure-desert-island,
+# So that every role produces complete text and non-empty audio within the response gates.
+version: gizclaw.test/v1alpha1
+name: adventure-desert-island.eino.roles
+clients:
+  narrator:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  scout:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  signal-officer:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  safety-officer:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+variables:
+  endpoint:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_ENDPOINT
+  registration_token:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_REGISTRATION_TOKEN
+    secret: true
+  narrator_workspace:
+    direction: input
+    type: string
+    generate: token
+  scout_workspace:
+    direction: input
+    type: string
+    generate: token
+  signal_officer_workspace:
+    direction: input
+    type: string
+    generate: token
+  safety_officer_workspace:
+    direction: input
+    type: string
+    generate: token
+repeat: 1
+timeout: 24m
+steps:
+- id: register_narrator
+  client: narrator
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${narrator_workspace}"
+      collection: raidtest-targets
+      workflow_name: eino-adventure-desert-island
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${narrator_workspace}"
+- id: warmup_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: probe_narrator
+  client: narrator
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 开始体验。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      not_contains:
+      - 旁白说
+      - 旁白：
+- id: probe_narrator_first_response
+  client: narrator
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 开始体验。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: register_scout
+  client: scout
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_scout_workspace
+  client: scout
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${scout_workspace}"
+      collection: raidtest-targets
+      workflow_name: eino-adventure-desert-island
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_scout_workspace
+  client: scout
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${scout_workspace}"
+- id: warmup_scout_workspace
+  client: scout
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: scout_scene_setup_1
+  client: scout
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 开始体验。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: probe_scout
+  client: scout
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让侦察伙伴亲自回应。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      not_contains:
+      - 侦察伙伴说
+      - 侦察伙伴：
+- id: probe_scout_first_response
+  client: scout
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 请让侦察伙伴亲自回应。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: register_signal-officer
+  client: signal-officer
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_signal_officer_workspace
+  client: signal-officer
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${signal_officer_workspace}"
+      collection: raidtest-targets
+      workflow_name: eino-adventure-desert-island
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_signal_officer_workspace
+  client: signal-officer
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${signal_officer_workspace}"
+- id: warmup_signal_officer_workspace
+  client: signal-officer
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: signal-officer_scene_setup_1
+  client: signal-officer
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 开始体验。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: signal-officer_scene_setup_2
+  client: signal-officer
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 进入信号规划。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      contains: 信号规划
+- id: probe_signal-officer
+  client: signal-officer
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让求救信号员亲自回应。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      not_contains:
+      - 求救信号员说
+      - 求救信号员：
+- id: probe_signal-officer_first_response
+  client: signal-officer
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 请让求救信号员亲自回应。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: register_safety-officer
+  client: safety-officer
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: create_safety_officer_workspace
+  client: safety-officer
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${safety_officer_workspace}"
+      collection: raidtest-targets
+      workflow_name: eino-adventure-desert-island
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: select_safety_officer_workspace
+  client: safety-officer
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${safety_officer_workspace}"
+- id: warmup_safety_officer_workspace
+  client: safety-officer
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: safety-officer_scene_setup_1
+  client: safety-officer
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 开始体验。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+- id: probe_safety-officer
+  client: safety-officer
+  timeout: 2m
+  peer_stream:
+    mode: text
+    input: 请让安全队员亲自回应。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      not_contains:
+      - 安全队员说
+      - 安全队员：
+- id: probe_safety-officer_first_response
+  client: safety-officer
+  timeout: 15s
+  peer_stream:
+    mode: text
+    input: 请让安全队员亲自回应。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+finally:
+- id: stop_narrator_run
+  client: narrator
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_narrator_workspace
+  client: narrator
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${narrator_workspace}"
+- id: delete_narrator_peer
+  client: narrator
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: stop_scout_run
+  client: scout
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_scout_workspace
+  client: scout
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${scout_workspace}"
+- id: delete_scout_peer
+  client: scout
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: stop_signal-officer_run
+  client: signal-officer
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_signal_officer_workspace
+  client: signal-officer
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${signal_officer_workspace}"
+- id: delete_signal-officer_peer
+  client: signal-officer
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: stop_safety-officer_run
+  client: safety-officer
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_safety_officer_workspace
+  client: safety-officer
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${safety_officer_workspace}"
+- id: delete_safety-officer_peer
+  client: safety-officer
+  rpc:
+    method: server.peer.delete
+    request: {}
+report:
+  redact:
+  - registration_token
