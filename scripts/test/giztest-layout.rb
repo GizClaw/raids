@@ -77,6 +77,27 @@ module GiztestLayout
         if tier == 'smoke'
           steps(doc).each do |step|
             expect = step.fetch('expect', {})
+            if step['id'].match?(/\A(?:flowcraft|eino).*_realtime_roundtrip\z/)
+              roundtrip_expect = {
+                '/events' => {'non_empty' => true}, '/text' => {'non_empty' => true},
+                '/text_eos' => {'equals' => true}, '/audio_bytes' => {'minimum' => 1},
+                '/audio_eos' => {'equals' => true},
+                '/audio_integrity/streams' => {'minimum' => 1},
+                '/audio_integrity/max_active' => {'equals' => 1},
+                '/audio_integrity/open' => {'equals' => 0},
+                '/audio_integrity/violations' => {'equals' => 0},
+                '/audio_pacing/minimum_buffer_ms' => {'minimum' => 0},
+                '/audio_pacing/underruns' => {'equals' => 0}
+              }
+              check(expect == roundtrip_expect, "#{file}: #{step['id']} must check complete realtime output without timing gates")
+              first = steps(doc).find { |s| s['id'] == "#{step['id']}_first_response" }
+              check(first && first.dig('peer_stream', 'completion') == 'first_response' &&
+                    first.dig('peer_stream', 'first_text_timeout') == '2s' &&
+                    first.dig('peer_stream', 'first_audio_timeout') == '3s' &&
+                    first.dig('expect', '/first_text_ms') == {'maximum' => 2000} &&
+                    first.dig('expect', '/first_audio_ms') == {'maximum' => 3000},
+                    "#{file}: #{step['id']} needs independent 2s/3s realtime latency gates")
+            end
             check(!expect.keys.any? { |p| p.end_with?('/audio_pacing/max_interval_ms') }, "#{file}: packet gaps must remain diagnostic evidence")
             next unless expect.keys.any? { |p| p.end_with?('/audio_pacing/underruns') }
             check(expect.dig('/audio_pacing/underruns', 'equals') == 0 && expect.dig('/audio_pacing/minimum_buffer_ms', 'minimum') == 0, "#{file}: missing device playback buffer gates")

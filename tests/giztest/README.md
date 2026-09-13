@@ -25,7 +25,9 @@ make test-unit-voices
 
 `APPLY=1` 的原行为保持：使用 `GIZCLAW_CONTEXT` 应用全部 workflows、testing RuntimeProfile 与 testing token，再执行选中的测试。它需要 Admin 权限，普通运行只需 Peer 接入点与 token。
 
-完整响应保留 6s 首字、90s 完整响应等原门槛；smoke 检查 text/audio EOS、非空音频、音频流闭合且无重叠、按设备听感检查 `/audio_pacing/underruns == 0` 且 `/audio_pacing/minimum_buffer_ms >= 0`（Giztest 的 500ms 预缓冲播放模型）。开始播放前的包间隔不代表设备听到卡顿；`max_interval_ms` 保留在 evidence 中用于诊断，不作为失败条件。独立 `completion: first_response` 探针要求首字 2s、首音 3s，主动结束流，因此不要求该探针 EOS。两分钟是速度目标，后期角色前置和完整语音可能超过；文件总 timeout 是运行预算，不能作为放宽单步门槛的依据。运行 CLI 必须支持 `/audio_integrity` 与 `/audio_pacing`。
+非 RealTime 往返的完整响应保留 6s 首字、90s 完整响应等原门槛；smoke 检查 text/audio EOS、非空音频、音频流闭合且无重叠、按设备听感检查 `/audio_pacing/underruns == 0` 且 `/audio_pacing/minimum_buffer_ms >= 0`（Giztest 的 500ms 预缓冲播放模型）。开始播放前的包间隔不代表设备听到卡顿；`max_interval_ms` 保留在 evidence 中用于诊断，不作为失败条件。独立 `completion: first_response` 探针要求首字 2s、首音 3s，主动结束流，因此不要求该探针 EOS。两分钟是速度目标，后期角色前置和完整语音可能超过；文件总 timeout 是运行预算，不能作为放宽单步门槛的依据。运行 CLI 必须支持 `/audio_integrity` 与 `/audio_pacing`。
+
+RealTime 的 `realtime_roundtrip` 负责验证完整往返：events/text 非空、text/audio EOS、audio_bytes >= 1，并保留统一的 audio_integrity 与 underruns/minimum_buffer 检查，不设置首字、首音或 EOS 耗时上限。该步骤的 first_text_ms 从开始发送输入语音计时，包含约 4s 输入语音及尾静音，正常可达 6.5–7.3s，不能套用 6s 首字门槛。随后的 `realtime_roundtrip_first_response`（原测试的 `realtime_first_response`）独立负责延迟验收，所有实现均保留首字 2s、首音 3s 的 timeout 和 maximum 断言。
 
 smoke 的响应步骤按实现并行，共用一次合成的输入音频。quality 将转场、角色、路由等独立 Workspace 组并行推进（client 名为 `<implementation>__<group>`），每组内部仍按原顺序等待完整回合；同组各实现的输入和门槛一致。每个响应轮次前查询全部 client 的 `server.run.status`，避免短组完成后空闲断连，最后立即 finally stop/delete。文件预算为 10 分钟，不创建 Tester client。重复 contracts 已由 soak 完整覆盖；Wizard 英文重启/重连专用 relay 连同独有断言迁入 soak。任一步失败会停止后续步骤，未运行不能算通过；finally 单独报告，未创建 Workspace 的清理错误不得混称为空闲断连。
 
