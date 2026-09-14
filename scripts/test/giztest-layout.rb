@@ -11,7 +11,7 @@ module GiztestLayout
     return {} unless File.exist?(path)
     JSON.parse(File.read(path)).fetch('implementations').to_h do |name, impl|
       voice = YAML.load_file("workflows/#{raid}/#{impl.fetch('file')}").dig('spec', impl.fetch('driver'), 'voice_adapter') || {}
-      [name.tr('-', '_'), %w[default_voice speaker_voices].any? { |key| voice[key] && !voice[key].empty? }]
+      [name.tr('-', '_'), %w[default_voice speaker_voices node_voices].any? { |key| voice[key] && !voice[key].empty? }]
     end
   end
   def self.check_audio(step, capability, file)
@@ -95,6 +95,8 @@ module GiztestLayout
   end
   def self.owns?(step, implementation)
     client = step['client'] || step.dig('workspace_relay', 'second_client')
+    return client == implementation || client.start_with?(implementation + '__') || client == "#{implementation}_tester" if client
+    return false if implementation !~ /multi_role/ && step.fetch('id').include?('_multi_role')
     client == implementation || client == "#{implementation}_tester" ||
       step.fetch('id').start_with?(implementation + '_') ||
       step.fetch('id').match?(/\A(?:register|stop|delete)_#{Regexp.escape(implementation)}(?:_tester)?\z/) ||
@@ -152,11 +154,11 @@ module GiztestLayout
               }
               capability = capabilities[step.fetch('client').split('__').first]
               roundtrip_expect.delete_if { |key, _| key.match?(AUDIO_PATH) } if capability == false
-              if File.basename(file).match?(/\A(?:story|adventure)-/)
+              if step['client'].include?('multi_role') && File.basename(file).match?(/\A(?:story|adventure)-/)
                 roundtrip_expect['/text'] = {'non_empty'=>true, 'not_contains'=>['【','】'], 'min_length'=>300, 'max_length'=>600}
                 roundtrip_expect['/audio_integrity/streams'] = {'equals'=>1}
               end
-              if File.basename(file) == 'murder-mystery.giztest.yaml'
+              if step['client'].include?('multi_role') && File.basename(file) == 'murder-mystery.giztest.yaml'
                 roundtrip_expect['/text']['not_contains'] = ['【', '】']
               end
               check(expect == roundtrip_expect, "#{file}: #{step['id']} must check complete realtime output without timing gates")
@@ -181,11 +183,13 @@ module GiztestLayout
           check(!steps(doc).any? { |s| s.dig('peer_stream', 'completion') == 'first_response' }, "#{file}: first-response latency probes belong in smoke")
           check(!doc.fetch('clients').keys.any? { |c| c.end_with?('_tester') }, "#{file}: idle Tester client in quality")
           logical = doc['clients'].keys.map { |c| c.split('__').first }.uniq
-          if logical.size > 1 && logical.all? { |c| c.match?(/\A(?:flowcraft|eino)/) }
+          if logical.group_by { |c| c.include?('multi_role') }.values.any? { |v| v.size > 1 } && logical.all? { |c| c.match?(/\A(?:flowcraft|eino)/) }
             check(!doc.fetch('steps').any? { |s| s['peer_stream'] }, "#{file}: equivalent quality responses must run in parallel")
             doc.fetch('steps').select { |s| s['parallel'] }.each do |group|
               group['parallel'].group_by { |s| s['client'].split('__', 2).last }.each_value do |children|
-                check(children.map { |s| s['client'].split('__').first }.sort == logical.sort, "#{file}: each active Workspace group must exercise every implementation")
+                variants = children.map { |s| s['client'].include?('multi_role') }.uniq
+                expected = logical.select { |c| variants.include?(c.include?('multi_role')) }
+                check(children.map { |s| s['client'].split('__').first }.sort == expected.sort, "#{file}: each active Workspace group must exercise every implementation")
               end
             end
           end
@@ -194,7 +198,10 @@ module GiztestLayout
             doc['steps'].each do |step|
               active << step['client'] if step.dig('rpc', 'method') == 'server.run.status'
               next unless step['parallel'] || step['peer_stream']
-              check(active.uniq.sort == doc['clients'].keys.sort, "#{file}: idle Workspace clients need a keepalive before each response group")
+              response_clients = step['parallel'] ? step['parallel'].map { |s| s['client'] } : [step['client']]
+              variant = response_clients.first.include?('multi_role')
+              required_clients = doc['clients'].keys.select { |c| c.include?('multi_role') == variant }
+              check((required_clients - active.uniq).empty?, "#{file}: idle Workspace clients need a keepalive before each response group")
               active = []
             end
           end
@@ -208,12 +215,14 @@ module GiztestLayout
           declared = manifest.fetch('implementations').keys.map { |i| i.tr('-', '_') }.sort
           check(implementations.sort == declared, "#{file}: missing or unexpected implementation clients")
         end
-        baseline = implementations.first
-        implementations.drop(1).each do |impl|
-          vars = [baseline, impl].map do |i|
-            normalize(doc.fetch('variables').select { |k, _| k.start_with?(i + '_') }, i)
+        implementations.group_by { |i| i.include?('multi_role') }.each_value do |variant|
+          baseline = variant.first
+          variant.drop(1).each do |impl|
+            vars = [baseline, impl].map do |i|
+              normalize(doc.fetch('variables').select { |k, _| k.start_with?(i + '_') && k.include?('_multi_role_') == i.include?('multi_role') }, i)
+            end
+            check(vars[0] == vars[1], "#{file}: #{baseline}/#{impl} variable definitions differ")
           end
-          check(vars[0] == vars[1], "#{file}: #{baseline}/#{impl} variable definitions differ")
         end
         %w[steps finally].each do |section|
           if implementations.size > 1
@@ -224,6 +233,7 @@ module GiztestLayout
             end
           end
           implementations.combination(2).each do |baseline, impl|
+            next if baseline.include?('multi_role') != impl.include?('multi_role')
             left, right = [baseline, impl].map { |i| sequence(doc, i, section) }
             if capabilities.fetch(baseline) != capabilities.fetch(impl)
               left, right = [left, right].map { |seq| without_audio(seq) }
@@ -233,7 +243,7 @@ module GiztestLayout
           end
         end
         if file.end_with?('/murder-mystery.giztest.yaml')
-          check(implementations == ['flowcraft'] && !JSON.generate(doc).include?('eino-murder-mystery'), "#{file}: murder-mystery must be Flowcraft only")
+          check(implementations.sort == %w[flowcraft flowcraft_multi_role] && !JSON.generate(doc).include?('eino-murder-mystery'), "#{file}: murder-mystery must be Flowcraft only")
         end
       end
       puts "validated #{tier}: #{files.size} files and implementation parity"
@@ -263,13 +273,13 @@ module GiztestLayout
         check(t['tier'] == t['file'].split('/')[2] && t['implementations'].sort == m.fetch('implementations').keys.sort, "#{file}: implementation registration mismatch")
       end
     end
-    Dir['workflows/{story,adventure}-*/{flowcraft,eino}.yaml'].each do |file|
+    Dir['workflows/{story,adventure}-*/{flowcraft,eino}.multi-role.yaml'].each do |file|
       source = File.read(file)
       check(source.include?('旁白叙述与角色第一人称台词分段'), "#{file}: missing continuous dialogue contract")
       check(!source.include?('每轮只由一人发声'), "#{file}: obsolete single-speaker contract")
     end
     %w[flowcraft eino].each do |engine|
-      source = File.read("workflows/adventure-history/#{engine}.yaml")
+      source = File.read("workflows/adventure-history/#{engine}.multi-role.yaml")
       check(source.include?('情境重现声明不替代角色自述'), "history #{engine}: reenactment boundary missing")
       check(source.include?('正文第一句必须逐字是‘来到'), "history #{engine}: missing explicit scene opening")
     end

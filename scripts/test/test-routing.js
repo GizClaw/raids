@@ -21,7 +21,7 @@ for (const {raid, data, sources} of suites) {
       }
       const vars = structuredClone({input: c.input, [cfg.state_var || 'story_state']: state,
         [cfg.memory_var || 'scenario_memory']: c.memory || '', ...(c.vars || {})});
-      const context = {board: {getVar: k => vars[k], setVar: (k, v) => {vars[k] = v;}}};
+      const context = {board: {MAIN_CHANNEL: 'main', channel: () => c.history || [], getVar: k => vars[k], setVar: (k, v) => {vars[k] = v;}}};
       vm.runInNewContext(sources.flowcraft, context, {timeout: 1000, filename: `${raid}/${cfg.node || 'control-story'}`});
       // Normalize VM values before strict comparisons across realms.
       const result = JSON.parse(JSON.stringify(vars));

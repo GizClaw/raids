@@ -51,5 +51,6 @@ if $PROGRAM_NAME == __FILE__
   abort 'no Eino workflows found' if files.empty?
   errors = files.flat_map { |file| EinoScriptOutputs.errors(YAML.load_file(file), file) }
   abort errors.join("\n") unless errors.empty?
-  puts "validated script return outputs in #{files.size} Eino workflows"
+  multi_role = files.count { |file| file.end_with?('.multi-role.yaml') }
+  puts "validated script return outputs in #{files.size} Eino workflows (#{files.size - multi_role} original, #{multi_role} multi-role)"
 end

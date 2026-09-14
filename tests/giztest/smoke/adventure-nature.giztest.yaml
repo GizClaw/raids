@@ -13,6 +13,14 @@ clients:
     identity: ephemeral
     connection: webrtc
     access_point: "${endpoint}"
+  flowcraft_multi_role:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  eino_multi_role:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
 variables:
   endpoint:
     direction: input
@@ -45,6 +53,22 @@ variables:
     max_bytes: 16777216
     media_type: audio/ogg
     codec: opus
+  flowcraft_multi_role_text_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_multi_role_text_workspace:
+    direction: input
+    type: string
+    generate: token
+  flowcraft_multi_role_realtime_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_multi_role_realtime_workspace:
+    direction: input
+    type: string
+    generate: token
 repeat: 1
 timeout: 12m
 steps:
@@ -140,158 +164,150 @@ steps:
           conversation:
             initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
           input: WORKSPACE_INPUT_MODE_REALTIME
-- id: probe_narrator
-  timeout: 4m
-  parallel:
-  - id: flowcraft_probe_narrator
-    client: flowcraft
-    peer_stream:
-      mode: text
-      input: 请介绍这个体验，并从指定中文开场开始。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_probe_narrator
-    client: eino
-    peer_stream:
-      mode: text
-      input: 请介绍这个体验，并从指定中文开场开始。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
+- timeout: 2m
+  id: flowcraft_probe_narrator
+  client: flowcraft
+  peer_stream:
+    mode: text
+    input: 请介绍这个体验，并从指定中文开场开始。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
   expect:
-    "/flowcraft_probe_narrator/text_eos":
+    "/text_eos":
       equals: true
-    "/flowcraft_probe_narrator/audio_eos":
+    "/audio_eos":
       equals: true
-    "/flowcraft_probe_narrator/audio_bytes":
+    "/audio_bytes":
       minimum: 1
-    "/flowcraft_probe_narrator/first_text_ms":
+    "/first_text_ms":
       maximum: 6000
-    "/flowcraft_probe_narrator/first_audio_ms":
+    "/first_audio_ms":
       maximum: 90000
-    "/flowcraft_probe_narrator/text":
+    "/text":
       not_contains:
       - "###"
       - "```"
       - "- "
       - "* "
-      - "【"
-      - "】"
+      - 旁白说
+      - 旁白：
       contains_all:
       - 今天我们是森林小侦探，要在森林步道上找植物和小动物留下的线索。你可以选一个线索先看，想不出来时就说“给我一个提示”。
       - 森林步道旁出现了叶片上的水珠和一串小脚印，你想先观察哪一个线索？
-      min_length: 300
-      max_length: 600
+      min_length: 15
+      max_length: 240
       non_empty: true
-    "/flowcraft_probe_narrator/events":
+    "/events":
       non_empty: true
-    "/flowcraft_probe_narrator/text_eos_ms":
-      maximum: 180000
-    "/flowcraft_probe_narrator/audio_eos_ms":
-      maximum: 180000
-    "/flowcraft_probe_narrator/audio_integrity/streams":
-      equals: 1
-    "/flowcraft_probe_narrator/audio_integrity/max_active":
-      equals: 1
-    "/flowcraft_probe_narrator/audio_integrity/open":
-      equals: 0
-    "/flowcraft_probe_narrator/audio_integrity/violations":
-      equals: 0
-    "/flowcraft_probe_narrator/audio_pacing/minimum_buffer_ms":
-      minimum: 0
-    "/flowcraft_probe_narrator/audio_pacing/underruns":
-      equals: 0
-    "/eino_probe_narrator/text_eos":
-      equals: true
-    "/eino_probe_narrator/audio_eos":
-      equals: true
-    "/eino_probe_narrator/audio_bytes":
-      minimum: 1
-    "/eino_probe_narrator/first_text_ms":
-      maximum: 6000
-    "/eino_probe_narrator/first_audio_ms":
+    "/text_eos_ms":
       maximum: 90000
-    "/eino_probe_narrator/text":
+    "/audio_eos_ms":
+      maximum: 90000
+    "/audio_integrity/streams":
+      minimum: 1
+    "/audio_integrity/max_active":
+      equals: 1
+    "/audio_integrity/open":
+      equals: 0
+    "/audio_integrity/violations":
+      equals: 0
+    "/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/audio_pacing/underruns":
+      equals: 0
+- timeout: 2m
+  id: eino_probe_narrator
+  client: eino
+  peer_stream:
+    mode: text
+    input: 请介绍这个体验，并从指定中文开场开始。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
       not_contains:
       - "###"
       - "```"
       - "- "
       - "* "
-      - "【"
-      - "】"
+      - 旁白说
+      - 旁白：
       contains_all:
       - 今天我们是森林小侦探，要在森林步道上找植物和小动物留下的线索。你可以选一个线索先看，想不出来时就说“给我一个提示”。
       - 森林步道旁出现了叶片上的水珠和一串小脚印，你想先观察哪一个线索？
-      min_length: 300
-      max_length: 600
+      min_length: 15
+      max_length: 240
       non_empty: true
-    "/eino_probe_narrator/events":
+    "/events":
       non_empty: true
-    "/eino_probe_narrator/text_eos_ms":
-      maximum: 180000
-    "/eino_probe_narrator/audio_eos_ms":
-      maximum: 180000
-    "/eino_probe_narrator/audio_integrity/streams":
+    "/text_eos_ms":
+      maximum: 90000
+    "/audio_eos_ms":
+      maximum: 90000
+    "/audio_integrity/streams":
+      minimum: 1
+    "/audio_integrity/max_active":
       equals: 1
-    "/eino_probe_narrator/audio_integrity/max_active":
-      equals: 1
-    "/eino_probe_narrator/audio_integrity/open":
+    "/audio_integrity/open":
       equals: 0
-    "/eino_probe_narrator/audio_integrity/violations":
+    "/audio_integrity/violations":
       equals: 0
-    "/eino_probe_narrator/audio_pacing/minimum_buffer_ms":
+    "/audio_pacing/minimum_buffer_ms":
       minimum: 0
-    "/eino_probe_narrator/audio_pacing/underruns":
+    "/audio_pacing/underruns":
       equals: 0
-- id: probe_narrator_first_response
-  timeout: 15s
-  parallel:
-  - id: flowcraft_probe_narrator_first_response
-    client: flowcraft
-    peer_stream:
-      mode: text
-      input: 开始体验。
-      completion: first_response
-      first_text_timeout: 2s
-      first_audio_timeout: 3s
-      require_text: true
-      require_audio: true
-  - id: eino_probe_narrator_first_response
-    client: eino
-    peer_stream:
-      mode: text
-      input: 开始体验。
-      completion: first_response
-      first_text_timeout: 2s
-      first_audio_timeout: 3s
-      require_text: true
-      require_audio: true
+- timeout: 15s
+  id: flowcraft_probe_narrator_first_response
+  client: flowcraft
+  peer_stream:
+    mode: text
+    input: 开始体验。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
   expect:
-    "/flowcraft_probe_narrator_first_response/events":
+    "/events":
       non_empty: true
-    "/flowcraft_probe_narrator_first_response/audio_bytes":
+    "/audio_bytes":
       minimum: 1
-    "/flowcraft_probe_narrator_first_response/first_text_ms":
+    "/first_text_ms":
       maximum: 2000
-    "/flowcraft_probe_narrator_first_response/first_audio_ms":
+    "/first_audio_ms":
       maximum: 3000
-    "/eino_probe_narrator_first_response/events":
+- timeout: 15s
+  id: eino_probe_narrator_first_response
+  client: eino
+  peer_stream:
+    mode: text
+    input: 开始体验。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
       non_empty: true
-    "/eino_probe_narrator_first_response/audio_bytes":
+    "/audio_bytes":
       minimum: 1
-    "/eino_probe_narrator_first_response/first_text_ms":
+    "/first_text_ms":
       maximum: 2000
-    "/eino_probe_narrator_first_response/first_audio_ms":
+    "/first_audio_ms":
       maximum: 3000
-    "/flowcraft_probe_narrator_first_response/text":
-      not_contains:
-      - "【"
-      - "】"
-    "/eino_probe_narrator_first_response/text":
-      not_contains:
-      - "【"
-      - "】"
 - id: flowcraft_probe_narrator_stop_probe
   client: flowcraft
   rpc:
@@ -314,96 +330,6 @@ steps:
   rpc:
     method: server.run.workspace.reload
     request: {}
-- id: continuous_story
-  timeout: 4m
-  parallel:
-  - id: flowcraft_continuous_story
-    client: flowcraft
-    peer_stream:
-      mode: text
-      input: 继续当前场景，旁白和在场角色交替讲述一个新变化，最后让我选择。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_continuous_story
-    client: eino
-    peer_stream:
-      mode: text
-      input: 继续当前场景，旁白和在场角色交替讲述一个新变化，最后让我选择。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  expect:
-    "/flowcraft_continuous_story/text_eos":
-      equals: true
-    "/flowcraft_continuous_story/audio_eos":
-      equals: true
-    "/flowcraft_continuous_story/audio_bytes":
-      minimum: 1
-    "/flowcraft_continuous_story/first_text_ms":
-      maximum: 6000
-    "/flowcraft_continuous_story/first_audio_ms":
-      maximum: 90000
-    "/flowcraft_continuous_story/text":
-      non_empty: true
-      not_contains:
-      - "【"
-      - "】"
-      min_length: 300
-      max_length: 600
-    "/flowcraft_continuous_story/events":
-      non_empty: true
-    "/flowcraft_continuous_story/text_eos_ms":
-      maximum: 180000
-    "/flowcraft_continuous_story/audio_eos_ms":
-      maximum: 180000
-    "/flowcraft_continuous_story/audio_integrity/streams":
-      equals: 1
-    "/flowcraft_continuous_story/audio_integrity/max_active":
-      equals: 1
-    "/flowcraft_continuous_story/audio_integrity/open":
-      equals: 0
-    "/flowcraft_continuous_story/audio_integrity/violations":
-      equals: 0
-    "/flowcraft_continuous_story/audio_pacing/minimum_buffer_ms":
-      minimum: 0
-    "/flowcraft_continuous_story/audio_pacing/underruns":
-      equals: 0
-    "/eino_continuous_story/text_eos":
-      equals: true
-    "/eino_continuous_story/audio_eos":
-      equals: true
-    "/eino_continuous_story/audio_bytes":
-      minimum: 1
-    "/eino_continuous_story/first_text_ms":
-      maximum: 6000
-    "/eino_continuous_story/first_audio_ms":
-      maximum: 90000
-    "/eino_continuous_story/text":
-      non_empty: true
-      not_contains:
-      - "【"
-      - "】"
-      min_length: 300
-      max_length: 600
-    "/eino_continuous_story/events":
-      non_empty: true
-    "/eino_continuous_story/text_eos_ms":
-      maximum: 180000
-    "/eino_continuous_story/audio_eos_ms":
-      maximum: 180000
-    "/eino_continuous_story/audio_integrity/streams":
-      equals: 1
-    "/eino_continuous_story/audio_integrity/max_active":
-      equals: 1
-    "/eino_continuous_story/audio_integrity/open":
-      equals: 0
-    "/eino_continuous_story/audio_integrity/violations":
-      equals: 0
-    "/eino_continuous_story/audio_pacing/minimum_buffer_ms":
-      minimum: 0
-    "/eino_continuous_story/audio_pacing/underruns":
-      equals: 0
 - id: flowcraft_select_realtime
   client: flowcraft
   rpc:
@@ -434,137 +360,119 @@ steps:
     method: server.speech.synthesize
     request:
       voice_name: giztest-input.zh
-      text: 请开始一段连续故事，让旁白和在场角色交替讲述，最后告诉我可以选择做什么。
+      text: 请简短介绍当前故事，并告诉我现在可以做什么。
       accepted_content_types:
       - audio/ogg
     cache: run
   save_as: input_audio
-- id: realtime_roundtrip
-  timeout: 4m
-  parallel:
-  - id: flowcraft_realtime_roundtrip
-    client: flowcraft
-    peer_stream:
-      mode: realtime
-      input: "${input_audio}"
-      pacing: 20ms
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_realtime_roundtrip
-    client: eino
-    peer_stream:
-      mode: realtime
-      input: "${input_audio}"
-      pacing: 20ms
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
+- timeout: 2m
+  id: flowcraft_realtime_roundtrip
+  client: flowcraft
+  peer_stream:
+    mode: realtime
+    input: "${input_audio}"
+    pacing: 20ms
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
   expect:
-    "/flowcraft_realtime_roundtrip/events":
+    "/events":
       non_empty: true
-    "/flowcraft_realtime_roundtrip/text":
+    "/text":
       non_empty: true
-      not_contains:
-      - "【"
-      - "】"
-      min_length: 300
-      max_length: 600
-    "/flowcraft_realtime_roundtrip/text_eos":
+    "/text_eos":
       equals: true
-    "/flowcraft_realtime_roundtrip/audio_bytes":
+    "/audio_bytes":
       minimum: 1
-    "/flowcraft_realtime_roundtrip/audio_eos":
+    "/audio_eos":
       equals: true
-    "/flowcraft_realtime_roundtrip/audio_integrity/streams":
-      equals: 1
-    "/flowcraft_realtime_roundtrip/audio_integrity/max_active":
-      equals: 1
-    "/flowcraft_realtime_roundtrip/audio_integrity/open":
-      equals: 0
-    "/flowcraft_realtime_roundtrip/audio_integrity/violations":
-      equals: 0
-    "/flowcraft_realtime_roundtrip/audio_pacing/minimum_buffer_ms":
-      minimum: 0
-    "/flowcraft_realtime_roundtrip/audio_pacing/underruns":
-      equals: 0
-    "/eino_realtime_roundtrip/events":
-      non_empty: true
-    "/eino_realtime_roundtrip/text":
-      non_empty: true
-      not_contains:
-      - "【"
-      - "】"
-      min_length: 300
-      max_length: 600
-    "/eino_realtime_roundtrip/text_eos":
-      equals: true
-    "/eino_realtime_roundtrip/audio_bytes":
+    "/audio_integrity/streams":
       minimum: 1
-    "/eino_realtime_roundtrip/audio_eos":
-      equals: true
-    "/eino_realtime_roundtrip/audio_integrity/streams":
+    "/audio_integrity/max_active":
       equals: 1
-    "/eino_realtime_roundtrip/audio_integrity/max_active":
-      equals: 1
-    "/eino_realtime_roundtrip/audio_integrity/open":
+    "/audio_integrity/open":
       equals: 0
-    "/eino_realtime_roundtrip/audio_integrity/violations":
+    "/audio_integrity/violations":
       equals: 0
-    "/eino_realtime_roundtrip/audio_pacing/minimum_buffer_ms":
+    "/audio_pacing/minimum_buffer_ms":
       minimum: 0
-    "/eino_realtime_roundtrip/audio_pacing/underruns":
+    "/audio_pacing/underruns":
       equals: 0
-- id: realtime_roundtrip_first_response
-  timeout: 15s
-  parallel:
-  - id: flowcraft_realtime_roundtrip_first_response
-    client: flowcraft
-    peer_stream:
-      mode: realtime
-      input: "${input_audio}"
-      pacing: 20ms
-      require_text: true
-      require_audio: true
-      completion: first_response
-      first_text_timeout: 2s
-      first_audio_timeout: 3s
-  - id: eino_realtime_roundtrip_first_response
-    client: eino
-    peer_stream:
-      mode: realtime
-      input: "${input_audio}"
-      pacing: 20ms
-      require_text: true
-      require_audio: true
-      completion: first_response
-      first_text_timeout: 2s
-      first_audio_timeout: 3s
+- timeout: 2m
+  id: eino_realtime_roundtrip
+  client: eino
+  peer_stream:
+    mode: realtime
+    input: "${input_audio}"
+    pacing: 20ms
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
   expect:
-    "/flowcraft_realtime_roundtrip_first_response/events":
+    "/events":
       non_empty: true
-    "/flowcraft_realtime_roundtrip_first_response/audio_bytes":
-      minimum: 1
-    "/flowcraft_realtime_roundtrip_first_response/first_text_ms":
-      maximum: 2000
-    "/flowcraft_realtime_roundtrip_first_response/first_audio_ms":
-      maximum: 3000
-    "/eino_realtime_roundtrip_first_response/events":
+    "/text":
       non_empty: true
-    "/eino_realtime_roundtrip_first_response/audio_bytes":
+    "/text_eos":
+      equals: true
+    "/audio_bytes":
       minimum: 1
-    "/eino_realtime_roundtrip_first_response/first_text_ms":
+    "/audio_eos":
+      equals: true
+    "/audio_integrity/streams":
+      minimum: 1
+    "/audio_integrity/max_active":
+      equals: 1
+    "/audio_integrity/open":
+      equals: 0
+    "/audio_integrity/violations":
+      equals: 0
+    "/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/audio_pacing/underruns":
+      equals: 0
+- timeout: 15s
+  id: flowcraft_realtime_roundtrip_first_response
+  client: flowcraft
+  peer_stream:
+    mode: realtime
+    input: "${input_audio}"
+    pacing: 20ms
+    require_text: true
+    require_audio: true
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
       maximum: 2000
-    "/eino_realtime_roundtrip_first_response/first_audio_ms":
+    "/first_audio_ms":
       maximum: 3000
-    "/flowcraft_realtime_roundtrip_first_response/text":
-      not_contains:
-      - "【"
-      - "】"
-    "/eino_realtime_roundtrip_first_response/text":
-      not_contains:
-      - "【"
-      - "】"
+- timeout: 15s
+  id: eino_realtime_roundtrip_first_response
+  client: eino
+  peer_stream:
+    mode: realtime
+    input: "${input_audio}"
+    pacing: 20ms
+    require_text: true
+    require_audio: true
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
 - id: flowcraft_realtime_roundtrip_stop_probe
   client: flowcraft
   rpc:
@@ -583,6 +491,534 @@ steps:
     request: {}
 - id: eino_realtime_roundtrip_resume_workspace
   client: eino
+  timeout: 2m
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+- id: flowcraft_multi_role_register
+  client: flowcraft_multi_role
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: eino_multi_role_register
+  client: eino_multi_role
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: flowcraft_multi_role_create_text
+  client: flowcraft_multi_role
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${flowcraft_multi_role_text_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-adventure-nature-multi-role
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: flowcraft_multi_role_select_text
+  client: flowcraft_multi_role
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${flowcraft_multi_role_text_workspace}"
+- id: flowcraft_multi_role_warmup_text
+  client: flowcraft_multi_role
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: eino_multi_role_create_text
+  client: eino_multi_role
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_multi_role_text_workspace}"
+      collection: raidtest-targets
+      workflow_name: eino-adventure-nature-multi-role
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_multi_role_select_text
+  client: eino_multi_role
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${eino_multi_role_text_workspace}"
+- id: eino_multi_role_warmup_text
+  client: eino_multi_role
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: flowcraft_multi_role_create_realtime
+  client: flowcraft_multi_role
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${flowcraft_multi_role_realtime_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-adventure-nature-multi-role
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_REALTIME
+- id: eino_multi_role_create_realtime
+  client: eino_multi_role
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_multi_role_realtime_workspace}"
+      collection: raidtest-targets
+      workflow_name: eino-adventure-nature-multi-role
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_REALTIME
+- id: probe_narrator
+  timeout: 4m
+  parallel:
+  - id: flowcraft_multi_role_probe_narrator
+    client: flowcraft_multi_role
+    peer_stream:
+      mode: text
+      input: 请介绍这个体验，并从指定中文开场开始。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: eino_multi_role_probe_narrator
+    client: eino_multi_role
+    peer_stream:
+      mode: text
+      input: 请介绍这个体验，并从指定中文开场开始。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_multi_role_probe_narrator/text_eos":
+      equals: true
+    "/flowcraft_multi_role_probe_narrator/audio_eos":
+      equals: true
+    "/flowcraft_multi_role_probe_narrator/audio_bytes":
+      minimum: 1
+    "/flowcraft_multi_role_probe_narrator/first_text_ms":
+      maximum: 6000
+    "/flowcraft_multi_role_probe_narrator/first_audio_ms":
+      maximum: 90000
+    "/flowcraft_multi_role_probe_narrator/text":
+      not_contains:
+      - "###"
+      - "```"
+      - "- "
+      - "* "
+      - "【"
+      - "】"
+      contains_all:
+      - 今天我们是森林小侦探，要在森林步道上找植物和小动物留下的线索。你可以选一个线索先看，想不出来时就说“给我一个提示”。
+      - 森林步道旁出现了叶片上的水珠和一串小脚印，你想先观察哪一个线索？
+      min_length: 300
+      max_length: 600
+      non_empty: true
+    "/flowcraft_multi_role_probe_narrator/events":
+      non_empty: true
+    "/flowcraft_multi_role_probe_narrator/text_eos_ms":
+      maximum: 180000
+    "/flowcraft_multi_role_probe_narrator/audio_eos_ms":
+      maximum: 180000
+    "/flowcraft_multi_role_probe_narrator/audio_integrity/streams":
+      equals: 1
+    "/flowcraft_multi_role_probe_narrator/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_multi_role_probe_narrator/audio_integrity/open":
+      equals: 0
+    "/flowcraft_multi_role_probe_narrator/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_multi_role_probe_narrator/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/flowcraft_multi_role_probe_narrator/audio_pacing/underruns":
+      equals: 0
+    "/eino_multi_role_probe_narrator/text_eos":
+      equals: true
+    "/eino_multi_role_probe_narrator/audio_eos":
+      equals: true
+    "/eino_multi_role_probe_narrator/audio_bytes":
+      minimum: 1
+    "/eino_multi_role_probe_narrator/first_text_ms":
+      maximum: 6000
+    "/eino_multi_role_probe_narrator/first_audio_ms":
+      maximum: 90000
+    "/eino_multi_role_probe_narrator/text":
+      not_contains:
+      - "###"
+      - "```"
+      - "- "
+      - "* "
+      - "【"
+      - "】"
+      contains_all:
+      - 今天我们是森林小侦探，要在森林步道上找植物和小动物留下的线索。你可以选一个线索先看，想不出来时就说“给我一个提示”。
+      - 森林步道旁出现了叶片上的水珠和一串小脚印，你想先观察哪一个线索？
+      min_length: 300
+      max_length: 600
+      non_empty: true
+    "/eino_multi_role_probe_narrator/events":
+      non_empty: true
+    "/eino_multi_role_probe_narrator/text_eos_ms":
+      maximum: 180000
+    "/eino_multi_role_probe_narrator/audio_eos_ms":
+      maximum: 180000
+    "/eino_multi_role_probe_narrator/audio_integrity/streams":
+      equals: 1
+    "/eino_multi_role_probe_narrator/audio_integrity/max_active":
+      equals: 1
+    "/eino_multi_role_probe_narrator/audio_integrity/open":
+      equals: 0
+    "/eino_multi_role_probe_narrator/audio_integrity/violations":
+      equals: 0
+    "/eino_multi_role_probe_narrator/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/eino_multi_role_probe_narrator/audio_pacing/underruns":
+      equals: 0
+- id: probe_narrator_first_response
+  timeout: 15s
+  parallel:
+  - id: flowcraft_multi_role_probe_narrator_first_response
+    client: flowcraft_multi_role
+    peer_stream:
+      mode: text
+      input: 开始体验。
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+      require_text: true
+      require_audio: true
+  - id: eino_multi_role_probe_narrator_first_response
+    client: eino_multi_role
+    peer_stream:
+      mode: text
+      input: 开始体验。
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_multi_role_probe_narrator_first_response/events":
+      non_empty: true
+    "/flowcraft_multi_role_probe_narrator_first_response/audio_bytes":
+      minimum: 1
+    "/flowcraft_multi_role_probe_narrator_first_response/first_text_ms":
+      maximum: 2000
+    "/flowcraft_multi_role_probe_narrator_first_response/first_audio_ms":
+      maximum: 3000
+    "/eino_multi_role_probe_narrator_first_response/events":
+      non_empty: true
+    "/eino_multi_role_probe_narrator_first_response/audio_bytes":
+      minimum: 1
+    "/eino_multi_role_probe_narrator_first_response/first_text_ms":
+      maximum: 2000
+    "/eino_multi_role_probe_narrator_first_response/first_audio_ms":
+      maximum: 3000
+    "/flowcraft_multi_role_probe_narrator_first_response/text":
+      not_contains:
+      - "【"
+      - "】"
+    "/eino_multi_role_probe_narrator_first_response/text":
+      not_contains:
+      - "【"
+      - "】"
+- id: flowcraft_multi_role_probe_narrator_stop_probe
+  client: flowcraft_multi_role
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: flowcraft_multi_role_probe_narrator_resume_workspace
+  client: flowcraft_multi_role
+  timeout: 2m
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+- id: eino_multi_role_probe_narrator_stop_probe
+  client: eino_multi_role
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: eino_multi_role_probe_narrator_resume_workspace
+  client: eino_multi_role
+  timeout: 2m
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+- id: continuous_story
+  timeout: 4m
+  parallel:
+  - id: flowcraft_multi_role_continuous_story
+    client: flowcraft_multi_role
+    peer_stream:
+      mode: text
+      input: 继续当前场景，旁白和在场角色交替讲述一个新变化，最后让我选择。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: eino_multi_role_continuous_story
+    client: eino_multi_role
+    peer_stream:
+      mode: text
+      input: 继续当前场景，旁白和在场角色交替讲述一个新变化，最后让我选择。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_multi_role_continuous_story/text_eos":
+      equals: true
+    "/flowcraft_multi_role_continuous_story/audio_eos":
+      equals: true
+    "/flowcraft_multi_role_continuous_story/audio_bytes":
+      minimum: 1
+    "/flowcraft_multi_role_continuous_story/first_text_ms":
+      maximum: 6000
+    "/flowcraft_multi_role_continuous_story/first_audio_ms":
+      maximum: 90000
+    "/flowcraft_multi_role_continuous_story/text":
+      non_empty: true
+      not_contains:
+      - "【"
+      - "】"
+      min_length: 300
+      max_length: 600
+    "/flowcraft_multi_role_continuous_story/events":
+      non_empty: true
+    "/flowcraft_multi_role_continuous_story/text_eos_ms":
+      maximum: 180000
+    "/flowcraft_multi_role_continuous_story/audio_eos_ms":
+      maximum: 180000
+    "/flowcraft_multi_role_continuous_story/audio_integrity/streams":
+      equals: 1
+    "/flowcraft_multi_role_continuous_story/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_multi_role_continuous_story/audio_integrity/open":
+      equals: 0
+    "/flowcraft_multi_role_continuous_story/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_multi_role_continuous_story/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/flowcraft_multi_role_continuous_story/audio_pacing/underruns":
+      equals: 0
+    "/eino_multi_role_continuous_story/text_eos":
+      equals: true
+    "/eino_multi_role_continuous_story/audio_eos":
+      equals: true
+    "/eino_multi_role_continuous_story/audio_bytes":
+      minimum: 1
+    "/eino_multi_role_continuous_story/first_text_ms":
+      maximum: 6000
+    "/eino_multi_role_continuous_story/first_audio_ms":
+      maximum: 90000
+    "/eino_multi_role_continuous_story/text":
+      non_empty: true
+      not_contains:
+      - "【"
+      - "】"
+      min_length: 300
+      max_length: 600
+    "/eino_multi_role_continuous_story/events":
+      non_empty: true
+    "/eino_multi_role_continuous_story/text_eos_ms":
+      maximum: 180000
+    "/eino_multi_role_continuous_story/audio_eos_ms":
+      maximum: 180000
+    "/eino_multi_role_continuous_story/audio_integrity/streams":
+      equals: 1
+    "/eino_multi_role_continuous_story/audio_integrity/max_active":
+      equals: 1
+    "/eino_multi_role_continuous_story/audio_integrity/open":
+      equals: 0
+    "/eino_multi_role_continuous_story/audio_integrity/violations":
+      equals: 0
+    "/eino_multi_role_continuous_story/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/eino_multi_role_continuous_story/audio_pacing/underruns":
+      equals: 0
+- id: flowcraft_multi_role_select_realtime
+  client: flowcraft_multi_role
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${flowcraft_multi_role_realtime_workspace}"
+- id: flowcraft_multi_role_warmup_realtime
+  client: flowcraft_multi_role
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: eino_multi_role_select_realtime
+  client: eino_multi_role
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${eino_multi_role_realtime_workspace}"
+- id: eino_multi_role_warmup_realtime
+  client: eino_multi_role
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: realtime_roundtrip
+  timeout: 4m
+  parallel:
+  - id: flowcraft_multi_role_realtime_roundtrip
+    client: flowcraft_multi_role
+    peer_stream:
+      mode: realtime
+      input: "${input_audio}"
+      pacing: 20ms
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: eino_multi_role_realtime_roundtrip
+    client: eino_multi_role
+    peer_stream:
+      mode: realtime
+      input: "${input_audio}"
+      pacing: 20ms
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  expect:
+    "/flowcraft_multi_role_realtime_roundtrip/events":
+      non_empty: true
+    "/flowcraft_multi_role_realtime_roundtrip/text":
+      non_empty: true
+      not_contains:
+      - "【"
+      - "】"
+      min_length: 300
+      max_length: 600
+    "/flowcraft_multi_role_realtime_roundtrip/text_eos":
+      equals: true
+    "/flowcraft_multi_role_realtime_roundtrip/audio_bytes":
+      minimum: 1
+    "/flowcraft_multi_role_realtime_roundtrip/audio_eos":
+      equals: true
+    "/flowcraft_multi_role_realtime_roundtrip/audio_integrity/streams":
+      equals: 1
+    "/flowcraft_multi_role_realtime_roundtrip/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_multi_role_realtime_roundtrip/audio_integrity/open":
+      equals: 0
+    "/flowcraft_multi_role_realtime_roundtrip/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_multi_role_realtime_roundtrip/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/flowcraft_multi_role_realtime_roundtrip/audio_pacing/underruns":
+      equals: 0
+    "/eino_multi_role_realtime_roundtrip/events":
+      non_empty: true
+    "/eino_multi_role_realtime_roundtrip/text":
+      non_empty: true
+      not_contains:
+      - "【"
+      - "】"
+      min_length: 300
+      max_length: 600
+    "/eino_multi_role_realtime_roundtrip/text_eos":
+      equals: true
+    "/eino_multi_role_realtime_roundtrip/audio_bytes":
+      minimum: 1
+    "/eino_multi_role_realtime_roundtrip/audio_eos":
+      equals: true
+    "/eino_multi_role_realtime_roundtrip/audio_integrity/streams":
+      equals: 1
+    "/eino_multi_role_realtime_roundtrip/audio_integrity/max_active":
+      equals: 1
+    "/eino_multi_role_realtime_roundtrip/audio_integrity/open":
+      equals: 0
+    "/eino_multi_role_realtime_roundtrip/audio_integrity/violations":
+      equals: 0
+    "/eino_multi_role_realtime_roundtrip/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/eino_multi_role_realtime_roundtrip/audio_pacing/underruns":
+      equals: 0
+- id: realtime_roundtrip_first_response
+  timeout: 15s
+  parallel:
+  - id: flowcraft_multi_role_realtime_roundtrip_first_response
+    client: flowcraft_multi_role
+    peer_stream:
+      mode: realtime
+      input: "${input_audio}"
+      pacing: 20ms
+      require_text: true
+      require_audio: true
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+  - id: eino_multi_role_realtime_roundtrip_first_response
+    client: eino_multi_role
+    peer_stream:
+      mode: realtime
+      input: "${input_audio}"
+      pacing: 20ms
+      require_text: true
+      require_audio: true
+      completion: first_response
+      first_text_timeout: 2s
+      first_audio_timeout: 3s
+  expect:
+    "/flowcraft_multi_role_realtime_roundtrip_first_response/events":
+      non_empty: true
+    "/flowcraft_multi_role_realtime_roundtrip_first_response/audio_bytes":
+      minimum: 1
+    "/flowcraft_multi_role_realtime_roundtrip_first_response/first_text_ms":
+      maximum: 2000
+    "/flowcraft_multi_role_realtime_roundtrip_first_response/first_audio_ms":
+      maximum: 3000
+    "/eino_multi_role_realtime_roundtrip_first_response/events":
+      non_empty: true
+    "/eino_multi_role_realtime_roundtrip_first_response/audio_bytes":
+      minimum: 1
+    "/eino_multi_role_realtime_roundtrip_first_response/first_text_ms":
+      maximum: 2000
+    "/eino_multi_role_realtime_roundtrip_first_response/first_audio_ms":
+      maximum: 3000
+    "/flowcraft_multi_role_realtime_roundtrip_first_response/text":
+      not_contains:
+      - "【"
+      - "】"
+    "/eino_multi_role_realtime_roundtrip_first_response/text":
+      not_contains:
+      - "【"
+      - "】"
+- id: flowcraft_multi_role_realtime_roundtrip_stop_probe
+  client: flowcraft_multi_role
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: flowcraft_multi_role_realtime_roundtrip_resume_workspace
+  client: flowcraft_multi_role
+  timeout: 2m
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+- id: eino_multi_role_realtime_roundtrip_stop_probe
+  client: eino_multi_role
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: eino_multi_role_realtime_roundtrip_resume_workspace
+  client: eino_multi_role
   timeout: 2m
   rpc:
     method: server.run.workspace.reload
@@ -629,6 +1065,50 @@ finally:
     request: {}
 - id: eino_delete_peer
   client: eino
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: flowcraft_multi_role_stop_run
+  client: flowcraft_multi_role
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: eino_multi_role_stop_run
+  client: eino_multi_role
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: flowcraft_multi_role_delete_text
+  client: flowcraft_multi_role
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${flowcraft_multi_role_text_workspace}"
+- id: eino_multi_role_delete_text
+  client: eino_multi_role
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${eino_multi_role_text_workspace}"
+- id: flowcraft_multi_role_delete_realtime
+  client: flowcraft_multi_role
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${flowcraft_multi_role_realtime_workspace}"
+- id: eino_multi_role_delete_realtime
+  client: eino_multi_role
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${eino_multi_role_realtime_workspace}"
+- id: flowcraft_multi_role_delete_peer
+  client: flowcraft_multi_role
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: eino_multi_role_delete_peer
+  client: eino_multi_role
   rpc:
     method: server.peer.delete
     request: {}

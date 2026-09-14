@@ -27,13 +27,27 @@ class GiztestCapabilityTest < Minitest::Test
     rejected { GiztestLayout.check_workspace_order({'steps' => [select, create]}, 'fixture') }
   end
 
+  def test_variant_ownership_does_not_overlap
+    %w[flowcraft eino].each do |engine|
+      multi = "#{engine}_multi_role"
+      [engine, multi].each do |implementation|
+        peer = {'id'=>"#{implementation}_response", 'client'=>"#{implementation}__transitions"}
+        verdict = {'id'=>"#{implementation}_emit_verdict", 'output'=>{'variable'=>"#{implementation}_verdict"}}
+        [peer, verdict].each do |step|
+          assert GiztestLayout.owns?(step, implementation)
+          refute GiztestLayout.owns?(step, implementation == engine ? multi : engine)
+        end
+      end
+    end
+  end
+
   def test_live_workflow_capabilities
     Dir['workflows/learn-*/raid.json'].each do |file|
       raid = File.basename(File.dirname(file))
       assert_equal({'flowcraft' => true, 'eino' => false}, GiztestLayout.tts_capabilities(raid))
     end
-    assert_equal({'flowcraft' => true, 'eino_history' => false, 'eino_memory_async' => false,
-                  'eino_memory_recall' => false}, GiztestLayout.tts_capabilities('journey-guide'))
+    assert_equal({'flowcraft' => true, 'eino_history' => true, 'eino_memory_async' => true,
+                  'eino_memory_recall' => true}, GiztestLayout.tts_capabilities('journey-guide'))
   end
 
   def test_non_tts_rejects_every_audio_assertion_family
