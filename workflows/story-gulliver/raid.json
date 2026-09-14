@@ -49,27 +49,7 @@
           "eino-story-gulliver.storyteller": {
             "role": "storyteller",
             "language": "zh-CN",
-            "description": "旁白：连续剧本段落音色"
-          },
-          "eino-story-gulliver.gulliver": {
-            "role": "gulliver",
-            "language": "zh-CN",
-            "description": "格列佛：连续剧本段落音色"
-          },
-          "eino-story-gulliver.local-guide": {
-            "role": "local-guide",
-            "language": "zh-CN",
-            "description": "当地向导：连续剧本段落音色"
-          },
-          "eino-story-gulliver.king": {
-            "role": "king",
-            "language": "zh-CN",
-            "description": "国王：连续剧本段落音色"
-          },
-          "eino-story-gulliver.glumdalclitch": {
-            "role": "glumdalclitch",
-            "language": "zh-CN",
-            "description": "葛兰达克利赤：连续剧本段落音色"
+            "description": "Storyteller voice"
           }
         }
       }
@@ -98,24 +78,111 @@
           "flowcraft-story-gulliver.storyteller": {
             "role": "storyteller",
             "language": "zh-CN",
-            "description": "旁白：连续剧本段落音色"
+            "description": "Storyteller voice"
           },
           "flowcraft-story-gulliver.gulliver": {
             "role": "gulliver",
             "language": "zh-CN",
-            "description": "格列佛：连续剧本段落音色"
+            "description": "格列佛 character voice"
           },
           "flowcraft-story-gulliver.local-guide": {
             "role": "local-guide",
             "language": "zh-CN",
+            "description": "当地向导 character voice"
+          }
+        }
+      }
+    },
+    "eino-multi-role": {
+      "file": "eino.multi-role.yaml",
+      "workflow_id": "eino-story-gulliver-multi-role",
+      "driver": "eino",
+      "input": [
+        "text",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "eino-story-gulliver-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "eino-story-gulliver-mr.storyteller": {
+            "role": "storyteller",
+            "language": "zh-CN",
+            "description": "旁白：连续剧本段落音色"
+          },
+          "eino-story-gulliver-mr.gulliver": {
+            "role": "gulliver",
+            "language": "zh-CN",
+            "description": "格列佛：连续剧本段落音色"
+          },
+          "eino-story-gulliver-mr.local-guide": {
+            "role": "local-guide",
+            "language": "zh-CN",
             "description": "当地向导：连续剧本段落音色"
           },
-          "flowcraft-story-gulliver.king": {
+          "eino-story-gulliver-mr.king": {
             "role": "king",
             "language": "zh-CN",
             "description": "国王：连续剧本段落音色"
           },
-          "flowcraft-story-gulliver.glumdalclitch": {
+          "eino-story-gulliver-mr.glumdalclitch": {
+            "role": "glumdalclitch",
+            "language": "zh-CN",
+            "description": "葛兰达克利赤：连续剧本段落音色"
+          }
+        }
+      }
+    },
+    "flowcraft-multi-role": {
+      "file": "flowcraft.multi-role.yaml",
+      "workflow_id": "flowcraft-story-gulliver-multi-role",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-story-gulliver-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-story-gulliver-mr.storyteller": {
+            "role": "storyteller",
+            "language": "zh-CN",
+            "description": "旁白：连续剧本段落音色"
+          },
+          "flowcraft-story-gulliver-mr.gulliver": {
+            "role": "gulliver",
+            "language": "zh-CN",
+            "description": "格列佛：连续剧本段落音色"
+          },
+          "flowcraft-story-gulliver-mr.local-guide": {
+            "role": "local-guide",
+            "language": "zh-CN",
+            "description": "当地向导：连续剧本段落音色"
+          },
+          "flowcraft-story-gulliver-mr.king": {
+            "role": "king",
+            "language": "zh-CN",
+            "description": "国王：连续剧本段落音色"
+          },
+          "flowcraft-story-gulliver-mr.glumdalclitch": {
             "role": "glumdalclitch",
             "language": "zh-CN",
             "description": "葛兰达克利赤：连续剧本段落音色"
@@ -176,7 +243,9 @@
       "tier": "smoke",
       "implementations": [
         "eino",
-        "flowcraft"
+        "flowcraft",
+        "eino-multi-role",
+        "flowcraft-multi-role"
       ]
     },
     {
@@ -184,7 +253,9 @@
       "tier": "quality",
       "implementations": [
         "eino",
-        "flowcraft"
+        "flowcraft",
+        "eino-multi-role",
+        "flowcraft-multi-role"
       ]
     },
     {
@@ -192,7 +263,9 @@
       "tier": "soak",
       "implementations": [
         "eino",
-        "flowcraft"
+        "flowcraft",
+        "eino-multi-role",
+        "flowcraft-multi-role"
       ]
     }
   ]

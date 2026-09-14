@@ -49,22 +49,7 @@
           "eino-adventure-space-encyclopedia.adventure-guide": {
             "role": "adventure-guide",
             "language": "zh-CN",
-            "description": "旁白：连续剧本段落音色"
-          },
-          "eino-adventure-space-encyclopedia.astronomer": {
-            "role": "astronomer",
-            "language": "zh-CN",
-            "description": "天文学家：连续剧本段落音色"
-          },
-          "eino-adventure-space-encyclopedia.robot": {
-            "role": "robot",
-            "language": "zh-CN",
-            "description": "资料机器人：连续剧本段落音色"
-          },
-          "eino-adventure-space-encyclopedia.navigator": {
-            "role": "navigator",
-            "language": "zh-CN",
-            "description": "星图领航员：连续剧本段落音色"
+            "description": "Adventure guide voice"
           }
         }
       }
@@ -93,19 +78,91 @@
           "flowcraft-adventure-space-encyclopedia.adventure-guide": {
             "role": "adventure-guide",
             "language": "zh-CN",
+            "description": "Adventure guide voice"
+          }
+        }
+      }
+    },
+    "eino-multi-role": {
+      "file": "eino.multi-role.yaml",
+      "workflow_id": "eino-adventure-space-encyclopedia-multi-role",
+      "driver": "eino",
+      "input": [
+        "text",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "adventure"
+      },
+      "parameters": {
+        "models": {
+          "eino-adventure-space-encyclopedia-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "eino-adventure-space-encyclopedia-mr.adventure-guide": {
+            "role": "adventure-guide",
+            "language": "zh-CN",
             "description": "旁白：连续剧本段落音色"
           },
-          "flowcraft-adventure-space-encyclopedia.astronomer": {
+          "eino-adventure-space-encyclopedia-mr.astronomer": {
             "role": "astronomer",
             "language": "zh-CN",
             "description": "天文学家：连续剧本段落音色"
           },
-          "flowcraft-adventure-space-encyclopedia.robot": {
+          "eino-adventure-space-encyclopedia-mr.robot": {
             "role": "robot",
             "language": "zh-CN",
             "description": "资料机器人：连续剧本段落音色"
           },
-          "flowcraft-adventure-space-encyclopedia.navigator": {
+          "eino-adventure-space-encyclopedia-mr.navigator": {
+            "role": "navigator",
+            "language": "zh-CN",
+            "description": "星图领航员：连续剧本段落音色"
+          }
+        }
+      }
+    },
+    "flowcraft-multi-role": {
+      "file": "flowcraft.multi-role.yaml",
+      "workflow_id": "flowcraft-adventure-space-encyclopedia-multi-role",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "adventure"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-adventure-space-encyclopedia-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-adventure-space-encyclopedia-mr.adventure-guide": {
+            "role": "adventure-guide",
+            "language": "zh-CN",
+            "description": "旁白：连续剧本段落音色"
+          },
+          "flowcraft-adventure-space-encyclopedia-mr.astronomer": {
+            "role": "astronomer",
+            "language": "zh-CN",
+            "description": "天文学家：连续剧本段落音色"
+          },
+          "flowcraft-adventure-space-encyclopedia-mr.robot": {
+            "role": "robot",
+            "language": "zh-CN",
+            "description": "资料机器人：连续剧本段落音色"
+          },
+          "flowcraft-adventure-space-encyclopedia-mr.navigator": {
             "role": "navigator",
             "language": "zh-CN",
             "description": "星图领航员：连续剧本段落音色"
@@ -146,7 +203,9 @@
       "tier": "smoke",
       "implementations": [
         "eino",
-        "flowcraft"
+        "flowcraft",
+        "eino-multi-role",
+        "flowcraft-multi-role"
       ]
     },
     {
@@ -154,7 +213,9 @@
       "tier": "quality",
       "implementations": [
         "eino",
-        "flowcraft"
+        "flowcraft",
+        "eino-multi-role",
+        "flowcraft-multi-role"
       ]
     },
     {
@@ -162,7 +223,9 @@
       "tier": "soak",
       "implementations": [
         "eino",
-        "flowcraft"
+        "flowcraft",
+        "eino-multi-role",
+        "flowcraft-multi-role"
       ]
     }
   ]

@@ -49,27 +49,7 @@
           "eino-story-shanhaijing.storyteller": {
             "role": "storyteller",
             "language": "zh-CN",
-            "description": "旁白：连续剧本段落音色"
-          },
-          "eino-story-shanhaijing.young-explorer": {
-            "role": "young-explorer",
-            "language": "zh-CN",
-            "description": "少年探险者：连续剧本段落音色"
-          },
-          "eino-story-shanhaijing.spirit-guide": {
-            "role": "spirit-guide",
-            "language": "zh-CN",
-            "description": "灵兽向导：连续剧本段落音色"
-          },
-          "eino-story-shanhaijing.jingwei": {
-            "role": "jingwei",
-            "language": "zh-CN",
-            "description": "精卫：连续剧本段落音色"
-          },
-          "eino-story-shanhaijing.kuafu": {
-            "role": "kuafu",
-            "language": "zh-CN",
-            "description": "夸父：连续剧本段落音色"
+            "description": "Storyteller voice"
           }
         }
       }
@@ -98,24 +78,111 @@
           "flowcraft-story-shanhaijing.storyteller": {
             "role": "storyteller",
             "language": "zh-CN",
-            "description": "旁白：连续剧本段落音色"
+            "description": "Storyteller voice"
           },
           "flowcraft-story-shanhaijing.young-explorer": {
             "role": "young-explorer",
             "language": "zh-CN",
-            "description": "少年探险者：连续剧本段落音色"
+            "description": "少年探险者 character voice"
           },
           "flowcraft-story-shanhaijing.spirit-guide": {
             "role": "spirit-guide",
             "language": "zh-CN",
+            "description": "灵兽向导 character voice"
+          }
+        }
+      }
+    },
+    "eino-multi-role": {
+      "file": "eino.multi-role.yaml",
+      "workflow_id": "eino-story-shanhaijing-multi-role",
+      "driver": "eino",
+      "input": [
+        "text",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "eino-story-shanhaijing-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "eino-story-shanhaijing-mr.storyteller": {
+            "role": "storyteller",
+            "language": "zh-CN",
+            "description": "旁白：连续剧本段落音色"
+          },
+          "eino-story-shanhaijing-mr.young-explorer": {
+            "role": "young-explorer",
+            "language": "zh-CN",
+            "description": "少年探险者：连续剧本段落音色"
+          },
+          "eino-story-shanhaijing-mr.spirit-guide": {
+            "role": "spirit-guide",
+            "language": "zh-CN",
             "description": "灵兽向导：连续剧本段落音色"
           },
-          "flowcraft-story-shanhaijing.jingwei": {
+          "eino-story-shanhaijing-mr.jingwei": {
             "role": "jingwei",
             "language": "zh-CN",
             "description": "精卫：连续剧本段落音色"
           },
-          "flowcraft-story-shanhaijing.kuafu": {
+          "eino-story-shanhaijing-mr.kuafu": {
+            "role": "kuafu",
+            "language": "zh-CN",
+            "description": "夸父：连续剧本段落音色"
+          }
+        }
+      }
+    },
+    "flowcraft-multi-role": {
+      "file": "flowcraft.multi-role.yaml",
+      "workflow_id": "flowcraft-story-shanhaijing-multi-role",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-story-shanhaijing-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-story-shanhaijing-mr.storyteller": {
+            "role": "storyteller",
+            "language": "zh-CN",
+            "description": "旁白：连续剧本段落音色"
+          },
+          "flowcraft-story-shanhaijing-mr.young-explorer": {
+            "role": "young-explorer",
+            "language": "zh-CN",
+            "description": "少年探险者：连续剧本段落音色"
+          },
+          "flowcraft-story-shanhaijing-mr.spirit-guide": {
+            "role": "spirit-guide",
+            "language": "zh-CN",
+            "description": "灵兽向导：连续剧本段落音色"
+          },
+          "flowcraft-story-shanhaijing-mr.jingwei": {
+            "role": "jingwei",
+            "language": "zh-CN",
+            "description": "精卫：连续剧本段落音色"
+          },
+          "flowcraft-story-shanhaijing-mr.kuafu": {
             "role": "kuafu",
             "language": "zh-CN",
             "description": "夸父：连续剧本段落音色"
@@ -176,7 +243,9 @@
       "tier": "smoke",
       "implementations": [
         "eino",
-        "flowcraft"
+        "flowcraft",
+        "eino-multi-role",
+        "flowcraft-multi-role"
       ]
     },
     {
@@ -184,7 +253,9 @@
       "tier": "quality",
       "implementations": [
         "eino",
-        "flowcraft"
+        "flowcraft",
+        "eino-multi-role",
+        "flowcraft-multi-role"
       ]
     },
     {
@@ -192,7 +263,9 @@
       "tier": "soak",
       "implementations": [
         "eino",
-        "flowcraft"
+        "flowcraft",
+        "eino-multi-role",
+        "flowcraft-multi-role"
       ]
     }
   ]

@@ -49,22 +49,7 @@
           "eino-adventure-monster-maze.adventure-guide": {
             "role": "adventure-guide",
             "language": "zh-CN",
-            "description": "旁白：连续剧本段落音色"
-          },
-          "eino-adventure-monster-maze.little-monster": {
-            "role": "little-monster",
-            "language": "zh-CN",
-            "description": "小怪兽：连续剧本段落音色"
-          },
-          "eino-adventure-monster-maze.gatekeeper": {
-            "role": "gatekeeper",
-            "language": "zh-CN",
-            "description": "守门怪兽：连续剧本段落音色"
-          },
-          "eino-adventure-monster-maze.riddle-spirit": {
-            "role": "riddle-spirit",
-            "language": "zh-CN",
-            "description": "谜题精灵：连续剧本段落音色"
+            "description": "Adventure guide voice"
           }
         }
       }
@@ -93,19 +78,91 @@
           "flowcraft-adventure-monster-maze.adventure-guide": {
             "role": "adventure-guide",
             "language": "zh-CN",
+            "description": "Adventure guide voice"
+          }
+        }
+      }
+    },
+    "eino-multi-role": {
+      "file": "eino.multi-role.yaml",
+      "workflow_id": "eino-adventure-monster-maze-multi-role",
+      "driver": "eino",
+      "input": [
+        "text",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "adventure"
+      },
+      "parameters": {
+        "models": {
+          "eino-adventure-monster-maze-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "eino-adventure-monster-maze-mr.adventure-guide": {
+            "role": "adventure-guide",
+            "language": "zh-CN",
             "description": "旁白：连续剧本段落音色"
           },
-          "flowcraft-adventure-monster-maze.little-monster": {
+          "eino-adventure-monster-maze-mr.little-monster": {
             "role": "little-monster",
             "language": "zh-CN",
             "description": "小怪兽：连续剧本段落音色"
           },
-          "flowcraft-adventure-monster-maze.gatekeeper": {
+          "eino-adventure-monster-maze-mr.gatekeeper": {
             "role": "gatekeeper",
             "language": "zh-CN",
             "description": "守门怪兽：连续剧本段落音色"
           },
-          "flowcraft-adventure-monster-maze.riddle-spirit": {
+          "eino-adventure-monster-maze-mr.riddle-spirit": {
+            "role": "riddle-spirit",
+            "language": "zh-CN",
+            "description": "谜题精灵：连续剧本段落音色"
+          }
+        }
+      }
+    },
+    "flowcraft-multi-role": {
+      "file": "flowcraft.multi-role.yaml",
+      "workflow_id": "flowcraft-adventure-monster-maze-multi-role",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "adventure"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-adventure-monster-maze-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-adventure-monster-maze-mr.adventure-guide": {
+            "role": "adventure-guide",
+            "language": "zh-CN",
+            "description": "旁白：连续剧本段落音色"
+          },
+          "flowcraft-adventure-monster-maze-mr.little-monster": {
+            "role": "little-monster",
+            "language": "zh-CN",
+            "description": "小怪兽：连续剧本段落音色"
+          },
+          "flowcraft-adventure-monster-maze-mr.gatekeeper": {
+            "role": "gatekeeper",
+            "language": "zh-CN",
+            "description": "守门怪兽：连续剧本段落音色"
+          },
+          "flowcraft-adventure-monster-maze-mr.riddle-spirit": {
             "role": "riddle-spirit",
             "language": "zh-CN",
             "description": "谜题精灵：连续剧本段落音色"
@@ -152,7 +209,9 @@
       "tier": "smoke",
       "implementations": [
         "eino",
-        "flowcraft"
+        "flowcraft",
+        "eino-multi-role",
+        "flowcraft-multi-role"
       ]
     },
     {
@@ -160,7 +219,9 @@
       "tier": "quality",
       "implementations": [
         "eino",
-        "flowcraft"
+        "flowcraft",
+        "eino-multi-role",
+        "flowcraft-multi-role"
       ]
     },
     {
@@ -168,7 +229,9 @@
       "tier": "soak",
       "implementations": [
         "eino",
-        "flowcraft"
+        "flowcraft",
+        "eino-multi-role",
+        "flowcraft-multi-role"
       ]
     }
   ]

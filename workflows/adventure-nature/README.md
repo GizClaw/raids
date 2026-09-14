@@ -8,21 +8,18 @@ Learn about weather, plants, animals, and ecosystems through observation clues.
 
 | File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |
 | --- | --- | --- | --- | --- | --- |
-| `eino.yaml` | `eino-adventure-nature` | eino | adventure | `eino-adventure-nature.model` | `eino-adventure-nature.adventure-guide`, `eino-adventure-nature.ranger`, `eino-adventure-nature.botanist`, `eino-adventure-nature.tracker` |
-| `flowcraft.yaml` | `flowcraft-adventure-nature` | flowcraft | adventure | `flowcraft-adventure-nature.model` | `flowcraft-adventure-nature.adventure-guide`, `flowcraft-adventure-nature.ranger`, `flowcraft-adventure-nature.botanist`, `flowcraft-adventure-nature.tracker` |
+| `eino.yaml` | `eino-adventure-nature` | eino | adventure | `eino-adventure-nature.model` | `eino-adventure-nature.adventure-guide` |
+| `flowcraft.yaml` | `flowcraft-adventure-nature` | flowcraft | adventure | `flowcraft-adventure-nature.model` | `flowcraft-adventure-nature.adventure-guide` |
 
 Install an implementation into a RuntimeProfile with `raids install adventure-nature --impl <engine> --profile <file> --collection <name> --set model.<alias>=<model id> --set voice.<alias>=<voice id>`; the slots above are the parameters the installer asks for.
 
 
 ## Testing
 
-Tester: `test.yaml` (`adventure-nature-test`, eino), shared by every implementation; one Giztest file per tier covering all implementations:
+Tester: `test.yaml` (`adventure-nature-test`, eino), shared by every implementation; one Giztest scenario per implementation:
 
-- `tests/giztest/smoke/adventure-nature.giztest.yaml`: speed, latency and responsiveness.
-- `tests/giztest/quality/adventure-nature.giztest.yaml`: quality control and safety guardrails.
-- `tests/giztest/soak/adventure-nature.giztest.yaml`: long-turn Tester relay with reload.
-
-Run `make test-e2e TIER=smoke RAID=adventure-nature`. Each tier file covers all implementations; see [the test guide](../../tests/giztest/README.md) for budgets and failure reporting.
+- `tests/giztest/adventure-nature/eino.giztest.yaml` (relay, with reload, timeout 35m)
+- `tests/giztest/adventure-nature/flowcraft.giztest.yaml` (relay, with reload, timeout 35m)
 
 The route has 7 target responses:
 
@@ -42,31 +39,9 @@ Run:
 make test-e2e RAID=adventure-nature PARALLEL=2
 ```
 
-## 多音色角色与场景
+## Multi-role implementations
 
-两引擎每轮使用一个讲述 LLM，按 `speaker_voices` 连续切换段落音色，保留 ASR 和既有音色绑定。
+Continuous multi-character narration is available separately; original implementations remain unchanged.
 
-Voice 由 runtime profile 绑定。
-
-| 角色 key / 中文名（均可点名） | 出场场景与行动 | Voice aliases |
-| --- | --- | --- |
-| `narrator` / 旁白 | 步道观察、叶片观察、足迹观察；只负责叙述、管理和公开信息整理，不代演角色。 | `flowcraft-adventure-nature.adventure-guide` / `eino-adventure-nature.adventure-guide` |
-| `ranger` / 护林员 | 步道观察、足迹观察；检查标记步道和观察距离，解释不留痕迹的理由。 | `flowcraft-adventure-nature.ranger` / `eino-adventure-nature.ranger` |
-| `botanist` / 植物观察员 | 步道观察、叶片观察；比较叶片水珠与叶形，只描述可见特征，不鼓励尝食。 | `flowcraft-adventure-nature.botanist` / `eino-adventure-nature.botanist` |
-| `tracker` / 足迹观察员 | 足迹观察；比较足迹方向和形状，不凭一个脚印断言物种。 | `flowcraft-adventure-nature.tracker` / `eino-adventure-nature.tracker` |
-
-这是儿童互动冒险的原创配角安排。按场景出场，不让所有人物同时在场；角色不能获知未来场景、私密信息或未验证的结果。每轮仍只发声一次。
-场景1“步道观察”：护林员：检查标记步道和观察距离，解释不留痕迹的理由。；植物观察员：比较叶片水珠与叶形，只描述可见特征，不鼓励尝食。
-场景2“叶片观察”：植物观察员：比较叶片水珠与叶形，只描述可见特征，不鼓励尝食。
-场景3“足迹观察”：护林员：检查标记步道和观察距离，解释不留痕迹的理由。；足迹观察员：比较足迹方向和形状，不凭一个脚印断言物种。
-
-点名示例：`请让护林员说说`；否定示例：`不要让护林员说话，请让植物观察员回应`；多人示例：`请让护林员说说，再让植物观察员回应`。在同一段里增加孩子希望听到的在场角色台词，尊重否定请求。只说 `护林员` 仍算玩家选择，由旁白承接选择后继续多角色讲述。可说 `进入叶片观察` 探索下一地点；转场旁白说明角色的具体行动，未到场角色不能提前回答。旧记忆恢复后从场景重建 `active_roles`，保留原事实和更正。
-
-
-## 连续多角色讲述契约
-
-普通回合（含开场、转场、选择结果）约 300–600 字、1–2 分钟语音，旁白与 2–4 个当前在场角色交替讲述；当前场景只有一位角色时不为凑数增员。每段恰好以一个配置中的 `【旁白】` 或 `【角色中文名】` 开头，标记后直接正文，禁止其他全角方括号标记。AudioDock 剥离标记并串行播放、预取下一段；孩子随时插话后承接新输入。
-
-结尾由旁白给 2–3 个具体选项；选择完成逐字结尾、第四章/终局、安全、仅确认/更正/回忆等已有约束优先，不额外加问题；限定范围和安全回复可短于 300 字。章节、场景、知情边界与旧记忆恢复保持上文契约。音色槽位和 RuntimeProfile 绑定不变，中文标记名与上表角色对应。
-
-Smoke 用连续开场、续讲及 realtime 检查完整 EOS、单流不叠音、零欠载、无残留标记和正文长度，first_response 保持 2s/3s。Quality 保留章节守门、选择结尾、安全逐字用语及原有更正/恢复场景；不再逐角色点名。Soak 保留 16 响应、relay 和 reload 结构，普通段落检查 300–600 字（特殊回复例外）。`routing-cases.json` 执行两引擎控制源码，验证状态与内容约束；已删除无意义的单人选声断言。离线通过不代表真实音色与音频时序已验收，需 GizClaw v0.18.12 部署后 E2E 和试听。
+- `eino.multi-role.yaml`: `eino-adventure-nature-multi-role`; Voice aliases: `eino-adventure-nature-mr.adventure-guide`, `eino-adventure-nature-mr.ranger`, `eino-adventure-nature-mr.botanist`, `eino-adventure-nature-mr.tracker`.
+- `flowcraft.multi-role.yaml`: `flowcraft-adventure-nature-multi-role`; Voice aliases: `flowcraft-adventure-nature-mr.adventure-guide`, `flowcraft-adventure-nature-mr.ranger`, `flowcraft-adventure-nature-mr.botanist`, `flowcraft-adventure-nature-mr.tracker`.

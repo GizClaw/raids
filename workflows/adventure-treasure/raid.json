@@ -49,22 +49,7 @@
           "eino-adventure-treasure.adventure-guide": {
             "role": "adventure-guide",
             "language": "zh-CN",
-            "description": "旁白：连续剧本段落音色"
-          },
-          "eino-adventure-treasure.cartographer": {
-            "role": "cartographer",
-            "language": "zh-CN",
-            "description": "地图员：连续剧本段落音色"
-          },
-          "eino-adventure-treasure.codebreaker": {
-            "role": "codebreaker",
-            "language": "zh-CN",
-            "description": "解谜伙伴：连续剧本段落音色"
-          },
-          "eino-adventure-treasure.old-sailor": {
-            "role": "old-sailor",
-            "language": "zh-CN",
-            "description": "老水手：连续剧本段落音色"
+            "description": "Adventure guide voice"
           }
         }
       }
@@ -93,19 +78,91 @@
           "flowcraft-adventure-treasure.adventure-guide": {
             "role": "adventure-guide",
             "language": "zh-CN",
+            "description": "Adventure guide voice"
+          }
+        }
+      }
+    },
+    "eino-multi-role": {
+      "file": "eino.multi-role.yaml",
+      "workflow_id": "eino-adventure-treasure-multi-role",
+      "driver": "eino",
+      "input": [
+        "text",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "adventure"
+      },
+      "parameters": {
+        "models": {
+          "eino-adventure-treasure-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "eino-adventure-treasure-mr.adventure-guide": {
+            "role": "adventure-guide",
+            "language": "zh-CN",
             "description": "旁白：连续剧本段落音色"
           },
-          "flowcraft-adventure-treasure.cartographer": {
+          "eino-adventure-treasure-mr.cartographer": {
             "role": "cartographer",
             "language": "zh-CN",
             "description": "地图员：连续剧本段落音色"
           },
-          "flowcraft-adventure-treasure.codebreaker": {
+          "eino-adventure-treasure-mr.codebreaker": {
             "role": "codebreaker",
             "language": "zh-CN",
             "description": "解谜伙伴：连续剧本段落音色"
           },
-          "flowcraft-adventure-treasure.old-sailor": {
+          "eino-adventure-treasure-mr.old-sailor": {
+            "role": "old-sailor",
+            "language": "zh-CN",
+            "description": "老水手：连续剧本段落音色"
+          }
+        }
+      }
+    },
+    "flowcraft-multi-role": {
+      "file": "flowcraft.multi-role.yaml",
+      "workflow_id": "flowcraft-adventure-treasure-multi-role",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "adventure"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-adventure-treasure-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-adventure-treasure-mr.adventure-guide": {
+            "role": "adventure-guide",
+            "language": "zh-CN",
+            "description": "旁白：连续剧本段落音色"
+          },
+          "flowcraft-adventure-treasure-mr.cartographer": {
+            "role": "cartographer",
+            "language": "zh-CN",
+            "description": "地图员：连续剧本段落音色"
+          },
+          "flowcraft-adventure-treasure-mr.codebreaker": {
+            "role": "codebreaker",
+            "language": "zh-CN",
+            "description": "解谜伙伴：连续剧本段落音色"
+          },
+          "flowcraft-adventure-treasure-mr.old-sailor": {
             "role": "old-sailor",
             "language": "zh-CN",
             "description": "老水手：连续剧本段落音色"
@@ -146,7 +203,9 @@
       "tier": "smoke",
       "implementations": [
         "eino",
-        "flowcraft"
+        "flowcraft",
+        "eino-multi-role",
+        "flowcraft-multi-role"
       ]
     },
     {
@@ -154,7 +213,9 @@
       "tier": "quality",
       "implementations": [
         "eino",
-        "flowcraft"
+        "flowcraft",
+        "eino-multi-role",
+        "flowcraft-multi-role"
       ]
     },
     {
@@ -162,7 +223,9 @@
       "tier": "soak",
       "implementations": [
         "eino",
-        "flowcraft"
+        "flowcraft",
+        "eino-multi-role",
+        "flowcraft-multi-role"
       ]
     }
   ]

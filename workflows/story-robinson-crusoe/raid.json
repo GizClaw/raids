@@ -49,22 +49,7 @@
           "eino-story-robinson-crusoe.storyteller": {
             "role": "storyteller",
             "language": "zh-CN",
-            "description": "旁白：连续剧本段落音色"
-          },
-          "eino-story-robinson-crusoe.robinson": {
-            "role": "robinson",
-            "language": "zh-CN",
-            "description": "鲁滨逊：连续剧本段落音色"
-          },
-          "eino-story-robinson-crusoe.friday": {
-            "role": "friday",
-            "language": "zh-CN",
-            "description": "星期五：连续剧本段落音色"
-          },
-          "eino-story-robinson-crusoe.captain": {
-            "role": "captain",
-            "language": "zh-CN",
-            "description": "船长：连续剧本段落音色"
+            "description": "Storyteller voice"
           }
         }
       }
@@ -93,19 +78,101 @@
           "flowcraft-story-robinson-crusoe.storyteller": {
             "role": "storyteller",
             "language": "zh-CN",
-            "description": "旁白：连续剧本段落音色"
+            "description": "Storyteller voice"
           },
           "flowcraft-story-robinson-crusoe.robinson": {
             "role": "robinson",
             "language": "zh-CN",
-            "description": "鲁滨逊：连续剧本段落音色"
+            "description": "鲁滨逊 character voice"
           },
           "flowcraft-story-robinson-crusoe.friday": {
             "role": "friday",
             "language": "zh-CN",
+            "description": "星期五 character voice"
+          }
+        }
+      }
+    },
+    "eino-multi-role": {
+      "file": "eino.multi-role.yaml",
+      "workflow_id": "eino-story-robinson-crusoe-multi-role",
+      "driver": "eino",
+      "input": [
+        "text",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "eino-story-robinson-crusoe-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "eino-story-robinson-crusoe-mr.storyteller": {
+            "role": "storyteller",
+            "language": "zh-CN",
+            "description": "旁白：连续剧本段落音色"
+          },
+          "eino-story-robinson-crusoe-mr.robinson": {
+            "role": "robinson",
+            "language": "zh-CN",
+            "description": "鲁滨逊：连续剧本段落音色"
+          },
+          "eino-story-robinson-crusoe-mr.friday": {
+            "role": "friday",
+            "language": "zh-CN",
             "description": "星期五：连续剧本段落音色"
           },
-          "flowcraft-story-robinson-crusoe.captain": {
+          "eino-story-robinson-crusoe-mr.captain": {
+            "role": "captain",
+            "language": "zh-CN",
+            "description": "船长：连续剧本段落音色"
+          }
+        }
+      }
+    },
+    "flowcraft-multi-role": {
+      "file": "flowcraft.multi-role.yaml",
+      "workflow_id": "flowcraft-story-robinson-crusoe-multi-role",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-story-robinson-crusoe-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-story-robinson-crusoe-mr.storyteller": {
+            "role": "storyteller",
+            "language": "zh-CN",
+            "description": "旁白：连续剧本段落音色"
+          },
+          "flowcraft-story-robinson-crusoe-mr.robinson": {
+            "role": "robinson",
+            "language": "zh-CN",
+            "description": "鲁滨逊：连续剧本段落音色"
+          },
+          "flowcraft-story-robinson-crusoe-mr.friday": {
+            "role": "friday",
+            "language": "zh-CN",
+            "description": "星期五：连续剧本段落音色"
+          },
+          "flowcraft-story-robinson-crusoe-mr.captain": {
             "role": "captain",
             "language": "zh-CN",
             "description": "船长：连续剧本段落音色"
@@ -166,7 +233,9 @@
       "tier": "smoke",
       "implementations": [
         "eino",
-        "flowcraft"
+        "flowcraft",
+        "eino-multi-role",
+        "flowcraft-multi-role"
       ]
     },
     {
@@ -174,7 +243,9 @@
       "tier": "quality",
       "implementations": [
         "eino",
-        "flowcraft"
+        "flowcraft",
+        "eino-multi-role",
+        "flowcraft-multi-role"
       ]
     },
     {
@@ -182,7 +253,9 @@
       "tier": "soak",
       "implementations": [
         "eino",
-        "flowcraft"
+        "flowcraft",
+        "eino-multi-role",
+        "flowcraft-multi-role"
       ]
     }
   ]

@@ -8,21 +8,18 @@ Explore historical settings as a time observer and understand cause and effect.
 
 | File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |
 | --- | --- | --- | --- | --- | --- |
-| `eino.yaml` | `eino-adventure-history` | eino | adventure | `eino-adventure-history.model` | `eino-adventure-history.adventure-guide`, `eino-adventure-history.historian`, `eino-adventure-history.artisan`, `eino-adventure-history.market-guide` |
-| `flowcraft.yaml` | `flowcraft-adventure-history` | flowcraft | adventure | `flowcraft-adventure-history.model` | `flowcraft-adventure-history.adventure-guide`, `flowcraft-adventure-history.historian`, `flowcraft-adventure-history.artisan`, `flowcraft-adventure-history.market-guide` |
+| `eino.yaml` | `eino-adventure-history` | eino | adventure | `eino-adventure-history.model` | `eino-adventure-history.adventure-guide` |
+| `flowcraft.yaml` | `flowcraft-adventure-history` | flowcraft | adventure | `flowcraft-adventure-history.model` | `flowcraft-adventure-history.adventure-guide` |
 
 Install an implementation into a RuntimeProfile with `raids install adventure-history --impl <engine> --profile <file> --collection <name> --set model.<alias>=<model id> --set voice.<alias>=<voice id>`; the slots above are the parameters the installer asks for.
 
 
 ## Testing
 
-Tester: `test.yaml` (`adventure-history-test`, eino), shared by every implementation; one Giztest file per tier covering all implementations:
+Tester: `test.yaml` (`adventure-history-test`, eino), shared by every implementation; one Giztest scenario per implementation:
 
-- `tests/giztest/smoke/adventure-history.giztest.yaml`: speed, latency and responsiveness.
-- `tests/giztest/quality/adventure-history.giztest.yaml`: quality control and safety guardrails.
-- `tests/giztest/soak/adventure-history.giztest.yaml`: long-turn Tester relay with reload.
-
-Run `make test-e2e TIER=smoke RAID=adventure-history`. Each tier file covers all implementations; see [the test guide](../../tests/giztest/README.md) for budgets and failure reporting.
+- `tests/giztest/adventure-history/eino.giztest.yaml` (relay, with reload, timeout 35m)
+- `tests/giztest/adventure-history/flowcraft.giztest.yaml` (relay, with reload, timeout 35m)
 
 The route has 7 target responses:
 
@@ -42,32 +39,9 @@ Run:
 make test-e2e RAID=adventure-history PARALLEL=2
 ```
 
-## 多音色角色与场景
+## Multi-role implementations
 
-两引擎每轮使用一个讲述 LLM，按 `speaker_voices` 连续切换段落音色，保留 ASR 和既有音色绑定。
+Continuous multi-character narration is available separately; original implementations remain unchanged.
 
-Voice 由 runtime profile 绑定。
-
-| 角色 key / 中文名（均可点名） | 出场场景与行动 | Voice aliases |
-| --- | --- | --- |
-| `narrator` / 旁白 | 古城观察、集市观察、工坊观察；只负责叙述、管理和公开信息整理，不代演角色。 | `flowcraft-adventure-history.adventure-guide` / `eino-adventure-history.adventure-guide` |
-| `historian` / 历史讲解员 | 古城观察、集市观察、工坊观察；说明当前时代地点的证据和不确定性，不把改编当史料。 | `flowcraft-adventure-history.historian` / `eino-adventure-history.historian` |
-| `artisan` / 工匠 | 工坊观察；在明确标记的情境重现中介绍日常劳动与工具用途，不提供危险操作。 | `flowcraft-adventure-history.artisan` / `eino-adventure-history.artisan` |
-| `market-guide` / 集市向导 | 集市观察；在情境重现中比较公开可见的交换和生活场景，不改变历史。 | `flowcraft-adventure-history.market-guide` / `eino-adventure-history.market-guide` |
-
-这是儿童互动冒险的原创配角安排。按场景出场，不让所有人物同时在场；角色不能获知未来场景、私密信息或未验证的结果。每轮仍只发声一次。
-场景1“古城观察”：历史讲解员：说明当前时代地点的证据和不确定性，不把改编当史料。
-场景2“集市观察”：历史讲解员：说明当前时代地点的证据和不确定性，不把改编当史料。；集市向导：在情境重现中比较公开可见的交换和生活场景，不改变历史。
-场景3“工坊观察”：历史讲解员：说明当前时代地点的证据和不确定性，不把改编当史料。；工匠：在明确标记的情境重现中介绍日常劳动与工具用途，不提供危险操作。
-人物对白每次先在正文说“这是情境重现”，再用第一人称；这些是虚构演示，不是历史原话。保持时空观察模式，不能改变历史。
-
-点名示例：`请让历史讲解员说说`；否定示例：`不要让历史讲解员说话，请让工匠回应`；多人示例：`请让历史讲解员说说，再让工匠回应`。在同一段里增加孩子希望听到的在场角色台词，尊重否定请求。只说 `历史讲解员` 仍算玩家选择，由旁白承接选择后继续多角色讲述。可说 `进入集市观察` 探索下一地点；转场旁白说明角色的具体行动，未到场角色不能提前回答。旧记忆恢复后从场景重建 `active_roles`，保留原事实和更正。
-
-
-## 连续多角色讲述契约
-
-普通回合（含开场、转场、选择结果）约 300–600 字、1–2 分钟语音，旁白与 2–4 个当前在场角色交替讲述；当前场景只有一位角色时不为凑数增员。每段恰好以一个配置中的 `【旁白】` 或 `【角色中文名】` 开头，标记后直接正文，禁止其他全角方括号标记。AudioDock 剥离标记并串行播放、预取下一段；孩子随时插话后承接新输入。
-
-结尾由旁白给 2–3 个具体选项；选择完成逐字结尾、第四章/终局、安全、仅确认/更正/回忆等已有约束优先，不额外加问题；限定范围和安全回复可短于 300 字。章节、场景、知情边界与旧记忆恢复保持上文契约。音色槽位和 RuntimeProfile 绑定不变，中文标记名与上表角色对应。
-
-Smoke 用连续开场、续讲及 realtime 检查完整 EOS、单流不叠音、零欠载、无残留标记和正文长度，first_response 保持 2s/3s。Quality 保留章节守门、选择结尾、安全逐字用语及原有更正/恢复场景；不再逐角色点名。Soak 保留 16 响应、relay 和 reload 结构，普通段落检查 300–600 字（特殊回复例外）。`routing-cases.json` 执行两引擎控制源码，验证状态与内容约束；已删除无意义的单人选声断言。离线通过不代表真实音色与音频时序已验收，需 GizClaw v0.18.12 部署后 E2E 和试听。
+- `eino.multi-role.yaml`: `eino-adventure-history-multi-role`; Voice aliases: `eino-adventure-history-mr.adventure-guide`, `eino-adventure-history-mr.historian`, `eino-adventure-history-mr.artisan`, `eino-adventure-history-mr.market-guide`.
+- `flowcraft.multi-role.yaml`: `flowcraft-adventure-history-multi-role`; Voice aliases: `flowcraft-adventure-history-mr.adventure-guide`, `flowcraft-adventure-history-mr.historian`, `flowcraft-adventure-history-mr.artisan`, `flowcraft-adventure-history-mr.market-guide`.

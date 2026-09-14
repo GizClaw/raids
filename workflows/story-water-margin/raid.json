@@ -48,27 +48,7 @@
           "eino-story-water-margin.storyteller": {
             "role": "storyteller",
             "language": "zh-CN",
-            "description": "旁白：连续剧本段落音色"
-          },
-          "eino-story-water-margin.lin-chong": {
-            "role": "lin-chong",
-            "language": "zh-CN",
-            "description": "林冲：连续剧本段落音色"
-          },
-          "eino-story-water-margin.lu-zhishen": {
-            "role": "lu-zhishen",
-            "language": "zh-CN",
-            "description": "鲁智深：连续剧本段落音色"
-          },
-          "eino-story-water-margin.wu-song": {
-            "role": "wu-song",
-            "language": "zh-CN",
-            "description": "武松：连续剧本段落音色"
-          },
-          "eino-story-water-margin.song-jiang": {
-            "role": "song-jiang",
-            "language": "zh-CN",
-            "description": "宋江：连续剧本段落音色"
+            "description": "Storyteller voice"
           }
         }
       }
@@ -97,24 +77,111 @@
           "flowcraft-story-water-margin.storyteller": {
             "role": "storyteller",
             "language": "zh-CN",
-            "description": "旁白：连续剧本段落音色"
+            "description": "Storyteller voice"
           },
           "flowcraft-story-water-margin.lin-chong": {
             "role": "lin-chong",
             "language": "zh-CN",
-            "description": "林冲：连续剧本段落音色"
+            "description": "林冲 character voice"
           },
           "flowcraft-story-water-margin.lu-zhishen": {
             "role": "lu-zhishen",
             "language": "zh-CN",
+            "description": "鲁智深 character voice"
+          }
+        }
+      }
+    },
+    "eino-multi-role": {
+      "file": "eino.multi-role.yaml",
+      "workflow_id": "eino-story-water-margin-multi-role",
+      "driver": "eino",
+      "input": [
+        "text",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "eino-story-water-margin-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "eino-story-water-margin-mr.storyteller": {
+            "role": "storyteller",
+            "language": "zh-CN",
+            "description": "旁白：连续剧本段落音色"
+          },
+          "eino-story-water-margin-mr.lin-chong": {
+            "role": "lin-chong",
+            "language": "zh-CN",
+            "description": "林冲：连续剧本段落音色"
+          },
+          "eino-story-water-margin-mr.lu-zhishen": {
+            "role": "lu-zhishen",
+            "language": "zh-CN",
             "description": "鲁智深：连续剧本段落音色"
           },
-          "flowcraft-story-water-margin.wu-song": {
+          "eino-story-water-margin-mr.wu-song": {
             "role": "wu-song",
             "language": "zh-CN",
             "description": "武松：连续剧本段落音色"
           },
-          "flowcraft-story-water-margin.song-jiang": {
+          "eino-story-water-margin-mr.song-jiang": {
+            "role": "song-jiang",
+            "language": "zh-CN",
+            "description": "宋江：连续剧本段落音色"
+          }
+        }
+      }
+    },
+    "flowcraft-multi-role": {
+      "file": "flowcraft.multi-role.yaml",
+      "workflow_id": "flowcraft-story-water-margin-multi-role",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-story-water-margin-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-story-water-margin-mr.storyteller": {
+            "role": "storyteller",
+            "language": "zh-CN",
+            "description": "旁白：连续剧本段落音色"
+          },
+          "flowcraft-story-water-margin-mr.lin-chong": {
+            "role": "lin-chong",
+            "language": "zh-CN",
+            "description": "林冲：连续剧本段落音色"
+          },
+          "flowcraft-story-water-margin-mr.lu-zhishen": {
+            "role": "lu-zhishen",
+            "language": "zh-CN",
+            "description": "鲁智深：连续剧本段落音色"
+          },
+          "flowcraft-story-water-margin-mr.wu-song": {
+            "role": "wu-song",
+            "language": "zh-CN",
+            "description": "武松：连续剧本段落音色"
+          },
+          "flowcraft-story-water-margin-mr.song-jiang": {
             "role": "song-jiang",
             "language": "zh-CN",
             "description": "宋江：连续剧本段落音色"
@@ -175,7 +242,9 @@
       "tier": "smoke",
       "implementations": [
         "eino",
-        "flowcraft"
+        "flowcraft",
+        "eino-multi-role",
+        "flowcraft-multi-role"
       ]
     },
     {
@@ -183,7 +252,9 @@
       "tier": "quality",
       "implementations": [
         "eino",
-        "flowcraft"
+        "flowcraft",
+        "eino-multi-role",
+        "flowcraft-multi-role"
       ]
     },
     {
@@ -191,7 +262,9 @@
       "tier": "soak",
       "implementations": [
         "eino",
-        "flowcraft"
+        "flowcraft",
+        "eino-multi-role",
+        "flowcraft-multi-role"
       ]
     }
   ]

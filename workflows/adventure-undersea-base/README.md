@@ -8,21 +8,18 @@ Manage an undersea research base while exploring ocean ecosystems.
 
 | File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |
 | --- | --- | --- | --- | --- | --- |
-| `eino.yaml` | `eino-adventure-undersea-base` | eino | adventure | `eino-adventure-undersea-base.model` | `eino-adventure-undersea-base.adventure-guide`, `eino-adventure-undersea-base.biologist`, `eino-adventure-undersea-base.engineer`, `eino-adventure-undersea-base.diver` |
-| `flowcraft.yaml` | `flowcraft-adventure-undersea-base` | flowcraft | adventure | `flowcraft-adventure-undersea-base.model` | `flowcraft-adventure-undersea-base.adventure-guide`, `flowcraft-adventure-undersea-base.biologist`, `flowcraft-adventure-undersea-base.engineer`, `flowcraft-adventure-undersea-base.diver` |
+| `eino.yaml` | `eino-adventure-undersea-base` | eino | adventure | `eino-adventure-undersea-base.model` | `eino-adventure-undersea-base.adventure-guide` |
+| `flowcraft.yaml` | `flowcraft-adventure-undersea-base` | flowcraft | adventure | `flowcraft-adventure-undersea-base.model` | `flowcraft-adventure-undersea-base.adventure-guide` |
 
 Install an implementation into a RuntimeProfile with `raids install adventure-undersea-base --impl <engine> --profile <file> --collection <name> --set model.<alias>=<model id> --set voice.<alias>=<voice id>`; the slots above are the parameters the installer asks for.
 
 
 ## Testing
 
-Tester: `test.yaml` (`adventure-undersea-base-test`, eino), shared by every implementation; one Giztest file per tier covering all implementations:
+Tester: `test.yaml` (`adventure-undersea-base-test`, eino), shared by every implementation; one Giztest scenario per implementation:
 
-- `tests/giztest/smoke/adventure-undersea-base.giztest.yaml`: speed, latency and responsiveness.
-- `tests/giztest/quality/adventure-undersea-base.giztest.yaml`: quality control and safety guardrails.
-- `tests/giztest/soak/adventure-undersea-base.giztest.yaml`: long-turn Tester relay with reload.
-
-Run `make test-e2e TIER=smoke RAID=adventure-undersea-base`. Each tier file covers all implementations; see [the test guide](../../tests/giztest/README.md) for budgets and failure reporting.
+- `tests/giztest/adventure-undersea-base/eino.giztest.yaml` (relay, with reload, timeout 35m)
+- `tests/giztest/adventure-undersea-base/flowcraft.giztest.yaml` (relay, with reload, timeout 35m)
 
 The route has 7 target responses:
 
@@ -42,31 +39,9 @@ Run:
 make test-e2e RAID=adventure-undersea-base PARALLEL=2
 ```
 
-## 多音色角色与场景
+## Multi-role implementations
 
-两引擎每轮使用一个讲述 LLM，按 `speaker_voices` 连续切换段落音色，保留 ASR 和既有音色绑定。
+Continuous multi-character narration is available separately; original implementations remain unchanged.
 
-Voice 由 runtime profile 绑定。
-
-| 角色 key / 中文名（均可点名） | 出场场景与行动 | Voice aliases |
-| --- | --- | --- |
-| `narrator` / 旁白 | 观察窗、设备检查、潜航规划；只负责叙述、管理和公开信息整理，不代演角色。 | `flowcraft-adventure-undersea-base.adventure-guide` / `eino-adventure-undersea-base.adventure-guide` |
-| `biologist` / 海洋生物学家 | 观察窗、潜航规划；观察发光浮游生物，区分真实生态知识和虚构基地设定。 | `flowcraft-adventure-undersea-base.biologist` / `eino-adventure-undersea-base.biologist` |
-| `engineer` / 基地工程师 | 设备检查；比较研究用电与生命保障，不虚构能源读数。 | `flowcraft-adventure-undersea-base.engineer` / `eino-adventure-undersea-base.engineer` |
-| `diver` / 潜航员 | 潜航规划；在虚构规划中比较观察距离和保护生态，不提供现实潜水指令。 | `flowcraft-adventure-undersea-base.diver` / `eino-adventure-undersea-base.diver` |
-
-这是儿童互动冒险的原创配角安排。按场景出场，不让所有人物同时在场；角色不能获知未来场景、私密信息或未验证的结果。每轮仍只发声一次。
-场景1“观察窗”：海洋生物学家：观察发光浮游生物，区分真实生态知识和虚构基地设定。
-场景2“设备检查”：基地工程师：比较研究用电与生命保障，不虚构能源读数。
-场景3“潜航规划”：海洋生物学家：观察发光浮游生物，区分真实生态知识和虚构基地设定。；潜航员：在虚构规划中比较观察距离和保护生态，不提供现实潜水指令。
-
-点名示例：`请让海洋生物学家说说`；否定示例：`不要让海洋生物学家说话，请让潜航员回应`；多人示例：`请让海洋生物学家说说，再让潜航员回应`。在同一段里增加孩子希望听到的在场角色台词，尊重否定请求。只说 `海洋生物学家` 仍算玩家选择，由旁白承接选择后继续多角色讲述。可说 `进入设备检查` 探索下一地点；转场旁白说明角色的具体行动，未到场角色不能提前回答。旧记忆恢复后从场景重建 `active_roles`，保留原事实和更正。
-
-
-## 连续多角色讲述契约
-
-普通回合（含开场、转场、选择结果）约 300–600 字、1–2 分钟语音，旁白与 2–4 个当前在场角色交替讲述；当前场景只有一位角色时不为凑数增员。每段恰好以一个配置中的 `【旁白】` 或 `【角色中文名】` 开头，标记后直接正文，禁止其他全角方括号标记。AudioDock 剥离标记并串行播放、预取下一段；孩子随时插话后承接新输入。
-
-结尾由旁白给 2–3 个具体选项；选择完成逐字结尾、第四章/终局、安全、仅确认/更正/回忆等已有约束优先，不额外加问题；限定范围和安全回复可短于 300 字。章节、场景、知情边界与旧记忆恢复保持上文契约。音色槽位和 RuntimeProfile 绑定不变，中文标记名与上表角色对应。
-
-Smoke 用连续开场、续讲及 realtime 检查完整 EOS、单流不叠音、零欠载、无残留标记和正文长度，first_response 保持 2s/3s。Quality 保留章节守门、选择结尾、安全逐字用语及原有更正/恢复场景；不再逐角色点名。Soak 保留 16 响应、relay 和 reload 结构，普通段落检查 300–600 字（特殊回复例外）。`routing-cases.json` 执行两引擎控制源码，验证状态与内容约束；已删除无意义的单人选声断言。离线通过不代表真实音色与音频时序已验收，需 GizClaw v0.18.12 部署后 E2E 和试听。
+- `eino.multi-role.yaml`: `eino-adventure-undersea-base-multi-role`; Voice aliases: `eino-adventure-undersea-base-mr.adventure-guide`, `eino-adventure-undersea-base-mr.biologist`, `eino-adventure-undersea-base-mr.engineer`, `eino-adventure-undersea-base-mr.diver`.
+- `flowcraft.multi-role.yaml`: `flowcraft-adventure-undersea-base-multi-role`; Voice aliases: `flowcraft-adventure-undersea-base-mr.adventure-guide`, `flowcraft-adventure-undersea-base-mr.biologist`, `flowcraft-adventure-undersea-base-mr.engineer`, `flowcraft-adventure-undersea-base-mr.diver`.

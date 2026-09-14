@@ -50,22 +50,7 @@
           "eino-story-journey-center-earth.storyteller": {
             "role": "storyteller",
             "language": "zh-CN",
-            "description": "旁白：连续剧本段落音色"
-          },
-          "eino-story-journey-center-earth.axel": {
-            "role": "axel",
-            "language": "zh-CN",
-            "description": "阿克塞尔：连续剧本段落音色"
-          },
-          "eino-story-journey-center-earth.lidenbrock": {
-            "role": "lidenbrock",
-            "language": "zh-CN",
-            "description": "黎登布洛克：连续剧本段落音色"
-          },
-          "eino-story-journey-center-earth.hans": {
-            "role": "hans",
-            "language": "zh-CN",
-            "description": "汉斯：连续剧本段落音色"
+            "description": "Storyteller voice"
           }
         }
       }
@@ -94,19 +79,101 @@
           "flowcraft-story-journey-center-earth.storyteller": {
             "role": "storyteller",
             "language": "zh-CN",
-            "description": "旁白：连续剧本段落音色"
+            "description": "Storyteller voice"
           },
           "flowcraft-story-journey-center-earth.axel": {
             "role": "axel",
             "language": "zh-CN",
-            "description": "阿克塞尔：连续剧本段落音色"
+            "description": "阿克塞尔 character voice"
           },
           "flowcraft-story-journey-center-earth.lidenbrock": {
             "role": "lidenbrock",
             "language": "zh-CN",
+            "description": "黎登布洛克 character voice"
+          }
+        }
+      }
+    },
+    "eino-multi-role": {
+      "file": "eino.multi-role.yaml",
+      "workflow_id": "eino-story-journey-center-earth-multi-role",
+      "driver": "eino",
+      "input": [
+        "text",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "eino-story-journey-center-earth-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "eino-story-journey-center-earth-mr.storyteller": {
+            "role": "storyteller",
+            "language": "zh-CN",
+            "description": "旁白：连续剧本段落音色"
+          },
+          "eino-story-journey-center-earth-mr.axel": {
+            "role": "axel",
+            "language": "zh-CN",
+            "description": "阿克塞尔：连续剧本段落音色"
+          },
+          "eino-story-journey-center-earth-mr.lidenbrock": {
+            "role": "lidenbrock",
+            "language": "zh-CN",
             "description": "黎登布洛克：连续剧本段落音色"
           },
-          "flowcraft-story-journey-center-earth.hans": {
+          "eino-story-journey-center-earth-mr.hans": {
+            "role": "hans",
+            "language": "zh-CN",
+            "description": "汉斯：连续剧本段落音色"
+          }
+        }
+      }
+    },
+    "flowcraft-multi-role": {
+      "file": "flowcraft.multi-role.yaml",
+      "workflow_id": "flowcraft-story-journey-center-earth-multi-role",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-story-journey-center-earth-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-story-journey-center-earth-mr.storyteller": {
+            "role": "storyteller",
+            "language": "zh-CN",
+            "description": "旁白：连续剧本段落音色"
+          },
+          "flowcraft-story-journey-center-earth-mr.axel": {
+            "role": "axel",
+            "language": "zh-CN",
+            "description": "阿克塞尔：连续剧本段落音色"
+          },
+          "flowcraft-story-journey-center-earth-mr.lidenbrock": {
+            "role": "lidenbrock",
+            "language": "zh-CN",
+            "description": "黎登布洛克：连续剧本段落音色"
+          },
+          "flowcraft-story-journey-center-earth-mr.hans": {
             "role": "hans",
             "language": "zh-CN",
             "description": "汉斯：连续剧本段落音色"
@@ -167,7 +234,9 @@
       "tier": "smoke",
       "implementations": [
         "eino",
-        "flowcraft"
+        "flowcraft",
+        "eino-multi-role",
+        "flowcraft-multi-role"
       ]
     },
     {
@@ -175,7 +244,9 @@
       "tier": "quality",
       "implementations": [
         "eino",
-        "flowcraft"
+        "flowcraft",
+        "eino-multi-role",
+        "flowcraft-multi-role"
       ]
     },
     {
@@ -183,7 +254,9 @@
       "tier": "soak",
       "implementations": [
         "eino",
-        "flowcraft"
+        "flowcraft",
+        "eino-multi-role",
+        "flowcraft-multi-role"
       ]
     }
   ]

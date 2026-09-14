@@ -49,27 +49,7 @@
           "eino-story-chu-han.storyteller": {
             "role": "storyteller",
             "language": "zh-CN",
-            "description": "旁白：连续剧本段落音色"
-          },
-          "eino-story-chu-han.xiang-yu": {
-            "role": "xiang-yu",
-            "language": "zh-CN",
-            "description": "项羽：连续剧本段落音色"
-          },
-          "eino-story-chu-han.empress-lu": {
-            "role": "empress-lu",
-            "language": "zh-CN",
-            "description": "吕后：连续剧本段落音色"
-          },
-          "eino-story-chu-han.liu-bang": {
-            "role": "liu-bang",
-            "language": "zh-CN",
-            "description": "刘邦：连续剧本段落音色"
-          },
-          "eino-story-chu-han.zhang-liang": {
-            "role": "zhang-liang",
-            "language": "zh-CN",
-            "description": "张良：连续剧本段落音色"
+            "description": "Storyteller voice"
           }
         }
       }
@@ -98,24 +78,111 @@
           "flowcraft-story-chu-han.storyteller": {
             "role": "storyteller",
             "language": "zh-CN",
-            "description": "旁白：连续剧本段落音色"
+            "description": "Storyteller voice"
           },
           "flowcraft-story-chu-han.xiang-yu": {
             "role": "xiang-yu",
             "language": "zh-CN",
-            "description": "项羽：连续剧本段落音色"
+            "description": "项羽 character voice"
           },
           "flowcraft-story-chu-han.empress-lu": {
             "role": "empress-lu",
             "language": "zh-CN",
+            "description": "吕后 character voice"
+          }
+        }
+      }
+    },
+    "eino-multi-role": {
+      "file": "eino.multi-role.yaml",
+      "workflow_id": "eino-story-chu-han-multi-role",
+      "driver": "eino",
+      "input": [
+        "text",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "eino-story-chu-han-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "eino-story-chu-han-mr.storyteller": {
+            "role": "storyteller",
+            "language": "zh-CN",
+            "description": "旁白：连续剧本段落音色"
+          },
+          "eino-story-chu-han-mr.xiang-yu": {
+            "role": "xiang-yu",
+            "language": "zh-CN",
+            "description": "项羽：连续剧本段落音色"
+          },
+          "eino-story-chu-han-mr.empress-lu": {
+            "role": "empress-lu",
+            "language": "zh-CN",
             "description": "吕后：连续剧本段落音色"
           },
-          "flowcraft-story-chu-han.liu-bang": {
+          "eino-story-chu-han-mr.liu-bang": {
             "role": "liu-bang",
             "language": "zh-CN",
             "description": "刘邦：连续剧本段落音色"
           },
-          "flowcraft-story-chu-han.zhang-liang": {
+          "eino-story-chu-han-mr.zhang-liang": {
+            "role": "zhang-liang",
+            "language": "zh-CN",
+            "description": "张良：连续剧本段落音色"
+          }
+        }
+      }
+    },
+    "flowcraft-multi-role": {
+      "file": "flowcraft.multi-role.yaml",
+      "workflow_id": "flowcraft-story-chu-han-multi-role",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-story-chu-han-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-story-chu-han-mr.storyteller": {
+            "role": "storyteller",
+            "language": "zh-CN",
+            "description": "旁白：连续剧本段落音色"
+          },
+          "flowcraft-story-chu-han-mr.xiang-yu": {
+            "role": "xiang-yu",
+            "language": "zh-CN",
+            "description": "项羽：连续剧本段落音色"
+          },
+          "flowcraft-story-chu-han-mr.empress-lu": {
+            "role": "empress-lu",
+            "language": "zh-CN",
+            "description": "吕后：连续剧本段落音色"
+          },
+          "flowcraft-story-chu-han-mr.liu-bang": {
+            "role": "liu-bang",
+            "language": "zh-CN",
+            "description": "刘邦：连续剧本段落音色"
+          },
+          "flowcraft-story-chu-han-mr.zhang-liang": {
             "role": "zhang-liang",
             "language": "zh-CN",
             "description": "张良：连续剧本段落音色"
@@ -176,7 +243,9 @@
       "tier": "smoke",
       "implementations": [
         "eino",
-        "flowcraft"
+        "flowcraft",
+        "eino-multi-role",
+        "flowcraft-multi-role"
       ]
     },
     {
@@ -184,7 +253,9 @@
       "tier": "quality",
       "implementations": [
         "eino",
-        "flowcraft"
+        "flowcraft",
+        "eino-multi-role",
+        "flowcraft-multi-role"
       ]
     },
     {
@@ -192,7 +263,9 @@
       "tier": "soak",
       "implementations": [
         "eino",
-        "flowcraft"
+        "flowcraft",
+        "eino-multi-role",
+        "flowcraft-multi-role"
       ]
     }
   ]

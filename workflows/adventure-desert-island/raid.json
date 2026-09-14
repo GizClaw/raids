@@ -48,22 +48,7 @@
           "eino-adventure-desert-island.adventure-guide": {
             "role": "adventure-guide",
             "language": "zh-CN",
-            "description": "旁白：连续剧本段落音色"
-          },
-          "eino-adventure-desert-island.scout": {
-            "role": "scout",
-            "language": "zh-CN",
-            "description": "侦察伙伴：连续剧本段落音色"
-          },
-          "eino-adventure-desert-island.signal-officer": {
-            "role": "signal-officer",
-            "language": "zh-CN",
-            "description": "求救信号员：连续剧本段落音色"
-          },
-          "eino-adventure-desert-island.safety-officer": {
-            "role": "safety-officer",
-            "language": "zh-CN",
-            "description": "安全队员：连续剧本段落音色"
+            "description": "Adventure guide voice"
           }
         }
       }
@@ -92,19 +77,91 @@
           "flowcraft-adventure-desert-island.adventure-guide": {
             "role": "adventure-guide",
             "language": "zh-CN",
+            "description": "Adventure guide voice"
+          }
+        }
+      }
+    },
+    "eino-multi-role": {
+      "file": "eino.multi-role.yaml",
+      "workflow_id": "eino-adventure-desert-island-multi-role",
+      "driver": "eino",
+      "input": [
+        "text",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "adventure"
+      },
+      "parameters": {
+        "models": {
+          "eino-adventure-desert-island-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "eino-adventure-desert-island-mr.adventure-guide": {
+            "role": "adventure-guide",
+            "language": "zh-CN",
             "description": "旁白：连续剧本段落音色"
           },
-          "flowcraft-adventure-desert-island.scout": {
+          "eino-adventure-desert-island-mr.scout": {
             "role": "scout",
             "language": "zh-CN",
             "description": "侦察伙伴：连续剧本段落音色"
           },
-          "flowcraft-adventure-desert-island.signal-officer": {
+          "eino-adventure-desert-island-mr.signal-officer": {
             "role": "signal-officer",
             "language": "zh-CN",
             "description": "求救信号员：连续剧本段落音色"
           },
-          "flowcraft-adventure-desert-island.safety-officer": {
+          "eino-adventure-desert-island-mr.safety-officer": {
+            "role": "safety-officer",
+            "language": "zh-CN",
+            "description": "安全队员：连续剧本段落音色"
+          }
+        }
+      }
+    },
+    "flowcraft-multi-role": {
+      "file": "flowcraft.multi-role.yaml",
+      "workflow_id": "flowcraft-adventure-desert-island-multi-role",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "adventure"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-adventure-desert-island-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-adventure-desert-island-mr.adventure-guide": {
+            "role": "adventure-guide",
+            "language": "zh-CN",
+            "description": "旁白：连续剧本段落音色"
+          },
+          "flowcraft-adventure-desert-island-mr.scout": {
+            "role": "scout",
+            "language": "zh-CN",
+            "description": "侦察伙伴：连续剧本段落音色"
+          },
+          "flowcraft-adventure-desert-island-mr.signal-officer": {
+            "role": "signal-officer",
+            "language": "zh-CN",
+            "description": "求救信号员：连续剧本段落音色"
+          },
+          "flowcraft-adventure-desert-island-mr.safety-officer": {
             "role": "safety-officer",
             "language": "zh-CN",
             "description": "安全队员：连续剧本段落音色"
@@ -145,7 +202,9 @@
       "tier": "smoke",
       "implementations": [
         "eino",
-        "flowcraft"
+        "flowcraft",
+        "eino-multi-role",
+        "flowcraft-multi-role"
       ]
     },
     {
@@ -153,7 +212,9 @@
       "tier": "quality",
       "implementations": [
         "eino",
-        "flowcraft"
+        "flowcraft",
+        "eino-multi-role",
+        "flowcraft-multi-role"
       ]
     },
     {
@@ -161,7 +222,9 @@
       "tier": "soak",
       "implementations": [
         "eino",
-        "flowcraft"
+        "flowcraft",
+        "eino-multi-role",
+        "flowcraft-multi-role"
       ]
     }
   ]

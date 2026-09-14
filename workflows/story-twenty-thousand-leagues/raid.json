@@ -50,27 +50,7 @@
           "eino-story-twenty-thousand-leagues.storyteller": {
             "role": "storyteller",
             "language": "zh-CN",
-            "description": "旁白：连续剧本段落音色"
-          },
-          "eino-story-twenty-thousand-leagues.nemo": {
-            "role": "nemo",
-            "language": "zh-CN",
-            "description": "尼摩：连续剧本段落音色"
-          },
-          "eino-story-twenty-thousand-leagues.aronnax": {
-            "role": "aronnax",
-            "language": "zh-CN",
-            "description": "阿龙纳斯：连续剧本段落音色"
-          },
-          "eino-story-twenty-thousand-leagues.conseil": {
-            "role": "conseil",
-            "language": "zh-CN",
-            "description": "康塞尔：连续剧本段落音色"
-          },
-          "eino-story-twenty-thousand-leagues.ned-land": {
-            "role": "ned-land",
-            "language": "zh-CN",
-            "description": "尼德·兰：连续剧本段落音色"
+            "description": "Storyteller voice"
           }
         }
       }
@@ -99,24 +79,111 @@
           "flowcraft-story-twenty-thousand-leagues.storyteller": {
             "role": "storyteller",
             "language": "zh-CN",
-            "description": "旁白：连续剧本段落音色"
+            "description": "Storyteller voice"
           },
           "flowcraft-story-twenty-thousand-leagues.nemo": {
             "role": "nemo",
             "language": "zh-CN",
-            "description": "尼摩：连续剧本段落音色"
+            "description": "尼摩 character voice"
           },
           "flowcraft-story-twenty-thousand-leagues.aronnax": {
             "role": "aronnax",
             "language": "zh-CN",
+            "description": "阿龙纳斯 character voice"
+          }
+        }
+      }
+    },
+    "eino-multi-role": {
+      "file": "eino.multi-role.yaml",
+      "workflow_id": "eino-story-twenty-thousand-leagues-multi-role",
+      "driver": "eino",
+      "input": [
+        "text",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "eino-story-twenty-thousand-leagues-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "eino-story-twenty-thousand-leagues-mr.storyteller": {
+            "role": "storyteller",
+            "language": "zh-CN",
+            "description": "旁白：连续剧本段落音色"
+          },
+          "eino-story-twenty-thousand-leagues-mr.nemo": {
+            "role": "nemo",
+            "language": "zh-CN",
+            "description": "尼摩：连续剧本段落音色"
+          },
+          "eino-story-twenty-thousand-leagues-mr.aronnax": {
+            "role": "aronnax",
+            "language": "zh-CN",
             "description": "阿龙纳斯：连续剧本段落音色"
           },
-          "flowcraft-story-twenty-thousand-leagues.conseil": {
+          "eino-story-twenty-thousand-leagues-mr.conseil": {
             "role": "conseil",
             "language": "zh-CN",
             "description": "康塞尔：连续剧本段落音色"
           },
-          "flowcraft-story-twenty-thousand-leagues.ned-land": {
+          "eino-story-twenty-thousand-leagues-mr.ned-land": {
+            "role": "ned-land",
+            "language": "zh-CN",
+            "description": "尼德·兰：连续剧本段落音色"
+          }
+        }
+      }
+    },
+    "flowcraft-multi-role": {
+      "file": "flowcraft.multi-role.yaml",
+      "workflow_id": "flowcraft-story-twenty-thousand-leagues-multi-role",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-story-twenty-thousand-leagues-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-story-twenty-thousand-leagues-mr.storyteller": {
+            "role": "storyteller",
+            "language": "zh-CN",
+            "description": "旁白：连续剧本段落音色"
+          },
+          "flowcraft-story-twenty-thousand-leagues-mr.nemo": {
+            "role": "nemo",
+            "language": "zh-CN",
+            "description": "尼摩：连续剧本段落音色"
+          },
+          "flowcraft-story-twenty-thousand-leagues-mr.aronnax": {
+            "role": "aronnax",
+            "language": "zh-CN",
+            "description": "阿龙纳斯：连续剧本段落音色"
+          },
+          "flowcraft-story-twenty-thousand-leagues-mr.conseil": {
+            "role": "conseil",
+            "language": "zh-CN",
+            "description": "康塞尔：连续剧本段落音色"
+          },
+          "flowcraft-story-twenty-thousand-leagues-mr.ned-land": {
             "role": "ned-land",
             "language": "zh-CN",
             "description": "尼德·兰：连续剧本段落音色"
@@ -177,7 +244,9 @@
       "tier": "smoke",
       "implementations": [
         "eino",
-        "flowcraft"
+        "flowcraft",
+        "eino-multi-role",
+        "flowcraft-multi-role"
       ]
     },
     {
@@ -185,7 +254,9 @@
       "tier": "quality",
       "implementations": [
         "eino",
-        "flowcraft"
+        "flowcraft",
+        "eino-multi-role",
+        "flowcraft-multi-role"
       ]
     },
     {
@@ -193,7 +264,9 @@
       "tier": "soak",
       "implementations": [
         "eino",
-        "flowcraft"
+        "flowcraft",
+        "eino-multi-role",
+        "flowcraft-multi-role"
       ]
     }
   ]

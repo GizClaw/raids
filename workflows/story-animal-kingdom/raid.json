@@ -49,27 +49,7 @@
           "eino-story-animal-kingdom.storyteller": {
             "role": "storyteller",
             "language": "zh-CN",
-            "description": "旁白：连续剧本段落音色"
-          },
-          "eino-story-animal-kingdom.explorer": {
-            "role": "explorer",
-            "language": "zh-CN",
-            "description": "探险者：连续剧本段落音色"
-          },
-          "eino-story-animal-kingdom.animal-guide": {
-            "role": "animal-guide",
-            "language": "zh-CN",
-            "description": "动物向导：连续剧本段落音色"
-          },
-          "eino-story-animal-kingdom.elephant": {
-            "role": "elephant",
-            "language": "zh-CN",
-            "description": "大象：连续剧本段落音色"
-          },
-          "eino-story-animal-kingdom.owl": {
-            "role": "owl",
-            "language": "zh-CN",
-            "description": "猫头鹰：连续剧本段落音色"
+            "description": "Storyteller voice"
           }
         }
       }
@@ -98,24 +78,111 @@
           "flowcraft-story-animal-kingdom.storyteller": {
             "role": "storyteller",
             "language": "zh-CN",
-            "description": "旁白：连续剧本段落音色"
+            "description": "Storyteller voice"
           },
           "flowcraft-story-animal-kingdom.explorer": {
             "role": "explorer",
             "language": "zh-CN",
-            "description": "探险者：连续剧本段落音色"
+            "description": "探险者 character voice"
           },
           "flowcraft-story-animal-kingdom.animal-guide": {
             "role": "animal-guide",
             "language": "zh-CN",
+            "description": "动物向导 character voice"
+          }
+        }
+      }
+    },
+    "eino-multi-role": {
+      "file": "eino.multi-role.yaml",
+      "workflow_id": "eino-story-animal-kingdom-multi-role",
+      "driver": "eino",
+      "input": [
+        "text",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "eino-story-animal-kingdom-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "eino-story-animal-kingdom-mr.storyteller": {
+            "role": "storyteller",
+            "language": "zh-CN",
+            "description": "旁白：连续剧本段落音色"
+          },
+          "eino-story-animal-kingdom-mr.explorer": {
+            "role": "explorer",
+            "language": "zh-CN",
+            "description": "探险者：连续剧本段落音色"
+          },
+          "eino-story-animal-kingdom-mr.animal-guide": {
+            "role": "animal-guide",
+            "language": "zh-CN",
             "description": "动物向导：连续剧本段落音色"
           },
-          "flowcraft-story-animal-kingdom.elephant": {
+          "eino-story-animal-kingdom-mr.elephant": {
             "role": "elephant",
             "language": "zh-CN",
             "description": "大象：连续剧本段落音色"
           },
-          "flowcraft-story-animal-kingdom.owl": {
+          "eino-story-animal-kingdom-mr.owl": {
+            "role": "owl",
+            "language": "zh-CN",
+            "description": "猫头鹰：连续剧本段落音色"
+          }
+        }
+      }
+    },
+    "flowcraft-multi-role": {
+      "file": "flowcraft.multi-role.yaml",
+      "workflow_id": "flowcraft-story-animal-kingdom-multi-role",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-story-animal-kingdom-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-story-animal-kingdom-mr.storyteller": {
+            "role": "storyteller",
+            "language": "zh-CN",
+            "description": "旁白：连续剧本段落音色"
+          },
+          "flowcraft-story-animal-kingdom-mr.explorer": {
+            "role": "explorer",
+            "language": "zh-CN",
+            "description": "探险者：连续剧本段落音色"
+          },
+          "flowcraft-story-animal-kingdom-mr.animal-guide": {
+            "role": "animal-guide",
+            "language": "zh-CN",
+            "description": "动物向导：连续剧本段落音色"
+          },
+          "flowcraft-story-animal-kingdom-mr.elephant": {
+            "role": "elephant",
+            "language": "zh-CN",
+            "description": "大象：连续剧本段落音色"
+          },
+          "flowcraft-story-animal-kingdom-mr.owl": {
             "role": "owl",
             "language": "zh-CN",
             "description": "猫头鹰：连续剧本段落音色"
@@ -176,7 +243,9 @@
       "tier": "smoke",
       "implementations": [
         "eino",
-        "flowcraft"
+        "flowcraft",
+        "eino-multi-role",
+        "flowcraft-multi-role"
       ]
     },
     {
@@ -184,7 +253,9 @@
       "tier": "quality",
       "implementations": [
         "eino",
-        "flowcraft"
+        "flowcraft",
+        "eino-multi-role",
+        "flowcraft-multi-role"
       ]
     },
     {
@@ -192,7 +263,9 @@
       "tier": "soak",
       "implementations": [
         "eino",
-        "flowcraft"
+        "flowcraft",
+        "eino-multi-role",
+        "flowcraft-multi-role"
       ]
     }
   ]

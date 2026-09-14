@@ -1,0 +1,267 @@
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata:
+  id: flowcraft-adventure-space-rescue-multi-role
+spec:
+  driver: flowcraft
+  toolkit:
+    tool_ids: []
+  flowcraft:
+    graph:
+      name: adventure-space-rescue
+      entry: prepare-recall-query
+      edges:
+      - from: prepare-recall-query
+        to: recall-progress
+      - from: recall-progress
+        to: route-phase
+      - from: control-narration
+        to: narrate-story
+      - from: narrate-story
+        to: reduce-state
+      - from: reduce-state
+        to: observe-progress
+      - from: observe-progress
+        to: __end__
+      - from: route-phase
+        to: control-narration
+      nodes:
+      - id: control-narration
+        type: script
+        config:
+          source: |
+            const current = String(board.getVar("input") || "").trim().toLowerCase();
+            const memory = String(board.getVar("scenario_memory") || "");
+            let state = Object.assign({schema:"raid_scenario_state_v2", revision:0}, board.getVar("scenario_state") || {});
+            for (const line of memory.split("\n")) {
+              const start = line.indexOf('{"schema":');
+              if (start < 0) continue;
+              try { const old = JSON.parse(line.slice(start));
+                if (old.schema === "raid_scenario_state_v2" && Number(old.revision || 0) > Number(state.revision || 0)) state = Object.assign({},state,old);
+              } catch (_) {}
+            }
+            const roleTable = [{"key": "narrator", "name": "旁白", "aliases": ["旁白", "narrator"], "chapters": [1, 2, 3, 4], "duty": "只负责叙述、管理和公开信息整理，不代演角色。"}, {"key": "captain", "name": "救援队长", "aliases": ["救援队长", "captain"], "chapters": [1, 2, 3], "duty": "比较安全方案并让玩家决定，不自行执行救援。"}, {"key": "engineer", "name": "工程师", "aliases": ["工程师", "engineer"], "chapters": [2, 3], "duty": "解释已确认的能源与备用电池约束，不编造消耗数字。"}, {"key": "navigator", "name": "领航员", "aliases": ["领航员", "navigator"], "chapters": [3], "duty": "比较安全窗口和会合条件，不擅自宣布已经对接。"}, {"key": "medic", "name": "医护员", "aliases": ["医护员", "medic"], "chapters": [3], "duty": "核对已公开人员状态与生命保障，不把牺牲当英雄选择。"}];
+            const scenes = ["恢复通信", "校准能源", "准备安全会合", "执行与收束"];
+            const any = (s, cues) => cues.some(c => s.includes(c));
+            if (!state.voice_scene && state.route) for (let i=0;i<scenes.length;i++) if(String(state.route).includes(scenes[i])) state.voice_scene=i+1;
+            let scene = Number(state.voice_scene || 1);
+            scene = Number.isFinite(scene) ? Math.max(1, Math.min(scenes.length, Math.floor(scene))) : 1;
+            const history = typeof board.channel === "function" ? (board.channel(board.MAIN_CHANNEL) || []) : [];
+            if (!state.voice_scene) {
+              for (const m of history) {
+                if (m.role !== "assistant") continue;
+                const text = m.content || (m.parts || []).filter(p => p.type === "text").map(p => p.text || "").join("");
+                for (let i=0;i<scenes.length;i++) if (text.includes("当前场景："+scenes[i]) || text.includes("来到"+scenes[i])) scene=i+1;
+              }
+            }
+            let transition = false;
+            if (!current || any(current, ["重新开始", "restart", "开场", "介绍这个体验", "开始体验"])) scene=1;
+            else if (any(current,["进入下一章","进入下一场景"])) {scene=Math.min(scenes.length,scene+1); transition=true;}
+            else {
+              for (let i=0;i<scenes.length;i++) if (any(current,["进入"+scenes[i],"前往"+scenes[i],"来到"+scenes[i]])) {scene=i+1;transition=true;}
+              if (any(current,["检查能源", "校准能源"])) {scene=2;transition=true;}
+              if (any(current,["等待安全窗口", "准备会合"])) {scene=3;transition=true;}
+            }
+            let phase = "explore";
+            if (!current || any(current, ["开始太空", "开始救援", "宇宙救援", "空间站"])) phase = "opening";
+            else if (any(current, ["更正", "只确认", "有效坐标", "正确坐标", "有效能量", "只说有效", "回忆", "重连", "隔了几轮", "只说"])) phase = "correction";
+            else if (any(current, ["总结", "救援状态", "任务状态", "回顾", "用一句话说出"])) phase = "conclusion";
+            else if (any(current, ["牺牲", "攻击", "直接炸", "危险", "拒绝", "窗口", "角色分工"])) phase = "challenge";
+            const stageRoute = String(board.getVar("scenario_route") || state.route || "");
+            if (!transition && phase !== "opening") for (let i=0;i<scenes.length;i++) if(stageRoute.includes(scenes[i])) scene=i+1;
+            state.voice_scene=scene;
+            state.active_roles=roleTable.filter(r=>r.chapters.includes(scene)).map(r=>r.key);
+            let managementText=current;
+            for (const role of roleTable) for (const alias of role.aliases) managementText=managementText.split(alias).join("");
+            const management = !current || transition || any(managementText,["更正", "纠正", "修正", "改成", "改变主意", "其实", "安全", "危险", "现实", "模仿", "受伤", "攻击", "牺牲", "停止", "总结", "结论", "回忆", "重连", "恢复", "请记住", "只确认", "只说", "换边", "correction", "correct", "actually", "danger", "safety", "restart", "重新开始", "开场", "介绍这个体验", "进入下一", "下一章", "下一场景", "转场", "开始体验", "从头开始", "第一章", "第1章", "开始冒险", "start", "begin", "介绍体验", "喝生水", "吃野果", "爬高墙", "关闭生命保障", "直视太阳", "尝陌生植物"]) || phase !== "explore";
+            state.chapter_choice_made=!!current && !management;
+            delete state.selected_speaker;
+            state.revision=Math.max(0,Number(state.revision || 0))+1;
+            board.setVar("scenario_state",state);
+            board.setVar("scenario_state_text",JSON.stringify(state));
+            board.setVar("story_bible", "这是儿童互动冒险的原创配角安排。按场景出场，不让所有人物同时在场；角色不能获知未来场景、私密信息或未验证的结果。每轮连续讲述，旁白与在场角色交替发声。\n首次开场就让当前在场角色在连续故事中自然登场。");
+            board.setVar("narration_context", "当前场景："+scenes[scene-1]+"。当前在场角色："+roleTable.filter(r=>state.active_roles.includes(r.key)).map(r=>r.name).join("、")+"。"+(transition ? "本轮由旁白说出‘来到"+scenes[scene-1]+"’，用旁白和在场角色台词交替描写具体行动，结尾给两三个观察选项。" : "") );
+
+
+            board.setVar("story_bible", board.getVar("story_bible") + "\n" + ["场景1“恢复通信”：救援队长：比较安全方案并让玩家决定，不自行执行救援。","场景2“校准能源”：救援队长：比较安全方案并让玩家决定，不自行执行救援。；工程师：解释已确认的能源与备用电池约束，不编造消耗数字。","场景3“准备安全会合”：救援队长：比较安全方案并让玩家决定，不自行执行救援。；工程师：解释已确认的能源与备用电池约束，不编造消耗数字。；领航员：比较安全窗口和会合条件，不擅自宣布已经对接。；医护员：核对已公开人员状态与生命保障，不把牺牲当英雄选择。","场景4“执行与收束”："][scene - 1]);
+      - id: prepare-recall-query
+        type: script
+        config:
+          source: |
+            const current = String(board.getVar("input") || "").trim();
+            board.setVar("scenario_recall_query", current || "raid_scenario_state_v2");
+      - id: recall-progress
+        type: memory_recall
+        config:
+          query:
+            text_from: scenario_recall_query
+            lanes:
+            - case_state
+            kinds:
+            - state
+            - note
+            - event
+          output: scenario_memory
+          render:
+            header: 'Confirmed scenario history:'
+            item_prefix: "- "
+            max_items: 12
+          top_k: 12
+      - id: route-phase
+        type: script
+        config:
+          source: |
+            const current = String(board.getVar("input") || "").trim();
+            const memory = String(board.getVar("scenario_memory") || "");
+            const liveState = board.getVar("scenario_state") || {schema: "raid_scenario_state_v2", revision: 0};
+            let prior = Object.assign({}, liveState);
+            let priorRevision = Math.max(0, Number(prior.revision || 0));
+            for (const line of memory.split("\n")) {
+              const start = line.indexOf('{"schema":"raid_scenario_state_v2"');
+              if (start < 0) continue;
+              try {
+                const candidate = JSON.parse(line.slice(start));
+                if (!candidate || candidate.schema !== "raid_scenario_state_v2") continue;
+                const candidateRevision = Math.max(0, Number(candidate.revision || 0));
+                if (candidateRevision > priorRevision) {
+                  prior = Object.assign({}, prior, candidate);
+                  priorRevision = candidateRevision;
+                }
+              } catch (_) {
+                // Recall may also contain natural-language notes; only Graph-authored JSON state is authoritative.
+              }
+            }
+            // Only player actions advance the stage; system prompts and suggested actions do not.
+            const actions = [];
+            for (const message of board.channel(board.MAIN_CHANNEL) || []) {
+              if (!message || message.role !== "user") continue;
+              const parts = Array.isArray(message.parts) ? message.parts : [];
+              actions.push(typeof message.content === "string" ? message.content : parts.filter(p => p && p.type === "text").map(p => p.text || "").join(""));
+            }
+            actions.push(current);
+            const containsAnyText = (text, values) => values.some((value) => text.includes(value));
+            let phase = "explore";
+            if (!current || containsAnyText(current, ["开始太空", "开始救援", "宇宙救援", "空间站"])) phase = "opening";
+            else if (containsAnyText(current, ["更正", "只确认", "有效坐标", "正确坐标", "有效能量", "只说有效", "回忆", "重连", "隔了几轮", "只说"])) phase = "correction";
+            else if (containsAnyText(current, ["总结", "救援状态", "任务状态", "回顾", "用一句话说出"])) phase = "conclusion";
+            else if (containsAnyText(current, ["牺牲", "攻击", "直接炸", "危险", "拒绝", "窗口", "角色分工"])) phase = "challenge";
+            const stages = ["第一阶段‘恢复通信’", "第二阶段‘校准能源’", "第三阶段‘准备安全会合’", "第四阶段‘执行与收束’"];
+            let stage = Math.max(1, Math.min(4, Number(prior.voice_scene || 1)));
+            for (const action of actions) {
+              if (containsAnyText(action, ["开始太空", "开始救援", "宇宙救援", "重新开始", "restart"])) stage = 1;
+              if (containsAnyText(action, ["说说", "说话", "发言", "回应", "回答", "talk", "speak", "answer"])) continue;
+              if (containsAnyText(action, ["检查能源", "校准能源"])) stage = Math.max(stage, 2);
+              if (containsAnyText(action, ["等待安全窗口", "准备会合"])) stage = Math.max(stage, 3);
+              if (containsAnyText(action, ["现在执行会合", "开始执行会合", "开始对接", "完成救援"]) && !containsAnyText(action, ["不要", "不提前"])) stage = 4;
+            }
+            const route = stages[stage - 1];
+            board.setVar("scenario_phase", phase);
+            board.setVar("scenario_route", route);
+            board.setVar("scenario_state", prior);
+            board.setVar("scenario_state_text", JSON.stringify(prior));
+            board.setVar("scenario_common_prompt", "你是儿童友好的非暴力宇宙救援任务主持人，跟踪通信、能源、时间、轨道和团队分工。\n救援分为四阶段：第一阶段“恢复通信”、第二阶段“校准能源”、第三阶段“准备安全会合”、第四阶段“执行与收束”。事实建立、纠正、回忆、风险评估和等待窗口不自动完成任务；只有用户明确下令执行才可进入第四阶段。用户询问阶段时按已完成动作准确回答。\n每轮只给一个清楚的行动权衡，先说明上一选择对救援状态的直接影响，再让孩子决定下一步；不得重置任务。\n回复必须保留用户已经使用的任务实体名称，例如“科研飞船”，不得只改写成模糊的“飞船”或省略实体。\n已确认的能源数值、人员状态和修复结果必须连续；用户更正数值后，新值立即覆盖旧值。只有用户或明确仪表读数给出新数字时才能更新任何主能源、备用电池、消耗或余量数值，不得根据虚构行动自行计算、扣减、新增百分比或改写最新读数。用户本轮没有提供能源数值时，正文不得凭空出现百分号、百分比或能源数字；复述已有百分比时必须沿用“百分之四十五”这类中文口语形式，不得改写为阿拉伯数字或百分号。\n事实建立、纠正或纯回忆回合只直接回答用户要求，不推进任务、不添加后果、选择或追问；用户要求记住事实时明确回答已经记住；纠正回合必须只说新事实，并且不得以否定、引用、对比或解释方式再次输出旧值。\n用户选择等待安全窗口时，本轮最多推进到窗口到来和准备就绪；除非用户明确要求执行，不得自动完成稳定、对接、返航或宣布救援完成。\n用户已经指定用备用电池等待安全窗口时，后续关于选择、阶段或下一步的回答都必须同时保留“备用电池”和“安全窗口”，不得省略任一安全条件。\n让工程、导航、医疗和通信角色都有贡献，不把鲁莽牺牲描述为唯一英雄选择。\n所有技术细节保持虚构和概念化，不提供真实航天操作指令；危险非血腥，不收集个人信息。\n普通回复写2至4个完整中文句子、约70至200个Unicode字符；状态确认和回忆应简短。\n每轮最多问一个问题。只输出适合朗读的中文正文，不输出Markdown、列表、菜单、emoji、舞台说明、分析或系统文字。\n必须写完整句子，不得依赖程序截断，不得重复同义内容。" + (phase === "opening" ? "首次主动开场严格说：你是宇宙救援队的小队员，我是飞船助手，我们要一起帮助遇到麻烦的飞船。每一步你都可以从两个办法里选一个，也可以说出你自己的主意。一艘科研飞船失去动力，氧气充足但轨道正在偏离，我们先修通信还是计算新轨道？" : ""));
+      - id: reduce-state
+        type: script
+        config:
+          source: |
+            const input = String(board.getVar("input") || "").trim();
+            const phase = String(board.getVar("scenario_phase") || "explore");
+            const prior = board.getVar("scenario_state") || {schema: "raid_scenario_state_v2", revision: 0};
+            const next = Object.assign({}, prior);
+            let changed = false;
+            function set(name, value) {
+              if (value && next[name] !== value) { next[name] = value; changed = true; }
+            }
+            next.phase = phase;
+            next.route = String(board.getVar("scenario_route") || "");
+            if (input.includes("百分之四十五") || input.includes("45%")) set("energy", "百分之四十五");
+            if (input.includes("B-21")) set("coordinate", "B-21");
+            if (changed) next.revision = Math.max(0, Number(prior.revision || 0)) + 1;
+            if (phase === "correction") {
+              delete next.last_input;
+              next.last_correction = JSON.stringify({energy: next.energy || "", coordinate: next.coordinate || ""});
+            } else {
+              next.last_input = input.slice(0, 160);
+            }
+            board.setVar("scenario_state", next);
+            board.setVar("scenario_state_fact", JSON.stringify(next));
+      - id: observe-progress
+        type: memory_observe
+        config:
+          observations:
+          - facts:
+            - text_from: scenario_state_fact
+              attributes:
+                lane: case_state
+                kind: state
+          wait_for_completion: false
+      - id: narrate-story
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-adventure-space-rescue-mr.model
+          max_tokens: 2048
+          output_key: tmp_answer
+          system_prompt: |-
+            仅当 scenario_phase 为 opening 时遵守：
+            ${board.scenario_common_prompt}
+            本轮Graph路径：${board.scenario_route}。
+            本轮必须先逐字说出这段身份和玩法介绍：「你是宇宙救援队的小队员，我是飞船助手，我们要一起帮助遇到麻烦的飞船。每一步你都可以从两个办法里选一个，也可以说出你自己的主意。」然后再按下面的要求写。本轮只建立科研飞船故障、通信和轨道两个可选行动，不提前完成通信或修复。介绍之后只再写一个不超过100个Unicode字符的问句，不扩写每个选项的后果；整段回复的第一句必须是介绍里的“你是宇宙救援队的小队员，我是飞船助手，我们要一起帮助遇到麻烦的飞船。”
+            可核对的长期进度：${board.scenario_memory}
+            Graph状态：${board.scenario_state_text}
+            ${board.story_bible}
+            ${board.narration_context}
+
+            仅当 scenario_phase 为 explore 时遵守：
+            ${board.scenario_common_prompt}
+            本轮Graph路径：${board.scenario_route}。
+            本轮只执行玩家当前选择的一项救援行动，保持能量、坐标、角色和等待窗口连续。
+            可核对的长期进度：${board.scenario_memory}
+            Graph状态：${board.scenario_state_text}
+            ${board.story_bible}
+            ${board.narration_context}
+
+            仅当 scenario_phase 为 correction 时遵守：
+            ${board.scenario_common_prompt}
+            本轮Graph路径：${board.scenario_route}。
+            本轮只确认最新有效能量或坐标；旧值立即失效且不得再次输出，也不得推进任务。
+            可核对的长期进度：${board.scenario_memory}
+            Graph状态：${board.scenario_state_text}
+            ${board.story_bible}
+            ${board.narration_context}
+
+            仅当 scenario_phase 为 challenge 时遵守：
+            ${board.scenario_common_prompt}
+            本轮Graph路径：${board.scenario_route}。
+            本轮拒绝牺牲队员、盲目攻击等不安全方案，给出可逆替代方案并保留团队选择。选择等待安全窗口不表示时间已经过去；除非最新用户消息明确说窗口已经开启或等待时间已经结束，否则只确认等待安排，不得宣称安全窗口已经到来、已经开启或已经准备就绪。
+            可核对的长期进度：${board.scenario_memory}
+            Graph状态：${board.scenario_state_text}
+            ${board.story_bible}
+            ${board.narration_context}
+
+            仅当 scenario_phase 为 conclusion 时遵守：
+            ${board.scenario_common_prompt}
+            本轮Graph路径：${board.scenario_route}。
+            本轮只总结已经确认的通信、能量、坐标、角色和窗口，不把计划写成已完成事实。
+            可核对的长期进度：${board.scenario_memory}
+            Graph状态：${board.scenario_state_text}
+            ${board.story_bible}
+            ${board.narration_context}
+
+            有声书连续讲述：普通回合（含开场、转场和选择结果）正文300至600个Unicode字符，约1至2分钟语音。旁白与2至4个当前在场角色来回交替讲述，旁白叙述与角色第一人称台词分段；场景确实只有一位角色时只用该角色，绝不为凑数让未在场角色出现。角色只知亲历或已公开信息。孩子可以随时插话；接续最新插话，不重播已讲段落。孩子点名想听某个在场角色时，在本段多给该角色台词；不单独切换整轮说话人，也不因点名改变场景。
+            标记格式：每段必须恰好以一个全角标记开头，只能使用【旁白】、【救援队长】、【工程师】、【领航员】、【医护员】，标记后直接正文；不输出其它【】标记，不把舞台说明放进标记，不使用英文角色key作标记。旁白与角色台词分别成段，同一角色可以多次出现。章节标题放在【旁白】后的正文，标题规则保持不变。
+            每轮结尾用【旁白】给出2至3个具体、儿童安全的选项，最多一个问题。选择完成结尾逐字句、第4章或终局、安全及限定范围的确认/更正/重连约束优先：这些特殊回合按原规则收束，不强加新问题；仅确认、更正或安全回复可短于300字，不为凑字数推进剧情。音色由段落标记映射，不输出Markdown、emoji或系统字段。
+          track_steps: true
+    max_iterations: 10
+    conversation:
+      starts: agent
+    voice_adapter:
+      asr_model: asr
+      default_voice: flowcraft-adventure-space-rescue-mr.adventure-guide
+      speaker_voices:
+        旁白: flowcraft-adventure-space-rescue-mr.adventure-guide
+        救援队长: flowcraft-adventure-space-rescue-mr.captain
+        工程师: flowcraft-adventure-space-rescue-mr.engineer
+        领航员: flowcraft-adventure-space-rescue-mr.navigator
+        医护员: flowcraft-adventure-space-rescue-mr.medic
+  memory: adventure

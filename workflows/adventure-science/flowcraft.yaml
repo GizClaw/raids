@@ -15,74 +15,18 @@ spec:
         to: prepare-recall-query
         condition: needs_memory_recall == true
       - from: route-recall
-        to: control-narration
+        to: narrate
       - from: prepare-recall-query
         to: recall-progress
       - from: recall-progress
-        to: control-narration
-      - from: narrate-story
+        to: narrate
+      - from: narrate
         to: capture-progress
       - from: capture-progress
         to: observe-progress
       - from: observe-progress
         to: __end__
-      - from: control-narration
-        to: narrate-story
       nodes:
-      - id: control-narration
-        type: script
-        config:
-          source: |
-            const current = String(board.getVar("input") || "").trim().toLowerCase();
-            const memory = String(board.getVar("scenario_memory") || "");
-            let state = Object.assign({schema:"raid_scenario_state_v2", revision:0}, board.getVar("scenario_state") || {});
-            for (const line of memory.split("\n")) {
-              const start = line.indexOf('{"schema":');
-              if (start < 0) continue;
-              try { const old = JSON.parse(line.slice(start));
-                if (old.schema === "raid_scenario_state_v2" && Number(old.revision || 0) > Number(state.revision || 0)) state = Object.assign({},state,old);
-              } catch (_) {}
-            }
-            const roleTable = [{"key": "narrator", "name": "旁白", "aliases": ["旁白", "narrator"], "chapters": [1, 2, 3], "duty": "只负责叙述、管理和公开信息整理，不代演角色。"}, {"key": "experimenter", "name": "实验伙伴", "aliases": ["实验伙伴", "experimenter"], "chapters": [1, 2], "duty": "提出温水冷水的可检验猜想，不把猜想当结果。"}, {"key": "observer", "name": "观察记录员", "aliases": ["观察记录员", "observer"], "chapters": [2], "duty": "记录已经展示的溶解现象，比较观察与预测。"}, {"key": "safety-teacher", "name": "安全老师", "aliases": ["安全老师", "safety-teacher"], "chapters": [1, 3], "duty": "指出实验中需要成年人协助的边界，区分思想实验与证据。"}];
-            const scenes = ["实验猜想", "观察比较", "安全复盘"];
-            const any = (s, cues) => cues.some(c => s.includes(c));
-            let scene = Number(state.voice_scene || 1);
-            scene = Number.isFinite(scene) ? Math.max(1, Math.min(scenes.length, Math.floor(scene))) : 1;
-            const history = typeof board.channel === "function" ? (board.channel(board.MAIN_CHANNEL) || []) : [];
-            if (!state.voice_scene) {
-              for (const m of history) {
-                if (m.role !== "assistant") continue;
-                const text = m.content || (m.parts || []).filter(p => p.type === "text").map(p => p.text || "").join("");
-                for (let i=0;i<scenes.length;i++) if (text.includes("当前场景："+scenes[i]) || text.includes("来到"+scenes[i])) scene=i+1;
-              }
-            }
-            let transition = false;
-            if (!current || any(current, ["重新开始", "restart", "开场", "介绍这个体验", "开始体验"])) scene=1;
-            else if (any(current,["进入下一章","进入下一场景"])) {scene=Math.min(scenes.length,scene+1); transition=true;}
-            else {
-              for (let i=0;i<scenes.length;i++) if (any(current,["进入"+scenes[i],"前往"+scenes[i],"来到"+scenes[i]])) {scene=i+1;transition=true;}
-
-            }
-            const phase = "explore";
-            state.voice_scene=scene;
-            state.active_roles=roleTable.filter(r=>r.chapters.includes(scene)).map(r=>r.key);
-            let managementText=current;
-            for (const role of roleTable) for (const alias of role.aliases) managementText=managementText.split(alias).join("");
-            const management = !current || transition || any(managementText,["更正", "纠正", "修正", "改成", "改变主意", "其实", "安全", "危险", "现实", "模仿", "受伤", "攻击", "牺牲", "停止", "总结", "结论", "回忆", "重连", "恢复", "请记住", "只确认", "只说", "换边", "correction", "correct", "actually", "danger", "safety", "restart", "重新开始", "开场", "介绍这个体验", "进入下一", "下一章", "下一场景", "转场", "开始体验", "从头开始", "第一章", "第1章", "开始冒险", "start", "begin", "介绍体验", "喝生水", "吃野果", "爬高墙", "关闭生命保障", "直视太阳", "尝陌生植物"]) || phase !== "explore";
-            state.chapter_choice_made=!!current && !management;
-            delete state.selected_speaker;
-            state.revision=Math.max(0,Number(state.revision || 0))+1;
-            board.setVar("scenario_state",state);
-            board.setVar("scenario_state_text",JSON.stringify(state));
-            board.setVar("story_bible", "这是儿童互动冒险的原创配角安排。按场景出场，不让所有人物同时在场；角色不能获知未来场景、私密信息或未验证的结果。每轮连续讲述，旁白与在场角色交替发声。\n首次开场就让当前在场角色在连续故事中自然登场。");
-            board.setVar("narration_context", "当前场景："+scenes[scene-1]+"。当前在场角色："+roleTable.filter(r=>state.active_roles.includes(r.key)).map(r=>r.name).join("、")+"。"+(transition ? "本轮由旁白说出‘来到"+scenes[scene-1]+"’，用旁白和在场角色台词交替描写具体行动，结尾给两三个观察选项。" : "") );
-
-
-            // Keep the fixed opening out of ordinary-turn requests.
-            const openingPrompt = !current || any(current, ["重新开始", "restart", "开场", "介绍这个体验", "开始体验", "start", "begin", "介绍体验"]);
-            board.setVar("opening_instruction", openingPrompt ? "如果当前是没有用户输入的新对话，或用户要求开始体验、介绍体验并从指定中文开场开始，以旁白保留下面开场的身份与世界规则，承接连续故事；把其中的选择问题移到整轮末尾，仅问一次：欢迎来到小小实验室，我是你的实验助手，我们用猜想、动手和观察来找答案。你先说出你的猜想，我们再一起看看实验结果。实验台上有两杯水，一杯温一杯冷，你猜哪一杯里的糖会溶得更快？为什么？" : "");
-
-            board.setVar("story_bible", board.getVar("story_bible") + "\n" + ["场景1“实验猜想”：实验伙伴：提出温水冷水的可检验猜想，不把猜想当结果。；安全老师：指出实验中需要成年人协助的边界，区分思想实验与证据。","场景2“观察比较”：实验伙伴：提出温水冷水的可检验猜想，不把猜想当结果。；观察记录员：记录已经展示的溶解现象，比较观察与预测。","场景3“安全复盘”：安全老师：指出实验中需要成年人协助的边界，区分思想实验与证据。"][scene - 1]);
       - id: route-recall
         type: script
         config:
@@ -129,17 +73,44 @@ spec:
           output: scenario_memory
           render:
             header: 'Confirmed scenario history:'
-            item_prefix: "- "
+            item_prefix: '- '
             max_items: 12
           top_k: 12
+      - id: narrate
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-adventure-science.model
+          max_tokens: 2048
+          output_key: answer
+          system_prompt: |-
+            你是儿童友好的互动冒险主持人。
+            如果当前是没有用户输入的新对话，必须逐字输出下面这段开场并立即停止：欢迎来到小小实验室，我是你的实验助手，我们用猜想、动手和观察来找答案。你先说出你的猜想，我们再一起看看实验结果。实验台上有两杯水，一杯温一杯冷，你猜哪一杯里的糖会溶得更快？为什么？
+            如果当前上下文明确要求英文，或用户要求用英文介绍或重新开始，必须逐字输出这一句并立即停止：There are warm and cold cups of water. In which will sugar dissolve faster, and why?
+            后续必须承接孩子上一轮的选择，不得重置场景。每轮只推进一个有意义的场景、问题、线索或选择，并且最多问一个清楚的问题。需要孩子选择或调查时，要在问题里直接说出两三个具体选项；孩子说不知道或想要提示时，先给一个小提示，再重新说出可选的选项。
+            体验要求：Ask for a prediction, describe or run a safe observation, compare evidence with the prediction, and invite a revised explanation.
+            安全边界：No fire, mains electricity, pressure vessels, chemicals, ingestion, unsupervised tools, or claims that a thought experiment proves a fact.
+            明确区分事实、传说与虚构；不确定的信息要说明不确定。现实危险情形应建议孩子停止模仿并寻求可信任成年人帮助。
+            用户询问现实危险或模仿时，直接说明危险、拒绝模仿并建议寻求可信任成年人帮助；该轮不得追加问题。
+            可核对的长期进度：${board.scenario_memory}
+            续写时必须与上面已确认的进度一致，不得推翻或重复其中已经发生的内容。
+            除明确要求英文的开场回合外，回复使用简洁自然中文，写2至4个完整句子、30至180个Unicode字符。只输出适合朗读的正文，不输出Markdown、列表、菜单、emoji、舞台说明、隐藏分析或系统文字。
+          track_steps: true
       - id: capture-progress
         type: script
         config:
           source: |
-            const state = Object.assign({}, board.getVar("scenario_state") || {});
-            state.last_input = String(board.getVar("input") || "").slice(0,160);
-            state.last_answer = String(board.getVar("answer") || "").slice(0,1200);
-            board.setVar("scenario_state_fact", JSON.stringify(state));
+            const input = String(board.getVar("input") || "").trim();
+            const answer = String(board.getVar("answer") || "").trim();
+            if (!input && !answer) {
+              board.setVar("scenario_state_fact", "");
+            } else {
+              board.setVar("scenario_state_fact", JSON.stringify({
+                schema: "raid_scenario_state_v2",
+                last_input: input.slice(0, 160),
+                last_answer: answer.slice(0, 320),
+              }));
+            }
       - id: observe-progress
         type: memory_observe
         config:
@@ -150,41 +121,10 @@ spec:
                 lane: story_progress
                 kind: state
           wait_for_completion: false
-      - id: narrate-story
-        type: llm
-        publish: true
-        config:
-          model: flowcraft-adventure-science.model
-          max_tokens: 2048
-          output_key: answer
-          system_prompt: |-
-            你是儿童友好的互动冒险主持人。
-            ${board.opening_instruction}
-            如果当前上下文明确要求英文，或用户要求用英文介绍或重新开始，用英文保留下列开场设定并扩展为连续多角色讲述，选择问题放在整轮末尾：There are warm and cold cups of water. In which will sugar dissolve faster, and why?
-            后续必须承接孩子上一轮的选择，不得重置场景。每轮只推进一个有意义的场景、问题、线索或选择，并且最多问一个清楚的问题。需要孩子选择或调查时，要在问题里直接说出两三个具体选项；孩子说不知道或想要提示时，先给一个小提示，再重新说出可选的选项。
-            体验要求：Ask for a prediction, describe or run a safe observation, compare evidence with the prediction, and invite a revised explanation.
-            安全边界：No fire, mains electricity, pressure vessels, chemicals, ingestion, unsupervised tools, or claims that a thought experiment proves a fact.
-            明确区分事实、传说与虚构；不确定的信息要说明不确定。现实危险情形应建议孩子停止模仿并寻求可信任成年人帮助。
-            用户询问现实危险或模仿时，直接说明危险、拒绝模仿并建议寻求可信任成年人帮助；该轮不得追加问题。
-            可核对的长期进度：${board.scenario_memory}
-            续写时必须与上面已确认的进度一致，不得推翻或重复其中已经发生的内容。
-            除明确要求英文的开场回合外，回复使用简洁自然中文，写300至600个Unicode字符。只输出适合朗读的正文，不输出Markdown、列表、菜单、emoji、舞台说明、隐藏分析或系统文字。
-            ${board.story_bible}
-            ${board.narration_context}
-
-            有声书连续讲述：普通回合（含开场、转场和选择结果）正文300至600个Unicode字符，约1至2分钟语音。旁白与2至4个当前在场角色来回交替讲述，旁白叙述与角色第一人称台词分段；场景确实只有一位角色时只用该角色，绝不为凑数让未在场角色出现。角色只知亲历或已公开信息。孩子可以随时插话；接续最新插话，不重播已讲段落。孩子点名想听某个在场角色时，在本段多给该角色台词；不单独切换整轮说话人，也不因点名改变场景。
-            标记格式：每段必须恰好以一个全角标记开头，只能使用【旁白】、【实验伙伴】、【观察记录员】、【安全老师】，标记后直接正文；不输出其它【】标记，不把舞台说明放进标记，不使用英文角色key作标记。旁白与角色台词分别成段，同一角色可以多次出现。章节标题放在【旁白】后的正文，标题规则保持不变。
-            每轮结尾用【旁白】给出2至3个具体、儿童安全的选项，最多一个问题。选择完成结尾逐字句、第4章或终局、安全及限定范围的确认/更正/重连约束优先：这些特殊回合按原规则收束，不强加新问题；仅确认、更正或安全回复可短于300字，不为凑字数推进剧情。音色由段落标记映射，不输出Markdown、emoji或系统字段。
-          track_steps: true
     max_iterations: 10
     conversation:
       starts: agent
     voice_adapter:
       asr_model: asr
       default_voice: flowcraft-adventure-science.adventure-guide
-      speaker_voices:
-        旁白: flowcraft-adventure-science.adventure-guide
-        实验伙伴: flowcraft-adventure-science.experimenter
-        观察记录员: flowcraft-adventure-science.observer
-        安全老师: flowcraft-adventure-science.safety-teacher
   memory: adventure

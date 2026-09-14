@@ -13,13 +13,9 @@ Install an implementation into a RuntimeProfile with `raids install chat-assista
 
 ## Testing
 
-Tester: `test.yaml` (`chat-assistant-test`, eino), shared by every implementation; one Giztest file per tier covering all implementations:
+Tester: `test.yaml` (`chat-assistant-test`, eino), shared by every implementation; one Giztest scenario per implementation:
 
-- `tests/giztest/smoke/chat-assistant.giztest.yaml`: speed, latency and responsiveness.
-- `tests/giztest/quality/chat-assistant.giztest.yaml`: quality control and safety guardrails.
-- `tests/giztest/soak/chat-assistant.giztest.yaml`: long-turn Tester relay with reload.
-
-Run `make test-e2e TIER=smoke RAID=chat-assistant`. Each tier file covers all implementations; see [the test guide](../../tests/giztest/README.md) for budgets and failure reporting.
+- `tests/giztest/chat-assistant/flowcraft.giztest.yaml` (relay, with reload, timeout 52m)
 
 The route has 12 target responses:
 

@@ -6,25 +6,27 @@
 
 | File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |
 | --- | --- | --- | --- | --- | --- |
-| `eino-history.yaml` | `eino-journey-history` | eino | - | `eino-journey-history.model` | - |
-| `eino-memory-async.yaml` | `eino-journey-memory-async` | eino | story-teller | `eino-journey-memory-async.model` | - |
-| `eino-memory-recall.yaml` | `eino-journey-memory-recall` | eino | story-teller | `eino-journey-memory-recall.model` | - |
+| `eino-history.yaml` | `eino-journey-history` | eino | - | `eino-journey-history.model` | `eino-journey-history.narrator` |
+| `eino-memory-async.yaml` | `eino-journey-memory-async` | eino | story-teller | `eino-journey-memory-async.model` | `eino-journey-memory-async.narrator` |
+| `eino-memory-recall.yaml` | `eino-journey-memory-recall` | eino | story-teller | `eino-journey-memory-recall.model` | `eino-journey-memory-recall.narrator` |
 | `flowcraft.yaml` | `flowcraft-journey-guide` | flowcraft | story-teller | `flowcraft-journey-guide.model` | `flowcraft-journey-guide.narrator` |
 
 Install an implementation into a RuntimeProfile with `raids install journey-guide --impl <engine> --profile <file> --collection <name> --set model.<alias>=<model id> --set voice.<alias>=<voice id>`; the slots above are the parameters the installer asks for.
 
+All four implementations accept text and push-to-talk input and synthesize spoken
+output. Bind the shared `asr` Model alias in the RuntimeProfile alongside the
+implementation-specific Model and Voice slots above; the bundled default/testing
+profiles already provide this binding.
 
 ## Testing
 
-Tester: `test.yaml` (`journey-guide-test`, eino), shared by every implementation; one Giztest file per tier covering all implementations:
+Tester: `test.yaml` (`journey-guide-test`, eino), shared by every implementation; one Giztest scenario per implementation:
 
-- `tests/giztest/smoke/journey-guide.giztest.yaml`: speed, latency and responsiveness.
-- `tests/giztest/quality/journey-guide.giztest.yaml`: quality control and safety guardrails.
-- `tests/giztest/soak/journey-guide.giztest.yaml`: long-turn Tester relay with reload.
-
-Quality also preserves the seven-turn benchmark for all four implementations. Soak uses the intersection of the original gates and equal recall barriers; history-only Eino has no recall exemption.
-
-Run `make test-e2e TIER=smoke RAID=journey-guide`. Each tier file covers all implementations; see [the test guide](../../tests/giztest/README.md) for budgets and failure reporting.
+- `tests/giztest/journey-guide/eino-history.giztest.yaml` (relay, with reload, timeout 45m)
+- `tests/giztest/journey-guide/eino-memory-async.giztest.yaml` (relay, with reload, timeout 45m)
+- `tests/giztest/journey-guide/eino-memory-recall.giztest.yaml` (relay, with reload, timeout 45m)
+- `tests/giztest/journey-guide/flowcraft.benchmark-6s.giztest.yaml` (single client, timeout 18m)
+- `tests/giztest/journey-guide/flowcraft.giztest.yaml` (relay, with reload, timeout 79m)
 
 The route has 20 target responses:
 
