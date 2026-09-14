@@ -2,8 +2,10 @@
 require 'yaml'
 require 'json'
 require_relative 'giztest-layout'
+require_relative 'testing-voices'
 def check(ok, message); abort message unless ok; end
 profiles = %w[default testing].to_h { |n| [n, YAML.load_file("runtime-profiles/#{n}.yaml").fetch('spec')] }
+check_testing_voices(profiles.fetch('testing'))
 voices = Dir['voices/**/*.yaml'].to_h { |f| [YAML.load_file(f).dig('metadata', 'id'), f] }
 count = 0
 Dir['workflows/*/raid.json'].sort.each do |file|
@@ -22,6 +24,12 @@ Dir['workflows/*/raid.json'].sort.each do |file|
     slots = impl.dig('parameters', 'voices') || {}
     check(aliases.sort == slots.keys.sort, "#{workflow}: Voice aliases differ from manifest slots")
     profiles.each do |profile_name, profile|
+      # Each published node / named speaker must have its own audible identity,
+      # including original implementations, not just the multi-role variants.
+      %w[speaker_voices node_voices].each do |map_name|
+        ids = adapter.fetch(map_name, {}).values.map { |a| profile.dig('resources', 'voices', a, 'resource_id') }
+        check(ids.uniq.size == ids.size, "#{workflow}: duplicate #{profile_name} #{map_name} Voice resources")
+      end
       collections = profile.fetch('workflows').fetch('collections')
       check(collections.values.any? { |c| c.values.any? { |entry| entry['resource_id'] == doc.dig('metadata', 'id') } }, "#{workflow}: missing #{profile_name} collection entry")
       aliases.each do |a|
