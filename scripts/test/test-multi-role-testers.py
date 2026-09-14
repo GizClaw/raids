@@ -46,12 +46,37 @@ for path, doc, original, soak in zip(paths, documents(paths),
         assert ns['CHECKS'][index]['max_runes'] == 600
     index = ordinary[0]
     # Isolate counting from the scenario's mandatory content, without mutating files.
-    ns['CHECKS'][index] = {'min_runes': 300, 'max_runes': 600}
+    ns['CHECKS'][index] = {'min_runes': 300, 'max_runes': 600, **({'min_words': 150, 'max_words': 300} if raid != 'murder-mystery' else {})}
     for size, failure in [(299, 'min_runes:'), (300, None), (600, None), (601, 'max_runes:')]:
         text = '景' * size
         for candidate in (text, '【旁白】' + text if raid != 'murder-mystery' else '【主持人】' + text):
             failures = ns['deterministic_failures'](index, candidate)
             assert (not failures if failure is None else any(f.startswith(failure) for f in failures)), (raid, size, failures)
+    if raid != 'murder-mystery':
+        for ordinary_index in ordinary:
+            assert ns['CHECKS'][ordinary_index]['min_words'] == 150
+            assert ns['CHECKS'][ordinary_index]['max_words'] == 300
+        assert ns['english_word_count']("Don't re-start; “hello” — ... 42") == 3
+        assert not ns['is_english']('当前旅程代号 SUNRISE-42。' + '景' * 300)
+        for size, failure in [(149, 'min_words:'), (150, None), (220, None), (300, None), (301, 'max_words:')]:
+            # Long words prove the Chinese rune cap no longer applies to English.
+            text = ' '.join(['adventure'] * size)
+            for candidate in (text, '【旁白】' + text, '【旁白】' + text.replace(' ', '\n')):
+                failures = ns['deterministic_failures'](index, candidate)
+                assert (not failures if failure is None else failures == [failure + str(size)]), (raid, size, failures)
+        # Short English words also report word-bound failures, not rune-bound failures.
+        assert ns['deterministic_failures'](index, ' '.join(['I'] * 301)) == ['max_words:301']
+        if raid == 'story-wizard-oz':
+            for english_index in (0, 1, 3):
+                prefix = {
+                    0: 'Chapter 1: The Yellow Brick Fork. The yellow brick road splits three ways: courage, wisdom, or helping one another. Which path will you take first?',
+                    1: 'Dorothy says: Dorothy continues.',
+                    3: 'The journey code is SUNRISE-42.',
+                }[english_index]
+                for size in (149, 150, 300, 301):
+                    reply = prefix + ' adventure' * (size - ns['english_word_count'](prefix))
+                    result = ns['run']({'text': reply, 'messages': [{'role': 'assistant', 'content': ns['ENGLISH_REQUESTS'][english_index]}]})
+                    assert (result['det'] == '' if 150 <= size <= 300 else 'words:' in result['det']), (english_index, size, result)
     manifest = json.loads(path.with_name('raid.json').read_text())
     tester = manifest['testers']['multi-role']
     assert tester['workflow_id'] == doc['metadata']['id'] == raid + '-test-multi-role'
@@ -68,4 +93,29 @@ for path, doc, original, soak in zip(paths, documents(paths),
             if multi:
                 routed.append(step['client'])
     assert len(set(routed)) == len(expected), raid
-print('validated 31 multi-role Tester contracts, Unicode boundaries, marker stripping and soak routing')
+print('validated 31 multi-role Tester contracts, Chinese rune and English word boundaries, marker stripping and soak routing')
+
+# Every actual narration prompt must retain its surrounding instructions.
+workflow_paths = sorted(p for p in Path('workflows').glob('*/*.multi-role.yaml')
+                        if p.name != 'test.multi-role.yaml' and p.parent.name.startswith(('story-', 'adventure-')))
+assert len(workflow_paths) == 60
+
+def strings(value):
+    if isinstance(value, dict):
+        for item in value.values():
+            yield from strings(item)
+    elif isinstance(value, list):
+        for item in value:
+            yield from strings(item)
+    elif isinstance(value, str):
+        yield value
+
+for path, doc in zip(workflow_paths, documents(workflow_paths)):
+    current_prompts = [s for s in strings(doc) if '篇幅执行规则：' in s]
+    assert current_prompts, path
+    for current in current_prompts:
+        assert '每段约100字且至少80字' in current and '目标约220个英文单词' in current, path
+        assert '英文按字符' not in current and '400至500' not in current, path
+        for required in ('仅用户明确要求只确认', '有声书连续讲述', '标记格式', '不输出其它【】标记', '音色由段落标记映射'):
+            assert required in current, (path, required)
+print('validated 60 multi-role workflows and preserved surrounding prompt instructions')
