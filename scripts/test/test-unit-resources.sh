@@ -97,7 +97,7 @@ packages.each do |package|
     slots = impl.fetch('parameters').fetch('voices')
     check(bindings.values.sort == slots.keys.sort, "#{package}/#{engine}: speaker aliases differ from slots")
     check(bindings.fetch('旁白') == adapter.fetch('default_voice'), "#{package}/#{engine}: narrator default mismatch")
-    check(!adapter.key?('state_voices') && !adapter.key?('node_voices'), "#{package}/#{engine}: obsolete selection adapter")
+    check((adapter.keys - %w[asr_model default_voice speaker_voices]).empty?, "#{package}/#{engine}: obsolete selection adapter")
     nodes = spec.fetch('graph').fetch('nodes')
     outputs = nodes.select { |n| engine == 'flowcraft' ? n['publish'] == true : n['type'] == 'chat_model' }
     check(outputs.size == 1, "#{package}/#{engine}: expected one narration LLM")
@@ -132,46 +132,23 @@ Dir['workflows/*/routing-cases.json'].sort.each do |fixture|
   flow = YAML.load_file("#{package}/flowcraft.yaml").dig('spec', 'flowcraft')
   nodes = flow.fetch('graph').fetch('nodes')
   adapter = flow.fetch('voice_adapter')
-  bindings = adapter.fetch('node_voices')
-  check(bindings.values.uniq.sort == slots.keys.sort, "#{package}: node Voice aliases differ from manifest")
-  check(nodes.select { |n| n['publish'] == true }.map { |n| n['id'] }.sort == bindings.keys.sort, "#{package}: every published output needs a Voice")
+  bindings = adapter.fetch('speaker_voices')
+  check(bindings.values.uniq.sort == slots.keys.sort, "#{package}: speaker Voice aliases differ from manifest")
+  outputs = nodes.select { |n| n['publish'] == true }
+  check(outputs.size == bindings.size, "#{package}: every published role needs a Voice")
+  bindings.each_key do |speaker|
+    check(outputs.one? { |n| (n.dig('config', 'system_prompt') || n.dig('config', 'source') || '').include?("【#{speaker}】") }, "#{package}: missing unique published marker #{speaker}")
+  end
+  probes = GiztestLayout.probes("tests/giztest/smoke/#{manifest.fetch('id')}.giztest.yaml", 'flowcraft')
+  probes.select { |p| p['peer_stream'] && p.dig('peer_stream', 'completion') != 'first_response' }.each do |probe|
+    check(%w[【 】].all? { |marker| (probe.dig('expect', '/text', 'not_contains') || []).include?(marker) }, "#{package}: missing marker stripping gate")
+    check(probe.dig('expect', '/audio_integrity/streams', 'minimum') == 1 && probe.dig('expect', '/audio_pacing/underruns', 'equals') == 0, "#{package}: missing playback gates")
+  end
   check(bindings.values.include?(adapter.fetch('default_voice')), "#{package}: default Voice missing from slots")
   profiles.each do |name, profile|
     ids = slots.keys.map { |a| profile.fetch(a).fetch('resource_id') }
     check(ids.uniq.size == ids.size, "#{package}/#{name}: duplicate Voice resources")
     ids.each { |id| check(voice_files.key?(id), "#{package}/#{name}: missing Voice #{id}") }
-  end
-end
-# Eino state-selected aliases must close over manifest and both profiles too.
-Dir['workflows/**/eino.yaml'].each do |file|
-  eino = YAML.load_file(file).dig('spec', 'eino')
-  adapter = eino.fetch('voice_adapter', {})
-  selector = adapter['state_voices']
-  next unless selector
-  manifest = JSON.parse(File.read(File.join(File.dirname(file), 'raid.json')))
-  impl = manifest.fetch('implementations').fetch('eino')
-  slots = impl.fetch('parameters').fetch('voices')
-  aliases = selector.fetch('voices').values
-  check(aliases.sort == slots.keys.sort, "#{file}: state Voice aliases differ from manifest")
-  check(aliases.include?(adapter.fetch('default_voice')), "#{file}: default Voice missing from slots")
-  fields = eino.fetch('graph').fetch('state').fetch('fields')
-  check(fields.any? { |f| f['name'] == selector['field'] && f['type'] == 'string' }, "#{file}: selector must reference string State")
-  profiles.each do |name, profile|
-    ids = aliases.map { |a| profile.fetch(a).fetch('resource_id') }
-    check(ids.uniq.size == ids.size, "#{file}/#{name}: duplicate Voice resources")
-    ids.each { |id| check(voice_files.key?(id), "#{file}/#{name}: missing Voice #{id}") }
-    flow_slots = manifest.fetch('implementations').fetch('flowcraft').fetch('parameters').fetch('voices')
-    slots.each do |a, slot|
-      counterpart = flow_slots.find { |_, other| other.fetch('role') == slot.fetch('role') }
-      check(counterpart && profile.fetch(a)['resource_id'] == profile.fetch(counterpart.first)['resource_id'], "#{file}/#{name}: role Voice differs from Flowcraft")
-    end
-  end
-  steps = GiztestLayout.probes("tests/giztest/smoke/#{manifest.fetch('id')}.giztest.yaml", 'eino')
-  selector.fetch('voices').each_key do |role|
-    full = steps.find { |p| p['id'] == "probe_#{role}" }
-    check(full && full.dig('peer_stream', 'require_audio') && full.dig('expect', '/audio_bytes', 'minimum').to_i > 0 && full.dig('expect', '/text_eos', 'equals') && full.dig('expect', '/audio_eos', 'equals'), "#{file}/#{role}: missing EOS/audio checks")
-    first = steps.find { |p| p['id'] == "probe_#{role}_first_response" }
-    check(first && first.dig('peer_stream', 'first_text_timeout') == '2s' && first.dig('peer_stream', 'first_audio_timeout') == '3s', "#{file}/#{role}: missing latency gates")
   end
 end
 puts "validated #{packages.size} continuous narration raids: markers, single LLM, playback probes and Voice binding closure"

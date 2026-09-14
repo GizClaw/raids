@@ -17,7 +17,7 @@ Install an implementation into a RuntimeProfile with `raids install murder-myste
 
 仍属 `adventure`，保留 **12+ / mystery-death**。Flowcraft 每轮只发一种声音，通过条件边选择独立角色节点。
 
-Voice 由 runtime profile 绑定。
+保留现有路由、独立证人提示词和主持人第三人称转述规则。主持人发布脚本添加 `【主持人】`，证人输出分别以 `【管家】`、`【厨师】`、`【沈知秋】`、`【律师】` 开头；`speaker_voices` 将这些标记映射到下表原有别名，`default_voice` 仍为 `flowcraft-murder-mystery.game-master`。平台从设备文本中移除已配置标记，并在同一音频流中串行合成。Voice 由 runtime profile 绑定。
 
 | role / 别名 | 场景行动与边界 | Flowcraft Voice 槽位 |
 | --- | --- | --- |

@@ -9,8 +9,8 @@ Dir['workflows/*'].select { |p| File.directory?(p) }.sort.each do |package|
   flow = File.exist?(flow_file) ? YAML.load_file(flow_file).dig('spec', 'flowcraft') : nil
   eino = File.exist?(eino_file) ? YAML.load_file(eino_file).dig('spec', 'eino') : nil
   expanded = (manifest['implementations'] || {}).values.any? { |i| (i.dig('parameters', 'voices') || {}).size > 3 }
-  expanded ||= (flow&.dig('voice_adapter', 'node_voices') || {}).size > 3
-  expanded ||= !!eino&.dig('voice_adapter', 'state_voices')
+  expanded ||= (flow&.dig('voice_adapter', 'speaker_voices') || {}).size > 3
+  expanded ||= (eino&.dig('voice_adapter', 'speaker_voices') || {}).size > 3
   fixture = "#{package}/routing-cases.json"
   abort "#{package}: multi-voice raid requires routing-cases.json" if expanded && !File.exist?(fixture)
   next unless File.exist?(fixture)

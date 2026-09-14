@@ -337,7 +337,7 @@ provider voice switching, timing, interruption or audible continuity.
 
 Passing this check establishes schema, binding, and deterministic routing
 contracts, not live behavior. CI still pins the immutable v0.18.2 Linux package
-and verifies its published SHA-256 digest; that pin predates `state_voices`
+and verifies its published SHA-256 digest; that pin predates `speaker_voices`
 and must be upgraded separately to validate this merged catalog.
 `make test-unit-voices` separately requires exactly 635 MiniMax Voice files and exactly one
 `model: speech-2.6-turbo` field in each. Per-file schema validation alone does
