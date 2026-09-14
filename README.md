@@ -140,6 +140,21 @@ Voice roles use the same Workflow namespace:
 | `flowcraft-learn-chinese-stories` | `tutor` |
 | `flowcraft-learn-chinese-words` | `tutor` |
 
+Eino spoken implementations declare these additional Voice roles:
+
+| Workflow `metadata.id` | Voice role |
+| --- | --- |
+| each `eino-story-*` Workflow | `storyteller` |
+| each `eino-adventure-*` Workflow | `adventure-guide` |
+| each `eino-learn-*` Workflow | `tutor` |
+| `eino-journey-history`, `eino-journey-memory-async`, `eino-journey-memory-recall` | `narrator` |
+
+Each alias is `<Workflow metadata.id>.<role>`. Both public RuntimeProfiles
+bind it to the same Voice resource as the corresponding Flowcraft default.
+Journey's three Eino variants accept text and push-to-talk input and synthesize
+spoken output. Like every Eino/Flowcraft voice adapter, they select the shared
+`asr` Model alias; custom RuntimeProfiles must bind it alongside their Voice aliases.
+
 For example, Journey resolves `flowcraft-journey-guide.narrator` exactly.
 Different scoped aliases may bind the
 same canonical Voice without becoming interchangeable. Catalog resources that
@@ -219,7 +234,13 @@ restart and established English opening on both implementations.
 
 ### Narrator and character voices
 
-19 stories and 11 adventures use continuous audiobook narration in both
+Original Flowcraft stories reconstruct `story_contract_v1` after reload and
+route narrator or character turns to one published model node with its own
+Voice alias. Original Eino stories preserve the same story/state contract with
+one `text/plain` primary output synthesized by the `storyteller` default Voice.
+
+
+The multi-role variants of 19 stories and 11 adventures use continuous audiobook narration in both
 engines: one narration LLM emits 300–600 characters per ordinary turn, with
 narration and 2–4 present characters alternating paragraphs. A scene with only
 one eligible character keeps that cast. Children may interrupt at any time;
@@ -243,7 +264,7 @@ in `default` and `testing` RuntimeProfiles. Chapter controls and investigation
 phase rules feed the single narration LLM instead of selecting a speaking node.
 
 Workflows and `raid.json` reference only Voice aliases named
-`flowcraft-<raid>.<role>` or `eino-<raid>.<role>`. Narrator slots retain
+`flowcraft-<raid>-mr.<role>` or `eino-<raid>-mr.<role>` for multi-role variants. Original aliases retain their Workflow namespace. Narrator slots retain
 `.storyteller` for stories, `.adventure-guide` for adventures, and `.game-master`
 for murder mystery. Within each raid implementation, narrator and character
 slots must bind to distinct voices; the same role uses the same voice across
@@ -553,3 +574,9 @@ different providers, endpoints, or regions remain separate. For example,
 Workspace instances, real credential values, secrets, private Workflows,
 product- or hardware-specific RuntimeProfiles and RegistrationTokens, and other
 user or runtime state remain outside this repository.
+
+### Original Eino voice behavior
+
+Original story, adventure and learn Eino Workflows use their Workflow-scoped default Voice for the complete primary text output; multi-role Eino variants add character Voice switching. Both engines use ASR for paced RealTime audio input. Journey Eino history, asynchronous-memory and recall variants also retain ASR and the narrator default Voice. RuntimeProfiles bind these aliases to the same role Voice as Flowcraft.
+
+The smoke RealTime probes require complete text/audio output and separate 2-second text / 3-second audio first responses for TTS-capable implementations. Offline checks validate Eino Voice ownership, manifest declarations and resolution in both RuntimeProfiles alongside tier parity and multi-role Voice closure.

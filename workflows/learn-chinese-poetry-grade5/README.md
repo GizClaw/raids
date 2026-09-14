@@ -8,7 +8,7 @@ Explore every classical poem in China's grade 5 primary Chinese textbooks — au
 
 | File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |
 | --- | --- | --- | --- | --- | --- |
-| `eino.yaml` | `eino-learn-chinese-poetry-grade5` | eino | learner | `eino-learn-chinese-poetry-grade5.model` | - |
+| `eino.yaml` | `eino-learn-chinese-poetry-grade5` | eino | learner | `eino-learn-chinese-poetry-grade5.model` | `eino-learn-chinese-poetry-grade5.tutor` |
 | `flowcraft.yaml` | `flowcraft-learn-chinese-poetry-grade5` | flowcraft | learner | `flowcraft-learn-chinese-poetry-grade5.model` | `flowcraft-learn-chinese-poetry-grade5.tutor` |
 
 Install an implementation into a RuntimeProfile with `raids install learn-chinese-poetry-grade5 --impl <engine> --profile <file> --collection <name> --set model.<alias>=<model id> --set voice.<alias>=<voice id>`; the slots above are the parameters the installer asks for.

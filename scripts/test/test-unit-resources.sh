@@ -69,6 +69,8 @@ ruby scripts/test/original-workflows.rb
 ruby scripts/test/test-eino-script-outputs.rb
 ruby scripts/test/eino-script-outputs.rb
 ruby scripts/test/test-giztest-layout.rb
+# Includes upstream RealTime inventory, ASR, complete-audio and 2s/3s
+# first-response checks, mapped to original clients in smoke tier files.
 ruby scripts/test/giztest-layout.rb
 
 # Resolve the complete manifest -> branch -> published node -> alias -> Voice

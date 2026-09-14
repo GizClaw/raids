@@ -8,7 +8,7 @@ Explore grade 2 Educational Science Press primary science through safe home expe
 
 | File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |
 | --- | --- | --- | --- | --- | --- |
-| `eino.yaml` | `eino-learn-science-grade2` | eino | learner | `eino-learn-science-grade2.model` | - |
+| `eino.yaml` | `eino-learn-science-grade2` | eino | learner | `eino-learn-science-grade2.model` | `eino-learn-science-grade2.tutor` |
 | `flowcraft.yaml` | `flowcraft-learn-science-grade2` | flowcraft | learner | `flowcraft-learn-science-grade2.model` | `flowcraft-learn-science-grade2.tutor` |
 
 Install an implementation into a RuntimeProfile with `raids install learn-science-grade2 --impl <engine> --profile <file> --collection <name> --set model.<alias>=<model id> --set voice.<alias>=<voice id>`; the slots above are the parameters the installer asks for.

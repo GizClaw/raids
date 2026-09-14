@@ -151,7 +151,7 @@ steps:
     peer_stream:
       mode: text
       input: 请从指定中文开场开始。
-      require_audio: false
+      require_audio: true
       require_text: true
       idle_timeout: 90s
     client: eino
@@ -206,6 +206,22 @@ steps:
       equals: true
     "/eino_opening/first_text_ms":
       maximum: 6000
+    "/eino_opening/audio_bytes":
+      minimum: 1
+    "/eino_opening/audio_eos":
+      equals: true
+    "/eino_opening/audio_integrity/streams":
+      minimum: 1
+    "/eino_opening/audio_integrity/max_active":
+      equals: 1
+    "/eino_opening/audio_integrity/open":
+      equals: 0
+    "/eino_opening/audio_integrity/violations":
+      equals: 0
+    "/eino_opening/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/eino_opening/audio_pacing/underruns":
+      equals: 0
 - id: flowcraft_select_realtime
   client: flowcraft
   rpc:
@@ -261,7 +277,7 @@ steps:
       pacing: 20ms
       idle_timeout: 90s
       require_text: true
-      require_audio: false
+      require_audio: true
   expect:
     "/flowcraft_realtime_roundtrip/events":
       non_empty: true
@@ -291,6 +307,22 @@ steps:
       non_empty: true
     "/eino_realtime_roundtrip/text_eos":
       equals: true
+    "/eino_realtime_roundtrip/audio_bytes":
+      minimum: 1
+    "/eino_realtime_roundtrip/audio_eos":
+      equals: true
+    "/eino_realtime_roundtrip/audio_integrity/streams":
+      minimum: 1
+    "/eino_realtime_roundtrip/audio_integrity/max_active":
+      equals: 1
+    "/eino_realtime_roundtrip/audio_integrity/open":
+      equals: 0
+    "/eino_realtime_roundtrip/audio_integrity/violations":
+      equals: 0
+    "/eino_realtime_roundtrip/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/eino_realtime_roundtrip/audio_pacing/underruns":
+      equals: 0
 - id: realtime_roundtrip_first_response
   timeout: 15s
   parallel:
@@ -312,9 +344,10 @@ steps:
       input: "${input_audio}"
       pacing: 20ms
       require_text: true
-      require_audio: false
+      require_audio: true
       completion: first_response
       first_text_timeout: 2s
+      first_audio_timeout: 3s
   expect:
     "/flowcraft_realtime_roundtrip_first_response/events":
       non_empty: true
@@ -332,6 +365,10 @@ steps:
       non_empty: true
     "/eino_realtime_roundtrip_first_response/text":
       non_empty: true
+    "/eino_realtime_roundtrip_first_response/audio_bytes":
+      minimum: 1
+    "/eino_realtime_roundtrip_first_response/first_audio_ms":
+      maximum: 3000
 - id: flowcraft_realtime_roundtrip_stop_probe
   client: flowcraft
   rpc:

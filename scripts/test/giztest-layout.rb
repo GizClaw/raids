@@ -248,6 +248,7 @@ module GiztestLayout
       end
       puts "validated #{tier}: #{files.size} files and implementation parity"
     end
+    realtime_count = 0
     Dir['workflows/*/raid.json'].each do |file|
       m = JSON.parse(File.read(file)); raid = m.fetch('id')
       expected = TIERS.map { |t| "tests/giztest/#{t}/#{raid}.giztest.yaml" }
@@ -255,6 +256,7 @@ module GiztestLayout
       if raid.match?(/\A(?:story|adventure|learn)-/)
         smoke = YAML.load_file("tests/giztest/smoke/#{raid}.giztest.yaml")
         %w[flowcraft eino].each do |engine|
+          realtime_count += 1
           impl = m.fetch('implementations').fetch(engine)
           check(impl.fetch('input').include?('realtime'), "#{file}: #{engine} lacks realtime capability")
           probes = steps(smoke).select { |s| s['client'] == engine }
@@ -273,6 +275,8 @@ module GiztestLayout
         check(t['tier'] == t['file'].split('/')[2] && t['implementations'].sort == m.fetch('implementations').keys.sort, "#{file}: implementation registration mismatch")
       end
     end
+    check(realtime_count == 100, "expected 100 original story/adventure/learn RealTime clients, found #{realtime_count}")
+    puts "validated #{realtime_count} original RealTime clients with ASR and audio response gates"
     Dir['workflows/{story,adventure}-*/{flowcraft,eino}.multi-role.yaml'].each do |file|
       source = File.read(file)
       check(source.include?('旁白叙述与角色第一人称台词分段'), "#{file}: missing continuous dialogue contract")

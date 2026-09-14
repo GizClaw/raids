@@ -8,7 +8,7 @@ Explore verified primary Chinese textbook treasures through proverb and two-part
 
 | File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |
 | --- | --- | --- | --- | --- | --- |
-| `eino.yaml` | `eino-learn-chinese-words` | eino | learner | `eino-learn-chinese-words.model` | - |
+| `eino.yaml` | `eino-learn-chinese-words` | eino | learner | `eino-learn-chinese-words.model` | `eino-learn-chinese-words.tutor` |
 | `flowcraft.yaml` | `flowcraft-learn-chinese-words` | flowcraft | learner | `flowcraft-learn-chinese-words.model` | `flowcraft-learn-chinese-words.tutor` |
 
 Install an implementation into a RuntimeProfile with `raids install learn-chinese-words --impl <engine> --profile <file> --collection <name> --set model.<alias>=<model id> --set voice.<alias>=<voice id>`; the slots above are the parameters the installer asks for.

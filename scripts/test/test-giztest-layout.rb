@@ -44,7 +44,7 @@ class GiztestCapabilityTest < Minitest::Test
   def test_live_workflow_capabilities
     Dir['workflows/learn-*/raid.json'].each do |file|
       raid = File.basename(File.dirname(file))
-      assert_equal({'flowcraft' => true, 'eino' => false}, GiztestLayout.tts_capabilities(raid))
+      assert_equal({'flowcraft' => true, 'eino' => true}, GiztestLayout.tts_capabilities(raid))
     end
     assert_equal({'flowcraft' => true, 'eino_history' => true, 'eino_memory_async' => true,
                   'eino_memory_recall' => true}, GiztestLayout.tts_capabilities('journey-guide'))

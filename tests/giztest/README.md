@@ -42,3 +42,9 @@ quality 不重复 smoke 中逐项相同的 285 个首响应探针。其余原有
 story-aesop / adventure-history 的 quality 在 finally 清理前读取各 client 最新一条 Workspace 历史，并输出类型和正文到运行日志，辅助定位文本围栏失败；报告 JSON 保留相应步骤与延迟。该观测不替代原 peer_stream 断言。
 
 story-aesop soak 仍按实现顺序执行长 relay；每个 client 首次注册前重连，全部 verdict 完成后在正常步骤中重连四个 client，再进入 finally，以免前一引擎耗时超过空闲窗口后阻断下一引擎或清理。reconnect 不放在 finally（当前 CLI schema 不支持），relay 和裁判断言不变。
+
+### Original Eino voice behavior
+
+Original story, adventure and learn Eino Workflows use their Workflow-scoped default Voice for the complete primary text output; multi-role Eino variants add character Voice switching. Both engines use ASR for paced RealTime audio input. Journey Eino history, asynchronous-memory and recall variants also retain ASR and the narrator default Voice. RuntimeProfiles bind these aliases to the same role Voice as Flowcraft.
+
+The smoke RealTime probes require complete text/audio output and separate 2-second text / 3-second audio first responses for TTS-capable implementations. Offline checks validate Eino Voice ownership, manifest declarations and resolution in both RuntimeProfiles alongside tier parity and multi-role Voice closure.

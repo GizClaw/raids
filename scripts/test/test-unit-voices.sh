@@ -38,3 +38,5 @@ if [[ "$failed" != 0 ]]; then
 fi
 
 printf 'validated %s MiniMax Voices with model %s\n' "$actual_count" "$expected_model"
+
+python3 scripts/test/check-eino-voices.py

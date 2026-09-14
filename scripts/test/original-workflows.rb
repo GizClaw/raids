@@ -1,7 +1,7 @@
 # Product boundary: originals are the exact local origin/main blobs. This check
 # is read-only/offline and deliberately never fetches or updates that reference.
 require 'open3'
-raids = Dir['workflows/{story,adventure}-*'] + %w[workflows/murder-mystery workflows/chat-assistant workflows/journey-guide]
+raids = Dir['workflows/{story,adventure,learn}-*'] + %w[workflows/murder-mystery workflows/chat-assistant workflows/journey-guide]
 count = 0
 raids.sort.each do |package|
   listing, status = Open3.capture2('git', 'ls-tree', '-r', '--name-only', 'origin/main', package)

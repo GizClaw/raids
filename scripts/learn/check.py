@@ -60,8 +60,15 @@ def main() -> int:
         return 1
     clean = True
     for raid in raids:
-        for label in (Path("workflows") / raid, Path("tests/giztest") / raid):
+        for label in (Path("workflows") / raid,):
             if not compare_directory(expected_root / label, actual_root / label, label):
+                clean = False
+    for tier in ("smoke", "quality", "soak"):
+        for raid in raids:
+            label = Path("tests/giztest") / tier / f"{raid}.giztest.yaml"
+            expected, actual = expected_root / label, actual_root / label
+            if not expected.is_file() or not actual.is_file() or expected.read_bytes() != actual.read_bytes():
+                print(f"generated tier differs: {label}", file=sys.stderr)
                 clean = False
     if not clean:
         print("learn raid package drift detected; run python3 scripts/learn/generate.py", file=sys.stderr)
