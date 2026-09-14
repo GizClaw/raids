@@ -48,6 +48,25 @@ module GiztestLayout
       end
     end
   end
+  # Split Workspace clients register by phase, but earlier phases can still own
+  # finally work. Keep every registered client with a remaining use on the same
+  # response-group heartbeat schedule, regardless of implementation variant.
+  def self.check_keepalive_schedule(doc, file)
+    return unless doc.fetch('clients').keys.any? { |c| c.include?('__') }
+    registered = []
+    active = []
+    cleanup = steps(doc, 'finally').map { |s| s['client'] }.compact
+    doc.fetch('steps').each_with_index do |step, index|
+      registered << step['client'] if step.dig('rpc', 'method') == 'server.register'
+      active << step['client'] if step.dig('rpc', 'method') == 'server.run.status'
+      next unless step['parallel'] || step['peer_stream']
+      future = steps({'steps' => doc['steps'][index..-1]}).map { |s| s['client'] }.compact + cleanup
+      required = registered.uniq & future.uniq
+      missing = required - active.uniq
+      check(missing.empty?, "#{file}: #{step['id']} clients need a keepalive until their last use (including finally): #{missing.join(', ')}")
+      active = []
+    end
+  end
   def self.without_audio(sequence)
     sequence.map do |step|
       copy = Marshal.load(Marshal.dump(step))
@@ -132,6 +151,7 @@ module GiztestLayout
         doc = YAML.load_file(file)
         check(File.readlines(file).first(4).map { |s| s.split[0,2].join(' ') } == ['# User', '# As', '# I', '# So'], "#{file}: missing User Story")
         check_workspace_order(doc, file)
+        check_keepalive_schedule(doc, file)
         capabilities = tts_capabilities(File.basename(file, '.giztest.yaml'))
         steps(doc).each do |step|
           implementation = step.fetch('client', '').split('__').first
@@ -191,18 +211,6 @@ module GiztestLayout
                 expected = logical.select { |c| variants.include?(c.include?('multi_role')) }
                 check(children.map { |s| s['client'].split('__').first }.sort == expected.sort, "#{file}: each active Workspace group must exercise every implementation")
               end
-            end
-          end
-          if doc['clients'].keys.any? { |c| c.include?('__') }
-            active = []
-            doc['steps'].each do |step|
-              active << step['client'] if step.dig('rpc', 'method') == 'server.run.status'
-              next unless step['parallel'] || step['peer_stream']
-              response_clients = step['parallel'] ? step['parallel'].map { |s| s['client'] } : [step['client']]
-              variant = response_clients.first.include?('multi_role')
-              required_clients = doc['clients'].keys.select { |c| c.include?('multi_role') == variant }
-              check((required_clients - active.uniq).empty?, "#{file}: idle Workspace clients need a keepalive before each response group")
-              active = []
             end
           end
         end

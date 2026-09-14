@@ -18,6 +18,32 @@ class GiztestCapabilityTest < Minitest::Test
     capture_io { assert_raises(SystemExit, &block) }
   end
 
+  def test_keepalive_covers_original_clients_until_cleanup
+    original = 'flowcraft__roles'
+    multi = 'flowcraft_multi_role__routing'
+    rpc = lambda { |client, method| {'id' => "#{client}_#{method}", 'client' => client,
+                                    'rpc' => {'method' => "server.#{method}"}} }
+    heartbeat = lambda { |client| rpc.call(client, 'run.status') }
+    response = {'id' => 'multi_response', 'client' => multi, 'peer_stream' => {}}
+    doc = {'clients' => {original => {}, multi => {}}, 'steps' => [
+      rpc.call(original, 'register'), rpc.call(multi, 'register'),
+      heartbeat.call(multi), response],
+      'finally' => [rpc.call(original, 'run.workspace.history'), rpc.call(original, 'run.stop'),
+                    rpc.call(original, 'workspace.delete')]}
+    rejected { GiztestLayout.check_keepalive_schedule(doc, 'fixture') }
+    doc['steps'].insert(-2, heartbeat.call(original))
+    GiztestLayout.check_keepalive_schedule(doc, 'fixture')
+    # A heartbeat from the previous response group does not cover the next one.
+    doc['steps'].concat([heartbeat.call(multi), response.merge('id' => 'next_response')])
+    rejected { GiztestLayout.check_keepalive_schedule(doc, 'fixture') }
+    # Once the original has no remaining use, it no longer needs heartbeats.
+    doc['finally'] = []
+    GiztestLayout.check_keepalive_schedule(doc, 'fixture')
+    # Future-phase clients must not receive status calls before registration.
+    doc['clients']['eino_multi_role__routing'] = {}
+    GiztestLayout.check_keepalive_schedule(doc, 'fixture')
+  end
+
   def test_workspace_must_exist_before_selection
     create = {'id' => 'create', 'client' => 'doubao', 'rpc' => {
       'method' => 'server.workspace.create', 'request' => {'name' => '${workspace}'}}}
