@@ -77,6 +77,17 @@ spec:
             }
             state.chapter = Math.max(1, Math.min(4, Math.floor(Number(state.chapter) || 1)));
             const chapters = ["法宝择主", "责任试炼", "盟友分歧", "封神新约"];
+            // A delivered heading records an automatic transition; user mentions do not.
+            for (const line of String(state.last_answer || "").split("\n")) {
+              const match = line.trim().match(/^(?:【旁白】)?\s*(?:第\s*([1-4])\s*章|Chapter\s+([1-4]))[：:]/i);
+              const delivered = match ? Number(match[1] || match[2]) : 0;
+              if (delivered === state.chapter + 1 && (line.includes(chapters[delivered - 1]) || /Chapter/i.test(line))) {
+                state.completed_beats = (state.completed_beats || []).concat([chapters[state.chapter - 1]]);
+                state.chapter = delivered;
+                state.chapter_progress_beats = [];
+                state.chapter_choice_made = false;
+              }
+            }
             const enteringFirst = Number(state.revision || 0) === 0 && (current.includes("第一章") || current.includes("第 1 章") || /(?:start|begin|restart).{0,20}(?:chapter\s*1|first chapter)/i.test(current));
             let transitionTarget = 0;
             if (current.includes("第二章") || current.includes("第2章") || current.includes("第 2 章")) transitionTarget = 2;
@@ -103,9 +114,8 @@ spec:
             const choiceMadeNow = !choiceDenied && (hasPositiveChoice || naturalShortChoice);
             const currentChapter = Number(state.chapter || 1);
             const priorProgressBeats = Array.isArray(state.chapter_progress_beats) ? state.chapter_progress_beats : [];
-            const completionReady = (state.chapter_choice_made === true || choiceMadeNow) && priorProgressBeats.length >= 2 && !completionDenied;
             let transition = false;
-            if (requested === currentChapter + 1 && completionReady) {
+            if (requested === currentChapter + 1) {
               state.chapter = requested;
               state.chapter_title = chapters[requested - 1];
               state.location = chapters[requested - 1];
@@ -113,7 +123,6 @@ spec:
               state.unresolved_hooks = [requested < 4 ? chapters[requested] + "尚未解决" : "结局后的责任仍需兑现"];
               state.chapter_progress_beats = [];
               state.chapter_choice_made = false;
-              state.next_chapter_hinted = false;
               transition = true;
             }
             const asksBlockedExplanation = ["为什么还不能", "为何不能", "说明为什么", "why can't", "why cannot", "why not ready"].some((cue) => lower.includes(cue));
@@ -144,9 +153,7 @@ spec:
             const beatsAfterTurn = priorProgressBeats.slice();
             if (countProgress && !beatsAfterTurn.includes("consequence")) beatsAfterTurn.push("consequence");
             if (countProgress && !beatsAfterTurn.includes("perspective")) beatsAfterTurn.push("perspective");
-            const nextChapterHint = countProgress && !current.includes("现实中模仿") && !current.includes("现实模仿") && Number(state.chapter || 1) < 4 && state.chapter_choice_made === true && beatsAfterTurn.length >= 2 && state.next_chapter_hinted !== true;
-            if (nextChapterHint) state.next_chapter_hinted = true;
-            const nextChapterInstruction = nextChapterHint ? "本轮必须完成：孩子刚刚做出了本章的选择。先用旁白讲出这个选择带来的直接结果，不再提问，回复最后一句必须逐字是“这一章的选择完成啦，想继续听就说‘进入下一章’。”" : "";
+            const nextChapterInstruction = "连续有声书规则：孩子回答故事选择后，先讲清角色行动的直接后果；本章目标因此达成时，在同一回复自然进入紧邻下一章，并紧接新章开场，不等待口令或许可。每个普通回复最后只留一个故事内的问题，以？（英文?）结束，明确角色要做的事、去处或解决办法，给出两三个具体安全选项。不得询问是否继续听，不得输出“进入下一章”“要不要继续”“想继续听就说”“这一章的选择完成啦”等流程话术。孩子主动要求下一章仍可承接；插话、更正、暂停及安全要求优先。第4章不创建第5章，以角色仍需兑现的责任给出故事内选择。";
             board.setVar("announce_chapter", announce);
             board.setVar("transition_blocked", transitionBlocked);
             board.setVar("safety_request", current.includes("现实中模仿") || current.includes("现实模仿"));
@@ -159,7 +166,7 @@ spec:
             const promptState = Object.assign({}, state);
             delete promptState.last_answer;
             board.setVar("story_state_text", JSON.stringify(promptState));
-            board.setVar("story_bible", "故事：封神榜。前提：讲述封神世界中的人物选择、法宝与正邪责任。\n玩家是能改变局面但不能替代角色作决定的同行者。\n世界规则：每轮只推进一个场景、线索或选择；最多一个问题，请孩子做选择时要在这个问题里直接说出两三个具体选项，不能只问“你想怎么做”；给孩子的选项必须适合儿童，不能包含杀害、伤害、威胁或报复任何人；当前用户更正覆盖历史旧值。\n事实边界：经典来源、传说与本剧本原创设定必须区分；不得复制完整出版译文。\n安全边界：面向儿童，危险非血腥；现实模仿请求必须明确说“不要模仿”，并建议找可信任的成年人、家长或老师帮助。\n反重复：不得重复确认句、场景开头、上一轮选择、同一个问题、回顾或寓意总结。" + "\n" + ["第1章《法宝择主》：进入条件=收到首次开场请求；目标=解决《法宝择主》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，并明确要求进入第2章；结束条件=转场回合只出现一次下一章标题“第 2 章：责任试炼”，并紧接新章开场。","第2章《责任试炼》：进入条件=第1章的当前选择已完成转场条件，且用户明确要求继续；目标=解决《责任试炼》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，并明确要求进入第3章；结束条件=转场回合只出现一次下一章标题“第 3 章：盟友分歧”，并紧接新章开场。","第3章《盟友分歧》：进入条件=第2章的当前选择已完成转场条件，且用户明确要求继续；目标=解决《盟友分歧》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，并明确要求进入第4章；结束条件=转场回合只出现一次下一章标题“第 4 章：封神新约”，并紧接新章开场。","第4章《封神新约》：进入条件=第3章的当前选择已完成转场条件，且用户明确要求继续；目标=解决《封神新约》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家确认角色的持久选择，并保留一个结局后的责任线索；结束条件=保持第4章，不再创建第五章，并以仍需兑现的责任收束。"][state.chapter - 1]);
+            board.setVar("story_bible", "故事：封神榜。前提：讲述封神世界中的人物选择、法宝与正邪责任。\n玩家是能改变局面但不能替代角色作决定的同行者。\n世界规则：每轮承接一个选择的后果，达成本章目标时同轮自然衔接下一章；最多一个问题，请孩子做选择时要在这个问题里直接说出两三个具体选项，不能只问“你想怎么做”；给孩子的选项必须适合儿童，不能包含杀害、伤害、威胁或报复任何人；当前用户更正覆盖历史旧值。\n事实边界：经典来源、传说与本剧本原创设定必须区分；不得复制完整出版译文。\n安全边界：面向儿童，危险非血腥；现实模仿请求必须明确说“不要模仿”，并建议找可信任的成年人、家长或老师帮助。\n反重复：不得重复确认句、场景开头、上一轮选择、同一个问题、回顾或寓意总结。" + "\n" + ["第1章《法宝择主》：进入条件=收到首次开场请求；目标=解决《法宝择主》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，随选择后果自然进入紧邻下一章，无需口令；结束条件=转场回合只出现一次下一章标题“第 2 章：责任试炼”，并紧接新章开场。","第2章《责任试炼》：进入条件=第1章的当前选择已完成转场条件，随前章选择后果自然衔接；目标=解决《责任试炼》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，随选择后果自然进入紧邻下一章，无需口令；结束条件=转场回合只出现一次下一章标题“第 3 章：盟友分歧”，并紧接新章开场。","第3章《盟友分歧》：进入条件=第2章的当前选择已完成转场条件，随前章选择后果自然衔接；目标=解决《盟友分歧》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家作出能关闭本章悬念的选择，随选择后果自然进入紧邻下一章，无需口令；结束条件=转场回合只出现一次下一章标题“第 4 章：封神新约”，并紧接新章开场。","第4章《封神新约》：进入条件=第3章的当前选择已完成转场条件，随前章选择后果自然衔接；目标=解决《封神新约》的核心张力；允许节拍至少包括①观察一个具体后果、②比较两名角色的不同回应；转场条件=玩家确认角色的持久选择，并保留一个结局后的责任线索；结束条件=保持第4章，不再创建第五章，并以仍需兑现的责任收束。"].slice(state.chapter - 1, Math.min(state.chapter + 1, 4)).join("\n"));
 
             // Include the exact opening for initial and explicit first-chapter opening requests.
             const openingForms = ["第一章开始","第一章重新开始","第一章从头开始","第一章重来","第一章重开","第一章重启","开始第一章","重新开始第一章","从头开始第一章","重开第一章","重启第一章","第1章开始","第1章重新开始","第1章从头开始","第1章重来","第1章重开","第1章重启","开始第1章","重新开始第1章","从头开始第1章","重开第1章","重启第1章","startchapter1","startfirstchapter","startfromchapter1","startfromfirstchapter","startatchapter1","startatfirstchapter","startthechapter1","startthefirstchapter","beginchapter1","beginfirstchapter","beginfromchapter1","beginfromfirstchapter","beginatchapter1","beginatfirstchapter","beginthechapter1","beginthefirstchapter","restartchapter1","restartfirstchapter","restartfromchapter1","restartfromfirstchapter","restartatchapter1","restartatfirstchapter","restartthechapter1","restartthefirstchapter"];
@@ -167,11 +174,11 @@ spec:
             // A fresh narrator request is an opening even without the literal word "start".
             const promptHistory = typeof board.channel === "function" ? (board.channel(board.MAIN_CHANNEL) || []) : null;
             const firstNarration = state.chapter === 1 && !administrativeTurn && !safetyManagement && !choiceMadeNow && !memory.trim() && (promptHistory ? !promptHistory.some(m => m.role === "assistant" || m.role === "model") : Number(state.revision || 0) === 1);
-            board.setVar("opening_instruction", (enteringFirst || !current || requestedOpening || firstNarration) ? "本轮是用户要求的第一章开场，优先于普通回合的反重复和不报章节规则。先写当前第一章标题，章节标题后保留以下背景和玩法，在同轮展开连续多角色故事，把开场问题移到整轮末尾：我们来到神话里的封神世界，你是一位小小修行者，身边有踩着风火轮的哪吒和很有智慧的姜子牙。当前在场有哪吒、姜子牙；杨戬在第2、3、4章出场；雷震子在第3、4章出场。你可以直接说出你的选择，也可以说“请让哪吒说说”或“请让姜子牙说说”，听当前在场者自己讲；这一章的选择做完后，说“进入下一章”就能继续听下去。封神世界里出现了一件会选择主人的法宝，你觉得配得上它的人最需要勇敢、诚实，还是愿意保护别人？（玩法说明里“说‘进入下一章’就能继续听下去”这一句不得省略）" : "");
+            board.setVar("opening_instruction", (enteringFirst || !current || requestedOpening || firstNarration) ? "本轮是用户要求的第一章开场，优先于普通回合的反重复和不报章节规则。先写当前第一章标题，章节标题后保留以下背景和玩法，在同轮展开连续多角色故事，把开场问题移到整轮末尾：我们来到神话里的封神世界，你是一位小小修行者，身边有踩着风火轮的哪吒和很有智慧的姜子牙。当前在场有哪吒、姜子牙；杨戬在第2、3、4章出场；雷震子在第3、4章出场。你可以直接说出你的选择，也可以说“请让哪吒说说”或“请让姜子牙说说”，听当前在场者自己讲；你可以随时和角色说话、作决定。封神世界里出现了一件会选择主人的法宝，你觉得配得上它的人最需要勇敢、诚实，还是愿意保护别人？" : "");
 
             // Only the selected role needs private style details; narration compares present roles.
             const roleViews = ["当前角色资料：narrator 旁白，只在第1、2、3、4章在场，只述可见事实，不代演角色；nezha 哪吒，只在第1、2、3、4章在场，想保护别人；天真短句，第1章提出用法宝护人；jiang-ziya 姜子牙，只在第1、2、3、4章在场，希望力量承担责任；幽默耐心，第1章核对承诺\n所有角色只说亲历或已公开信息，不知他人私密想法及未来结果。每章比较至少两种立场，不要求全员发声。章节行动属于本仓库儿童互动原创改编，不等同原典情节。","当前角色资料：narrator 旁白，只在第1、2、3、4章在场，只述可见事实，不代演角色；nezha 哪吒，只在第1、2、3、4章在场，想保护别人；天真短句，；jiang-ziya 姜子牙，只在第1、2、3、4章在场，希望力量承担责任；幽默耐心，；yang-jian 杨戬，只在第2、3、4章在场，想先查明情况；清爽果断，第2章查看受困者的位置，\n所有角色只说亲历或已公开信息，不知他人私密想法及未来结果。每章比较至少两种立场，不要求全员发声。章节行动属于本仓库儿童互动原创改编，不等同原典情节。","当前角色资料：narrator 旁白，只在第1、2、3、4章在场，只述可见事实，不代演角色；nezha 哪吒，只在第1、2、3、4章在场，想保护别人；天真短句，；jiang-ziya 姜子牙，只在第1、2、3、4章在场，希望力量承担责任；幽默耐心，；yang-jian 杨戬，只在第2、3、4章在场，想先查明情况；清爽果断，第3章反对贸然使用法宝；lei-zhenzi 雷震子，只在第3、4章在场，想稳妥护送伙伴；憨厚直接，第3章提出轮流护送，\n所有角色只说亲历或已公开信息，不知他人私密想法及未来结果。每章比较至少两种立场，不要求全员发声。章节行动属于本仓库儿童互动原创改编，不等同原典情节。","当前角色资料：narrator 旁白，只在第1、2、3、4章在场，只述可见事实，不代演角色；nezha 哪吒，只在第1、2、3、4章在场，想保护别人；天真短句，；jiang-ziya 姜子牙，只在第1、2、3、4章在场，希望力量承担责任；幽默耐心，；yang-jian 杨戬，只在第2、3、4章在场，想先查明情况；清爽果断，；lei-zhenzi 雷震子，只在第3、4章在场，想稳妥护送伙伴；憨厚直接，第4章承担巡护责任。\n所有角色只说亲历或已公开信息，不知他人私密想法及未来结果。每章比较至少两种立场，不要求全员发声。章节行动属于本仓库儿童互动原创改编，不等同原典情节。"];
-            board.setVar("story_bible", board.getVar("story_bible") + "\n" + roleViews[state.chapter - 1]);
+            board.setVar("story_bible", board.getVar("story_bible") + "\n" + roleViews.slice(state.chapter - 1, Math.min(state.chapter + 1, 4)).join("\n"));
       - id: persist-story
         type: script
         config:
@@ -184,7 +191,25 @@ spec:
               addBeat("perspective");
               state.chapter_progress_beats = beats;
             }
-            state.last_answer = String(board.getVar("answer") || "").slice(0, 1200);
+            state.last_answer = String(board.getVar("answer") || "").slice(0, 12000);
+            const chapters = ["法宝择主", "责任试炼", "盟友分歧", "封神新约"];
+            const roleTable = [{"key":"narrator","name":"旁白","aliases":["旁白","narrator"],"chapters":[1,2,3,4]},{"key":"nezha","name":"哪吒","aliases":["哪吒","nezha"],"chapters":[1,2,3,4]},{"key":"jiang-ziya","name":"姜子牙","aliases":["姜子牙","jiang-ziya"],"chapters":[1,2,3,4]},{"key":"yang-jian","name":"杨戬","aliases":["杨戬","yang-jian"],"chapters":[2,3,4]},{"key":"lei-zhenzi","name":"雷震子","aliases":["雷震子","lei-zhenzi"],"chapters":[3,4]}];
+            // A delivered heading records an automatic transition; user mentions do not.
+            for (const line of String(state.last_answer || "").split("\n")) {
+              const match = line.trim().match(/^(?:【旁白】)?\s*(?:第\s*([1-4])\s*章|Chapter\s+([1-4]))[：:]/i);
+              const delivered = match ? Number(match[1] || match[2]) : 0;
+              if (delivered === state.chapter + 1 && (line.includes(chapters[delivered - 1]) || /Chapter/i.test(line))) {
+                state.completed_beats = (state.completed_beats || []).concat([chapters[state.chapter - 1]]);
+                state.chapter = delivered;
+                state.chapter_progress_beats = [];
+                state.chapter_choice_made = false;
+              }
+            }
+            state.chapter_title = chapters[state.chapter - 1];
+            state.location = state.chapter_title;
+            state.active_roles = roleTable.filter(role => role.chapters.includes(state.chapter)).map(role => role.key);
+            state.unresolved_hooks = [state.chapter < 4 ? chapters[state.chapter] + "尚未解决" : "结局后的责任仍需兑现"];
+            board.setVar("story_state", state);
             board.setVar("story_state_fact", JSON.stringify(state));
       - id: observe-story
         type: memory_observe
@@ -207,17 +232,16 @@ spec:
             ${board.story_bible}
             当前权威状态：${board.story_state_text}
             本轮安全请求：${board.safety_request}。若该值为 true，回复中必须明确包含“不要模仿”和“找家长、老师或可信任成年人帮助”，并承接玩家所选安全替代带来的一个直接结果。
-            本轮转场阻塞：${board.transition_blocked}。若该值为 true，用“第 N 章：标题”格式写出当前章节及标题，再用孩子听得懂的话说明这一章还差孩子自己的选择或还没看到选择的结果，所以暂时还不能去下一章，最后用一个问题说出本章问题的具体选项；不得说“节拍”“转场条件”“悬念”等内部用语，也不要把“先听某个角色说说”当作选项，并且绝不输出用户请求的下一章标题。
-            若 announce_chapter 为 true，在【旁白】后第一行只写一次“第 N 章：标题”，其中“第”与数字、数字与“章”之间各有一个空格，标题后必须在同一条回复里紧接着讲这一章的开场：先交代新场景在哪里、谁在场、发生了什么，接着用旁白和在场角色连续交替讲述，最后用一个问题说出孩子可以选的两三个具体选项；绝不能只输出章节标题就结束。若 announce_chapter 和 transition_blocked 均为 false，则不得输出章节标题。
+            若 announce_chapter 为 true，在【旁白】后第一行只写一次“第 N 章：标题”，其中“第”与数字、数字与“章”之间各有一个空格，标题后必须在同一条回复里紧接着讲这一章的开场：先交代新场景在哪里、谁在场、发生了什么，接着用旁白和在场角色连续交替讲述，最后用一个问题说出孩子可以选的两三个具体选项；绝不能只输出章节标题就结束。孩子选择达成本章目标时也可输出紧邻下一章标题，同轮承接新场景。
             ${board.opening_instruction}
             若用户只要求回忆或确认旅程代号，只回答当前代号；存在更正时绝不输出旧值。
             ${board.next_chapter_instruction}
             普通讲述回合输出200至900个Unicode字符。不输出Markdown、列表、emoji、舞台说明、系统字段或重复问题。
             篇幅执行规则：所有普通叙述回合均须完整讲述，包括开场、转场、自然后果、不可用角色的替代回应、旁白线索钩子、角色探问、点名或否定点名后的继续讲述、事实边界说明和检查点总结。去除角色标记后，中文目标约 500 字，大约 1-2 分钟；不要少于 200 字，不要超过 900 字（按Unicode字符计数，标点、空格和换行也计入）。中文安排5段，每段约100字：旁白承接当前行动、在场角色的第一人称回应、另一在场角色的不同回应（只有一位时由旁白补充可观察细节）、旁白描述一个直接结果、旁白收束并按本轮规则给出选项。单角色探问仍保持该角色知识边界；事实说明和检查点用这5段展开当前已知细节，不因此新增剧情。英文按单词计数，目标约220个英文单词，大约1-2分钟；不要少于100个英文单词，不要超过450个英文单词，约5段、每段约44词，以匹配约1至2分钟语音；英文不适用中文字符上限，不翻译或重述整段中文背景。不能靠重复开场、旧对白或再讲一遍上一轮来补篇幅，也不能一句回应后立即结束。生成前安排各段篇幅，中文接近500字、英文接近220词时收束，不输出计数或分析。
-            仅用户明确要求只确认、只说代号、限定范围更正/记忆回忆，或纯安全制止时，才按该特殊回合的原限制简短回答，不凑字数、不推进剧情。提到更正、否定角色名、改变选择或要求自然后果本身不构成短回复豁免；仍要求继续讲述时中文必须完成200至900字符、英文100至450词。不得为了长度新增事实、越过角色知识边界或推进下一章。
+            仅用户明确要求只确认、只说代号、限定范围更正/记忆回忆，或纯安全制止时，才按该特殊回合的原限制简短回答，不凑字数、不推进剧情。提到更正、否定角色名、改变选择或要求自然后果本身不构成短回复豁免；仍要求继续讲述时中文必须完成200至900字符、英文100至450词。不得为了长度新增事实、越过角色知识边界或无视孩子的暂停要求。
             有声书连续讲述：普通回合（含开场、转场和选择结果）中文正文200至900个Unicode字符，英文正文100至450个英文单词，约1至2分钟语音。旁白与2至4个当前在场角色来回交替讲述，旁白叙述与角色第一人称台词分段；场景确实只有一位角色时只用该角色，绝不为凑数让未在场角色出现。角色只知亲历或已公开信息。孩子可以随时插话；接续最新插话，不重播已讲段落。孩子点名想听某个在场角色时，在本段多给该角色台词；不单独切换整轮说话人，也不因点名改变场景。
             标记格式：每段必须恰好以一个全角标记开头，只能使用【旁白】、【哪吒】、【姜子牙】、【杨戬】、【雷震子】，标记后直接正文；不输出其它【】标记，不把舞台说明放进标记，不使用英文角色key作标记。旁白与角色台词分别成段，同一角色可以多次出现。章节标题放在【旁白】后的正文，标题规则保持不变。
-            每轮结尾用【旁白】给出2至3个具体、儿童安全的选项，最多一个问题。选择完成结尾逐字句、第4章或终局、安全及限定范围的确认/更正/重连约束优先：这些特殊回合按原规则收束，不强加新问题；仅用户明确限定范围的确认、更正、记忆回忆或纯安全制止可短于200字，不为凑字数推进剧情。音色由段落标记映射，不输出Markdown、emoji或系统字段。
+            每轮结尾用【旁白】给出2至3个具体、儿童安全的选项，最多一个问题。安全及限定范围的确认/更正/重连约束优先：这些特殊回合按原规则收束，不强加新问题；仅用户明确限定范围的确认、更正、记忆回忆或纯安全制止可短于200字，不为凑字数推进剧情。音色由段落标记映射，不输出Markdown、emoji或系统字段。
           track_steps: true
     max_iterations: 10
     conversation:

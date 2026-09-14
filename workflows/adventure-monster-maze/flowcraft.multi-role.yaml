@@ -47,7 +47,7 @@ spec:
             let scene = Number(state.voice_scene || 1);
             scene = Number.isFinite(scene) ? Math.max(1, Math.min(scenes.length, Math.floor(scene))) : 1;
             const history = typeof board.channel === "function" ? (board.channel(board.MAIN_CHANNEL) || []) : [];
-            if (!state.voice_scene) {
+            { // Delivered scene arrivals supersede recalled state.
               for (const m of history) {
                 if (m.role !== "assistant") continue;
                 const text = m.content || (m.parts || []).filter(p => p.type === "text").map(p => p.text || "").join("");
@@ -69,7 +69,7 @@ spec:
             else if (any(current, ["总结", "路线图", "结合线索", "出口", "回顾", "用一句话说出"])) phase = "conclusion";
             else if (any(current, ["我猜", "可能", "一定", "危险", "捷径", "牺牲", "尚不能", "不要替我"])) phase = "challenge";
             const stageRoute = String(board.getVar("scenario_route") || state.route || "");
-            for (let i=0;i<scenes.length;i++) if(stageRoute.includes(scenes[i])) scene=i+1;
+            for (let i=0;i<scenes.length;i++) if(stageRoute.includes(scenes[i])) scene=Math.max(scene,i+1);
             state.voice_scene=scene;
             state.active_roles=roleTable.filter(r=>r.chapters.includes(scene)).map(r=>r.key);
             let managementText=current;
@@ -84,7 +84,7 @@ spec:
             board.setVar("narration_context", "当前场景："+scenes[scene-1]+"。当前在场角色："+roleTable.filter(r=>state.active_roles.includes(r.key)).map(r=>r.name).join("、")+"。"+(transition ? "本轮由旁白说出‘来到"+scenes[scene-1]+"’，用旁白和在场角色台词交替描写具体行动，结尾给两三个观察选项。" : "") );
 
 
-            board.setVar("story_bible", board.getVar("story_bible") + "\n" + ["场景1“月亮机关”：守门怪兽：指向已经可见的按钮与路线，不替玩家按按钮。","场景2“路线校准”：守门怪兽：指向已经可见的按钮与路线，不替玩家按按钮。","场景3“锁孔谜题”：谜题精灵：比较圆形三角形方形锁孔，给渐进提示，不替玩家解锁。","场景4“怪兽合作”：小怪兽：在玩家解锁相遇后提出一起帮忙的方法，不恐吓。"][scene - 1]);
+            board.setVar("story_bible", board.getVar("story_bible") + "\n" + ["场景1“月亮机关”：守门怪兽：指向已经可见的按钮与路线，不替玩家按按钮。","场景2“路线校准”：守门怪兽：指向已经可见的按钮与路线，不替玩家按按钮。","场景3“锁孔谜题”：谜题精灵：比较圆形三角形方形锁孔，给渐进提示，不替玩家解锁。","场景4“怪兽合作”：小怪兽：在玩家解锁相遇后提出一起帮忙的方法，不恐吓。"].slice(scene - 1, Math.min(scene + 1, scenes.length)).join("\n"));
       - id: prepare-recall-query
         type: script
         config:
@@ -180,6 +180,13 @@ spec:
             } else {
               next.last_input = input.slice(0, 160);
             }
+            const scenes = ["月亮机关", "路线校准", "锁孔谜题", "怪兽合作"];
+            const roleTable = [{"key": "narrator", "name": "旁白", "aliases": ["旁白", "narrator"], "chapters": [1, 2, 3, 4], "duty": "只负责叙述、管理和公开信息整理，不代演角色。"}, {"key": "little-monster", "name": "小怪兽", "aliases": ["小怪兽", "little-monster"], "chapters": [4], "duty": "在玩家解锁相遇后提出一起帮忙的方法，不恐吓。"}, {"key": "gatekeeper", "name": "守门怪兽", "aliases": ["守门怪兽", "gatekeeper"], "chapters": [1, 2], "duty": "指向已经可见的按钮与路线，不替玩家按按钮。"}, {"key": "riddle-spirit", "name": "谜题精灵", "aliases": ["谜题精灵", "riddle-spirit"], "chapters": [3], "duty": "比较圆形三角形方形锁孔，给渐进提示，不替玩家解锁。"}];
+            next.last_answer = String(board.getVar("tmp_answer") || "").slice(0, 12000);
+            for (let i = 0; i < scenes.length; i++) {
+              if (next.last_answer.includes("来到" + scenes[i])) next.voice_scene = i + 1;
+            }
+            next.active_roles = roleTable.filter(r => r.chapters.includes(next.voice_scene || 1)).map(r => r.key);
             board.setVar("scenario_state", next);
             board.setVar("scenario_state_fact", JSON.stringify(next));
       - id: observe-progress
@@ -245,11 +252,11 @@ spec:
             ${board.story_bible}
             ${board.narration_context}
 
-            篇幅执行规则：所有普通叙述回合均须完整讲述，包括开场、转场、自然后果、不可用角色的替代回应、旁白线索钩子、角色探问、点名或否定点名后的继续讲述、事实边界说明和检查点总结。去除角色标记后，中文目标约 500 字，大约 1-2 分钟；不要少于 200 字，不要超过 900 字（按Unicode字符计数，标点、空格和换行也计入）。中文安排5段，每段约100字：旁白承接当前行动、在场角色的第一人称回应、另一在场角色的不同回应（只有一位时由旁白补充可观察细节）、旁白描述一个直接结果、旁白收束并按本轮规则给出选项。单角色探问仍保持该角色知识边界；事实说明和检查点用这5段展开当前已知细节，不因此新增剧情。英文按单词计数，目标约220个英文单词，大约1-2分钟；不要少于100个英文单词，不要超过450个英文单词，约5段、每段约44词，以匹配约1至2分钟语音；英文不适用中文字符上限，不翻译或重述整段中文背景。不能靠重复开场、旧对白或再讲一遍上一轮来补篇幅，也不能一句回应后立即结束。生成前安排各段篇幅，中文接近500字、英文接近220词时收束，不输出计数或分析。
-            仅用户明确要求只确认、只说代号、限定范围更正/记忆回忆，或纯安全制止时，才按该特殊回合的原限制简短回答，不凑字数、不推进剧情。提到更正、否定角色名、改变选择或要求自然后果本身不构成短回复豁免；仍要求继续讲述时中文必须完成200至900字符、英文100至450词。不得为了长度新增事实、越过角色知识边界或推进下一章。
+            连续有声书规则：孩子回答故事选择后，先讲清角色行动的直接后果；本章目标因此达成时，在同一回复自然进入紧邻下一章，并紧接新章开场，不等待口令或许可。每个普通回复最后只留一个故事内的问题，以？（英文?）结束，明确角色要做的事、去处或解决办法，给出两三个具体安全选项。不得询问是否继续听，不得输出“进入下一章”“要不要继续”“想继续听就说”“这一章的选择完成啦”等流程话术。孩子主动要求下一章仍可承接；插话、更正、暂停及安全要求优先。最后一个场景不创建额外章节，以角色的后续行动给出故事内选择。自然进入下一场景时用旁白正文“来到场景名。”记录到达，只记录实际到达，不预告。篇幅执行规则：所有普通叙述回合均须完整讲述，包括开场、转场、自然后果、不可用角色的替代回应、旁白线索钩子、角色探问、点名或否定点名后的继续讲述、事实边界说明和检查点总结。去除角色标记后，中文目标约 500 字，大约 1-2 分钟；不要少于 200 字，不要超过 900 字（按Unicode字符计数，标点、空格和换行也计入）。中文安排5段，每段约100字：旁白承接当前行动、在场角色的第一人称回应、另一在场角色的不同回应（只有一位时由旁白补充可观察细节）、旁白描述一个直接结果、旁白收束并按本轮规则给出选项。单角色探问仍保持该角色知识边界；事实说明和检查点用这5段展开当前已知细节，不因此新增剧情。英文按单词计数，目标约220个英文单词，大约1-2分钟；不要少于100个英文单词，不要超过450个英文单词，约5段、每段约44词，以匹配约1至2分钟语音；英文不适用中文字符上限，不翻译或重述整段中文背景。不能靠重复开场、旧对白或再讲一遍上一轮来补篇幅，也不能一句回应后立即结束。生成前安排各段篇幅，中文接近500字、英文接近220词时收束，不输出计数或分析。
+            仅用户明确要求只确认、只说代号、限定范围更正/记忆回忆，或纯安全制止时，才按该特殊回合的原限制简短回答，不凑字数、不推进剧情。提到更正、否定角色名、改变选择或要求自然后果本身不构成短回复豁免；仍要求继续讲述时中文必须完成200至900字符、英文100至450词。不得为了长度新增事实、越过角色知识边界或无视孩子的暂停要求。
             有声书连续讲述：普通回合（含开场、转场和选择结果）中文正文200至900个Unicode字符，英文正文100至450个英文单词，约1至2分钟语音。旁白与2至4个当前在场角色来回交替讲述，旁白叙述与角色第一人称台词分段；场景确实只有一位角色时只用该角色，绝不为凑数让未在场角色出现。角色只知亲历或已公开信息。孩子可以随时插话；接续最新插话，不重播已讲段落。孩子点名想听某个在场角色时，在本段多给该角色台词；不单独切换整轮说话人，也不因点名改变场景。
             标记格式：每段必须恰好以一个全角标记开头，只能使用【旁白】、【小怪兽】、【守门怪兽】、【谜题精灵】，标记后直接正文；不输出其它【】标记，不把舞台说明放进标记，不使用英文角色key作标记。旁白与角色台词分别成段，同一角色可以多次出现。章节标题放在【旁白】后的正文，标题规则保持不变。
-            每轮结尾用【旁白】给出2至3个具体、儿童安全的选项，最多一个问题。选择完成结尾逐字句、第4章或终局、安全及限定范围的确认/更正/重连约束优先：这些特殊回合按原规则收束，不强加新问题；仅用户明确限定范围的确认、更正、记忆回忆或纯安全制止可短于200字，不为凑字数推进剧情。音色由段落标记映射，不输出Markdown、emoji或系统字段。
+            每轮结尾用【旁白】给出2至3个具体、儿童安全的选项，最多一个问题。安全及限定范围的确认/更正/重连约束优先：这些特殊回合按原规则收束，不强加新问题；仅用户明确限定范围的确认、更正、记忆回忆或纯安全制止可短于200字，不为凑字数推进剧情。音色由段落标记映射，不输出Markdown、emoji或系统字段。
           track_steps: true
     max_iterations: 10
     conversation:

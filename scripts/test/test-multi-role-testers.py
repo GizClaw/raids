@@ -31,11 +31,18 @@ for path, doc, original, soak in zip(paths, documents(paths),
     exec(script(doc).replace('.codepoints()', ''), ns)
     old = {}
     exec(script(original).replace('.codepoints()', ''), old)
-    assert ns['REQUESTS'] == old['REQUESTS']
-    assert ns['CHECKPOINTS'] == old['CHECKPOINTS']
-    for current, previous in zip(ns['CHECKS'], old['CHECKS']):
-        for field in ('required', 'required_any', 'forbidden'):
-            assert current[field] == previous[field], (raid, field)
+    if raid == 'murder-mystery':
+        assert ns['REQUESTS'] == old['REQUESTS']
+        assert ns['CHECKPOINTS'] == old['CHECKPOINTS']
+        for current, previous in zip(ns['CHECKS'], old['CHECKS']):
+            for field in ('required', 'required_any', 'forbidden'):
+                assert current[field] == previous[field], (raid, field)
+    else:
+        assert not any('进入下一章' in r or '请进入第' in r for r in ns['REQUESTS'])
+        ordinary_index = next(i for i, c in enumerate(ns['CHECKS']) if c.get('story_choice'))
+        for phrase in ('进入下一章', '要不要继续', '想继续听就说', '这一章的选择完成啦'):
+            assert any(f.startswith('forbidden:') for f in ns['deterministic_failures'](ordinary_index, phrase))
+        assert any(f.startswith('story_choice:') for f in ns['deterministic_failures'](ordinary_index, '故事停在这里。'))
     for request, current, previous in zip(ns['REQUESTS'], ns['CHECKS'], old['CHECKS']):
         if '只确认' in request:
             assert current['min_runes'] == previous['min_runes'], (raid, request)
@@ -74,7 +81,9 @@ for path, doc, original, soak in zip(paths, documents(paths),
                     3: 'The journey code is SUNRISE-42.',
                 }[english_index]
                 for size in (99, 100, 450, 451):
-                    reply = prefix + ' adventure' * (size - ns['english_word_count'](prefix))
+                    reply = prefix.replace('?', '.') + ' adventure' * (size - ns['english_word_count'](prefix)) + '?'
+                    if english_index == 0:
+                        reply = 'adventure ' * (size - ns['english_word_count'](prefix)) + prefix
                     result = ns['run']({'text': reply, 'messages': [{'role': 'assistant', 'content': ns['ENGLISH_REQUESTS'][english_index]}]})
                     assert (result['det'] == '' if 100 <= size <= 450 else 'words:' in result['det']), (english_index, size, result)
     manifest = json.loads(path.with_name('raid.json').read_text())
@@ -111,6 +120,8 @@ def strings(value):
         yield value
 
 for path, doc in zip(workflow_paths, documents(workflow_paths)):
+    assert '回复最后一句必须逐字是：这一章' not in path.read_text(), path
+    assert '只有用户明确要求进入紧邻的下一章' not in path.read_text(), path
     current_prompts = [s for s in strings(doc) if '篇幅执行规则：' in s]
     assert current_prompts, path
     for current in current_prompts:
@@ -121,3 +132,47 @@ for path, doc in zip(workflow_paths, documents(workflow_paths)):
         for required in ('仅用户明确要求只确认', '有声书连续讲述', '标记格式', '不输出其它【】标记', '音色由段落标记映射'):
             assert required in current, (path, required)
 print('validated 60 multi-role workflows and preserved surrounding prompt instructions')
+
+# Exercise post-response persistence as well as pre-response routing. An automatic
+# arrival must survive recall before another user turn supplies a chapter command.
+import re
+persistence_cases = []
+for path, doc in zip(workflow_paths, documents(workflow_paths)):
+    story = path.parent.name.startswith('story-')
+    if path.name.startswith('flowcraft'):
+        nodes = doc['spec']['flowcraft']['graph']['nodes']
+        control = next(n['config']['source'] for n in nodes
+                       if 'const ' + ('chapters' if story else 'scenes') + ' =' in n.get('config', {}).get('source', ''))
+        names = json.loads(re.search(r'const (?:chapters|scenes) = (\[.*?\]);', control)[1])
+        source = next(n['config']['source'] for n in nodes
+                      if 'state.last_answer =' in n.get('config', {}).get('source', '') or 'next.last_answer =' in n.get('config', {}).get('source', ''))
+        answer = ('【旁白】第 2 章：' if story else '【旁白】来到') + names[1] + '\n角色行动的后果。'
+        persistence_cases.append({'source': source, 'answer': answer,
+                                  'story': story, 'raid': path.parent.name})
+    else:
+        nodes = doc['spec']['eino']['graph']['nodes']
+        source = next(n['source'] for n in nodes if n['id'] in ('capture-observation', 'commit-progress'))
+        ns = {}
+        exec(source, ns)
+        if story:
+            fact = ns['run']({'text': '我选第一个办法。', 'answer': '【旁白】第 2 章：新行动\n故事后果。'})['fact']
+            assert '\n【旁白】第 2 章：' in fact, path
+        else:
+            control = next(n['source'] for n in nodes if n['id'] == 'control-narration')
+            names = json.loads(re.search(r'scenes = (\[.*?\])', control)[1])
+            fact = ns['run']({'text': '我选第一个办法。', 'answer': '【旁白】来到' + names[1] + '。',
+                              'scene': '1', 'voice_revision': '2', 'phase': 'explore', 'route': '', 'side': ''})
+            fact = fact.get('fact', fact.get('progress'))
+            assert '"voice_scene":2' in fact, path
+subprocess.run(['node', '-e', r'''
+const vm = require('vm'), assert = require('assert/strict');
+for (const c of JSON.parse(require('fs').readFileSync(0, 'utf8'))) {
+  const key = c.story ? 'story_state' : 'scenario_state';
+  const vars = {[key]: {chapter: 1, voice_scene: 1, revision: 1}, answer: c.answer, tmp_answer: c.answer, input: '我选第一个办法。'};
+  vm.runInNewContext(c.source, {board: {getVar: k => vars[k], setVar: (k, v) => {vars[k] = v;}}});
+  const saved = JSON.parse(vars[key + '_fact']);
+  assert.equal(c.story ? saved.chapter : saved.voice_scene, 2, c.raid);
+  assert(saved.active_roles.length > 0, c.raid);
+}
+'''], input=json.dumps(persistence_cases), text=True, check=True)
+print('validated 60 multi-role post-response observations and automatic arrival persistence')

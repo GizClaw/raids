@@ -155,7 +155,7 @@ module GiztestLayout
               capability = capabilities[step.fetch('client').split('__').first]
               roundtrip_expect.delete_if { |key, _| key.match?(AUDIO_PATH) } if capability == false
               if step['client'].include?('multi_role') && File.basename(file).match?(/\A(?:story|adventure)-/)
-                roundtrip_expect['/text'] = {'non_empty'=>true, 'not_contains'=>['【','】'], 'min_length'=>200, 'max_length'=>900}
+                roundtrip_expect['/text'] = {'non_empty'=>true, 'not_contains'=>['【','】','进入下一章','要不要继续','想继续听就说','这一章的选择完成啦','等你说要不要','是否继续听'], 'min_length'=>200, 'max_length'=>900, 'pattern'=>'[？?]\\s*$'}
                 roundtrip_expect['/audio_integrity/streams'] = {'equals'=>1}
               end
               if step['client'].include?('multi_role') && File.basename(file) == 'murder-mystery.giztest.yaml'
