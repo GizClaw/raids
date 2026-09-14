@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"go.starlark.net/starlark"
 )
@@ -81,6 +82,16 @@ func main() {
 					equal, err := starlark.Equal(got, value(want))
 					if err != nil || !equal {
 						panic(fmt.Sprintf("%s: %s got %s want %v", c.ID, key, got, want))
+					}
+				case "includes_all":
+					text, ok := starlark.AsString(got)
+					if !ok {
+						panic(fmt.Sprintf("%s: %s is not a string", c.ID, key))
+					}
+					for _, part := range want.([]any) {
+						if !strings.Contains(text, part.(string)) {
+							panic(fmt.Sprintf("%s: %s missing %q", c.ID, key, part))
+						}
 					}
 				case "non_empty":
 					if !got.Truth() {

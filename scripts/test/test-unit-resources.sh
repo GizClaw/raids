@@ -65,6 +65,8 @@ test -d tests/giztest || {
 }
 
 require_command ruby
+ruby scripts/test/test-eino-script-outputs.rb
+ruby scripts/test/eino-script-outputs.rb
 ruby scripts/test/test-giztest-layout.rb
 ruby scripts/test/giztest-layout.rb
 
