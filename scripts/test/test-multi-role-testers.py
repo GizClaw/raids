@@ -40,32 +40,32 @@ for path, doc, original, soak in zip(paths, documents(paths),
         if '只确认' in request:
             assert current['min_runes'] == previous['min_runes'], (raid, request)
             assert current['max_runes'] <= previous['max_runes'], (raid, request)
-    ordinary = [i for i, c in enumerate(ns['CHECKS']) if c['min_runes'] == 300]
+    ordinary = [i for i, c in enumerate(ns['CHECKS']) if c['min_runes'] == 200]
     assert ordinary
     for index in ordinary:
-        assert ns['CHECKS'][index]['max_runes'] == 600
+        assert ns['CHECKS'][index]['max_runes'] == 900
     index = ordinary[0]
     # Isolate counting from the scenario's mandatory content, without mutating files.
-    ns['CHECKS'][index] = {'min_runes': 300, 'max_runes': 600, **({'min_words': 150, 'max_words': 300} if raid != 'murder-mystery' else {})}
-    for size, failure in [(299, 'min_runes:'), (300, None), (600, None), (601, 'max_runes:')]:
+    ns['CHECKS'][index] = {'min_runes': 200, 'max_runes': 900, **({'min_words': 100, 'max_words': 450} if raid != 'murder-mystery' else {})}
+    for size, failure in [(199, 'min_runes:'), (200, None), (500, None), (900, None), (901, 'max_runes:')]:
         text = '景' * size
         for candidate in (text, '【旁白】' + text if raid != 'murder-mystery' else '【主持人】' + text):
             failures = ns['deterministic_failures'](index, candidate)
             assert (not failures if failure is None else any(f.startswith(failure) for f in failures)), (raid, size, failures)
     if raid != 'murder-mystery':
         for ordinary_index in ordinary:
-            assert ns['CHECKS'][ordinary_index]['min_words'] == 150
-            assert ns['CHECKS'][ordinary_index]['max_words'] == 300
+            assert ns['CHECKS'][ordinary_index]['min_words'] == 100
+            assert ns['CHECKS'][ordinary_index]['max_words'] == 450
         assert ns['english_word_count']("Don't re-start; “hello” — ... 42") == 3
         assert not ns['is_english']('当前旅程代号 SUNRISE-42。' + '景' * 300)
-        for size, failure in [(149, 'min_words:'), (150, None), (220, None), (300, None), (301, 'max_words:')]:
+        for size, failure in [(99, 'min_words:'), (100, None), (220, None), (450, None), (451, 'max_words:')]:
             # Long words prove the Chinese rune cap no longer applies to English.
             text = ' '.join(['adventure'] * size)
             for candidate in (text, '【旁白】' + text, '【旁白】' + text.replace(' ', '\n')):
                 failures = ns['deterministic_failures'](index, candidate)
                 assert (not failures if failure is None else failures == [failure + str(size)]), (raid, size, failures)
         # Short English words also report word-bound failures, not rune-bound failures.
-        assert ns['deterministic_failures'](index, ' '.join(['I'] * 301)) == ['max_words:301']
+        assert ns['deterministic_failures'](index, ' '.join(['I'] * 451)) == ['max_words:451']
         if raid == 'story-wizard-oz':
             for english_index in (0, 1, 3):
                 prefix = {
@@ -73,10 +73,10 @@ for path, doc, original, soak in zip(paths, documents(paths),
                     1: 'Dorothy says: Dorothy continues.',
                     3: 'The journey code is SUNRISE-42.',
                 }[english_index]
-                for size in (149, 150, 300, 301):
+                for size in (99, 100, 450, 451):
                     reply = prefix + ' adventure' * (size - ns['english_word_count'](prefix))
                     result = ns['run']({'text': reply, 'messages': [{'role': 'assistant', 'content': ns['ENGLISH_REQUESTS'][english_index]}]})
-                    assert (result['det'] == '' if 150 <= size <= 300 else 'words:' in result['det']), (english_index, size, result)
+                    assert (result['det'] == '' if 100 <= size <= 450 else 'words:' in result['det']), (english_index, size, result)
     manifest = json.loads(path.with_name('raid.json').read_text())
     tester = manifest['testers']['multi-role']
     assert tester['workflow_id'] == doc['metadata']['id'] == raid + '-test-multi-role'
@@ -114,7 +114,9 @@ for path, doc in zip(workflow_paths, documents(workflow_paths)):
     current_prompts = [s for s in strings(doc) if '篇幅执行规则：' in s]
     assert current_prompts, path
     for current in current_prompts:
-        assert '每段约100字且至少80字' in current and '目标约220个英文单词' in current, path
+        assert '每段约100字' in current and '目标约220个英文单词' in current, path
+        assert '不要少于 200 字，不要超过 900 字' in current, path
+        assert '300至600' not in current and '150至300' not in current, path
         assert '英文按字符' not in current and '400至500' not in current, path
         for required in ('仅用户明确要求只确认', '有声书连续讲述', '标记格式', '不输出其它【】标记', '音色由段落标记映射'):
             assert required in current, (path, required)
