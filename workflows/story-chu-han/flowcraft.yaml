@@ -21,28 +21,8 @@ spec:
       - from: recall-progress
         to: control-story
       - from: control-story
-        to: speak-xiang-yu
-        condition: selected_speaker == "xiang-yu"
-      - from: control-story
-        to: speak-empress-lu
-        condition: selected_speaker == "empress-lu"
-      - from: control-story
-        to: speak-liu-bang
-        condition: selected_speaker == "liu-bang"
-      - from: control-story
-        to: speak-zhang-liang
-        condition: selected_speaker == "zhang-liang"
-      - from: control-story
-        to: speak-narrator
-      - from: speak-narrator
-        to: persist-story
-      - from: speak-xiang-yu
-        to: persist-story
-      - from: speak-empress-lu
-        to: persist-story
-      - from: speak-liu-bang
-        to: persist-story
-      - from: speak-zhang-liang
+        to: narrate-story
+      - from: narrate-story
         to: persist-story
       - from: persist-story
         to: observe-story
@@ -68,11 +48,13 @@ spec:
         config:
           query:
             text_from: scenario_recall_query
-            lanes: [story_progress]
-            kinds: [state]
+            lanes:
+            - story_progress
+            kinds:
+            - state
           output: scenario_memory
           render:
-            header: "Confirmed story state:"
+            header: 'Confirmed story state:'
             item_prefix: "- "
             max_items: 16
           top_k: 16
@@ -158,36 +140,13 @@ spec:
             state.location = state.chapter_title;
             const announce = (!current && Number(state.chapter || 1) === 1) || enteringFirst || transition;
             const safetyManagement = current.includes("现实中模仿") || current.includes("现实模仿");
-            let speaker = "narrator";
-            // Option-only names are choices, not requests for a character performance.
-            const optionOnly = roleTable.some((role) => role.aliases.includes(lower.replace(/[。！!,.，]/g, "")));
-            const mentions = [];
-            for (const role of roleTable) {
-              for (const alias of role.aliases) {
-                let index = lower.indexOf(alias);
-                while (index >= 0) {
-                  const prefix = lower.slice(0, index).split(/[，。；！？,;!?]|但是|而是|不过|但/).pop();
-                  const suffix = lower.slice(index + alias.length).split(/[，。；！？,;!?]/)[0];
-                  const negated = /(不要|别|不让|不用|不想|不请|不由|不听|不选|do not|don't|not|never).{0,16}$/.test(prefix) || /^(先|暂时)?(不要|别|不用|不必)/.test(suffix);
-                  const requestedRole = /(请让|请|让|由|听|ask|let|hear)\s*$/.test(prefix) || /^(亲自|说|讲|回应|回答|来讲)/.test(suffix);
-                  if (!negated && requestedRole) mentions.push({key: role.key, index});
-                  index = lower.indexOf(alias, index + alias.length);
-                }
-              }
-            }
-            mentions.sort((a, b) => a.index - b.index);
-            if (!announce && !transitionBlocked && !administrativeTurn && !safetyManagement && !optionOnly) {
-              const selected = mentions.find((mention) => state.active_roles.includes(mention.key));
-              if (selected) speaker = selected.key;
-            }
             const countProgress = !transition && !transitionBlocked && !enteringFirst && current !== "" && !administrativeTurn && !safetyOnly && (requested === 0 || requested === currentChapter);
             const beatsAfterTurn = priorProgressBeats.slice();
-            if (countProgress && (speaker === "narrator" || requestsOutcome) && !beatsAfterTurn.includes("consequence")) beatsAfterTurn.push("consequence");
-            if (countProgress && (speaker !== "narrator" || requestsPerspective) && !beatsAfterTurn.includes("perspective")) beatsAfterTurn.push("perspective");
-            const nextChapterHint = countProgress && speaker === "narrator" && !current.includes("现实中模仿") && !current.includes("现实模仿") && Number(state.chapter || 1) < 4 && state.chapter_choice_made === true && beatsAfterTurn.length >= 2 && state.next_chapter_hinted !== true;
+            if (countProgress && !beatsAfterTurn.includes("consequence")) beatsAfterTurn.push("consequence");
+            if (countProgress && !beatsAfterTurn.includes("perspective")) beatsAfterTurn.push("perspective");
+            const nextChapterHint = countProgress && !current.includes("现实中模仿") && !current.includes("现实模仿") && Number(state.chapter || 1) < 4 && state.chapter_choice_made === true && beatsAfterTurn.length >= 2 && state.next_chapter_hinted !== true;
             if (nextChapterHint) state.next_chapter_hinted = true;
-            const nextChapterInstruction = nextChapterHint ? "本轮必须完成：孩子刚刚做出了本章的选择。先用旁白讲出这个选择带来的直接结果，不要用任何角色的第一人称，不再提问，回复最后一句必须逐字是“这一章的选择完成啦，想继续听就说‘进入下一章’。”" : "";
-            board.setVar("selected_speaker", speaker);
+            const nextChapterInstruction = nextChapterHint ? "本轮必须完成：孩子刚刚做出了本章的选择。先用旁白讲出这个选择带来的直接结果，不再提问，回复最后一句必须逐字是“这一章的选择完成啦，想继续听就说‘进入下一章’。”" : "";
             board.setVar("announce_chapter", announce);
             board.setVar("transition_blocked", transitionBlocked);
             board.setVar("safety_request", current.includes("现实中模仿") || current.includes("现实模仿"));
@@ -207,91 +166,12 @@ spec:
             const requestedOpening = !transitionDenied && openingForms.some(cue => current.toLowerCase().replace(/\s/g, "").includes(cue));
             // A fresh narrator request is an opening even without the literal word "start".
             const promptHistory = typeof board.channel === "function" ? (board.channel(board.MAIN_CHANNEL) || []) : null;
-            const firstNarration = speaker === "narrator" && state.chapter === 1 && !administrativeTurn && !safetyManagement && !choiceMadeNow && !memory.trim() && (promptHistory ? !promptHistory.some(m => m.role === "assistant" || m.role === "model") : Number(state.revision || 0) === 1);
-            board.setVar("opening_instruction", (enteringFirst || !current || requestedOpening || firstNarration) ? "本轮是用户要求的第一章开场，优先于普通回合的反重复和不报章节规则。先写当前第一章标题，章节标题后必须依次完整说出这段开场，先交代背景，再说明玩法，最后提出开场问题：我们回到两千多年前的楚汉时代，你是一支小队伍的领队，会遇到勇猛的项羽和精明的吕后。第二章会遇到提出承诺的刘邦和比较办法的张良，遇见后也能点名。你可以直接说出你的选择，也可以说“请让项羽说说”或“请让吕后说说”，听他们自己讲；这一章的选择做完后，说“进入下一章”就能继续听下去。两支队伍都想赢得大家的信任，如果你是领队，会先展示力量还是先兑现一个承诺？（玩法说明里“说‘进入下一章’就能继续听下去”这一句不得省略）" : "");
+            const firstNarration = state.chapter === 1 && !administrativeTurn && !safetyManagement && !choiceMadeNow && !memory.trim() && (promptHistory ? !promptHistory.some(m => m.role === "assistant" || m.role === "model") : Number(state.revision || 0) === 1);
+            board.setVar("opening_instruction", (enteringFirst || !current || requestedOpening || firstNarration) ? "本轮是用户要求的第一章开场，优先于普通回合的反重复和不报章节规则。先写当前第一章标题，章节标题后保留以下背景和玩法，在同轮展开连续多角色故事，把开场问题移到整轮末尾：我们回到两千多年前的楚汉时代，你是一支小队伍的领队，会遇到勇猛的项羽和精明的吕后。第二章会遇到提出承诺的刘邦和比较办法的张良，遇见后也能随时插话。你可以直接说出你的选择，也可以说“请让项羽说说”或“请让吕后说说”，让这一段多一些他们的台词；这一章的选择做完后，说“进入下一章”就能继续听下去。两支队伍都想赢得大家的信任，如果你是领队，会先展示力量还是先兑现一个承诺？（玩法说明里“说‘进入下一章’就能继续听下去”这一句不得省略）" : "");
 
             // Only the selected role needs private style details; narration compares present roles.
-            const roleViews = [{"narrator":"当前角色资料：narrator 旁白，第1至4章只述可见事实、不代演角色；xiang-yu 项羽，仅第1、2、3、4章可出场，我想用行动赢得信任；沉稳直率，第1章展示搬运能力，；empress-lu 吕后，仅第1、2、3、4章可出场，我想让队伍生活安稳；温和务实，第1章清点粮食，\n本故事四章及人物相遇是本仓库原创改编安排，不等同原典情节或真实历史；所有角色只知亲历或已公开信息，不知别人的私密想法和未来结果；每章比较至少两种立场，不要求全员轮流发言。","xiang-yu":"当前角色资料：xiang-yu 项羽，仅第1、2、3、4章可出场，我想用行动赢得信任；沉稳直率，第1章展示搬运能力，\n本故事四章及人物相遇是本仓库原创改编安排，不等同原典情节或真实历史；所有角色只知亲历或已公开信息，不知别人的私密想法和未来结果；每章比较至少两种立场，不要求全员轮流发言。","empress-lu":"当前角色资料：empress-lu 吕后，仅第1、2、3、4章可出场，我想让队伍生活安稳；温和务实，第1章清点粮食，\n本故事四章及人物相遇是本仓库原创改编安排，不等同原典情节或真实历史；所有角色只知亲历或已公开信息，不知别人的私密想法和未来结果；每章比较至少两种立场，不要求全员轮流发言。","liu-bang":"当前角色资料：liu-bang 刘邦，仅第2、3、4章可出场，我想靠守约获得支持；清晰亲切，\n本故事四章及人物相遇是本仓库原创改编安排，不等同原典情节或真实历史；所有角色只知亲历或已公开信息，不知别人的私密想法和未来结果；每章比较至少两种立场，不要求全员轮流发言。","zhang-liang":"当前角色资料：zhang-liang 张良，仅第2、3、4章可出场，我想先听证据再定办法；清爽理性，\n本故事四章及人物相遇是本仓库原创改编安排，不等同原典情节或真实历史；所有角色只知亲历或已公开信息，不知别人的私密想法和未来结果；每章比较至少两种立场，不要求全员轮流发言。"},{"narrator":"当前角色资料：narrator 旁白，第1至4章只述可见事实、不代演角色；xiang-yu 项羽，仅第1、2、3、4章可出场，我想用行动赢得信任；沉稳直率，第2章权衡承诺，；empress-lu 吕后，仅第1、2、3、4章可出场，我想让队伍生活安稳；温和务实，第2章讨论安置，；liu-bang 刘邦，仅第2、3、4章可出场，我想靠守约获得支持；清晰亲切，第2章提出保护同行者的承诺，；zhang-liang 张良，仅第2、3、4章可出场，我想先听证据再定办法；清爽理性，第2章比较鸿沟两种和平安排，\n本故事四章及人物相遇是本仓库原创改编安排，不等同原典情节或真实历史；所有角色只知亲历或已公开信息，不知别人的私密想法和未来结果；每章比较至少两种立场，不要求全员轮流发言。","xiang-yu":"当前角色资料：xiang-yu 项羽，仅第1、2、3、4章可出场，我想用行动赢得信任；沉稳直率，第2章权衡承诺，\n本故事四章及人物相遇是本仓库原创改编安排，不等同原典情节或真实历史；所有角色只知亲历或已公开信息，不知别人的私密想法和未来结果；每章比较至少两种立场，不要求全员轮流发言。","empress-lu":"当前角色资料：empress-lu 吕后，仅第1、2、3、4章可出场，我想让队伍生活安稳；温和务实，第2章讨论安置，\n本故事四章及人物相遇是本仓库原创改编安排，不等同原典情节或真实历史；所有角色只知亲历或已公开信息，不知别人的私密想法和未来结果；每章比较至少两种立场，不要求全员轮流发言。","liu-bang":"当前角色资料：liu-bang 刘邦，仅第2、3、4章可出场，我想靠守约获得支持；清晰亲切，第2章提出保护同行者的承诺，\n本故事四章及人物相遇是本仓库原创改编安排，不等同原典情节或真实历史；所有角色只知亲历或已公开信息，不知别人的私密想法和未来结果；每章比较至少两种立场，不要求全员轮流发言。","zhang-liang":"当前角色资料：zhang-liang 张良，仅第2、3、4章可出场，我想先听证据再定办法；清爽理性，第2章比较鸿沟两种和平安排，\n本故事四章及人物相遇是本仓库原创改编安排，不等同原典情节或真实历史；所有角色只知亲历或已公开信息，不知别人的私密想法和未来结果；每章比较至少两种立场，不要求全员轮流发言。"},{"narrator":"当前角色资料：narrator 旁白，第1至4章只述可见事实、不代演角色；xiang-yu 项羽，仅第1、2、3、4章可出场，我想用行动赢得信任；沉稳直率，第3章听取民众公开意见，；empress-lu 吕后，仅第1、2、3、4章可出场，我想让队伍生活安稳；温和务实，第3章记录民众需要，；liu-bang 刘邦，仅第2、3、4章可出场，我想靠守约获得支持；清晰亲切，第3章安排粮食分配，；zhang-liang 张良，仅第2、3、4章可出场，我想先听证据再定办法；清爽理性，第3章提醒兑现承诺，\n本故事四章及人物相遇是本仓库原创改编安排，不等同原典情节或真实历史；所有角色只知亲历或已公开信息，不知别人的私密想法和未来结果；每章比较至少两种立场，不要求全员轮流发言。","xiang-yu":"当前角色资料：xiang-yu 项羽，仅第1、2、3、4章可出场，我想用行动赢得信任；沉稳直率，第3章听取民众公开意见，\n本故事四章及人物相遇是本仓库原创改编安排，不等同原典情节或真实历史；所有角色只知亲历或已公开信息，不知别人的私密想法和未来结果；每章比较至少两种立场，不要求全员轮流发言。","empress-lu":"当前角色资料：empress-lu 吕后，仅第1、2、3、4章可出场，我想让队伍生活安稳；温和务实，第3章记录民众需要，\n本故事四章及人物相遇是本仓库原创改编安排，不等同原典情节或真实历史；所有角色只知亲历或已公开信息，不知别人的私密想法和未来结果；每章比较至少两种立场，不要求全员轮流发言。","liu-bang":"当前角色资料：liu-bang 刘邦，仅第2、3、4章可出场，我想靠守约获得支持；清晰亲切，第3章安排粮食分配，\n本故事四章及人物相遇是本仓库原创改编安排，不等同原典情节或真实历史；所有角色只知亲历或已公开信息，不知别人的私密想法和未来结果；每章比较至少两种立场，不要求全员轮流发言。","zhang-liang":"当前角色资料：zhang-liang 张良，仅第2、3、4章可出场，我想先听证据再定办法；清爽理性，第3章提醒兑现承诺，\n本故事四章及人物相遇是本仓库原创改编安排，不等同原典情节或真实历史；所有角色只知亲历或已公开信息，不知别人的私密想法和未来结果；每章比较至少两种立场，不要求全员轮流发言。"},{"narrator":"当前角色资料：narrator 旁白，第1至4章只述可见事实、不代演角色；xiang-yu 项羽，仅第1、2、3、4章可出场，我想用行动赢得信任；沉稳直率，第4章承担选择后果。；empress-lu 吕后，仅第1、2、3、4章可出场，我想让队伍生活安稳；温和务实，第4章提出持续照料的安排。；liu-bang 刘邦，仅第2、3、4章可出场，我想靠守约获得支持；清晰亲切，第4章接受公开核对。；zhang-liang 张良，仅第2、3、4章可出场，我想先听证据再定办法；清爽理性，第4章列出仍需完成的责任。\n本故事四章及人物相遇是本仓库原创改编安排，不等同原典情节或真实历史；所有角色只知亲历或已公开信息，不知别人的私密想法和未来结果；每章比较至少两种立场，不要求全员轮流发言。","xiang-yu":"当前角色资料：xiang-yu 项羽，仅第1、2、3、4章可出场，我想用行动赢得信任；沉稳直率，第4章承担选择后果。\n本故事四章及人物相遇是本仓库原创改编安排，不等同原典情节或真实历史；所有角色只知亲历或已公开信息，不知别人的私密想法和未来结果；每章比较至少两种立场，不要求全员轮流发言。","empress-lu":"当前角色资料：empress-lu 吕后，仅第1、2、3、4章可出场，我想让队伍生活安稳；温和务实，第4章提出持续照料的安排。\n本故事四章及人物相遇是本仓库原创改编安排，不等同原典情节或真实历史；所有角色只知亲历或已公开信息，不知别人的私密想法和未来结果；每章比较至少两种立场，不要求全员轮流发言。","liu-bang":"当前角色资料：liu-bang 刘邦，仅第2、3、4章可出场，我想靠守约获得支持；清晰亲切，第4章接受公开核对。\n本故事四章及人物相遇是本仓库原创改编安排，不等同原典情节或真实历史；所有角色只知亲历或已公开信息，不知别人的私密想法和未来结果；每章比较至少两种立场，不要求全员轮流发言。","zhang-liang":"当前角色资料：zhang-liang 张良，仅第2、3、4章可出场，我想先听证据再定办法；清爽理性，第4章列出仍需完成的责任。\n本故事四章及人物相遇是本仓库原创改编安排，不等同原典情节或真实历史；所有角色只知亲历或已公开信息，不知别人的私密想法和未来结果；每章比较至少两种立场，不要求全员轮流发言。"}];
-            board.setVar("story_bible", board.getVar("story_bible") + "\n" + roleViews[state.chapter - 1][speaker]);
-      - id: speak-narrator
-        type: llm
-        publish: true
-        config:
-          model: flowcraft-story-chu-han.model
-          max_tokens: 1024
-          output_key: answer
-          system_prompt: |-
-            ${board.story_bible}
-            当前权威状态：${board.story_state_text}
-            本轮是旁白路径。只陈述玩家可见的场景、直接后果或转场，不替角色知道秘密；直接叙述，不得添加“旁白说”“旁白：”等说话人标签，也不得用任何角色的第一人称说话；孩子只说出一个角色名或选项时，把它当作孩子的选择来叙述结果。
-            本轮安全请求：${board.safety_request}。若该值为 true，回复中必须明确包含“不要模仿”和“找家长、老师或可信任成年人帮助”，并承接玩家所选安全替代带来的一个直接结果。
-            本轮转场阻塞：${board.transition_blocked}。若该值为 true，用“第 N 章：标题”格式写出当前章节及标题，再用孩子听得懂的话说明这一章还差孩子自己的选择或还没看到选择的结果，所以暂时还不能去下一章，最后用一个问题说出本章问题的具体选项；不得说“节拍”“转场条件”“悬念”等内部用语，也不要把“先听某个角色说说”当作选项，并且绝不输出用户请求的下一章标题。
-            若 announce_chapter 为 true，第一行只写一次“第 N 章：标题”，其中“第”与数字、数字与“章”之间各有一个空格，标题后必须在同一条回复里紧接着讲这一章的开场：先用一两句话交代新场景在哪里、谁在场、发生了什么，再用一个问题说出孩子可以选的两三个具体选项；绝不能只输出章节标题就结束。若 announce_chapter 和 transition_blocked 均为 false，则不得输出章节标题。
-            ${board.opening_instruction}
-            若用户只要求回忆或确认旅程代号，只回答当前代号；存在更正时绝不输出旧值。
-            ${board.next_chapter_instruction}
-            普通回合输出2至4个完整中文句子、30至220个Unicode字符；首次开场和进入新章的回合可以写到6个句子、320个Unicode字符以内。不输出Markdown、列表、emoji、舞台说明、系统字段或重复问题。
-          track_steps: true
-      - id: speak-xiang-yu
-        type: llm
-        publish: true
-        config:
-          model: flowcraft-story-chu-han.model
-          max_tokens: 1024
-          output_key: answer
-          system_prompt: |-
-            ${board.story_bible}
-            当前权威状态：${board.story_state_text}
-            角色动机与说话方式：我想用行动赢得信任；沉稳直率，第1章展示搬运能力，第2章权衡承诺，第3章听取民众公开意见，第4章承担选择后果。
-            本轮只能由项羽说话，直接以第一人称角色口吻说台词，不得添加“项羽说”“项羽：”等说话人标签；只说该角色亲历或已公开的信息，不替旁白或另一角色发言。
-            本轮不得输出章节标题。承接玩家当前选择，推进一个直接后果或线索，最多一个问题。
-            输出2至4个完整中文句子、30至220个Unicode字符，不输出Markdown、列表、emoji、舞台说明或系统字段。
-          track_steps: true
-      - id: speak-empress-lu
-        type: llm
-        publish: true
-        config:
-          model: flowcraft-story-chu-han.model
-          max_tokens: 1024
-          output_key: answer
-          system_prompt: |-
-            ${board.story_bible}
-            当前权威状态：${board.story_state_text}
-            角色动机与说话方式：我想让队伍生活安稳；温和务实，第1章清点粮食，第2章讨论安置，第3章记录民众需要，第4章提出持续照料的安排。
-            本轮只能由吕后说话，直接以第一人称角色口吻说台词，不得添加“吕后说”“吕后：”等说话人标签；只说该角色亲历或已公开的信息，不替旁白或另一角色发言。
-            本轮不得输出章节标题。承接玩家当前选择，推进一个直接后果或线索，最多一个问题。
-            输出2至4个完整中文句子、30至220个Unicode字符，不输出Markdown、列表、emoji、舞台说明或系统字段。
-          track_steps: true
-      - id: speak-liu-bang
-        type: llm
-        publish: true
-        config:
-          model: flowcraft-story-chu-han.model
-          max_tokens: 1024
-          output_key: answer
-          system_prompt: |-
-            ${board.story_bible}
-            当前权威状态：${board.story_state_text}
-            角色动机与说话方式：我想靠守约获得支持；清晰亲切，第2章提出保护同行者的承诺，第3章安排粮食分配，第4章接受公开核对。
-            本轮只能由刘邦说话，直接以第一人称角色口吻说台词，不得添加“刘邦说”“刘邦：”等说话人标签；只说该角色亲历或已公开的信息，不替旁白或另一角色发言。
-            本轮不得输出章节标题。承接玩家当前选择，推进一个直接后果或线索，最多一个问题。
-            输出2至4个完整中文句子、30至220个Unicode字符，不输出Markdown、列表、emoji、舞台说明或系统字段。
-          track_steps: true
-      - id: speak-zhang-liang
-        type: llm
-        publish: true
-        config:
-          model: flowcraft-story-chu-han.model
-          max_tokens: 1024
-          output_key: answer
-          system_prompt: |-
-            ${board.story_bible}
-            当前权威状态：${board.story_state_text}
-            角色动机与说话方式：我想先听证据再定办法；清爽理性，第2章比较鸿沟两种和平安排，第3章提醒兑现承诺，第4章列出仍需完成的责任。
-            本轮只能由张良说话，直接以第一人称角色口吻说台词，不得添加“张良说”“张良：”等说话人标签；只说该角色亲历或已公开的信息，不替旁白或另一角色发言。
-            本轮不得输出章节标题。承接玩家当前选择，推进一个直接后果或线索，最多一个问题。
-            输出2至4个完整中文句子、30至220个Unicode字符，不输出Markdown、列表、emoji、舞台说明或系统字段。
-          track_steps: true
+            const roleViews = ["当前角色资料：narrator 旁白，第1至4章只述可见事实、不代演角色；xiang-yu 项羽，仅第1、2、3、4章可出场，我想用行动赢得信任；沉稳直率，第1章展示搬运能力，；empress-lu 吕后，仅第1、2、3、4章可出场，我想让队伍生活安稳；温和务实，第1章清点粮食，\n本故事四章及人物相遇是本仓库原创改编安排，不等同原典情节或真实历史；所有角色只知亲历或已公开信息，不知别人的私密想法和未来结果；每章比较至少两种立场，不要求全员轮流发言。","当前角色资料：narrator 旁白，第1至4章只述可见事实、不代演角色；xiang-yu 项羽，仅第1、2、3、4章可出场，我想用行动赢得信任；沉稳直率，第2章权衡承诺，；empress-lu 吕后，仅第1、2、3、4章可出场，我想让队伍生活安稳；温和务实，第2章讨论安置，；liu-bang 刘邦，仅第2、3、4章可出场，我想靠守约获得支持；清晰亲切，第2章提出保护同行者的承诺，；zhang-liang 张良，仅第2、3、4章可出场，我想先听证据再定办法；清爽理性，第2章比较鸿沟两种和平安排，\n本故事四章及人物相遇是本仓库原创改编安排，不等同原典情节或真实历史；所有角色只知亲历或已公开信息，不知别人的私密想法和未来结果；每章比较至少两种立场，不要求全员轮流发言。","当前角色资料：narrator 旁白，第1至4章只述可见事实、不代演角色；xiang-yu 项羽，仅第1、2、3、4章可出场，我想用行动赢得信任；沉稳直率，第3章听取民众公开意见，；empress-lu 吕后，仅第1、2、3、4章可出场，我想让队伍生活安稳；温和务实，第3章记录民众需要，；liu-bang 刘邦，仅第2、3、4章可出场，我想靠守约获得支持；清晰亲切，第3章安排粮食分配，；zhang-liang 张良，仅第2、3、4章可出场，我想先听证据再定办法；清爽理性，第3章提醒兑现承诺，\n本故事四章及人物相遇是本仓库原创改编安排，不等同原典情节或真实历史；所有角色只知亲历或已公开信息，不知别人的私密想法和未来结果；每章比较至少两种立场，不要求全员轮流发言。","当前角色资料：narrator 旁白，第1至4章只述可见事实、不代演角色；xiang-yu 项羽，仅第1、2、3、4章可出场，我想用行动赢得信任；沉稳直率，第4章承担选择后果。；empress-lu 吕后，仅第1、2、3、4章可出场，我想让队伍生活安稳；温和务实，第4章提出持续照料的安排。；liu-bang 刘邦，仅第2、3、4章可出场，我想靠守约获得支持；清晰亲切，第4章接受公开核对。；zhang-liang 张良，仅第2、3、4章可出场，我想先听证据再定办法；清爽理性，第4章列出仍需完成的责任。\n本故事四章及人物相遇是本仓库原创改编安排，不等同原典情节或真实历史；所有角色只知亲历或已公开信息，不知别人的私密想法和未来结果；每章比较至少两种立场，不要求全员轮流发言。"];
+            board.setVar("story_bible", board.getVar("story_bible") + "\n" + roleViews[state.chapter - 1]);
       - id: persist-story
         type: script
         config:
@@ -300,11 +180,11 @@ spec:
             if (board.getVar("count_progress_response") === true) {
               const beats = Array.isArray(state.chapter_progress_beats) ? state.chapter_progress_beats.slice() : [];
               const addBeat = (beat) => { if (!beats.includes(beat)) beats.push(beat); };
-              if (String(board.getVar("selected_speaker") || "narrator") === "narrator" || board.getVar("response_requests_outcome") === true) addBeat("consequence");
-              if (String(board.getVar("selected_speaker") || "narrator") !== "narrator" || board.getVar("response_requests_perspective") === true) addBeat("perspective");
+              addBeat("consequence");
+              addBeat("perspective");
               state.chapter_progress_beats = beats;
             }
-            state.last_answer = String(board.getVar("answer") || "").slice(0, 320);
+            state.last_answer = String(board.getVar("answer") || "").slice(0, 1200);
             board.setVar("story_state_fact", JSON.stringify(state));
       - id: observe-story
         type: memory_observe
@@ -312,18 +192,41 @@ spec:
           observations:
           - facts:
             - text_from: story_state_fact
-              attributes: {lane: story_progress, kind: state}
+              attributes:
+                lane: story_progress
+                kind: state
           wait_for_completion: true
+      - id: narrate-story
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-story-chu-han.model
+          max_tokens: 2048
+          output_key: answer
+          system_prompt: |-
+            ${board.story_bible}
+            当前权威状态：${board.story_state_text}
+            本轮安全请求：${board.safety_request}。若该值为 true，回复中必须明确包含“不要模仿”和“找家长、老师或可信任成年人帮助”，并承接玩家所选安全替代带来的一个直接结果。
+            本轮转场阻塞：${board.transition_blocked}。若该值为 true，用“第 N 章：标题”格式写出当前章节及标题，再用孩子听得懂的话说明这一章还差孩子自己的选择或还没看到选择的结果，所以暂时还不能去下一章，最后用一个问题说出本章问题的具体选项；不得说“节拍”“转场条件”“悬念”等内部用语，也不要把“先听某个角色说说”当作选项，并且绝不输出用户请求的下一章标题。
+            若 announce_chapter 为 true，在【旁白】后第一行只写一次“第 N 章：标题”，其中“第”与数字、数字与“章”之间各有一个空格，标题后必须在同一条回复里紧接着讲这一章的开场：先交代新场景在哪里、谁在场、发生了什么，接着用旁白和在场角色连续交替讲述，最后用一个问题说出孩子可以选的两三个具体选项；绝不能只输出章节标题就结束。若 announce_chapter 和 transition_blocked 均为 false，则不得输出章节标题。
+            ${board.opening_instruction}
+            若用户只要求回忆或确认旅程代号，只回答当前代号；存在更正时绝不输出旧值。
+            ${board.next_chapter_instruction}
+            普通讲述回合输出300至600个Unicode字符。不输出Markdown、列表、emoji、舞台说明、系统字段或重复问题。
+            有声书连续讲述：普通回合（含开场、转场和选择结果）正文300至600个Unicode字符，约1至2分钟语音。旁白与2至4个当前在场角色来回交替讲述，旁白叙述与角色第一人称台词分段；场景确实只有一位角色时只用该角色，绝不为凑数让未在场角色出现。角色只知亲历或已公开信息。孩子可以随时插话；接续最新插话，不重播已讲段落。孩子点名想听某个在场角色时，在本段多给该角色台词；不单独切换整轮说话人，也不因点名改变场景。
+            标记格式：每段必须恰好以一个全角标记开头，只能使用【旁白】、【项羽】、【吕后】、【刘邦】、【张良】，标记后直接正文；不输出其它【】标记，不把舞台说明放进标记，不使用英文角色key作标记。旁白与角色台词分别成段，同一角色可以多次出现。章节标题放在【旁白】后的正文，标题规则保持不变。
+            每轮结尾用【旁白】给出2至3个具体、儿童安全的选项，最多一个问题。选择完成结尾逐字句、第4章或终局、安全及限定范围的确认/更正/重连约束优先：这些特殊回合按原规则收束，不强加新问题；仅确认、更正或安全回复可短于300字，不为凑字数推进剧情。音色由段落标记映射，不输出Markdown、emoji或系统字段。
+          track_steps: true
     max_iterations: 10
     conversation:
       starts: agent
     voice_adapter:
       asr_model: asr
       default_voice: flowcraft-story-chu-han.storyteller
-      node_voices:
-        speak-narrator: flowcraft-story-chu-han.storyteller
-        speak-xiang-yu: flowcraft-story-chu-han.xiang-yu
-        speak-empress-lu: flowcraft-story-chu-han.empress-lu
-        speak-liu-bang: flowcraft-story-chu-han.liu-bang
-        speak-zhang-liang: flowcraft-story-chu-han.zhang-liang
+      speaker_voices:
+        旁白: flowcraft-story-chu-han.storyteller
+        项羽: flowcraft-story-chu-han.xiang-yu
+        吕后: flowcraft-story-chu-han.empress-lu
+        刘邦: flowcraft-story-chu-han.liu-bang
+        张良: flowcraft-story-chu-han.zhang-liang
   memory: story-teller

@@ -13,7 +13,7 @@ for (const {raid, data, sources} of suites) {
       assert.equal(typeof c.id, 'string');
       assert(!results.has(c.id), 'duplicate case ID');
       assert.equal(typeof c.input, 'string');
-      assert.equal(typeof c.expect.speaker, 'string');
+      if (c.expect.speaker !== undefined) assert.equal(typeof c.expect.speaker, 'string');
       let state = c.state || {};
       if (c.state_from) {
         assert(results.has(c.state_from), 'state_from must reference an earlier case');
@@ -25,7 +25,7 @@ for (const {raid, data, sources} of suites) {
       vm.runInNewContext(sources.flowcraft, context, {timeout: 1000, filename: `${raid}/${cfg.node || 'control-story'}`});
       // Normalize VM values before strict comparisons across realms.
       const result = JSON.parse(JSON.stringify(vars));
-      assert.equal(result[cfg.speaker_var || 'selected_speaker'], c.expect.speaker);
+      if (c.expect.speaker !== undefined) assert.equal(result[cfg.speaker_var || 'selected_speaker'], c.expect.speaker);
       for (const [path, checks] of Object.entries(c.expect.flowcraft || {})) {
         const actual = path.split('.').reduce((v, k) => v?.[k], result);
         for (const [op, expected] of Object.entries(checks)) {
@@ -36,7 +36,7 @@ for (const {raid, data, sources} of suites) {
         }
       }
       results.set(c.id, result);
-      starCases.push({ID: `${raid}/${c.id}`, Input: {text: c.input, history: c.history || [], memory: c.memory || '', ...(c.eino_input || {})}, Speaker: c.expect.speaker});
+      starCases.push({ID: `${raid}/${c.id}`, Input: {text: c.input, history: c.history || [], memory: c.memory || '', ...(c.eino_input || {})}, Speaker: c.expect.speaker, Expect: c.expect.eino || {}});
     } catch (error) { throw new Error(`${raid}/${c.id}: ${error.message}`, {cause: error}); }
   }
   if (sources.eino) cp.execFileSync('sh', ['scripts/test/test-starlark-routing.sh'], {

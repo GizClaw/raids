@@ -21,7 +21,7 @@ Learn about habitats, behavior, and ecosystems through animal stories.
 
 ## 角色与音色
 
-Flowcraft 每轮选择一个 published speak 节点；Eino 保留单一 primary chat_model，由上游 Starlark 写入 `selected_speaker`，通过 `state_voices` 选择 TTS。两个引擎均保留 ASR，使用同一角色音色。
+两引擎每轮使用一个讲述 LLM，输出有声书式连续多角色剧本；`voice_adapter.speaker_voices` 按段映射中文说话人名，`default_voice` 使用旁白 alias。
 
 Voice 由 runtime profile 绑定。
 
@@ -46,14 +46,20 @@ Voice 由 runtime profile 绑定。
 - `eino-story-animal-kingdom.elephant`
 - `eino-story-animal-kingdom.owl`
 
-角色只说亲历或公开信息，第一人称且不加“某某说／某某：”。开场、转场、更正、安全管理优先旁白；明确点名仅选择当前在场人物，多人按文本顺序选一个，否定点名不触发；其余由旁白承接。例：“请让探险者说说”、“不要让探险者说话，请让动物向导说说”、“请让动物向导说说，再让探险者说说”。只报选项中的角色名算玩家选择。旧记忆的角色数组按当前章节重建。
+角色只说亲历或公开信息，台词使用第一人称，与旁白叙述分段。角色名单按当前章节重建；孩子点名只增加本段该在场角色的台词，不改变章节或让未在场角色出现。
 
 四章与人物相遇属于本仓库原创改编安排，应与原典、史实区分；每章比较至少两种立场，不让跨地点人物为凑数同时在场。
 
 ## 验收
 
 - 保留双引擎 16 响应 relay、reload、更正、安全与转场回归。
-- `flowcraft.roles.giztest.yaml` 与 `eino.roles.giztest.yaml` 各含 5 个隔离 Workspace；角色探针先开场，后续人物逐章完成选择、后果、观点与转场。
-- 完整响应要求 text/audio EOS、audio_bytes > 0，文本 6s、音频 90s；first_response 保持文本 2s、音频 3s。
-- `routing-cases.json` 的 79 个案例执行两引擎真实选人源码，覆盖全部角色和章节、别名、否定、多人顺序、未出场、旧记忆及转场归一化。
+- 完整响应要求 text/audio EOS、audio_bytes > 0，首字 6s、整段音频最多 180s；first_response 保持文本 2s、音频 3s。
 - 离线门禁验证配置与路由；供应商音色权限、实际 Voice 日志、音质和在线时延需另行真实 E2E 与试听确认。
+
+## 连续多角色讲述契约
+
+普通回合（含开场、转场、选择结果）约 300–600 字、1–2 分钟语音，旁白与 2–4 个当前在场角色交替讲述；当前场景只有一位角色时不为凑数增员。每段恰好以一个配置中的 `【旁白】` 或 `【角色中文名】` 开头，标记后直接正文，禁止其他全角方括号标记。AudioDock 剥离标记并串行播放、预取下一段；孩子随时插话后承接新输入。
+
+结尾由旁白给 2–3 个具体选项；选择完成逐字结尾、第四章/终局、安全、仅确认/更正/回忆等已有约束优先，不额外加问题；限定范围和安全回复可短于 300 字。章节、场景、知情边界与旧记忆恢复保持上文契约。音色槽位和 RuntimeProfile 绑定不变，中文标记名与上表角色对应。
+
+Smoke 用连续开场、续讲及 realtime 检查完整 EOS、单流不叠音、零欠载、无残留标记和正文长度，first_response 保持 2s/3s。Quality 保留章节守门、选择结尾、安全逐字用语及原有更正/恢复场景；不再逐角色点名。Soak 保留 16 响应、relay 和 reload 结构，普通段落检查 300–600 字（特殊回复例外）。`routing-cases.json` 执行两引擎控制源码，验证状态与内容约束；已删除无意义的单人选声断言。离线通过不代表真实音色与音频时序已验收，需 GizClaw v0.18.12 部署后 E2E 和试听。

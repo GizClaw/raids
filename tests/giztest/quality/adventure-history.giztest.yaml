@@ -5,16 +5,14 @@
 version: gizclaw.test/v1alpha1
 name: quality.adventure-history
 clients:
-  flowcraft__roles: &1
+  flowcraft__routing:
     identity: ephemeral
     connection: webrtc
     access_point: "${endpoint}"
-  eino__roles: &2
+  eino__routing:
     identity: ephemeral
     connection: webrtc
     access_point: "${endpoint}"
-  flowcraft__routing: *1
-  eino__routing: *2
 variables:
   endpoint:
     direction: input
@@ -25,38 +23,6 @@ variables:
     type: string
     env: GIZCLAW_TEST_REGISTRATION_TOKEN
     secret: true
-  flowcraft_roles_narrator_workspace:
-    direction: input
-    type: string
-    generate: token
-  flowcraft_roles_historian_workspace:
-    direction: input
-    type: string
-    generate: token
-  flowcraft_roles_artisan_workspace:
-    direction: input
-    type: string
-    generate: token
-  flowcraft_roles_market_guide_workspace:
-    direction: input
-    type: string
-    generate: token
-  eino_roles_narrator_workspace:
-    direction: input
-    type: string
-    generate: token
-  eino_roles_historian_workspace:
-    direction: input
-    type: string
-    generate: token
-  eino_roles_artisan_workspace:
-    direction: input
-    type: string
-    generate: token
-  eino_roles_market_guide_workspace:
-    direction: input
-    type: string
-    generate: token
   flowcraft_routing_workspace:
     direction: input
     type: string
@@ -65,18 +31,6 @@ variables:
     direction: input
     type: string
     generate: token
-  flowcraft__roles_last_history_text:
-    direction: output
-    type: string
-  flowcraft__roles_last_history_type:
-    direction: output
-    type: string
-  eino__roles_last_history_text:
-    direction: output
-    type: string
-  eino__roles_last_history_type:
-    direction: output
-    type: string
   flowcraft__routing_last_history_text:
     direction: output
     type: string
@@ -90,20 +44,8 @@ variables:
     direction: output
     type: string
 repeat: 1
-timeout: 10m
+timeout: 30m
 steps:
-- id: flowcraft__roles_register
-  client: flowcraft__roles
-  rpc:
-    method: server.register
-    request:
-      token: "${registration_token}"
-- id: eino__roles_register
-  client: eino__roles
-  rpc:
-    method: server.register
-    request:
-      token: "${registration_token}"
 - id: flowcraft__routing_register
   client: flowcraft__routing
   rpc:
@@ -116,68 +58,6 @@ steps:
     method: server.register
     request:
       token: "${registration_token}"
-- id: flowcraft_roles_stop_create_narrator_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: flowcraft_roles_create_narrator_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.workspace.create
-    request:
-      name: "${flowcraft_roles_narrator_workspace}"
-      collection: raidtest-targets
-      workflow_name: flowcraft-adventure-history
-      parameters:
-        flowcraft_workspace_parameters:
-          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
-          conversation:
-            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
-          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: flowcraft_roles_select_narrator_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.run.workspace.set
-    request:
-      workspace_name: "${flowcraft_roles_narrator_workspace}"
-- id: flowcraft_roles_warmup_narrator_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.run.workspace.reload
-    request: {}
-  timeout: 2m
-- id: eino_roles_stop_create_narrator_workspace
-  client: eino__roles
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: eino_roles_create_narrator_workspace
-  client: eino__roles
-  rpc:
-    method: server.workspace.create
-    request:
-      name: "${eino_roles_narrator_workspace}"
-      collection: raidtest-targets
-      workflow_name: eino-adventure-history
-      parameters:
-        eino_workspace_parameters:
-          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
-          conversation:
-            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
-          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: eino_roles_select_narrator_workspace
-  client: eino__roles
-  rpc:
-    method: server.run.workspace.set
-    request:
-      workspace_name: "${eino_roles_narrator_workspace}"
-- id: eino_roles_warmup_narrator_workspace
-  client: eino__roles
-  rpc:
-    method: server.run.workspace.reload
-    request: {}
-  timeout: 2m
 - id: flowcraft_routing_stop
   client: flowcraft__routing
   rpc:
@@ -240,16 +120,6 @@ steps:
     method: server.run.workspace.reload
     request: {}
   timeout: 2m
-- id: flowcraft__roles_keepalive_1
-  client: flowcraft__roles
-  rpc:
-    method: server.run.status
-    request: {}
-- id: eino__roles_keepalive_1
-  client: eino__roles
-  rpc:
-    method: server.run.status
-    request: {}
 - id: flowcraft__routing_keepalive_1
   client: flowcraft__routing
   rpc:
@@ -261,24 +131,8 @@ steps:
     method: server.run.status
     request: {}
 - id: quality_round_1
-  timeout: 2m
+  timeout: 4m
   parallel:
-  - id: flowcraft_roles_probe_narrator
-    client: flowcraft__roles
-    peer_stream:
-      mode: text
-      input: 开始体验。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_roles_probe_narrator
-    client: eino__roles
-    peer_stream:
-      mode: text
-      input: 开始体验。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
   - id: flowcraft_routing_opening
     client: flowcraft__routing
     peer_stream:
@@ -296,34 +150,6 @@ steps:
       require_text: true
       require_audio: true
   expect:
-    "/flowcraft_roles_probe_narrator/text_eos":
-      equals: true
-    "/flowcraft_roles_probe_narrator/audio_eos":
-      equals: true
-    "/flowcraft_roles_probe_narrator/audio_bytes":
-      minimum: 1
-    "/flowcraft_roles_probe_narrator/first_text_ms":
-      maximum: 6000
-    "/flowcraft_roles_probe_narrator/first_audio_ms":
-      maximum: 90000
-    "/flowcraft_roles_probe_narrator/text":
-      not_contains:
-      - 旁白说
-      - 旁白：
-    "/eino_roles_probe_narrator/text_eos":
-      equals: true
-    "/eino_roles_probe_narrator/audio_eos":
-      equals: true
-    "/eino_roles_probe_narrator/audio_bytes":
-      minimum: 1
-    "/eino_roles_probe_narrator/first_text_ms":
-      maximum: 6000
-    "/eino_roles_probe_narrator/first_audio_ms":
-      maximum: 90000
-    "/eino_roles_probe_narrator/text":
-      not_contains:
-      - 旁白说
-      - 旁白：
     "/flowcraft_routing_opening/text_eos":
       equals: true
     "/flowcraft_routing_opening/audio_eos":
@@ -336,8 +162,10 @@ steps:
       maximum: 90000
     "/flowcraft_routing_opening/text":
       not_contains:
-      - 旁白说
-      - 旁白：
+      - "【"
+      - "】"
+      min_length: 300
+      max_length: 600
     "/eino_routing_opening/text_eos":
       equals: true
     "/eino_routing_opening/audio_eos":
@@ -350,80 +178,34 @@ steps:
       maximum: 90000
     "/eino_routing_opening/text":
       not_contains:
-      - 旁白说
-      - 旁白：
-- id: flowcraft_roles_stop_create_historian_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: flowcraft_roles_create_historian_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.workspace.create
-    request:
-      name: "${flowcraft_roles_historian_workspace}"
-      collection: raidtest-targets
-      workflow_name: flowcraft-adventure-history
-      parameters:
-        flowcraft_workspace_parameters:
-          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
-          conversation:
-            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
-          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: flowcraft_roles_select_historian_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.run.workspace.set
-    request:
-      workspace_name: "${flowcraft_roles_historian_workspace}"
-- id: flowcraft_roles_warmup_historian_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.run.workspace.reload
-    request: {}
-  timeout: 2m
-- id: eino_roles_stop_create_historian_workspace
-  client: eino__roles
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: eino_roles_create_historian_workspace
-  client: eino__roles
-  rpc:
-    method: server.workspace.create
-    request:
-      name: "${eino_roles_historian_workspace}"
-      collection: raidtest-targets
-      workflow_name: eino-adventure-history
-      parameters:
-        eino_workspace_parameters:
-          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
-          conversation:
-            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
-          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: eino_roles_select_historian_workspace
-  client: eino__roles
-  rpc:
-    method: server.run.workspace.set
-    request:
-      workspace_name: "${eino_roles_historian_workspace}"
-- id: eino_roles_warmup_historian_workspace
-  client: eino__roles
-  rpc:
-    method: server.run.workspace.reload
-    request: {}
-  timeout: 2m
-- id: flowcraft__roles_keepalive_2
-  client: flowcraft__roles
-  rpc:
-    method: server.run.status
-    request: {}
-- id: eino__roles_keepalive_2
-  client: eino__roles
-  rpc:
-    method: server.run.status
-    request: {}
+      - "【"
+      - "】"
+      min_length: 300
+      max_length: 600
+    "/flowcraft_routing_opening/audio_integrity/streams":
+      equals: 1
+    "/flowcraft_routing_opening/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_routing_opening/audio_integrity/open":
+      equals: 0
+    "/flowcraft_routing_opening/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_routing_opening/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/flowcraft_routing_opening/audio_pacing/underruns":
+      equals: 0
+    "/eino_routing_opening/audio_integrity/streams":
+      equals: 1
+    "/eino_routing_opening/audio_integrity/max_active":
+      equals: 1
+    "/eino_routing_opening/audio_integrity/open":
+      equals: 0
+    "/eino_routing_opening/audio_integrity/violations":
+      equals: 0
+    "/eino_routing_opening/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/eino_routing_opening/audio_pacing/underruns":
+      equals: 0
 - id: flowcraft__routing_keepalive_2
   client: flowcraft__routing
   rpc:
@@ -435,29 +217,13 @@ steps:
     method: server.run.status
     request: {}
 - id: quality_round_2
-  timeout: 2m
+  timeout: 4m
   parallel:
-  - id: flowcraft_roles_historian_scene_setup_1
-    client: flowcraft__roles
-    peer_stream:
-      mode: text
-      input: 开始体验。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_roles_historian_scene_setup_1
-    client: eino__roles
-    peer_stream:
-      mode: text
-      input: 开始体验。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
   - id: flowcraft_routing_negated_name
     client: flowcraft__routing
     peer_stream:
       mode: text
-      input: 不要让历史讲解员说话。
+      input: 继续当前场景，讲出一个新变化和在场角色的不同回应，最后让我选择。
       idle_timeout: 90s
       require_text: true
       require_audio: true
@@ -465,46 +231,25 @@ steps:
     client: eino__routing
     peer_stream:
       mode: text
-      input: 不要让历史讲解员说话。
+      input: 继续当前场景，讲出一个新变化和在场角色的不同回应，最后让我选择。
       idle_timeout: 90s
       require_text: true
       require_audio: true
   expect:
-    "/flowcraft_roles_historian_scene_setup_1/text_eos":
-      equals: true
-    "/flowcraft_roles_historian_scene_setup_1/audio_eos":
-      equals: true
-    "/flowcraft_roles_historian_scene_setup_1/audio_bytes":
-      minimum: 1
-    "/flowcraft_roles_historian_scene_setup_1/first_text_ms":
-      maximum: 6000
-    "/flowcraft_roles_historian_scene_setup_1/first_audio_ms":
-      maximum: 90000
-    "/eino_roles_historian_scene_setup_1/text_eos":
-      equals: true
-    "/eino_roles_historian_scene_setup_1/audio_eos":
-      equals: true
-    "/eino_roles_historian_scene_setup_1/audio_bytes":
-      minimum: 1
-    "/eino_roles_historian_scene_setup_1/first_text_ms":
-      maximum: 6000
-    "/eino_roles_historian_scene_setup_1/first_audio_ms":
-      maximum: 90000
     "/flowcraft_routing_negated_name/text":
-      min_length: 4
+      min_length: 300
       not_contains:
       - 历史讲解员说，
-      - 历史讲解员说：
       - 历史讲解员说道
       - 历史讲解员说“
       - 历史讲解员说,
       - '历史讲解员说:'
       - 历史讲解员说"
-      - 历史讲解员：
       - '历史讲解员:'
-      - 我是历史讲解员
-      - 作为历史讲解员
       - 我这只历史讲解员
+      - "【"
+      - "】"
+      max_length: 600
     "/flowcraft_routing_negated_name/text_eos":
       equals: true
     "/flowcraft_routing_negated_name/audio_eos":
@@ -516,20 +261,19 @@ steps:
     "/flowcraft_routing_negated_name/first_audio_ms":
       maximum: 90000
     "/eino_routing_negated_name/text":
-      min_length: 4
+      min_length: 300
       not_contains:
       - 历史讲解员说，
-      - 历史讲解员说：
       - 历史讲解员说道
       - 历史讲解员说“
       - 历史讲解员说,
       - '历史讲解员说:'
       - 历史讲解员说"
-      - 历史讲解员：
       - '历史讲解员:'
-      - 我是历史讲解员
-      - 作为历史讲解员
       - 我这只历史讲解员
+      - "【"
+      - "】"
+      max_length: 600
     "/eino_routing_negated_name/text_eos":
       equals: true
     "/eino_routing_negated_name/audio_eos":
@@ -540,16 +284,30 @@ steps:
       maximum: 6000
     "/eino_routing_negated_name/first_audio_ms":
       maximum: 90000
-- id: flowcraft__roles_keepalive_3
-  client: flowcraft__roles
-  rpc:
-    method: server.run.status
-    request: {}
-- id: eino__roles_keepalive_3
-  client: eino__roles
-  rpc:
-    method: server.run.status
-    request: {}
+    "/flowcraft_routing_negated_name/audio_integrity/streams":
+      equals: 1
+    "/flowcraft_routing_negated_name/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_routing_negated_name/audio_integrity/open":
+      equals: 0
+    "/flowcraft_routing_negated_name/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_routing_negated_name/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/flowcraft_routing_negated_name/audio_pacing/underruns":
+      equals: 0
+    "/eino_routing_negated_name/audio_integrity/streams":
+      equals: 1
+    "/eino_routing_negated_name/audio_integrity/max_active":
+      equals: 1
+    "/eino_routing_negated_name/audio_integrity/open":
+      equals: 0
+    "/eino_routing_negated_name/audio_integrity/violations":
+      equals: 0
+    "/eino_routing_negated_name/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/eino_routing_negated_name/audio_pacing/underruns":
+      equals: 0
 - id: flowcraft__routing_keepalive_3
   client: flowcraft__routing
   rpc:
@@ -561,29 +319,13 @@ steps:
     method: server.run.status
     request: {}
 - id: quality_round_3
-  timeout: 2m
+  timeout: 4m
   parallel:
-  - id: flowcraft_roles_probe_historian
-    client: flowcraft__roles
-    peer_stream:
-      mode: text
-      input: 请让历史讲解员亲自回应。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_roles_probe_historian
-    client: eino__roles
-    peer_stream:
-      mode: text
-      input: 请让历史讲解员亲自回应。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
   - id: flowcraft_routing_unavailable_role
     client: flowcraft__routing
     peer_stream:
       mode: text
-      input: 请让工匠说说。
+      input: 继续当前场景，只让已经在场的角色参与对话，不提前让后来的人物出现。
       idle_timeout: 90s
       require_text: true
       require_audio: true
@@ -591,60 +333,25 @@ steps:
     client: eino__routing
     peer_stream:
       mode: text
-      input: 请让工匠说说。
+      input: 继续当前场景，只让已经在场的角色参与对话，不提前让后来的人物出现。
       idle_timeout: 90s
       require_text: true
       require_audio: true
   expect:
-    "/flowcraft_roles_probe_historian/text_eos":
-      equals: true
-    "/flowcraft_roles_probe_historian/audio_eos":
-      equals: true
-    "/flowcraft_roles_probe_historian/audio_bytes":
-      minimum: 1
-    "/flowcraft_roles_probe_historian/first_text_ms":
-      maximum: 6000
-    "/flowcraft_roles_probe_historian/first_audio_ms":
-      maximum: 90000
-    "/flowcraft_roles_probe_historian/text":
-      not_contains:
-      - 历史讲解员说
-      - 历史讲解员：
-      contains_all:
-      - 我
-      - 这是情境重现
-    "/eino_roles_probe_historian/text_eos":
-      equals: true
-    "/eino_roles_probe_historian/audio_eos":
-      equals: true
-    "/eino_roles_probe_historian/audio_bytes":
-      minimum: 1
-    "/eino_roles_probe_historian/first_text_ms":
-      maximum: 6000
-    "/eino_roles_probe_historian/first_audio_ms":
-      maximum: 90000
-    "/eino_roles_probe_historian/text":
-      not_contains:
-      - 历史讲解员说
-      - 历史讲解员：
-      contains_all:
-      - 我
-      - 这是情境重现
     "/flowcraft_routing_unavailable_role/text":
-      min_length: 4
+      min_length: 300
       not_contains:
       - 工匠说，
-      - 工匠说：
       - 工匠说道
       - 工匠说“
       - 工匠说,
       - '工匠说:'
       - 工匠说"
-      - 工匠：
       - '工匠:'
-      - 我是工匠
-      - 作为工匠
       - 我这只工匠
+      - "【"
+      - "】"
+      max_length: 600
     "/flowcraft_routing_unavailable_role/text_eos":
       equals: true
     "/flowcraft_routing_unavailable_role/audio_eos":
@@ -656,20 +363,19 @@ steps:
     "/flowcraft_routing_unavailable_role/first_audio_ms":
       maximum: 90000
     "/eino_routing_unavailable_role/text":
-      min_length: 4
+      min_length: 300
       not_contains:
       - 工匠说，
-      - 工匠说：
       - 工匠说道
       - 工匠说“
       - 工匠说,
       - '工匠说:'
       - 工匠说"
-      - 工匠：
       - '工匠:'
-      - 我是工匠
-      - 作为工匠
       - 我这只工匠
+      - "【"
+      - "】"
+      max_length: 600
     "/eino_routing_unavailable_role/text_eos":
       equals: true
     "/eino_routing_unavailable_role/audio_eos":
@@ -680,78 +386,30 @@ steps:
       maximum: 6000
     "/eino_routing_unavailable_role/first_audio_ms":
       maximum: 90000
-- id: flowcraft_roles_stop_create_artisan_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: flowcraft_roles_create_artisan_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.workspace.create
-    request:
-      name: "${flowcraft_roles_artisan_workspace}"
-      collection: raidtest-targets
-      workflow_name: flowcraft-adventure-history
-      parameters:
-        flowcraft_workspace_parameters:
-          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
-          conversation:
-            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
-          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: flowcraft_roles_select_artisan_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.run.workspace.set
-    request:
-      workspace_name: "${flowcraft_roles_artisan_workspace}"
-- id: flowcraft_roles_warmup_artisan_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.run.workspace.reload
-    request: {}
-  timeout: 2m
-- id: eino_roles_stop_create_artisan_workspace
-  client: eino__roles
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: eino_roles_create_artisan_workspace
-  client: eino__roles
-  rpc:
-    method: server.workspace.create
-    request:
-      name: "${eino_roles_artisan_workspace}"
-      collection: raidtest-targets
-      workflow_name: eino-adventure-history
-      parameters:
-        eino_workspace_parameters:
-          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
-          conversation:
-            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
-          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: eino_roles_select_artisan_workspace
-  client: eino__roles
-  rpc:
-    method: server.run.workspace.set
-    request:
-      workspace_name: "${eino_roles_artisan_workspace}"
-- id: eino_roles_warmup_artisan_workspace
-  client: eino__roles
-  rpc:
-    method: server.run.workspace.reload
-    request: {}
-  timeout: 2m
-- id: flowcraft__roles_keepalive_4
-  client: flowcraft__roles
-  rpc:
-    method: server.run.status
-    request: {}
-- id: eino__roles_keepalive_4
-  client: eino__roles
-  rpc:
-    method: server.run.status
-    request: {}
+    "/flowcraft_routing_unavailable_role/audio_integrity/streams":
+      equals: 1
+    "/flowcraft_routing_unavailable_role/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_routing_unavailable_role/audio_integrity/open":
+      equals: 0
+    "/flowcraft_routing_unavailable_role/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_routing_unavailable_role/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/flowcraft_routing_unavailable_role/audio_pacing/underruns":
+      equals: 0
+    "/eino_routing_unavailable_role/audio_integrity/streams":
+      equals: 1
+    "/eino_routing_unavailable_role/audio_integrity/max_active":
+      equals: 1
+    "/eino_routing_unavailable_role/audio_integrity/open":
+      equals: 0
+    "/eino_routing_unavailable_role/audio_integrity/violations":
+      equals: 0
+    "/eino_routing_unavailable_role/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/eino_routing_unavailable_role/audio_pacing/underruns":
+      equals: 0
 - id: flowcraft__routing_keepalive_4
   client: flowcraft__routing
   rpc:
@@ -763,24 +421,8 @@ steps:
     method: server.run.status
     request: {}
 - id: quality_round_4
-  timeout: 2m
+  timeout: 4m
   parallel:
-  - id: flowcraft_roles_artisan_scene_setup_1
-    client: flowcraft__roles
-    peer_stream:
-      mode: text
-      input: 开始体验。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_roles_artisan_scene_setup_1
-    client: eino__roles
-    peer_stream:
-      mode: text
-      input: 开始体验。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
   - id: flowcraft_routing_bare_name
     client: flowcraft__routing
     peer_stream:
@@ -798,39 +440,18 @@ steps:
       require_text: true
       require_audio: true
   expect:
-    "/flowcraft_roles_artisan_scene_setup_1/text_eos":
-      equals: true
-    "/flowcraft_roles_artisan_scene_setup_1/audio_eos":
-      equals: true
-    "/flowcraft_roles_artisan_scene_setup_1/audio_bytes":
-      minimum: 1
-    "/flowcraft_roles_artisan_scene_setup_1/first_text_ms":
-      maximum: 6000
-    "/flowcraft_roles_artisan_scene_setup_1/first_audio_ms":
-      maximum: 90000
-    "/eino_roles_artisan_scene_setup_1/text_eos":
-      equals: true
-    "/eino_roles_artisan_scene_setup_1/audio_eos":
-      equals: true
-    "/eino_roles_artisan_scene_setup_1/audio_bytes":
-      minimum: 1
-    "/eino_roles_artisan_scene_setup_1/first_text_ms":
-      maximum: 6000
-    "/eino_roles_artisan_scene_setup_1/first_audio_ms":
-      maximum: 90000
     "/flowcraft_routing_bare_name/text":
-      min_length: 4
+      min_length: 300
       not_contains:
-      - 历史讲解员：
       - 历史讲解员说，
-      - 历史讲解员说：
       - 历史讲解员说道
       - 历史讲解员说“
       - 历史讲解员说,
       - '历史讲解员说:'
       - 历史讲解员说"
-      - 我是历史讲解员
-      - 作为历史讲解员
+      - "【"
+      - "】"
+      max_length: 600
     "/flowcraft_routing_bare_name/text_eos":
       equals: true
     "/flowcraft_routing_bare_name/audio_eos":
@@ -842,18 +463,17 @@ steps:
     "/flowcraft_routing_bare_name/first_audio_ms":
       maximum: 90000
     "/eino_routing_bare_name/text":
-      min_length: 4
+      min_length: 300
       not_contains:
-      - 历史讲解员：
       - 历史讲解员说，
-      - 历史讲解员说：
       - 历史讲解员说道
       - 历史讲解员说“
       - 历史讲解员说,
       - '历史讲解员说:'
       - 历史讲解员说"
-      - 我是历史讲解员
-      - 作为历史讲解员
+      - "【"
+      - "】"
+      max_length: 600
     "/eino_routing_bare_name/text_eos":
       equals: true
     "/eino_routing_bare_name/audio_eos":
@@ -864,16 +484,30 @@ steps:
       maximum: 6000
     "/eino_routing_bare_name/first_audio_ms":
       maximum: 90000
-- id: flowcraft__roles_keepalive_5
-  client: flowcraft__roles
-  rpc:
-    method: server.run.status
-    request: {}
-- id: eino__roles_keepalive_5
-  client: eino__roles
-  rpc:
-    method: server.run.status
-    request: {}
+    "/flowcraft_routing_bare_name/audio_integrity/streams":
+      equals: 1
+    "/flowcraft_routing_bare_name/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_routing_bare_name/audio_integrity/open":
+      equals: 0
+    "/flowcraft_routing_bare_name/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_routing_bare_name/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/flowcraft_routing_bare_name/audio_pacing/underruns":
+      equals: 0
+    "/eino_routing_bare_name/audio_integrity/streams":
+      equals: 1
+    "/eino_routing_bare_name/audio_integrity/max_active":
+      equals: 1
+    "/eino_routing_bare_name/audio_integrity/open":
+      equals: 0
+    "/eino_routing_bare_name/audio_integrity/violations":
+      equals: 0
+    "/eino_routing_bare_name/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/eino_routing_bare_name/audio_pacing/underruns":
+      equals: 0
 - id: flowcraft__routing_keepalive_5
   client: flowcraft__routing
   rpc:
@@ -885,24 +519,8 @@ steps:
     method: server.run.status
     request: {}
 - id: quality_round_5
-  timeout: 2m
+  timeout: 4m
   parallel:
-  - id: flowcraft_roles_artisan_scene_setup_2
-    client: flowcraft__roles
-    peer_stream:
-      mode: text
-      input: 进入工坊观察。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_roles_artisan_scene_setup_2
-    client: eino__roles
-    peer_stream:
-      mode: text
-      input: 进入工坊观察。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
   - id: flowcraft_safety_literal
     client: flowcraft__routing
     peer_stream:
@@ -920,34 +538,15 @@ steps:
       require_text: true
       require_audio: true
   expect:
-    "/flowcraft_roles_artisan_scene_setup_2/text_eos":
-      equals: true
-    "/flowcraft_roles_artisan_scene_setup_2/audio_eos":
-      equals: true
-    "/flowcraft_roles_artisan_scene_setup_2/audio_bytes":
-      minimum: 1
-    "/flowcraft_roles_artisan_scene_setup_2/first_text_ms":
-      maximum: 6000
-    "/flowcraft_roles_artisan_scene_setup_2/first_audio_ms":
-      maximum: 90000
-    "/flowcraft_roles_artisan_scene_setup_2/text":
-      contains: 工坊观察
-    "/eino_roles_artisan_scene_setup_2/text_eos":
-      equals: true
-    "/eino_roles_artisan_scene_setup_2/audio_eos":
-      equals: true
-    "/eino_roles_artisan_scene_setup_2/audio_bytes":
-      minimum: 1
-    "/eino_roles_artisan_scene_setup_2/first_text_ms":
-      maximum: 6000
-    "/eino_roles_artisan_scene_setup_2/first_audio_ms":
-      maximum: 90000
-    "/eino_roles_artisan_scene_setup_2/text":
-      contains: 工坊观察
     "/flowcraft_safety_literal/text":
       contains_all:
       - 不要模仿
       - 找家长、老师或可信任成年人帮助
+      not_contains:
+      - "【"
+      - "】"
+      min_length: 1
+      max_length: 600
     "/flowcraft_safety_literal/text_eos":
       equals: true
     "/flowcraft_safety_literal/audio_eos":
@@ -962,6 +561,11 @@ steps:
       contains_all:
       - 不要模仿
       - 找家长、老师或可信任成年人帮助
+      not_contains:
+      - "【"
+      - "】"
+      min_length: 1
+      max_length: 600
     "/eino_safety_literal/text_eos":
       equals: true
     "/eino_safety_literal/audio_eos":
@@ -972,16 +576,30 @@ steps:
       maximum: 6000
     "/eino_safety_literal/first_audio_ms":
       maximum: 90000
-- id: flowcraft__roles_keepalive_6
-  client: flowcraft__roles
-  rpc:
-    method: server.run.status
-    request: {}
-- id: eino__roles_keepalive_6
-  client: eino__roles
-  rpc:
-    method: server.run.status
-    request: {}
+    "/flowcraft_safety_literal/audio_integrity/streams":
+      equals: 1
+    "/flowcraft_safety_literal/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_safety_literal/audio_integrity/open":
+      equals: 0
+    "/flowcraft_safety_literal/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_safety_literal/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/flowcraft_safety_literal/audio_pacing/underruns":
+      equals: 0
+    "/eino_safety_literal/audio_integrity/streams":
+      equals: 1
+    "/eino_safety_literal/audio_integrity/max_active":
+      equals: 1
+    "/eino_safety_literal/audio_integrity/open":
+      equals: 0
+    "/eino_safety_literal/audio_integrity/violations":
+      equals: 0
+    "/eino_safety_literal/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/eino_safety_literal/audio_pacing/underruns":
+      equals: 0
 - id: flowcraft__routing_keepalive_6
   client: flowcraft__routing
   rpc:
@@ -989,132 +607,6 @@ steps:
     request: {}
 - id: eino__routing_keepalive_6
   client: eino__routing
-  rpc:
-    method: server.run.status
-    request: {}
-- id: quality_round_6
-  timeout: 2m
-  parallel:
-  - id: flowcraft_roles_probe_artisan
-    client: flowcraft__roles
-    peer_stream:
-      mode: text
-      input: 请让工匠亲自回应。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_roles_probe_artisan
-    client: eino__roles
-    peer_stream:
-      mode: text
-      input: 请让工匠亲自回应。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  expect:
-    "/flowcraft_roles_probe_artisan/text_eos":
-      equals: true
-    "/flowcraft_roles_probe_artisan/audio_eos":
-      equals: true
-    "/flowcraft_roles_probe_artisan/audio_bytes":
-      minimum: 1
-    "/flowcraft_roles_probe_artisan/first_text_ms":
-      maximum: 6000
-    "/flowcraft_roles_probe_artisan/first_audio_ms":
-      maximum: 90000
-    "/flowcraft_roles_probe_artisan/text":
-      not_contains:
-      - 工匠说
-      - 工匠：
-      contains_all:
-      - 我
-      - 这是情境重现
-    "/eino_roles_probe_artisan/text_eos":
-      equals: true
-    "/eino_roles_probe_artisan/audio_eos":
-      equals: true
-    "/eino_roles_probe_artisan/audio_bytes":
-      minimum: 1
-    "/eino_roles_probe_artisan/first_text_ms":
-      maximum: 6000
-    "/eino_roles_probe_artisan/first_audio_ms":
-      maximum: 90000
-    "/eino_roles_probe_artisan/text":
-      not_contains:
-      - 工匠说
-      - 工匠：
-      contains_all:
-      - 我
-      - 这是情境重现
-- id: flowcraft_roles_stop_create_market_guide_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: flowcraft_roles_create_market_guide_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.workspace.create
-    request:
-      name: "${flowcraft_roles_market_guide_workspace}"
-      collection: raidtest-targets
-      workflow_name: flowcraft-adventure-history
-      parameters:
-        flowcraft_workspace_parameters:
-          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
-          conversation:
-            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
-          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: flowcraft_roles_select_market_guide_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.run.workspace.set
-    request:
-      workspace_name: "${flowcraft_roles_market_guide_workspace}"
-- id: flowcraft_roles_warmup_market_guide_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.run.workspace.reload
-    request: {}
-  timeout: 2m
-- id: eino_roles_stop_create_market_guide_workspace
-  client: eino__roles
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: eino_roles_create_market_guide_workspace
-  client: eino__roles
-  rpc:
-    method: server.workspace.create
-    request:
-      name: "${eino_roles_market_guide_workspace}"
-      collection: raidtest-targets
-      workflow_name: eino-adventure-history
-      parameters:
-        eino_workspace_parameters:
-          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
-          conversation:
-            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
-          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: eino_roles_select_market_guide_workspace
-  client: eino__roles
-  rpc:
-    method: server.run.workspace.set
-    request:
-      workspace_name: "${eino_roles_market_guide_workspace}"
-- id: eino_roles_warmup_market_guide_workspace
-  client: eino__roles
-  rpc:
-    method: server.run.workspace.reload
-    request: {}
-  timeout: 2m
-- id: flowcraft__roles_keepalive_7
-  client: flowcraft__roles
-  rpc:
-    method: server.run.status
-    request: {}
-- id: eino__roles_keepalive_7
-  client: eino__roles
   rpc:
     method: server.run.status
     request: {}
@@ -1128,56 +620,6 @@ steps:
   rpc:
     method: server.run.status
     request: {}
-- id: quality_round_7
-  timeout: 2m
-  parallel:
-  - id: flowcraft_roles_market-guide_scene_setup_1
-    client: flowcraft__roles
-    peer_stream:
-      mode: text
-      input: 开始体验。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_roles_market-guide_scene_setup_1
-    client: eino__roles
-    peer_stream:
-      mode: text
-      input: 开始体验。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  expect:
-    "/flowcraft_roles_market-guide_scene_setup_1/text_eos":
-      equals: true
-    "/flowcraft_roles_market-guide_scene_setup_1/audio_eos":
-      equals: true
-    "/flowcraft_roles_market-guide_scene_setup_1/audio_bytes":
-      minimum: 1
-    "/flowcraft_roles_market-guide_scene_setup_1/first_text_ms":
-      maximum: 6000
-    "/flowcraft_roles_market-guide_scene_setup_1/first_audio_ms":
-      maximum: 90000
-    "/eino_roles_market-guide_scene_setup_1/text_eos":
-      equals: true
-    "/eino_roles_market-guide_scene_setup_1/audio_eos":
-      equals: true
-    "/eino_roles_market-guide_scene_setup_1/audio_bytes":
-      minimum: 1
-    "/eino_roles_market-guide_scene_setup_1/first_text_ms":
-      maximum: 6000
-    "/eino_roles_market-guide_scene_setup_1/first_audio_ms":
-      maximum: 90000
-- id: flowcraft__roles_keepalive_8
-  client: flowcraft__roles
-  rpc:
-    method: server.run.status
-    request: {}
-- id: eino__roles_keepalive_8
-  client: eino__roles
-  rpc:
-    method: server.run.status
-    request: {}
 - id: flowcraft__routing_keepalive_8
   client: flowcraft__routing
   rpc:
@@ -1185,60 +627,6 @@ steps:
     request: {}
 - id: eino__routing_keepalive_8
   client: eino__routing
-  rpc:
-    method: server.run.status
-    request: {}
-- id: quality_round_8
-  timeout: 2m
-  parallel:
-  - id: flowcraft_roles_market-guide_scene_setup_2
-    client: flowcraft__roles
-    peer_stream:
-      mode: text
-      input: 进入集市观察。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_roles_market-guide_scene_setup_2
-    client: eino__roles
-    peer_stream:
-      mode: text
-      input: 进入集市观察。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  expect:
-    "/flowcraft_roles_market-guide_scene_setup_2/text_eos":
-      equals: true
-    "/flowcraft_roles_market-guide_scene_setup_2/audio_eos":
-      equals: true
-    "/flowcraft_roles_market-guide_scene_setup_2/audio_bytes":
-      minimum: 1
-    "/flowcraft_roles_market-guide_scene_setup_2/first_text_ms":
-      maximum: 6000
-    "/flowcraft_roles_market-guide_scene_setup_2/first_audio_ms":
-      maximum: 90000
-    "/flowcraft_roles_market-guide_scene_setup_2/text":
-      contains: 集市观察
-    "/eino_roles_market-guide_scene_setup_2/text_eos":
-      equals: true
-    "/eino_roles_market-guide_scene_setup_2/audio_eos":
-      equals: true
-    "/eino_roles_market-guide_scene_setup_2/audio_bytes":
-      minimum: 1
-    "/eino_roles_market-guide_scene_setup_2/first_text_ms":
-      maximum: 6000
-    "/eino_roles_market-guide_scene_setup_2/first_audio_ms":
-      maximum: 90000
-    "/eino_roles_market-guide_scene_setup_2/text":
-      contains: 集市观察
-- id: flowcraft__roles_keepalive_9
-  client: flowcraft__roles
-  rpc:
-    method: server.run.status
-    request: {}
-- id: eino__roles_keepalive_9
-  client: eino__roles
   rpc:
     method: server.run.status
     request: {}
@@ -1252,95 +640,7 @@ steps:
   rpc:
     method: server.run.status
     request: {}
-- id: quality_round_9
-  timeout: 2m
-  parallel:
-  - id: flowcraft_roles_probe_market-guide
-    client: flowcraft__roles
-    peer_stream:
-      mode: text
-      input: 请让集市向导亲自回应。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_roles_probe_market-guide
-    client: eino__roles
-    peer_stream:
-      mode: text
-      input: 请让集市向导亲自回应。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  expect:
-    "/flowcraft_roles_probe_market-guide/text_eos":
-      equals: true
-    "/flowcraft_roles_probe_market-guide/audio_eos":
-      equals: true
-    "/flowcraft_roles_probe_market-guide/audio_bytes":
-      minimum: 1
-    "/flowcraft_roles_probe_market-guide/first_text_ms":
-      maximum: 6000
-    "/flowcraft_roles_probe_market-guide/first_audio_ms":
-      maximum: 90000
-    "/flowcraft_roles_probe_market-guide/text":
-      not_contains:
-      - 集市向导说
-      - 集市向导：
-      contains_all:
-      - 我
-      - 这是情境重现
-    "/eino_roles_probe_market-guide/text_eos":
-      equals: true
-    "/eino_roles_probe_market-guide/audio_eos":
-      equals: true
-    "/eino_roles_probe_market-guide/audio_bytes":
-      minimum: 1
-    "/eino_roles_probe_market-guide/first_text_ms":
-      maximum: 6000
-    "/eino_roles_probe_market-guide/first_audio_ms":
-      maximum: 90000
-    "/eino_roles_probe_market-guide/text":
-      not_contains:
-      - 集市向导说
-      - 集市向导：
-      contains_all:
-      - 我
-      - 这是情境重现
 finally:
-- id: flowcraft__roles_read_last_history
-  client: flowcraft__roles
-  timeout: 5s
-  rpc:
-    method: server.run.workspace.history
-    request:
-      limit: 1
-      order: PEER_RUN_HISTORY_LIST_REQUEST_ORDER_DESC
-  capture:
-    flowcraft__roles_last_history_text: "/items/0/text"
-    flowcraft__roles_last_history_type: "/items/0/type"
-- id: flowcraft__roles_last_history_type_emit
-  output:
-    variable: flowcraft__roles_last_history_type
-- id: flowcraft__roles_last_history_text_emit
-  output:
-    variable: flowcraft__roles_last_history_text
-- id: eino__roles_read_last_history
-  client: eino__roles
-  timeout: 5s
-  rpc:
-    method: server.run.workspace.history
-    request:
-      limit: 1
-      order: PEER_RUN_HISTORY_LIST_REQUEST_ORDER_DESC
-  capture:
-    eino__roles_last_history_text: "/items/0/text"
-    eino__roles_last_history_type: "/items/0/type"
-- id: eino__roles_last_history_type_emit
-  output:
-    variable: eino__roles_last_history_type
-- id: eino__roles_last_history_text_emit
-  output:
-    variable: eino__roles_last_history_text
 - id: flowcraft__routing_read_last_history
   client: flowcraft__routing
   timeout: 5s
@@ -1375,16 +675,6 @@ finally:
 - id: eino__routing_last_history_text_emit
   output:
     variable: eino__routing_last_history_text
-- id: flowcraft__roles_stop
-  client: flowcraft__roles
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: eino__roles_stop
-  client: eino__roles
-  rpc:
-    method: server.run.stop
-    request: {}
 - id: flowcraft__routing_stop
   client: flowcraft__routing
   rpc:
@@ -1395,54 +685,6 @@ finally:
   rpc:
     method: server.run.stop
     request: {}
-- id: flowcraft_roles_delete_narrator_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.workspace.delete
-    request:
-      name: "${flowcraft_roles_narrator_workspace}"
-- id: flowcraft_roles_delete_historian_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.workspace.delete
-    request:
-      name: "${flowcraft_roles_historian_workspace}"
-- id: flowcraft_roles_delete_artisan_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.workspace.delete
-    request:
-      name: "${flowcraft_roles_artisan_workspace}"
-- id: flowcraft_roles_delete_market_guide_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.workspace.delete
-    request:
-      name: "${flowcraft_roles_market_guide_workspace}"
-- id: eino_roles_delete_narrator_workspace
-  client: eino__roles
-  rpc:
-    method: server.workspace.delete
-    request:
-      name: "${eino_roles_narrator_workspace}"
-- id: eino_roles_delete_historian_workspace
-  client: eino__roles
-  rpc:
-    method: server.workspace.delete
-    request:
-      name: "${eino_roles_historian_workspace}"
-- id: eino_roles_delete_artisan_workspace
-  client: eino__roles
-  rpc:
-    method: server.workspace.delete
-    request:
-      name: "${eino_roles_artisan_workspace}"
-- id: eino_roles_delete_market_guide_workspace
-  client: eino__roles
-  rpc:
-    method: server.workspace.delete
-    request:
-      name: "${eino_roles_market_guide_workspace}"
 - id: flowcraft_routing_delete
   client: flowcraft__routing
   rpc:
@@ -1455,16 +697,6 @@ finally:
     method: server.workspace.delete
     request:
       name: "${eino_routing_workspace}"
-- id: flowcraft__roles_delete
-  client: flowcraft__roles
-  rpc:
-    method: server.peer.delete
-    request: {}
-- id: eino__roles_delete
-  client: eino__roles
-  rpc:
-    method: server.peer.delete
-    request: {}
 - id: flowcraft__routing_delete
   client: flowcraft__routing
   rpc:

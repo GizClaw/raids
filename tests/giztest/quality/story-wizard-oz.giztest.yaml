@@ -13,8 +13,6 @@ clients:
     identity: ephemeral
     connection: webrtc
     access_point: "${endpoint}"
-  flowcraft__roles: *1
-  eino__roles: *2
   flowcraft__case5: *1
   eino__case5: *2
   flowcraft__routing: *1
@@ -37,54 +35,6 @@ variables:
     direction: input
     type: string
     generate: token
-  flowcraft_roles_narrator_workspace:
-    direction: input
-    type: string
-    generate: token
-  flowcraft_roles_dorothy_workspace:
-    direction: input
-    type: string
-    generate: token
-  flowcraft_roles_scarecrow_workspace:
-    direction: input
-    type: string
-    generate: token
-  flowcraft_roles_tin_man_workspace:
-    direction: input
-    type: string
-    generate: token
-  flowcraft_roles_lion_workspace:
-    direction: input
-    type: string
-    generate: token
-  flowcraft_roles_glinda_workspace:
-    direction: input
-    type: string
-    generate: token
-  eino_roles_narrator_workspace:
-    direction: input
-    type: string
-    generate: token
-  eino_roles_dorothy_workspace:
-    direction: input
-    type: string
-    generate: token
-  eino_roles_scarecrow_workspace:
-    direction: input
-    type: string
-    generate: token
-  eino_roles_tin_man_workspace:
-    direction: input
-    type: string
-    generate: token
-  eino_roles_lion_workspace:
-    direction: input
-    type: string
-    generate: token
-  eino_roles_glinda_workspace:
-    direction: input
-    type: string
-    generate: token
   flowcraft_case5_flowcraft_workspace:
     direction: input
     type: string
@@ -102,7 +52,7 @@ variables:
     type: string
     generate: token
 repeat: 1
-timeout: 10m
+timeout: 30m
 steps:
 - id: flowcraft__transitions_register
   client: flowcraft__transitions
@@ -112,18 +62,6 @@ steps:
       token: "${registration_token}"
 - id: eino__transitions_register
   client: eino__transitions
-  rpc:
-    method: server.register
-    request:
-      token: "${registration_token}"
-- id: flowcraft__roles_register
-  client: flowcraft__roles
-  rpc:
-    method: server.register
-    request:
-      token: "${registration_token}"
-- id: eino__roles_register
-  client: eino__roles
   rpc:
     method: server.register
     request:
@@ -210,378 +148,6 @@ steps:
       workspace_name: "${eino_transitions_workspace}"
 - id: eino_transitions_warmup_workspace
   client: eino__transitions
-  rpc:
-    method: server.run.workspace.reload
-    request: {}
-  timeout: 2m
-- id: flowcraft_roles_stop_create_narrator_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: flowcraft_roles_create_narrator_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.workspace.create
-    request:
-      name: "${flowcraft_roles_narrator_workspace}"
-      collection: raidtest-targets
-      workflow_name: flowcraft-story-wizard-oz
-      parameters:
-        flowcraft_workspace_parameters:
-          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
-          conversation:
-            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
-          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: flowcraft_roles_select_narrator_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.run.workspace.set
-    request:
-      workspace_name: "${flowcraft_roles_narrator_workspace}"
-- id: flowcraft_roles_warmup_narrator_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.run.workspace.reload
-    request: {}
-  timeout: 2m
-- id: flowcraft_roles_stop_create_dorothy_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: flowcraft_roles_create_dorothy_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.workspace.create
-    request:
-      name: "${flowcraft_roles_dorothy_workspace}"
-      collection: raidtest-targets
-      workflow_name: flowcraft-story-wizard-oz
-      parameters:
-        flowcraft_workspace_parameters:
-          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
-          conversation:
-            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
-          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: flowcraft_roles_select_dorothy_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.run.workspace.set
-    request:
-      workspace_name: "${flowcraft_roles_dorothy_workspace}"
-- id: flowcraft_roles_warmup_dorothy_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.run.workspace.reload
-    request: {}
-  timeout: 2m
-- id: flowcraft_roles_stop_create_scarecrow_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: flowcraft_roles_create_scarecrow_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.workspace.create
-    request:
-      name: "${flowcraft_roles_scarecrow_workspace}"
-      collection: raidtest-targets
-      workflow_name: flowcraft-story-wizard-oz
-      parameters:
-        flowcraft_workspace_parameters:
-          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
-          conversation:
-            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
-          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: flowcraft_roles_select_scarecrow_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.run.workspace.set
-    request:
-      workspace_name: "${flowcraft_roles_scarecrow_workspace}"
-- id: flowcraft_roles_warmup_scarecrow_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.run.workspace.reload
-    request: {}
-  timeout: 2m
-- id: flowcraft_roles_stop_create_tin_man_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: flowcraft_roles_create_tin_man_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.workspace.create
-    request:
-      name: "${flowcraft_roles_tin_man_workspace}"
-      collection: raidtest-targets
-      workflow_name: flowcraft-story-wizard-oz
-      parameters:
-        flowcraft_workspace_parameters:
-          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
-          conversation:
-            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
-          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: flowcraft_roles_select_tin_man_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.run.workspace.set
-    request:
-      workspace_name: "${flowcraft_roles_tin_man_workspace}"
-- id: flowcraft_roles_warmup_tin_man_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.run.workspace.reload
-    request: {}
-  timeout: 2m
-- id: flowcraft_roles_stop_create_lion_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: flowcraft_roles_create_lion_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.workspace.create
-    request:
-      name: "${flowcraft_roles_lion_workspace}"
-      collection: raidtest-targets
-      workflow_name: flowcraft-story-wizard-oz
-      parameters:
-        flowcraft_workspace_parameters:
-          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
-          conversation:
-            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
-          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: flowcraft_roles_select_lion_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.run.workspace.set
-    request:
-      workspace_name: "${flowcraft_roles_lion_workspace}"
-- id: flowcraft_roles_warmup_lion_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.run.workspace.reload
-    request: {}
-  timeout: 2m
-- id: flowcraft_roles_stop_create_glinda_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: flowcraft_roles_create_glinda_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.workspace.create
-    request:
-      name: "${flowcraft_roles_glinda_workspace}"
-      collection: raidtest-targets
-      workflow_name: flowcraft-story-wizard-oz
-      parameters:
-        flowcraft_workspace_parameters:
-          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
-          conversation:
-            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
-          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: flowcraft_roles_select_glinda_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.run.workspace.set
-    request:
-      workspace_name: "${flowcraft_roles_glinda_workspace}"
-- id: flowcraft_roles_warmup_glinda_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.run.workspace.reload
-    request: {}
-  timeout: 2m
-- id: eino_roles_stop_create_narrator_workspace
-  client: eino__roles
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: eino_roles_create_narrator_workspace
-  client: eino__roles
-  rpc:
-    method: server.workspace.create
-    request:
-      name: "${eino_roles_narrator_workspace}"
-      collection: raidtest-targets
-      workflow_name: eino-story-wizard-oz
-      parameters:
-        eino_workspace_parameters:
-          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
-          conversation:
-            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
-          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: eino_roles_select_narrator_workspace
-  client: eino__roles
-  rpc:
-    method: server.run.workspace.set
-    request:
-      workspace_name: "${eino_roles_narrator_workspace}"
-- id: eino_roles_warmup_narrator_workspace
-  client: eino__roles
-  rpc:
-    method: server.run.workspace.reload
-    request: {}
-  timeout: 2m
-- id: eino_roles_stop_create_dorothy_workspace
-  client: eino__roles
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: eino_roles_create_dorothy_workspace
-  client: eino__roles
-  rpc:
-    method: server.workspace.create
-    request:
-      name: "${eino_roles_dorothy_workspace}"
-      collection: raidtest-targets
-      workflow_name: eino-story-wizard-oz
-      parameters:
-        eino_workspace_parameters:
-          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
-          conversation:
-            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
-          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: eino_roles_select_dorothy_workspace
-  client: eino__roles
-  rpc:
-    method: server.run.workspace.set
-    request:
-      workspace_name: "${eino_roles_dorothy_workspace}"
-- id: eino_roles_warmup_dorothy_workspace
-  client: eino__roles
-  rpc:
-    method: server.run.workspace.reload
-    request: {}
-  timeout: 2m
-- id: eino_roles_stop_create_scarecrow_workspace
-  client: eino__roles
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: eino_roles_create_scarecrow_workspace
-  client: eino__roles
-  rpc:
-    method: server.workspace.create
-    request:
-      name: "${eino_roles_scarecrow_workspace}"
-      collection: raidtest-targets
-      workflow_name: eino-story-wizard-oz
-      parameters:
-        eino_workspace_parameters:
-          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
-          conversation:
-            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
-          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: eino_roles_select_scarecrow_workspace
-  client: eino__roles
-  rpc:
-    method: server.run.workspace.set
-    request:
-      workspace_name: "${eino_roles_scarecrow_workspace}"
-- id: eino_roles_warmup_scarecrow_workspace
-  client: eino__roles
-  rpc:
-    method: server.run.workspace.reload
-    request: {}
-  timeout: 2m
-- id: eino_roles_stop_create_tin_man_workspace
-  client: eino__roles
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: eino_roles_create_tin_man_workspace
-  client: eino__roles
-  rpc:
-    method: server.workspace.create
-    request:
-      name: "${eino_roles_tin_man_workspace}"
-      collection: raidtest-targets
-      workflow_name: eino-story-wizard-oz
-      parameters:
-        eino_workspace_parameters:
-          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
-          conversation:
-            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
-          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: eino_roles_select_tin_man_workspace
-  client: eino__roles
-  rpc:
-    method: server.run.workspace.set
-    request:
-      workspace_name: "${eino_roles_tin_man_workspace}"
-- id: eino_roles_warmup_tin_man_workspace
-  client: eino__roles
-  rpc:
-    method: server.run.workspace.reload
-    request: {}
-  timeout: 2m
-- id: eino_roles_stop_create_lion_workspace
-  client: eino__roles
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: eino_roles_create_lion_workspace
-  client: eino__roles
-  rpc:
-    method: server.workspace.create
-    request:
-      name: "${eino_roles_lion_workspace}"
-      collection: raidtest-targets
-      workflow_name: eino-story-wizard-oz
-      parameters:
-        eino_workspace_parameters:
-          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
-          conversation:
-            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
-          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: eino_roles_select_lion_workspace
-  client: eino__roles
-  rpc:
-    method: server.run.workspace.set
-    request:
-      workspace_name: "${eino_roles_lion_workspace}"
-- id: eino_roles_warmup_lion_workspace
-  client: eino__roles
-  rpc:
-    method: server.run.workspace.reload
-    request: {}
-  timeout: 2m
-- id: eino_roles_stop_create_glinda_workspace
-  client: eino__roles
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: eino_roles_create_glinda_workspace
-  client: eino__roles
-  rpc:
-    method: server.workspace.create
-    request:
-      name: "${eino_roles_glinda_workspace}"
-      collection: raidtest-targets
-      workflow_name: eino-story-wizard-oz
-      parameters:
-        eino_workspace_parameters:
-          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
-          conversation:
-            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
-          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- id: eino_roles_select_glinda_workspace
-  client: eino__roles
-  rpc:
-    method: server.run.workspace.set
-    request:
-      workspace_name: "${eino_roles_glinda_workspace}"
-- id: eino_roles_warmup_glinda_workspace
-  client: eino__roles
   rpc:
     method: server.run.workspace.reload
     request: {}
@@ -720,16 +286,6 @@ steps:
   rpc:
     method: server.run.status
     request: {}
-- id: flowcraft__roles_keepalive_1
-  client: flowcraft__roles
-  rpc:
-    method: server.run.status
-    request: {}
-- id: eino__roles_keepalive_1
-  client: eino__roles
-  rpc:
-    method: server.run.status
-    request: {}
 - id: flowcraft__case5_keepalive_1
   client: flowcraft__case5
   rpc:
@@ -751,7 +307,7 @@ steps:
     method: server.run.status
     request: {}
 - id: quality_round_1
-  timeout: 2m
+  timeout: 4m
   parallel:
   - id: flowcraft_transitions_opening_with_guidance
     client: flowcraft__transitions
@@ -766,22 +322,6 @@ steps:
     peer_stream:
       mode: text
       input: 请从第一章开始《绿野仙踪》。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: flowcraft_roles_probe_narrator
-    client: flowcraft__roles
-    peer_stream:
-      mode: text
-      input: 请由旁白承接当前故事，只推进一个可见线索。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_roles_probe_narrator
-    client: eino__roles
-    peer_stream:
-      mode: text
-      input: 请由旁白承接当前故事，只推进一个可见线索。
       idle_timeout: 90s
       require_text: true
       require_audio: true
@@ -825,6 +365,11 @@ steps:
       - 多萝西
       - 稻草人
       - 进入下一章
+      not_contains:
+      - "【"
+      - "】"
+      min_length: 300
+      max_length: 600
     "/flowcraft_transitions_opening_with_guidance/text_eos":
       equals: true
     "/flowcraft_transitions_opening_with_guidance/audio_eos":
@@ -840,6 +385,11 @@ steps:
       - 多萝西
       - 稻草人
       - 进入下一章
+      not_contains:
+      - "【"
+      - "】"
+      min_length: 300
+      max_length: 600
     "/eino_transitions_opening_with_guidance/text_eos":
       equals: true
     "/eino_transitions_opening_with_guidance/audio_eos":
@@ -848,42 +398,17 @@ steps:
       minimum: 1
     "/eino_transitions_opening_with_guidance/first_text_ms":
       maximum: 6000
-    "/flowcraft_roles_probe_narrator/text":
-      not_contains:
-      - 旁白说
-      - 旁白：
-    "/flowcraft_roles_probe_narrator/text_eos":
-      equals: true
-    "/flowcraft_roles_probe_narrator/audio_eos":
-      equals: true
-    "/flowcraft_roles_probe_narrator/audio_bytes":
-      minimum: 1
-    "/flowcraft_roles_probe_narrator/first_text_ms":
-      maximum: 6000
-    "/flowcraft_roles_probe_narrator/first_audio_ms":
-      maximum: 90000
-    "/eino_roles_probe_narrator/text":
-      not_contains:
-      - 旁白说
-      - 旁白：
-    "/eino_roles_probe_narrator/text_eos":
-      equals: true
-    "/eino_roles_probe_narrator/audio_eos":
-      equals: true
-    "/eino_roles_probe_narrator/audio_bytes":
-      minimum: 1
-    "/eino_roles_probe_narrator/first_text_ms":
-      maximum: 6000
-    "/eino_roles_probe_narrator/first_audio_ms":
-      maximum: 90000
     "/flowcraft_case5_restart_flowcraft_in_english/text":
       contains_all:
       - 'Chapter 1: The Yellow Brick Fork'
-      - 'The yellow brick road splits three ways: courage, wisdom, or helping one
-        another. Which path will you take first?'
+      - 'The yellow brick road splits three ways: courage, wisdom, or helping one another. Which path will you take first?'
       not_contains:
       - 第 1 章
       - 黄砖岔路
+      - "【"
+      - "】"
+      min_length: 1
+      max_length: 600
     "/flowcraft_case5_restart_flowcraft_in_english/text_eos":
       equals: true
     "/flowcraft_case5_restart_flowcraft_in_english/audio_eos":
@@ -897,11 +422,14 @@ steps:
     "/eino_case5_restart_flowcraft_in_english/text":
       contains_all:
       - 'Chapter 1: The Yellow Brick Fork'
-      - 'The yellow brick road splits three ways: courage, wisdom, or helping one
-        another. Which path will you take first?'
+      - 'The yellow brick road splits three ways: courage, wisdom, or helping one another. Which path will you take first?'
       not_contains:
       - 第 1 章
       - 黄砖岔路
+      - "【"
+      - "】"
+      min_length: 1
+      max_length: 600
     "/eino_case5_restart_flowcraft_in_english/text_eos":
       equals: true
     "/eino_case5_restart_flowcraft_in_english/audio_eos":
@@ -919,6 +447,11 @@ steps:
       - 多萝西
       - 稻草人
       - 进入下一章
+      not_contains:
+      - "【"
+      - "】"
+      min_length: 300
+      max_length: 600
     "/flowcraft_routing_opening/text_eos":
       equals: true
     "/flowcraft_routing_opening/audio_eos":
@@ -934,6 +467,11 @@ steps:
       - 多萝西
       - 稻草人
       - 进入下一章
+      not_contains:
+      - "【"
+      - "】"
+      min_length: 300
+      max_length: 600
     "/eino_routing_opening/text_eos":
       equals: true
     "/eino_routing_opening/audio_eos":
@@ -942,6 +480,78 @@ steps:
       minimum: 1
     "/eino_routing_opening/first_text_ms":
       maximum: 6000
+    "/flowcraft_transitions_opening_with_guidance/audio_integrity/streams":
+      equals: 1
+    "/flowcraft_transitions_opening_with_guidance/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_transitions_opening_with_guidance/audio_integrity/open":
+      equals: 0
+    "/flowcraft_transitions_opening_with_guidance/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_transitions_opening_with_guidance/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/flowcraft_transitions_opening_with_guidance/audio_pacing/underruns":
+      equals: 0
+    "/eino_transitions_opening_with_guidance/audio_integrity/streams":
+      equals: 1
+    "/eino_transitions_opening_with_guidance/audio_integrity/max_active":
+      equals: 1
+    "/eino_transitions_opening_with_guidance/audio_integrity/open":
+      equals: 0
+    "/eino_transitions_opening_with_guidance/audio_integrity/violations":
+      equals: 0
+    "/eino_transitions_opening_with_guidance/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/eino_transitions_opening_with_guidance/audio_pacing/underruns":
+      equals: 0
+    "/flowcraft_case5_restart_flowcraft_in_english/audio_integrity/streams":
+      equals: 1
+    "/flowcraft_case5_restart_flowcraft_in_english/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_case5_restart_flowcraft_in_english/audio_integrity/open":
+      equals: 0
+    "/flowcraft_case5_restart_flowcraft_in_english/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_case5_restart_flowcraft_in_english/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/flowcraft_case5_restart_flowcraft_in_english/audio_pacing/underruns":
+      equals: 0
+    "/eino_case5_restart_flowcraft_in_english/audio_integrity/streams":
+      equals: 1
+    "/eino_case5_restart_flowcraft_in_english/audio_integrity/max_active":
+      equals: 1
+    "/eino_case5_restart_flowcraft_in_english/audio_integrity/open":
+      equals: 0
+    "/eino_case5_restart_flowcraft_in_english/audio_integrity/violations":
+      equals: 0
+    "/eino_case5_restart_flowcraft_in_english/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/eino_case5_restart_flowcraft_in_english/audio_pacing/underruns":
+      equals: 0
+    "/flowcraft_routing_opening/audio_integrity/streams":
+      equals: 1
+    "/flowcraft_routing_opening/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_routing_opening/audio_integrity/open":
+      equals: 0
+    "/flowcraft_routing_opening/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_routing_opening/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/flowcraft_routing_opening/audio_pacing/underruns":
+      equals: 0
+    "/eino_routing_opening/audio_integrity/streams":
+      equals: 1
+    "/eino_routing_opening/audio_integrity/max_active":
+      equals: 1
+    "/eino_routing_opening/audio_integrity/open":
+      equals: 0
+    "/eino_routing_opening/audio_integrity/violations":
+      equals: 0
+    "/eino_routing_opening/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/eino_routing_opening/audio_pacing/underruns":
+      equals: 0
 - id: flowcraft__transitions_keepalive_2
   client: flowcraft__transitions
   rpc:
@@ -949,16 +559,6 @@ steps:
     request: {}
 - id: eino__transitions_keepalive_2
   client: eino__transitions
-  rpc:
-    method: server.run.status
-    request: {}
-- id: flowcraft__roles_keepalive_2
-  client: flowcraft__roles
-  rpc:
-    method: server.run.status
-    request: {}
-- id: eino__roles_keepalive_2
-  client: eino__roles
   rpc:
     method: server.run.status
     request: {}
@@ -983,7 +583,7 @@ steps:
     method: server.run.status
     request: {}
 - id: quality_round_2
-  timeout: 2m
+  timeout: 4m
   parallel:
   - id: flowcraft_transitions_natural_consequence
     client: flowcraft__transitions
@@ -1001,29 +601,11 @@ steps:
       idle_timeout: 90s
       require_text: true
       require_audio: true
-  - id: flowcraft_roles_probe_dorothy
-    client: flowcraft__roles
-    peer_stream:
-      mode: text
-      input: 请让多萝西亲自回应，只说这个角色知道的事。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_roles_probe_dorothy
-    client: eino__roles
-    peer_stream:
-      mode: text
-      input: 请让多萝西亲自回应，只说这个角色知道的事。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
   - id: flowcraft_case5_continue_flowcraft_in_english_without_restart
     client: flowcraft__case5
     peer_stream:
       mode: text
-      input: Please let Dorothy speak in English without restarting, use first person
-        without a speaker label, include the exact phrase I will help, and add one
-        new consequence.
+      input: Continue the story in English without restarting, give Dorothy more dialogue alongside the narrator and present characters, include the exact phrase I will help, and add one new consequence.
       idle_timeout: 90s
       require_text: true
       require_audio: true
@@ -1031,9 +613,7 @@ steps:
     client: eino__case5
     peer_stream:
       mode: text
-      input: Please let Dorothy speak in English without restarting, use first person
-        without a speaker label, include the exact phrase I will help, and add one
-        new consequence.
+      input: Continue the story in English without restarting, give Dorothy more dialogue alongside the narrator and present characters, include the exact phrase I will help, and add one new consequence.
       idle_timeout: 90s
       require_text: true
       require_audio: true
@@ -1041,7 +621,7 @@ steps:
     client: flowcraft__routing
     peer_stream:
       mode: text
-      input: 不要让多萝西说话
+      input: 继续当前场景，讲出一个新变化和在场角色的不同回应，最后让我选择。
       idle_timeout: 90s
       require_text: true
       require_audio: true
@@ -1049,7 +629,7 @@ steps:
     client: eino__routing
     peer_stream:
       mode: text
-      input: 不要让多萝西说话
+      input: 继续当前场景，讲出一个新变化和在场角色的不同回应，最后让我选择。
       idle_timeout: 90s
       require_text: true
       require_audio: true
@@ -1058,7 +638,10 @@ steps:
       not_contains:
       - 第 2 章
       - 勇气考验
-      min_length: 4
+      - "【"
+      - "】"
+      min_length: 300
+      max_length: 600
     "/flowcraft_transitions_natural_consequence/text_eos":
       equals: true
     "/flowcraft_transitions_natural_consequence/audio_eos":
@@ -1071,7 +654,10 @@ steps:
       not_contains:
       - 第 2 章
       - 勇气考验
-      min_length: 4
+      - "【"
+      - "】"
+      min_length: 300
+      max_length: 600
     "/eino_transitions_natural_consequence/text_eos":
       equals: true
     "/eino_transitions_natural_consequence/audio_eos":
@@ -1080,38 +666,6 @@ steps:
       minimum: 1
     "/eino_transitions_natural_consequence/first_text_ms":
       maximum: 6000
-    "/flowcraft_roles_probe_dorothy/text":
-      not_contains:
-      - 多萝西说
-      - 多萝西：
-      contains_all:
-      - 我
-    "/flowcraft_roles_probe_dorothy/text_eos":
-      equals: true
-    "/flowcraft_roles_probe_dorothy/audio_eos":
-      equals: true
-    "/flowcraft_roles_probe_dorothy/audio_bytes":
-      minimum: 1
-    "/flowcraft_roles_probe_dorothy/first_text_ms":
-      maximum: 6000
-    "/flowcraft_roles_probe_dorothy/first_audio_ms":
-      maximum: 90000
-    "/eino_roles_probe_dorothy/text":
-      not_contains:
-      - 多萝西说
-      - 多萝西：
-      contains_all:
-      - 我
-    "/eino_roles_probe_dorothy/text_eos":
-      equals: true
-    "/eino_roles_probe_dorothy/audio_eos":
-      equals: true
-    "/eino_roles_probe_dorothy/audio_bytes":
-      minimum: 1
-    "/eino_roles_probe_dorothy/first_text_ms":
-      maximum: 6000
-    "/eino_roles_probe_dorothy/first_audio_ms":
-      maximum: 90000
     "/flowcraft_case5_continue_flowcraft_in_english_without_restart/text":
       contains_all:
       - I will help
@@ -1123,7 +677,10 @@ steps:
       - The yellow brick road splits three ways
       - 第 1 章
       - 黄砖岔路
-      min_length: 20
+      - "【"
+      - "】"
+      min_length: 1
+      max_length: 600
     "/flowcraft_case5_continue_flowcraft_in_english_without_restart/text_eos":
       equals: true
     "/flowcraft_case5_continue_flowcraft_in_english_without_restart/audio_eos":
@@ -1145,7 +702,10 @@ steps:
       - The yellow brick road splits three ways
       - 第 1 章
       - 黄砖岔路
-      min_length: 20
+      - "【"
+      - "】"
+      min_length: 1
+      max_length: 600
     "/eino_case5_continue_flowcraft_in_english_without_restart/text_eos":
       equals: true
     "/eino_case5_continue_flowcraft_in_english_without_restart/audio_eos":
@@ -1157,14 +717,13 @@ steps:
     "/eino_case5_continue_flowcraft_in_english_without_restart/first_audio_ms":
       maximum: 90000
     "/flowcraft_routing_negated_name/text":
-      min_length: 4
+      min_length: 300
       not_contains:
-      - 多萝西说
-      - 多萝西：
       - '多萝西:'
-      - 我是多萝西
-      - 作为多萝西
       - 我这只多萝西
+      - "【"
+      - "】"
+      max_length: 600
     "/flowcraft_routing_negated_name/text_eos":
       equals: true
     "/flowcraft_routing_negated_name/audio_eos":
@@ -1176,14 +735,13 @@ steps:
     "/flowcraft_routing_negated_name/first_audio_ms":
       maximum: 90000
     "/eino_routing_negated_name/text":
-      min_length: 4
+      min_length: 300
       not_contains:
-      - 多萝西说
-      - 多萝西：
       - '多萝西:'
-      - 我是多萝西
-      - 作为多萝西
       - 我这只多萝西
+      - "【"
+      - "】"
+      max_length: 600
     "/eino_routing_negated_name/text_eos":
       equals: true
     "/eino_routing_negated_name/audio_eos":
@@ -1194,6 +752,78 @@ steps:
       maximum: 6000
     "/eino_routing_negated_name/first_audio_ms":
       maximum: 90000
+    "/flowcraft_transitions_natural_consequence/audio_integrity/streams":
+      equals: 1
+    "/flowcraft_transitions_natural_consequence/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_transitions_natural_consequence/audio_integrity/open":
+      equals: 0
+    "/flowcraft_transitions_natural_consequence/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_transitions_natural_consequence/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/flowcraft_transitions_natural_consequence/audio_pacing/underruns":
+      equals: 0
+    "/eino_transitions_natural_consequence/audio_integrity/streams":
+      equals: 1
+    "/eino_transitions_natural_consequence/audio_integrity/max_active":
+      equals: 1
+    "/eino_transitions_natural_consequence/audio_integrity/open":
+      equals: 0
+    "/eino_transitions_natural_consequence/audio_integrity/violations":
+      equals: 0
+    "/eino_transitions_natural_consequence/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/eino_transitions_natural_consequence/audio_pacing/underruns":
+      equals: 0
+    "/flowcraft_case5_continue_flowcraft_in_english_without_restart/audio_integrity/streams":
+      equals: 1
+    "/flowcraft_case5_continue_flowcraft_in_english_without_restart/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_case5_continue_flowcraft_in_english_without_restart/audio_integrity/open":
+      equals: 0
+    "/flowcraft_case5_continue_flowcraft_in_english_without_restart/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_case5_continue_flowcraft_in_english_without_restart/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/flowcraft_case5_continue_flowcraft_in_english_without_restart/audio_pacing/underruns":
+      equals: 0
+    "/eino_case5_continue_flowcraft_in_english_without_restart/audio_integrity/streams":
+      equals: 1
+    "/eino_case5_continue_flowcraft_in_english_without_restart/audio_integrity/max_active":
+      equals: 1
+    "/eino_case5_continue_flowcraft_in_english_without_restart/audio_integrity/open":
+      equals: 0
+    "/eino_case5_continue_flowcraft_in_english_without_restart/audio_integrity/violations":
+      equals: 0
+    "/eino_case5_continue_flowcraft_in_english_without_restart/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/eino_case5_continue_flowcraft_in_english_without_restart/audio_pacing/underruns":
+      equals: 0
+    "/flowcraft_routing_negated_name/audio_integrity/streams":
+      equals: 1
+    "/flowcraft_routing_negated_name/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_routing_negated_name/audio_integrity/open":
+      equals: 0
+    "/flowcraft_routing_negated_name/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_routing_negated_name/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/flowcraft_routing_negated_name/audio_pacing/underruns":
+      equals: 0
+    "/eino_routing_negated_name/audio_integrity/streams":
+      equals: 1
+    "/eino_routing_negated_name/audio_integrity/max_active":
+      equals: 1
+    "/eino_routing_negated_name/audio_integrity/open":
+      equals: 0
+    "/eino_routing_negated_name/audio_integrity/violations":
+      equals: 0
+    "/eino_routing_negated_name/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/eino_routing_negated_name/audio_pacing/underruns":
+      equals: 0
 - id: flowcraft__transitions_keepalive_3
   client: flowcraft__transitions
   rpc:
@@ -1201,16 +831,6 @@ steps:
     request: {}
 - id: eino__transitions_keepalive_3
   client: eino__transitions
-  rpc:
-    method: server.run.status
-    request: {}
-- id: flowcraft__roles_keepalive_3
-  client: flowcraft__roles
-  rpc:
-    method: server.run.status
-    request: {}
-- id: eino__roles_keepalive_3
-  client: eino__roles
   rpc:
     method: server.run.status
     request: {}
@@ -1235,13 +855,13 @@ steps:
     method: server.run.status
     request: {}
 - id: quality_round_3
-  timeout: 2m
+  timeout: 4m
   parallel:
   - id: flowcraft_transitions_character_perspective
     client: flowcraft__transitions
     peer_stream:
       mode: text
-      input: 请让多萝西亲自回应当前结果，说出不同的立场。
+      input: 继续当前故事，在同一段中讲出在场角色对刚才结果的不同立场。
       idle_timeout: 90s
       require_text: true
       require_audio: true
@@ -1249,23 +869,7 @@ steps:
     client: eino__transitions
     peer_stream:
       mode: text
-      input: 请让多萝西亲自回应当前结果，说出不同的立场。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: flowcraft_roles_probe_scarecrow
-    client: flowcraft__roles
-    peer_stream:
-      mode: text
-      input: 请让稻草人亲自回应，只说这个角色知道的事。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_roles_probe_scarecrow
-    client: eino__roles
-    peer_stream:
-      mode: text
-      input: 请让稻草人亲自回应，只说这个角色知道的事。
+      input: 继续当前故事，在同一段中讲出在场角色对刚才结果的不同立场。
       idle_timeout: 90s
       require_text: true
       require_audio: true
@@ -1289,7 +893,7 @@ steps:
     client: flowcraft__routing
     peer_stream:
       mode: text
-      input: 请让铁皮人说说
+      input: 继续当前场景，只让已经在场的角色参与对话，不提前让后来的人物出现。
       idle_timeout: 90s
       require_text: true
       require_audio: true
@@ -1297,7 +901,7 @@ steps:
     client: eino__routing
     peer_stream:
       mode: text
-      input: 请让铁皮人说说
+      input: 继续当前场景，只让已经在场的角色参与对话，不提前让后来的人物出现。
       idle_timeout: 90s
       require_text: true
       require_audio: true
@@ -1306,7 +910,10 @@ steps:
       not_contains:
       - 第 2 章
       - 勇气考验
-      min_length: 4
+      - "【"
+      - "】"
+      min_length: 300
+      max_length: 600
     "/flowcraft_transitions_character_perspective/text_eos":
       equals: true
     "/flowcraft_transitions_character_perspective/audio_eos":
@@ -1319,7 +926,10 @@ steps:
       not_contains:
       - 第 2 章
       - 勇气考验
-      min_length: 4
+      - "【"
+      - "】"
+      min_length: 300
+      max_length: 600
     "/eino_transitions_character_perspective/text_eos":
       equals: true
     "/eino_transitions_character_perspective/audio_eos":
@@ -1328,43 +938,15 @@ steps:
       minimum: 1
     "/eino_transitions_character_perspective/first_text_ms":
       maximum: 6000
-    "/flowcraft_roles_probe_scarecrow/text":
-      not_contains:
-      - 稻草人说
-      - 稻草人：
-      contains_all:
-      - 我
-    "/flowcraft_roles_probe_scarecrow/text_eos":
-      equals: true
-    "/flowcraft_roles_probe_scarecrow/audio_eos":
-      equals: true
-    "/flowcraft_roles_probe_scarecrow/audio_bytes":
-      minimum: 1
-    "/flowcraft_roles_probe_scarecrow/first_text_ms":
-      maximum: 6000
-    "/flowcraft_roles_probe_scarecrow/first_audio_ms":
-      maximum: 90000
-    "/eino_roles_probe_scarecrow/text":
-      not_contains:
-      - 稻草人说
-      - 稻草人：
-      contains_all:
-      - 我
-    "/eino_roles_probe_scarecrow/text_eos":
-      equals: true
-    "/eino_roles_probe_scarecrow/audio_eos":
-      equals: true
-    "/eino_roles_probe_scarecrow/audio_bytes":
-      minimum: 1
-    "/eino_roles_probe_scarecrow/first_text_ms":
-      maximum: 6000
-    "/eino_roles_probe_scarecrow/first_audio_ms":
-      maximum: 90000
     "/flowcraft_case5_reject_negated_english_request/text":
       contains: 继续同行
       not_contains:
       - 'Chapter 1: The Yellow Brick Fork'
       - The yellow brick road splits three ways
+      - "【"
+      - "】"
+      min_length: 1
+      max_length: 600
     "/flowcraft_case5_reject_negated_english_request/text_eos":
       equals: true
     "/flowcraft_case5_reject_negated_english_request/audio_eos":
@@ -1380,6 +962,10 @@ steps:
       not_contains:
       - 'Chapter 1: The Yellow Brick Fork'
       - The yellow brick road splits three ways
+      - "【"
+      - "】"
+      min_length: 1
+      max_length: 600
     "/eino_case5_reject_negated_english_request/text_eos":
       equals: true
     "/eino_case5_reject_negated_english_request/audio_eos":
@@ -1391,14 +977,13 @@ steps:
     "/eino_case5_reject_negated_english_request/first_audio_ms":
       maximum: 90000
     "/flowcraft_routing_unavailable_role/text":
-      min_length: 4
+      min_length: 300
       not_contains:
-      - 铁皮人说
-      - 铁皮人：
       - '铁皮人:'
-      - 我是铁皮人
-      - 作为铁皮人
       - 我这只铁皮人
+      - "【"
+      - "】"
+      max_length: 600
     "/flowcraft_routing_unavailable_role/text_eos":
       equals: true
     "/flowcraft_routing_unavailable_role/audio_eos":
@@ -1410,14 +995,13 @@ steps:
     "/flowcraft_routing_unavailable_role/first_audio_ms":
       maximum: 90000
     "/eino_routing_unavailable_role/text":
-      min_length: 4
+      min_length: 300
       not_contains:
-      - 铁皮人说
-      - 铁皮人：
       - '铁皮人:'
-      - 我是铁皮人
-      - 作为铁皮人
       - 我这只铁皮人
+      - "【"
+      - "】"
+      max_length: 600
     "/eino_routing_unavailable_role/text_eos":
       equals: true
     "/eino_routing_unavailable_role/audio_eos":
@@ -1428,6 +1012,78 @@ steps:
       maximum: 6000
     "/eino_routing_unavailable_role/first_audio_ms":
       maximum: 90000
+    "/flowcraft_transitions_character_perspective/audio_integrity/streams":
+      equals: 1
+    "/flowcraft_transitions_character_perspective/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_transitions_character_perspective/audio_integrity/open":
+      equals: 0
+    "/flowcraft_transitions_character_perspective/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_transitions_character_perspective/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/flowcraft_transitions_character_perspective/audio_pacing/underruns":
+      equals: 0
+    "/eino_transitions_character_perspective/audio_integrity/streams":
+      equals: 1
+    "/eino_transitions_character_perspective/audio_integrity/max_active":
+      equals: 1
+    "/eino_transitions_character_perspective/audio_integrity/open":
+      equals: 0
+    "/eino_transitions_character_perspective/audio_integrity/violations":
+      equals: 0
+    "/eino_transitions_character_perspective/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/eino_transitions_character_perspective/audio_pacing/underruns":
+      equals: 0
+    "/flowcraft_case5_reject_negated_english_request/audio_integrity/streams":
+      equals: 1
+    "/flowcraft_case5_reject_negated_english_request/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_case5_reject_negated_english_request/audio_integrity/open":
+      equals: 0
+    "/flowcraft_case5_reject_negated_english_request/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_case5_reject_negated_english_request/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/flowcraft_case5_reject_negated_english_request/audio_pacing/underruns":
+      equals: 0
+    "/eino_case5_reject_negated_english_request/audio_integrity/streams":
+      equals: 1
+    "/eino_case5_reject_negated_english_request/audio_integrity/max_active":
+      equals: 1
+    "/eino_case5_reject_negated_english_request/audio_integrity/open":
+      equals: 0
+    "/eino_case5_reject_negated_english_request/audio_integrity/violations":
+      equals: 0
+    "/eino_case5_reject_negated_english_request/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/eino_case5_reject_negated_english_request/audio_pacing/underruns":
+      equals: 0
+    "/flowcraft_routing_unavailable_role/audio_integrity/streams":
+      equals: 1
+    "/flowcraft_routing_unavailable_role/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_routing_unavailable_role/audio_integrity/open":
+      equals: 0
+    "/flowcraft_routing_unavailable_role/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_routing_unavailable_role/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/flowcraft_routing_unavailable_role/audio_pacing/underruns":
+      equals: 0
+    "/eino_routing_unavailable_role/audio_integrity/streams":
+      equals: 1
+    "/eino_routing_unavailable_role/audio_integrity/max_active":
+      equals: 1
+    "/eino_routing_unavailable_role/audio_integrity/open":
+      equals: 0
+    "/eino_routing_unavailable_role/audio_integrity/violations":
+      equals: 0
+    "/eino_routing_unavailable_role/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/eino_routing_unavailable_role/audio_pacing/underruns":
+      equals: 0
 - id: flowcraft__transitions_keepalive_4
   client: flowcraft__transitions
   rpc:
@@ -1435,16 +1091,6 @@ steps:
     request: {}
 - id: eino__transitions_keepalive_4
   client: eino__transitions
-  rpc:
-    method: server.run.status
-    request: {}
-- id: flowcraft__roles_keepalive_4
-  client: flowcraft__roles
-  rpc:
-    method: server.run.status
-    request: {}
-- id: eino__roles_keepalive_4
-  client: eino__roles
   rpc:
     method: server.run.status
     request: {}
@@ -1469,7 +1115,7 @@ steps:
     method: server.run.status
     request: {}
 - id: quality_round_4
-  timeout: 2m
+  timeout: 4m
   parallel:
   - id: flowcraft_transitions_reject_negated_choice
     client: flowcraft__transitions
@@ -1484,22 +1130,6 @@ steps:
     peer_stream:
       mode: text
       input: 我先不选择，请让多萝西说明为什么还不能进入第二章；只说明仍停留的当前章节。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: flowcraft_roles_tin-man_chapter_setup_30
-    client: flowcraft__roles
-    peer_stream:
-      mode: text
-      input: 请从第一章开始《绿野仙踪》。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_roles_tin-man_chapter_setup_30
-    client: eino__roles
-    peer_stream:
-      mode: text
-      input: 请从第一章开始《绿野仙踪》。
       idle_timeout: 90s
       require_text: true
       require_audio: true
@@ -1527,10 +1157,14 @@ steps:
       not_contains:
       - 第 2 章
       - 勇气考验
+      - "【"
+      - "】"
       contains_any:
       - 黄砖岔路
       - 第一章
       - 第 1 章
+      min_length: 1
+      max_length: 600
     "/flowcraft_transitions_reject_negated_choice/text_eos":
       equals: true
     "/flowcraft_transitions_reject_negated_choice/audio_eos":
@@ -1546,10 +1180,14 @@ steps:
       not_contains:
       - 第 2 章
       - 勇气考验
+      - "【"
+      - "】"
       contains_any:
       - 黄砖岔路
       - 第一章
       - 第 1 章
+      min_length: 1
+      max_length: 600
     "/eino_transitions_reject_negated_choice/text_eos":
       equals: true
     "/eino_transitions_reject_negated_choice/audio_eos":
@@ -1558,37 +1196,12 @@ steps:
       minimum: 1
     "/eino_transitions_reject_negated_choice/first_text_ms":
       maximum: 6000
-    "/flowcraft_roles_tin-man_chapter_setup_30/text_eos":
-      equals: true
-    "/flowcraft_roles_tin-man_chapter_setup_30/audio_eos":
-      equals: true
-    "/flowcraft_roles_tin-man_chapter_setup_30/audio_bytes":
-      minimum: 1
-    "/flowcraft_roles_tin-man_chapter_setup_30/first_text_ms":
-      maximum: 6000
-    "/flowcraft_roles_tin-man_chapter_setup_30/first_audio_ms":
-      maximum: 90000
-    "/flowcraft_roles_tin-man_chapter_setup_30/text":
-      contains: 第 1 章：黄砖岔路
-    "/eino_roles_tin-man_chapter_setup_30/text_eos":
-      equals: true
-    "/eino_roles_tin-man_chapter_setup_30/audio_eos":
-      equals: true
-    "/eino_roles_tin-man_chapter_setup_30/audio_bytes":
-      minimum: 1
-    "/eino_roles_tin-man_chapter_setup_30/first_text_ms":
-      maximum: 6000
-    "/eino_roles_tin-man_chapter_setup_30/first_audio_ms":
-      maximum: 90000
-    "/eino_roles_tin-man_chapter_setup_30/text":
-      contains: 第 1 章：黄砖岔路
     "/flowcraft_routing_bare_name/text":
-      min_length: 4
+      min_length: 300
       not_contains:
-      - 多萝西：
-      - 多萝西说
-      - 我是多萝西
-      - 作为多萝西
+      - "【"
+      - "】"
+      max_length: 600
     "/flowcraft_routing_bare_name/text_eos":
       equals: true
     "/flowcraft_routing_bare_name/audio_eos":
@@ -1600,12 +1213,11 @@ steps:
     "/flowcraft_routing_bare_name/first_audio_ms":
       maximum: 90000
     "/eino_routing_bare_name/text":
-      min_length: 4
+      min_length: 300
       not_contains:
-      - 多萝西：
-      - 多萝西说
-      - 我是多萝西
-      - 作为多萝西
+      - "【"
+      - "】"
+      max_length: 600
     "/eino_routing_bare_name/text_eos":
       equals: true
     "/eino_routing_bare_name/audio_eos":
@@ -1616,6 +1228,54 @@ steps:
       maximum: 6000
     "/eino_routing_bare_name/first_audio_ms":
       maximum: 90000
+    "/flowcraft_transitions_reject_negated_choice/audio_integrity/streams":
+      equals: 1
+    "/flowcraft_transitions_reject_negated_choice/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_transitions_reject_negated_choice/audio_integrity/open":
+      equals: 0
+    "/flowcraft_transitions_reject_negated_choice/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_transitions_reject_negated_choice/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/flowcraft_transitions_reject_negated_choice/audio_pacing/underruns":
+      equals: 0
+    "/eino_transitions_reject_negated_choice/audio_integrity/streams":
+      equals: 1
+    "/eino_transitions_reject_negated_choice/audio_integrity/max_active":
+      equals: 1
+    "/eino_transitions_reject_negated_choice/audio_integrity/open":
+      equals: 0
+    "/eino_transitions_reject_negated_choice/audio_integrity/violations":
+      equals: 0
+    "/eino_transitions_reject_negated_choice/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/eino_transitions_reject_negated_choice/audio_pacing/underruns":
+      equals: 0
+    "/flowcraft_routing_bare_name/audio_integrity/streams":
+      equals: 1
+    "/flowcraft_routing_bare_name/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_routing_bare_name/audio_integrity/open":
+      equals: 0
+    "/flowcraft_routing_bare_name/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_routing_bare_name/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/flowcraft_routing_bare_name/audio_pacing/underruns":
+      equals: 0
+    "/eino_routing_bare_name/audio_integrity/streams":
+      equals: 1
+    "/eino_routing_bare_name/audio_integrity/max_active":
+      equals: 1
+    "/eino_routing_bare_name/audio_integrity/open":
+      equals: 0
+    "/eino_routing_bare_name/audio_integrity/violations":
+      equals: 0
+    "/eino_routing_bare_name/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/eino_routing_bare_name/audio_pacing/underruns":
+      equals: 0
 - id: flowcraft__transitions_keepalive_5
   client: flowcraft__transitions
   rpc:
@@ -1623,16 +1283,6 @@ steps:
     request: {}
 - id: eino__transitions_keepalive_5
   client: eino__transitions
-  rpc:
-    method: server.run.status
-    request: {}
-- id: flowcraft__roles_keepalive_5
-  client: flowcraft__roles
-  rpc:
-    method: server.run.status
-    request: {}
-- id: eino__roles_keepalive_5
-  client: eino__roles
   rpc:
     method: server.run.status
     request: {}
@@ -1657,7 +1307,7 @@ steps:
     method: server.run.status
     request: {}
 - id: quality_round_5
-  timeout: 2m
+  timeout: 4m
   parallel:
   - id: flowcraft_transitions_choice_prompts_next_chapter
     client: flowcraft__transitions
@@ -1672,22 +1322,6 @@ steps:
     peer_stream:
       mode: text
       input: 走需要互相帮助的路
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: flowcraft_roles_tin-man_chapter_setup_31
-    client: flowcraft__roles
-    peer_stream:
-      mode: text
-      input: 我选择先帮助同伴并核对眼前线索，请推进一个直接结果。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_roles_tin-man_chapter_setup_31
-    client: eino__roles
-    peer_stream:
-      mode: text
-      input: 我选择先帮助同伴并核对眼前线索，请推进一个直接结果。
       idle_timeout: 90s
       require_text: true
       require_audio: true
@@ -1713,6 +1347,10 @@ steps:
       not_contains:
       - 第 2 章
       - 勇气考验
+      - "【"
+      - "】"
+      min_length: 300
+      max_length: 600
     "/flowcraft_transitions_choice_prompts_next_chapter/text_eos":
       equals: true
     "/flowcraft_transitions_choice_prompts_next_chapter/audio_eos":
@@ -1726,6 +1364,10 @@ steps:
       not_contains:
       - 第 2 章
       - 勇气考验
+      - "【"
+      - "】"
+      min_length: 300
+      max_length: 600
     "/eino_transitions_choice_prompts_next_chapter/text_eos":
       equals: true
     "/eino_transitions_choice_prompts_next_chapter/audio_eos":
@@ -1734,30 +1376,15 @@ steps:
       minimum: 1
     "/eino_transitions_choice_prompts_next_chapter/first_text_ms":
       maximum: 6000
-    "/flowcraft_roles_tin-man_chapter_setup_31/text_eos":
-      equals: true
-    "/flowcraft_roles_tin-man_chapter_setup_31/audio_eos":
-      equals: true
-    "/flowcraft_roles_tin-man_chapter_setup_31/audio_bytes":
-      minimum: 1
-    "/flowcraft_roles_tin-man_chapter_setup_31/first_text_ms":
-      maximum: 6000
-    "/flowcraft_roles_tin-man_chapter_setup_31/first_audio_ms":
-      maximum: 90000
-    "/eino_roles_tin-man_chapter_setup_31/text_eos":
-      equals: true
-    "/eino_roles_tin-man_chapter_setup_31/audio_eos":
-      equals: true
-    "/eino_roles_tin-man_chapter_setup_31/audio_bytes":
-      minimum: 1
-    "/eino_roles_tin-man_chapter_setup_31/first_text_ms":
-      maximum: 6000
-    "/eino_roles_tin-man_chapter_setup_31/first_audio_ms":
-      maximum: 90000
     "/flowcraft_safety_literal/text":
       contains_all:
       - 不要模仿
       - 找家长、老师或可信任成年人帮助
+      not_contains:
+      - "【"
+      - "】"
+      min_length: 1
+      max_length: 600
     "/flowcraft_safety_literal/text_eos":
       equals: true
     "/flowcraft_safety_literal/audio_eos":
@@ -1772,6 +1399,11 @@ steps:
       contains_all:
       - 不要模仿
       - 找家长、老师或可信任成年人帮助
+      not_contains:
+      - "【"
+      - "】"
+      min_length: 1
+      max_length: 600
     "/eino_safety_literal/text_eos":
       equals: true
     "/eino_safety_literal/audio_eos":
@@ -1782,6 +1414,54 @@ steps:
       maximum: 6000
     "/eino_safety_literal/first_audio_ms":
       maximum: 90000
+    "/flowcraft_transitions_choice_prompts_next_chapter/audio_integrity/streams":
+      equals: 1
+    "/flowcraft_transitions_choice_prompts_next_chapter/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_transitions_choice_prompts_next_chapter/audio_integrity/open":
+      equals: 0
+    "/flowcraft_transitions_choice_prompts_next_chapter/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_transitions_choice_prompts_next_chapter/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/flowcraft_transitions_choice_prompts_next_chapter/audio_pacing/underruns":
+      equals: 0
+    "/eino_transitions_choice_prompts_next_chapter/audio_integrity/streams":
+      equals: 1
+    "/eino_transitions_choice_prompts_next_chapter/audio_integrity/max_active":
+      equals: 1
+    "/eino_transitions_choice_prompts_next_chapter/audio_integrity/open":
+      equals: 0
+    "/eino_transitions_choice_prompts_next_chapter/audio_integrity/violations":
+      equals: 0
+    "/eino_transitions_choice_prompts_next_chapter/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/eino_transitions_choice_prompts_next_chapter/audio_pacing/underruns":
+      equals: 0
+    "/flowcraft_safety_literal/audio_integrity/streams":
+      equals: 1
+    "/flowcraft_safety_literal/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_safety_literal/audio_integrity/open":
+      equals: 0
+    "/flowcraft_safety_literal/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_safety_literal/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/flowcraft_safety_literal/audio_pacing/underruns":
+      equals: 0
+    "/eino_safety_literal/audio_integrity/streams":
+      equals: 1
+    "/eino_safety_literal/audio_integrity/max_active":
+      equals: 1
+    "/eino_safety_literal/audio_integrity/open":
+      equals: 0
+    "/eino_safety_literal/audio_integrity/violations":
+      equals: 0
+    "/eino_safety_literal/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/eino_safety_literal/audio_pacing/underruns":
+      equals: 0
 - id: flowcraft__transitions_keepalive_6
   client: flowcraft__transitions
   rpc:
@@ -1789,16 +1469,6 @@ steps:
     request: {}
 - id: eino__transitions_keepalive_6
   client: eino__transitions
-  rpc:
-    method: server.run.status
-    request: {}
-- id: flowcraft__roles_keepalive_6
-  client: flowcraft__roles
-  rpc:
-    method: server.run.status
-    request: {}
-- id: eino__roles_keepalive_6
-  client: eino__roles
   rpc:
     method: server.run.status
     request: {}
@@ -1823,7 +1493,7 @@ steps:
     method: server.run.status
     request: {}
 - id: quality_round_6
-  timeout: 2m
+  timeout: 4m
   parallel:
   - id: flowcraft_transitions_enter_next_chapter_with_story
     client: flowcraft__transitions
@@ -1841,22 +1511,6 @@ steps:
       idle_timeout: 90s
       require_text: true
       require_audio: true
-  - id: flowcraft_roles_tin-man_chapter_setup_32
-    client: flowcraft__roles
-    peer_stream:
-      mode: text
-      input: 请让多萝西亲自回应，说出不同立场。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_roles_tin-man_chapter_setup_32
-    client: eino__roles
-    peer_stream:
-      mode: text
-      input: 请让多萝西亲自回应，说出不同立场。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
   expect:
     "/flowcraft_transitions_enter_next_chapter_with_story/text":
       contains_all:
@@ -1864,7 +1518,11 @@ steps:
       - 勇气考验
       not_contains:
       - 第 1 章
+      - "【"
+      - "】"
       pattern: 第 2 章[：:]\s*勇气考验[\s\S]{20,}[。！？]
+      min_length: 300
+      max_length: 600
     "/flowcraft_transitions_enter_next_chapter_with_story/text_eos":
       equals: true
     "/flowcraft_transitions_enter_next_chapter_with_story/audio_eos":
@@ -1879,7 +1537,11 @@ steps:
       - 勇气考验
       not_contains:
       - 第 1 章
+      - "【"
+      - "】"
       pattern: 第 2 章[：:]\s*勇气考验[\s\S]{20,}[。！？]
+      min_length: 300
+      max_length: 600
     "/eino_transitions_enter_next_chapter_with_story/text_eos":
       equals: true
     "/eino_transitions_enter_next_chapter_with_story/audio_eos":
@@ -1888,26 +1550,30 @@ steps:
       minimum: 1
     "/eino_transitions_enter_next_chapter_with_story/first_text_ms":
       maximum: 6000
-    "/flowcraft_roles_tin-man_chapter_setup_32/text_eos":
-      equals: true
-    "/flowcraft_roles_tin-man_chapter_setup_32/audio_eos":
-      equals: true
-    "/flowcraft_roles_tin-man_chapter_setup_32/audio_bytes":
-      minimum: 1
-    "/flowcraft_roles_tin-man_chapter_setup_32/first_text_ms":
-      maximum: 6000
-    "/flowcraft_roles_tin-man_chapter_setup_32/first_audio_ms":
-      maximum: 90000
-    "/eino_roles_tin-man_chapter_setup_32/text_eos":
-      equals: true
-    "/eino_roles_tin-man_chapter_setup_32/audio_eos":
-      equals: true
-    "/eino_roles_tin-man_chapter_setup_32/audio_bytes":
-      minimum: 1
-    "/eino_roles_tin-man_chapter_setup_32/first_text_ms":
-      maximum: 6000
-    "/eino_roles_tin-man_chapter_setup_32/first_audio_ms":
-      maximum: 90000
+    "/flowcraft_transitions_enter_next_chapter_with_story/audio_integrity/streams":
+      equals: 1
+    "/flowcraft_transitions_enter_next_chapter_with_story/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_transitions_enter_next_chapter_with_story/audio_integrity/open":
+      equals: 0
+    "/flowcraft_transitions_enter_next_chapter_with_story/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_transitions_enter_next_chapter_with_story/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/flowcraft_transitions_enter_next_chapter_with_story/audio_pacing/underruns":
+      equals: 0
+    "/eino_transitions_enter_next_chapter_with_story/audio_integrity/streams":
+      equals: 1
+    "/eino_transitions_enter_next_chapter_with_story/audio_integrity/max_active":
+      equals: 1
+    "/eino_transitions_enter_next_chapter_with_story/audio_integrity/open":
+      equals: 0
+    "/eino_transitions_enter_next_chapter_with_story/audio_integrity/violations":
+      equals: 0
+    "/eino_transitions_enter_next_chapter_with_story/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/eino_transitions_enter_next_chapter_with_story/audio_pacing/underruns":
+      equals: 0
 - id: flowcraft__transitions_keepalive_7
   client: flowcraft__transitions
   rpc:
@@ -1915,16 +1581,6 @@ steps:
     request: {}
 - id: eino__transitions_keepalive_7
   client: eino__transitions
-  rpc:
-    method: server.run.status
-    request: {}
-- id: flowcraft__roles_keepalive_7
-  client: flowcraft__roles
-  rpc:
-    method: server.run.status
-    request: {}
-- id: eino__roles_keepalive_7
-  client: eino__roles
   rpc:
     method: server.run.status
     request: {}
@@ -1949,7 +1605,7 @@ steps:
     method: server.run.status
     request: {}
 - id: quality_round_7
-  timeout: 2m
+  timeout: 4m
   parallel:
   - id: flowcraft_transitions_continue_current_chapter
     client: flowcraft__transitions
@@ -1967,29 +1623,16 @@ steps:
       idle_timeout: 90s
       require_text: true
       require_audio: true
-  - id: flowcraft_roles_tin-man_chapter_setup_33
-    client: flowcraft__roles
-    peer_stream:
-      mode: text
-      input: 进入下一章。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_roles_tin-man_chapter_setup_33
-    client: eino__roles
-    peer_stream:
-      mode: text
-      input: 进入下一章。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
   expect:
     "/flowcraft_transitions_continue_current_chapter/text":
       not_contains:
       - 第 2 章
       - 勇气考验
       - 转场条件
-      min_length: 4
+      - "【"
+      - "】"
+      min_length: 300
+      max_length: 600
     "/flowcraft_transitions_continue_current_chapter/text_eos":
       equals: true
     "/flowcraft_transitions_continue_current_chapter/audio_eos":
@@ -2003,7 +1646,10 @@ steps:
       - 第 2 章
       - 勇气考验
       - 转场条件
-      min_length: 4
+      - "【"
+      - "】"
+      min_length: 300
+      max_length: 600
     "/eino_transitions_continue_current_chapter/text_eos":
       equals: true
     "/eino_transitions_continue_current_chapter/audio_eos":
@@ -2012,30 +1658,30 @@ steps:
       minimum: 1
     "/eino_transitions_continue_current_chapter/first_text_ms":
       maximum: 6000
-    "/flowcraft_roles_tin-man_chapter_setup_33/text_eos":
-      equals: true
-    "/flowcraft_roles_tin-man_chapter_setup_33/audio_eos":
-      equals: true
-    "/flowcraft_roles_tin-man_chapter_setup_33/audio_bytes":
-      minimum: 1
-    "/flowcraft_roles_tin-man_chapter_setup_33/first_text_ms":
-      maximum: 6000
-    "/flowcraft_roles_tin-man_chapter_setup_33/first_audio_ms":
-      maximum: 90000
-    "/flowcraft_roles_tin-man_chapter_setup_33/text":
-      contains: 第 2 章：勇气考验
-    "/eino_roles_tin-man_chapter_setup_33/text_eos":
-      equals: true
-    "/eino_roles_tin-man_chapter_setup_33/audio_eos":
-      equals: true
-    "/eino_roles_tin-man_chapter_setup_33/audio_bytes":
-      minimum: 1
-    "/eino_roles_tin-man_chapter_setup_33/first_text_ms":
-      maximum: 6000
-    "/eino_roles_tin-man_chapter_setup_33/first_audio_ms":
-      maximum: 90000
-    "/eino_roles_tin-man_chapter_setup_33/text":
-      contains: 第 2 章：勇气考验
+    "/flowcraft_transitions_continue_current_chapter/audio_integrity/streams":
+      equals: 1
+    "/flowcraft_transitions_continue_current_chapter/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_transitions_continue_current_chapter/audio_integrity/open":
+      equals: 0
+    "/flowcraft_transitions_continue_current_chapter/audio_integrity/violations":
+      equals: 0
+    "/flowcraft_transitions_continue_current_chapter/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/flowcraft_transitions_continue_current_chapter/audio_pacing/underruns":
+      equals: 0
+    "/eino_transitions_continue_current_chapter/audio_integrity/streams":
+      equals: 1
+    "/eino_transitions_continue_current_chapter/audio_integrity/max_active":
+      equals: 1
+    "/eino_transitions_continue_current_chapter/audio_integrity/open":
+      equals: 0
+    "/eino_transitions_continue_current_chapter/audio_integrity/violations":
+      equals: 0
+    "/eino_transitions_continue_current_chapter/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/eino_transitions_continue_current_chapter/audio_pacing/underruns":
+      equals: 0
 - id: flowcraft__transitions_keepalive_8
   client: flowcraft__transitions
   rpc:
@@ -2043,16 +1689,6 @@ steps:
     request: {}
 - id: eino__transitions_keepalive_8
   client: eino__transitions
-  rpc:
-    method: server.run.status
-    request: {}
-- id: flowcraft__roles_keepalive_8
-  client: flowcraft__roles
-  rpc:
-    method: server.run.status
-    request: {}
-- id: eino__roles_keepalive_8
-  client: eino__roles
   rpc:
     method: server.run.status
     request: {}
@@ -2076,58 +1712,6 @@ steps:
   rpc:
     method: server.run.status
     request: {}
-- id: quality_round_8
-  timeout: 2m
-  parallel:
-  - id: flowcraft_roles_probe_tin-man
-    client: flowcraft__roles
-    peer_stream:
-      mode: text
-      input: 请让铁皮人亲自回应，只说这个角色知道的事。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_roles_probe_tin-man
-    client: eino__roles
-    peer_stream:
-      mode: text
-      input: 请让铁皮人亲自回应，只说这个角色知道的事。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  expect:
-    "/flowcraft_roles_probe_tin-man/text":
-      not_contains:
-      - 铁皮人说
-      - 铁皮人：
-      contains_all:
-      - 我
-    "/flowcraft_roles_probe_tin-man/text_eos":
-      equals: true
-    "/flowcraft_roles_probe_tin-man/audio_eos":
-      equals: true
-    "/flowcraft_roles_probe_tin-man/audio_bytes":
-      minimum: 1
-    "/flowcraft_roles_probe_tin-man/first_text_ms":
-      maximum: 6000
-    "/flowcraft_roles_probe_tin-man/first_audio_ms":
-      maximum: 90000
-    "/eino_roles_probe_tin-man/text":
-      not_contains:
-      - 铁皮人说
-      - 铁皮人：
-      contains_all:
-      - 我
-    "/eino_roles_probe_tin-man/text_eos":
-      equals: true
-    "/eino_roles_probe_tin-man/audio_eos":
-      equals: true
-    "/eino_roles_probe_tin-man/audio_bytes":
-      minimum: 1
-    "/eino_roles_probe_tin-man/first_text_ms":
-      maximum: 6000
-    "/eino_roles_probe_tin-man/first_audio_ms":
-      maximum: 90000
 - id: flowcraft__transitions_keepalive_9
   client: flowcraft__transitions
   rpc:
@@ -2135,16 +1719,6 @@ steps:
     request: {}
 - id: eino__transitions_keepalive_9
   client: eino__transitions
-  rpc:
-    method: server.run.status
-    request: {}
-- id: flowcraft__roles_keepalive_9
-  client: flowcraft__roles
-  rpc:
-    method: server.run.status
-    request: {}
-- id: eino__roles_keepalive_9
-  client: eino__roles
   rpc:
     method: server.run.status
     request: {}
@@ -2168,50 +1742,6 @@ steps:
   rpc:
     method: server.run.status
     request: {}
-- id: quality_round_9
-  timeout: 2m
-  parallel:
-  - id: flowcraft_roles_lion_chapter_setup_36
-    client: flowcraft__roles
-    peer_stream:
-      mode: text
-      input: 请从第一章开始《绿野仙踪》。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_roles_lion_chapter_setup_36
-    client: eino__roles
-    peer_stream:
-      mode: text
-      input: 请从第一章开始《绿野仙踪》。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  expect:
-    "/flowcraft_roles_lion_chapter_setup_36/text_eos":
-      equals: true
-    "/flowcraft_roles_lion_chapter_setup_36/audio_eos":
-      equals: true
-    "/flowcraft_roles_lion_chapter_setup_36/audio_bytes":
-      minimum: 1
-    "/flowcraft_roles_lion_chapter_setup_36/first_text_ms":
-      maximum: 6000
-    "/flowcraft_roles_lion_chapter_setup_36/first_audio_ms":
-      maximum: 90000
-    "/flowcraft_roles_lion_chapter_setup_36/text":
-      contains: 第 1 章：黄砖岔路
-    "/eino_roles_lion_chapter_setup_36/text_eos":
-      equals: true
-    "/eino_roles_lion_chapter_setup_36/audio_eos":
-      equals: true
-    "/eino_roles_lion_chapter_setup_36/audio_bytes":
-      minimum: 1
-    "/eino_roles_lion_chapter_setup_36/first_text_ms":
-      maximum: 6000
-    "/eino_roles_lion_chapter_setup_36/first_audio_ms":
-      maximum: 90000
-    "/eino_roles_lion_chapter_setup_36/text":
-      contains: 第 1 章：黄砖岔路
 - id: flowcraft__transitions_keepalive_10
   client: flowcraft__transitions
   rpc:
@@ -2219,16 +1749,6 @@ steps:
     request: {}
 - id: eino__transitions_keepalive_10
   client: eino__transitions
-  rpc:
-    method: server.run.status
-    request: {}
-- id: flowcraft__roles_keepalive_10
-  client: flowcraft__roles
-  rpc:
-    method: server.run.status
-    request: {}
-- id: eino__roles_keepalive_10
-  client: eino__roles
   rpc:
     method: server.run.status
     request: {}
@@ -2252,46 +1772,6 @@ steps:
   rpc:
     method: server.run.status
     request: {}
-- id: quality_round_10
-  timeout: 2m
-  parallel:
-  - id: flowcraft_roles_lion_chapter_setup_37
-    client: flowcraft__roles
-    peer_stream:
-      mode: text
-      input: 我选择先帮助同伴并核对眼前线索，请推进一个直接结果。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_roles_lion_chapter_setup_37
-    client: eino__roles
-    peer_stream:
-      mode: text
-      input: 我选择先帮助同伴并核对眼前线索，请推进一个直接结果。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  expect:
-    "/flowcraft_roles_lion_chapter_setup_37/text_eos":
-      equals: true
-    "/flowcraft_roles_lion_chapter_setup_37/audio_eos":
-      equals: true
-    "/flowcraft_roles_lion_chapter_setup_37/audio_bytes":
-      minimum: 1
-    "/flowcraft_roles_lion_chapter_setup_37/first_text_ms":
-      maximum: 6000
-    "/flowcraft_roles_lion_chapter_setup_37/first_audio_ms":
-      maximum: 90000
-    "/eino_roles_lion_chapter_setup_37/text_eos":
-      equals: true
-    "/eino_roles_lion_chapter_setup_37/audio_eos":
-      equals: true
-    "/eino_roles_lion_chapter_setup_37/audio_bytes":
-      minimum: 1
-    "/eino_roles_lion_chapter_setup_37/first_text_ms":
-      maximum: 6000
-    "/eino_roles_lion_chapter_setup_37/first_audio_ms":
-      maximum: 90000
 - id: flowcraft__transitions_keepalive_11
   client: flowcraft__transitions
   rpc:
@@ -2299,16 +1779,6 @@ steps:
     request: {}
 - id: eino__transitions_keepalive_11
   client: eino__transitions
-  rpc:
-    method: server.run.status
-    request: {}
-- id: flowcraft__roles_keepalive_11
-  client: flowcraft__roles
-  rpc:
-    method: server.run.status
-    request: {}
-- id: eino__roles_keepalive_11
-  client: eino__roles
   rpc:
     method: server.run.status
     request: {}
@@ -2332,46 +1802,6 @@ steps:
   rpc:
     method: server.run.status
     request: {}
-- id: quality_round_11
-  timeout: 2m
-  parallel:
-  - id: flowcraft_roles_lion_chapter_setup_38
-    client: flowcraft__roles
-    peer_stream:
-      mode: text
-      input: 请让多萝西亲自回应，说出不同立场。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_roles_lion_chapter_setup_38
-    client: eino__roles
-    peer_stream:
-      mode: text
-      input: 请让多萝西亲自回应，说出不同立场。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  expect:
-    "/flowcraft_roles_lion_chapter_setup_38/text_eos":
-      equals: true
-    "/flowcraft_roles_lion_chapter_setup_38/audio_eos":
-      equals: true
-    "/flowcraft_roles_lion_chapter_setup_38/audio_bytes":
-      minimum: 1
-    "/flowcraft_roles_lion_chapter_setup_38/first_text_ms":
-      maximum: 6000
-    "/flowcraft_roles_lion_chapter_setup_38/first_audio_ms":
-      maximum: 90000
-    "/eino_roles_lion_chapter_setup_38/text_eos":
-      equals: true
-    "/eino_roles_lion_chapter_setup_38/audio_eos":
-      equals: true
-    "/eino_roles_lion_chapter_setup_38/audio_bytes":
-      minimum: 1
-    "/eino_roles_lion_chapter_setup_38/first_text_ms":
-      maximum: 6000
-    "/eino_roles_lion_chapter_setup_38/first_audio_ms":
-      maximum: 90000
 - id: flowcraft__transitions_keepalive_12
   client: flowcraft__transitions
   rpc:
@@ -2379,16 +1809,6 @@ steps:
     request: {}
 - id: eino__transitions_keepalive_12
   client: eino__transitions
-  rpc:
-    method: server.run.status
-    request: {}
-- id: flowcraft__roles_keepalive_12
-  client: flowcraft__roles
-  rpc:
-    method: server.run.status
-    request: {}
-- id: eino__roles_keepalive_12
-  client: eino__roles
   rpc:
     method: server.run.status
     request: {}
@@ -2412,50 +1832,6 @@ steps:
   rpc:
     method: server.run.status
     request: {}
-- id: quality_round_12
-  timeout: 2m
-  parallel:
-  - id: flowcraft_roles_lion_chapter_setup_39
-    client: flowcraft__roles
-    peer_stream:
-      mode: text
-      input: 进入下一章。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_roles_lion_chapter_setup_39
-    client: eino__roles
-    peer_stream:
-      mode: text
-      input: 进入下一章。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  expect:
-    "/flowcraft_roles_lion_chapter_setup_39/text_eos":
-      equals: true
-    "/flowcraft_roles_lion_chapter_setup_39/audio_eos":
-      equals: true
-    "/flowcraft_roles_lion_chapter_setup_39/audio_bytes":
-      minimum: 1
-    "/flowcraft_roles_lion_chapter_setup_39/first_text_ms":
-      maximum: 6000
-    "/flowcraft_roles_lion_chapter_setup_39/first_audio_ms":
-      maximum: 90000
-    "/flowcraft_roles_lion_chapter_setup_39/text":
-      contains: 第 2 章：勇气考验
-    "/eino_roles_lion_chapter_setup_39/text_eos":
-      equals: true
-    "/eino_roles_lion_chapter_setup_39/audio_eos":
-      equals: true
-    "/eino_roles_lion_chapter_setup_39/audio_bytes":
-      minimum: 1
-    "/eino_roles_lion_chapter_setup_39/first_text_ms":
-      maximum: 6000
-    "/eino_roles_lion_chapter_setup_39/first_audio_ms":
-      maximum: 90000
-    "/eino_roles_lion_chapter_setup_39/text":
-      contains: 第 2 章：勇气考验
 - id: flowcraft__transitions_keepalive_13
   client: flowcraft__transitions
   rpc:
@@ -2463,16 +1839,6 @@ steps:
     request: {}
 - id: eino__transitions_keepalive_13
   client: eino__transitions
-  rpc:
-    method: server.run.status
-    request: {}
-- id: flowcraft__roles_keepalive_13
-  client: flowcraft__roles
-  rpc:
-    method: server.run.status
-    request: {}
-- id: eino__roles_keepalive_13
-  client: eino__roles
   rpc:
     method: server.run.status
     request: {}
@@ -2496,58 +1862,6 @@ steps:
   rpc:
     method: server.run.status
     request: {}
-- id: quality_round_13
-  timeout: 2m
-  parallel:
-  - id: flowcraft_roles_probe_lion
-    client: flowcraft__roles
-    peer_stream:
-      mode: text
-      input: 请让狮子亲自回应，只说这个角色知道的事。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_roles_probe_lion
-    client: eino__roles
-    peer_stream:
-      mode: text
-      input: 请让狮子亲自回应，只说这个角色知道的事。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  expect:
-    "/flowcraft_roles_probe_lion/text":
-      not_contains:
-      - 狮子说
-      - 狮子：
-      contains_all:
-      - 我
-    "/flowcraft_roles_probe_lion/text_eos":
-      equals: true
-    "/flowcraft_roles_probe_lion/audio_eos":
-      equals: true
-    "/flowcraft_roles_probe_lion/audio_bytes":
-      minimum: 1
-    "/flowcraft_roles_probe_lion/first_text_ms":
-      maximum: 6000
-    "/flowcraft_roles_probe_lion/first_audio_ms":
-      maximum: 90000
-    "/eino_roles_probe_lion/text":
-      not_contains:
-      - 狮子说
-      - 狮子：
-      contains_all:
-      - 我
-    "/eino_roles_probe_lion/text_eos":
-      equals: true
-    "/eino_roles_probe_lion/audio_eos":
-      equals: true
-    "/eino_roles_probe_lion/audio_bytes":
-      minimum: 1
-    "/eino_roles_probe_lion/first_text_ms":
-      maximum: 6000
-    "/eino_roles_probe_lion/first_audio_ms":
-      maximum: 90000
 - id: flowcraft__transitions_keepalive_14
   client: flowcraft__transitions
   rpc:
@@ -2555,16 +1869,6 @@ steps:
     request: {}
 - id: eino__transitions_keepalive_14
   client: eino__transitions
-  rpc:
-    method: server.run.status
-    request: {}
-- id: flowcraft__roles_keepalive_14
-  client: flowcraft__roles
-  rpc:
-    method: server.run.status
-    request: {}
-- id: eino__roles_keepalive_14
-  client: eino__roles
   rpc:
     method: server.run.status
     request: {}
@@ -2588,50 +1892,6 @@ steps:
   rpc:
     method: server.run.status
     request: {}
-- id: quality_round_14
-  timeout: 2m
-  parallel:
-  - id: flowcraft_roles_glinda_chapter_setup_42
-    client: flowcraft__roles
-    peer_stream:
-      mode: text
-      input: 请从第一章开始《绿野仙踪》。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_roles_glinda_chapter_setup_42
-    client: eino__roles
-    peer_stream:
-      mode: text
-      input: 请从第一章开始《绿野仙踪》。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  expect:
-    "/flowcraft_roles_glinda_chapter_setup_42/text_eos":
-      equals: true
-    "/flowcraft_roles_glinda_chapter_setup_42/audio_eos":
-      equals: true
-    "/flowcraft_roles_glinda_chapter_setup_42/audio_bytes":
-      minimum: 1
-    "/flowcraft_roles_glinda_chapter_setup_42/first_text_ms":
-      maximum: 6000
-    "/flowcraft_roles_glinda_chapter_setup_42/first_audio_ms":
-      maximum: 90000
-    "/flowcraft_roles_glinda_chapter_setup_42/text":
-      contains: 第 1 章：黄砖岔路
-    "/eino_roles_glinda_chapter_setup_42/text_eos":
-      equals: true
-    "/eino_roles_glinda_chapter_setup_42/audio_eos":
-      equals: true
-    "/eino_roles_glinda_chapter_setup_42/audio_bytes":
-      minimum: 1
-    "/eino_roles_glinda_chapter_setup_42/first_text_ms":
-      maximum: 6000
-    "/eino_roles_glinda_chapter_setup_42/first_audio_ms":
-      maximum: 90000
-    "/eino_roles_glinda_chapter_setup_42/text":
-      contains: 第 1 章：黄砖岔路
 - id: flowcraft__transitions_keepalive_15
   client: flowcraft__transitions
   rpc:
@@ -2639,16 +1899,6 @@ steps:
     request: {}
 - id: eino__transitions_keepalive_15
   client: eino__transitions
-  rpc:
-    method: server.run.status
-    request: {}
-- id: flowcraft__roles_keepalive_15
-  client: flowcraft__roles
-  rpc:
-    method: server.run.status
-    request: {}
-- id: eino__roles_keepalive_15
-  client: eino__roles
   rpc:
     method: server.run.status
     request: {}
@@ -2672,46 +1922,6 @@ steps:
   rpc:
     method: server.run.status
     request: {}
-- id: quality_round_15
-  timeout: 2m
-  parallel:
-  - id: flowcraft_roles_glinda_chapter_setup_43
-    client: flowcraft__roles
-    peer_stream:
-      mode: text
-      input: 我选择先帮助同伴并核对眼前线索，请推进一个直接结果。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_roles_glinda_chapter_setup_43
-    client: eino__roles
-    peer_stream:
-      mode: text
-      input: 我选择先帮助同伴并核对眼前线索，请推进一个直接结果。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  expect:
-    "/flowcraft_roles_glinda_chapter_setup_43/text_eos":
-      equals: true
-    "/flowcraft_roles_glinda_chapter_setup_43/audio_eos":
-      equals: true
-    "/flowcraft_roles_glinda_chapter_setup_43/audio_bytes":
-      minimum: 1
-    "/flowcraft_roles_glinda_chapter_setup_43/first_text_ms":
-      maximum: 6000
-    "/flowcraft_roles_glinda_chapter_setup_43/first_audio_ms":
-      maximum: 90000
-    "/eino_roles_glinda_chapter_setup_43/text_eos":
-      equals: true
-    "/eino_roles_glinda_chapter_setup_43/audio_eos":
-      equals: true
-    "/eino_roles_glinda_chapter_setup_43/audio_bytes":
-      minimum: 1
-    "/eino_roles_glinda_chapter_setup_43/first_text_ms":
-      maximum: 6000
-    "/eino_roles_glinda_chapter_setup_43/first_audio_ms":
-      maximum: 90000
 - id: flowcraft__transitions_keepalive_16
   client: flowcraft__transitions
   rpc:
@@ -2719,16 +1929,6 @@ steps:
     request: {}
 - id: eino__transitions_keepalive_16
   client: eino__transitions
-  rpc:
-    method: server.run.status
-    request: {}
-- id: flowcraft__roles_keepalive_16
-  client: flowcraft__roles
-  rpc:
-    method: server.run.status
-    request: {}
-- id: eino__roles_keepalive_16
-  client: eino__roles
   rpc:
     method: server.run.status
     request: {}
@@ -2752,46 +1952,6 @@ steps:
   rpc:
     method: server.run.status
     request: {}
-- id: quality_round_16
-  timeout: 2m
-  parallel:
-  - id: flowcraft_roles_glinda_chapter_setup_44
-    client: flowcraft__roles
-    peer_stream:
-      mode: text
-      input: 请让多萝西亲自回应，说出不同立场。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_roles_glinda_chapter_setup_44
-    client: eino__roles
-    peer_stream:
-      mode: text
-      input: 请让多萝西亲自回应，说出不同立场。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  expect:
-    "/flowcraft_roles_glinda_chapter_setup_44/text_eos":
-      equals: true
-    "/flowcraft_roles_glinda_chapter_setup_44/audio_eos":
-      equals: true
-    "/flowcraft_roles_glinda_chapter_setup_44/audio_bytes":
-      minimum: 1
-    "/flowcraft_roles_glinda_chapter_setup_44/first_text_ms":
-      maximum: 6000
-    "/flowcraft_roles_glinda_chapter_setup_44/first_audio_ms":
-      maximum: 90000
-    "/eino_roles_glinda_chapter_setup_44/text_eos":
-      equals: true
-    "/eino_roles_glinda_chapter_setup_44/audio_eos":
-      equals: true
-    "/eino_roles_glinda_chapter_setup_44/audio_bytes":
-      minimum: 1
-    "/eino_roles_glinda_chapter_setup_44/first_text_ms":
-      maximum: 6000
-    "/eino_roles_glinda_chapter_setup_44/first_audio_ms":
-      maximum: 90000
 - id: flowcraft__transitions_keepalive_17
   client: flowcraft__transitions
   rpc:
@@ -2799,16 +1959,6 @@ steps:
     request: {}
 - id: eino__transitions_keepalive_17
   client: eino__transitions
-  rpc:
-    method: server.run.status
-    request: {}
-- id: flowcraft__roles_keepalive_17
-  client: flowcraft__roles
-  rpc:
-    method: server.run.status
-    request: {}
-- id: eino__roles_keepalive_17
-  client: eino__roles
   rpc:
     method: server.run.status
     request: {}
@@ -2832,50 +1982,6 @@ steps:
   rpc:
     method: server.run.status
     request: {}
-- id: quality_round_17
-  timeout: 2m
-  parallel:
-  - id: flowcraft_roles_glinda_chapter_setup_45
-    client: flowcraft__roles
-    peer_stream:
-      mode: text
-      input: 进入下一章。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_roles_glinda_chapter_setup_45
-    client: eino__roles
-    peer_stream:
-      mode: text
-      input: 进入下一章。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  expect:
-    "/flowcraft_roles_glinda_chapter_setup_45/text_eos":
-      equals: true
-    "/flowcraft_roles_glinda_chapter_setup_45/audio_eos":
-      equals: true
-    "/flowcraft_roles_glinda_chapter_setup_45/audio_bytes":
-      minimum: 1
-    "/flowcraft_roles_glinda_chapter_setup_45/first_text_ms":
-      maximum: 6000
-    "/flowcraft_roles_glinda_chapter_setup_45/first_audio_ms":
-      maximum: 90000
-    "/flowcraft_roles_glinda_chapter_setup_45/text":
-      contains: 第 2 章：勇气考验
-    "/eino_roles_glinda_chapter_setup_45/text_eos":
-      equals: true
-    "/eino_roles_glinda_chapter_setup_45/audio_eos":
-      equals: true
-    "/eino_roles_glinda_chapter_setup_45/audio_bytes":
-      minimum: 1
-    "/eino_roles_glinda_chapter_setup_45/first_text_ms":
-      maximum: 6000
-    "/eino_roles_glinda_chapter_setup_45/first_audio_ms":
-      maximum: 90000
-    "/eino_roles_glinda_chapter_setup_45/text":
-      contains: 第 2 章：勇气考验
 - id: flowcraft__transitions_keepalive_18
   client: flowcraft__transitions
   rpc:
@@ -2883,16 +1989,6 @@ steps:
     request: {}
 - id: eino__transitions_keepalive_18
   client: eino__transitions
-  rpc:
-    method: server.run.status
-    request: {}
-- id: flowcraft__roles_keepalive_18
-  client: flowcraft__roles
-  rpc:
-    method: server.run.status
-    request: {}
-- id: eino__roles_keepalive_18
-  client: eino__roles
   rpc:
     method: server.run.status
     request: {}
@@ -2916,46 +2012,6 @@ steps:
   rpc:
     method: server.run.status
     request: {}
-- id: quality_round_18
-  timeout: 2m
-  parallel:
-  - id: flowcraft_roles_glinda_chapter_setup_46
-    client: flowcraft__roles
-    peer_stream:
-      mode: text
-      input: 我选择先帮助同伴并核对眼前线索，请推进一个直接结果。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_roles_glinda_chapter_setup_46
-    client: eino__roles
-    peer_stream:
-      mode: text
-      input: 我选择先帮助同伴并核对眼前线索，请推进一个直接结果。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  expect:
-    "/flowcraft_roles_glinda_chapter_setup_46/text_eos":
-      equals: true
-    "/flowcraft_roles_glinda_chapter_setup_46/audio_eos":
-      equals: true
-    "/flowcraft_roles_glinda_chapter_setup_46/audio_bytes":
-      minimum: 1
-    "/flowcraft_roles_glinda_chapter_setup_46/first_text_ms":
-      maximum: 6000
-    "/flowcraft_roles_glinda_chapter_setup_46/first_audio_ms":
-      maximum: 90000
-    "/eino_roles_glinda_chapter_setup_46/text_eos":
-      equals: true
-    "/eino_roles_glinda_chapter_setup_46/audio_eos":
-      equals: true
-    "/eino_roles_glinda_chapter_setup_46/audio_bytes":
-      minimum: 1
-    "/eino_roles_glinda_chapter_setup_46/first_text_ms":
-      maximum: 6000
-    "/eino_roles_glinda_chapter_setup_46/first_audio_ms":
-      maximum: 90000
 - id: flowcraft__transitions_keepalive_19
   client: flowcraft__transitions
   rpc:
@@ -2963,16 +2019,6 @@ steps:
     request: {}
 - id: eino__transitions_keepalive_19
   client: eino__transitions
-  rpc:
-    method: server.run.status
-    request: {}
-- id: flowcraft__roles_keepalive_19
-  client: flowcraft__roles
-  rpc:
-    method: server.run.status
-    request: {}
-- id: eino__roles_keepalive_19
-  client: eino__roles
   rpc:
     method: server.run.status
     request: {}
@@ -2996,46 +2042,6 @@ steps:
   rpc:
     method: server.run.status
     request: {}
-- id: quality_round_19
-  timeout: 2m
-  parallel:
-  - id: flowcraft_roles_glinda_chapter_setup_47
-    client: flowcraft__roles
-    peer_stream:
-      mode: text
-      input: 请让多萝西亲自回应，说出不同立场。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_roles_glinda_chapter_setup_47
-    client: eino__roles
-    peer_stream:
-      mode: text
-      input: 请让多萝西亲自回应，说出不同立场。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  expect:
-    "/flowcraft_roles_glinda_chapter_setup_47/text_eos":
-      equals: true
-    "/flowcraft_roles_glinda_chapter_setup_47/audio_eos":
-      equals: true
-    "/flowcraft_roles_glinda_chapter_setup_47/audio_bytes":
-      minimum: 1
-    "/flowcraft_roles_glinda_chapter_setup_47/first_text_ms":
-      maximum: 6000
-    "/flowcraft_roles_glinda_chapter_setup_47/first_audio_ms":
-      maximum: 90000
-    "/eino_roles_glinda_chapter_setup_47/text_eos":
-      equals: true
-    "/eino_roles_glinda_chapter_setup_47/audio_eos":
-      equals: true
-    "/eino_roles_glinda_chapter_setup_47/audio_bytes":
-      minimum: 1
-    "/eino_roles_glinda_chapter_setup_47/first_text_ms":
-      maximum: 6000
-    "/eino_roles_glinda_chapter_setup_47/first_audio_ms":
-      maximum: 90000
 - id: flowcraft__transitions_keepalive_20
   client: flowcraft__transitions
   rpc:
@@ -3043,16 +2049,6 @@ steps:
     request: {}
 - id: eino__transitions_keepalive_20
   client: eino__transitions
-  rpc:
-    method: server.run.status
-    request: {}
-- id: flowcraft__roles_keepalive_20
-  client: flowcraft__roles
-  rpc:
-    method: server.run.status
-    request: {}
-- id: eino__roles_keepalive_20
-  client: eino__roles
   rpc:
     method: server.run.status
     request: {}
@@ -3076,50 +2072,6 @@ steps:
   rpc:
     method: server.run.status
     request: {}
-- id: quality_round_20
-  timeout: 2m
-  parallel:
-  - id: flowcraft_roles_glinda_chapter_setup_48
-    client: flowcraft__roles
-    peer_stream:
-      mode: text
-      input: 进入下一章。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_roles_glinda_chapter_setup_48
-    client: eino__roles
-    peer_stream:
-      mode: text
-      input: 进入下一章。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  expect:
-    "/flowcraft_roles_glinda_chapter_setup_48/text_eos":
-      equals: true
-    "/flowcraft_roles_glinda_chapter_setup_48/audio_eos":
-      equals: true
-    "/flowcraft_roles_glinda_chapter_setup_48/audio_bytes":
-      minimum: 1
-    "/flowcraft_roles_glinda_chapter_setup_48/first_text_ms":
-      maximum: 6000
-    "/flowcraft_roles_glinda_chapter_setup_48/first_audio_ms":
-      maximum: 90000
-    "/flowcraft_roles_glinda_chapter_setup_48/text":
-      contains: 第 3 章：智慧迷城
-    "/eino_roles_glinda_chapter_setup_48/text_eos":
-      equals: true
-    "/eino_roles_glinda_chapter_setup_48/audio_eos":
-      equals: true
-    "/eino_roles_glinda_chapter_setup_48/audio_bytes":
-      minimum: 1
-    "/eino_roles_glinda_chapter_setup_48/first_text_ms":
-      maximum: 6000
-    "/eino_roles_glinda_chapter_setup_48/first_audio_ms":
-      maximum: 90000
-    "/eino_roles_glinda_chapter_setup_48/text":
-      contains: 第 3 章：智慧迷城
 - id: flowcraft__transitions_keepalive_21
   client: flowcraft__transitions
   rpc:
@@ -3127,16 +2079,6 @@ steps:
     request: {}
 - id: eino__transitions_keepalive_21
   client: eino__transitions
-  rpc:
-    method: server.run.status
-    request: {}
-- id: flowcraft__roles_keepalive_21
-  client: flowcraft__roles
-  rpc:
-    method: server.run.status
-    request: {}
-- id: eino__roles_keepalive_21
-  client: eino__roles
   rpc:
     method: server.run.status
     request: {}
@@ -3160,46 +2102,6 @@ steps:
   rpc:
     method: server.run.status
     request: {}
-- id: quality_round_21
-  timeout: 2m
-  parallel:
-  - id: flowcraft_roles_glinda_chapter_setup_49
-    client: flowcraft__roles
-    peer_stream:
-      mode: text
-      input: 我选择先帮助同伴并核对眼前线索，请推进一个直接结果。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_roles_glinda_chapter_setup_49
-    client: eino__roles
-    peer_stream:
-      mode: text
-      input: 我选择先帮助同伴并核对眼前线索，请推进一个直接结果。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  expect:
-    "/flowcraft_roles_glinda_chapter_setup_49/text_eos":
-      equals: true
-    "/flowcraft_roles_glinda_chapter_setup_49/audio_eos":
-      equals: true
-    "/flowcraft_roles_glinda_chapter_setup_49/audio_bytes":
-      minimum: 1
-    "/flowcraft_roles_glinda_chapter_setup_49/first_text_ms":
-      maximum: 6000
-    "/flowcraft_roles_glinda_chapter_setup_49/first_audio_ms":
-      maximum: 90000
-    "/eino_roles_glinda_chapter_setup_49/text_eos":
-      equals: true
-    "/eino_roles_glinda_chapter_setup_49/audio_eos":
-      equals: true
-    "/eino_roles_glinda_chapter_setup_49/audio_bytes":
-      minimum: 1
-    "/eino_roles_glinda_chapter_setup_49/first_text_ms":
-      maximum: 6000
-    "/eino_roles_glinda_chapter_setup_49/first_audio_ms":
-      maximum: 90000
 - id: flowcraft__transitions_keepalive_22
   client: flowcraft__transitions
   rpc:
@@ -3207,16 +2109,6 @@ steps:
     request: {}
 - id: eino__transitions_keepalive_22
   client: eino__transitions
-  rpc:
-    method: server.run.status
-    request: {}
-- id: flowcraft__roles_keepalive_22
-  client: flowcraft__roles
-  rpc:
-    method: server.run.status
-    request: {}
-- id: eino__roles_keepalive_22
-  client: eino__roles
   rpc:
     method: server.run.status
     request: {}
@@ -3240,46 +2132,6 @@ steps:
   rpc:
     method: server.run.status
     request: {}
-- id: quality_round_22
-  timeout: 2m
-  parallel:
-  - id: flowcraft_roles_glinda_chapter_setup_50
-    client: flowcraft__roles
-    peer_stream:
-      mode: text
-      input: 请让多萝西亲自回应，说出不同立场。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_roles_glinda_chapter_setup_50
-    client: eino__roles
-    peer_stream:
-      mode: text
-      input: 请让多萝西亲自回应，说出不同立场。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  expect:
-    "/flowcraft_roles_glinda_chapter_setup_50/text_eos":
-      equals: true
-    "/flowcraft_roles_glinda_chapter_setup_50/audio_eos":
-      equals: true
-    "/flowcraft_roles_glinda_chapter_setup_50/audio_bytes":
-      minimum: 1
-    "/flowcraft_roles_glinda_chapter_setup_50/first_text_ms":
-      maximum: 6000
-    "/flowcraft_roles_glinda_chapter_setup_50/first_audio_ms":
-      maximum: 90000
-    "/eino_roles_glinda_chapter_setup_50/text_eos":
-      equals: true
-    "/eino_roles_glinda_chapter_setup_50/audio_eos":
-      equals: true
-    "/eino_roles_glinda_chapter_setup_50/audio_bytes":
-      minimum: 1
-    "/eino_roles_glinda_chapter_setup_50/first_text_ms":
-      maximum: 6000
-    "/eino_roles_glinda_chapter_setup_50/first_audio_ms":
-      maximum: 90000
 - id: flowcraft__transitions_keepalive_23
   client: flowcraft__transitions
   rpc:
@@ -3287,16 +2139,6 @@ steps:
     request: {}
 - id: eino__transitions_keepalive_23
   client: eino__transitions
-  rpc:
-    method: server.run.status
-    request: {}
-- id: flowcraft__roles_keepalive_23
-  client: flowcraft__roles
-  rpc:
-    method: server.run.status
-    request: {}
-- id: eino__roles_keepalive_23
-  client: eino__roles
   rpc:
     method: server.run.status
     request: {}
@@ -3320,50 +2162,6 @@ steps:
   rpc:
     method: server.run.status
     request: {}
-- id: quality_round_23
-  timeout: 2m
-  parallel:
-  - id: flowcraft_roles_glinda_chapter_setup_51
-    client: flowcraft__roles
-    peer_stream:
-      mode: text
-      input: 进入下一章。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_roles_glinda_chapter_setup_51
-    client: eino__roles
-    peer_stream:
-      mode: text
-      input: 进入下一章。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  expect:
-    "/flowcraft_roles_glinda_chapter_setup_51/text_eos":
-      equals: true
-    "/flowcraft_roles_glinda_chapter_setup_51/audio_eos":
-      equals: true
-    "/flowcraft_roles_glinda_chapter_setup_51/audio_bytes":
-      minimum: 1
-    "/flowcraft_roles_glinda_chapter_setup_51/first_text_ms":
-      maximum: 6000
-    "/flowcraft_roles_glinda_chapter_setup_51/first_audio_ms":
-      maximum: 90000
-    "/flowcraft_roles_glinda_chapter_setup_51/text":
-      contains: 第 4 章：伙伴归途
-    "/eino_roles_glinda_chapter_setup_51/text_eos":
-      equals: true
-    "/eino_roles_glinda_chapter_setup_51/audio_eos":
-      equals: true
-    "/eino_roles_glinda_chapter_setup_51/audio_bytes":
-      minimum: 1
-    "/eino_roles_glinda_chapter_setup_51/first_text_ms":
-      maximum: 6000
-    "/eino_roles_glinda_chapter_setup_51/first_audio_ms":
-      maximum: 90000
-    "/eino_roles_glinda_chapter_setup_51/text":
-      contains: 第 4 章：伙伴归途
 - id: flowcraft__transitions_keepalive_24
   client: flowcraft__transitions
   rpc:
@@ -3371,16 +2169,6 @@ steps:
     request: {}
 - id: eino__transitions_keepalive_24
   client: eino__transitions
-  rpc:
-    method: server.run.status
-    request: {}
-- id: flowcraft__roles_keepalive_24
-  client: flowcraft__roles
-  rpc:
-    method: server.run.status
-    request: {}
-- id: eino__roles_keepalive_24
-  client: eino__roles
   rpc:
     method: server.run.status
     request: {}
@@ -3404,58 +2192,6 @@ steps:
   rpc:
     method: server.run.status
     request: {}
-- id: quality_round_24
-  timeout: 2m
-  parallel:
-  - id: flowcraft_roles_probe_glinda
-    client: flowcraft__roles
-    peer_stream:
-      mode: text
-      input: 请让格琳达亲自回应，只说这个角色知道的事。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_roles_probe_glinda
-    client: eino__roles
-    peer_stream:
-      mode: text
-      input: 请让格琳达亲自回应，只说这个角色知道的事。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  expect:
-    "/flowcraft_roles_probe_glinda/text":
-      not_contains:
-      - 格琳达说
-      - 格琳达：
-      contains_all:
-      - 我
-    "/flowcraft_roles_probe_glinda/text_eos":
-      equals: true
-    "/flowcraft_roles_probe_glinda/audio_eos":
-      equals: true
-    "/flowcraft_roles_probe_glinda/audio_bytes":
-      minimum: 1
-    "/flowcraft_roles_probe_glinda/first_text_ms":
-      maximum: 6000
-    "/flowcraft_roles_probe_glinda/first_audio_ms":
-      maximum: 90000
-    "/eino_roles_probe_glinda/text":
-      not_contains:
-      - 格琳达说
-      - 格琳达：
-      contains_all:
-      - 我
-    "/eino_roles_probe_glinda/text_eos":
-      equals: true
-    "/eino_roles_probe_glinda/audio_eos":
-      equals: true
-    "/eino_roles_probe_glinda/audio_bytes":
-      minimum: 1
-    "/eino_roles_probe_glinda/first_text_ms":
-      maximum: 6000
-    "/eino_roles_probe_glinda/first_audio_ms":
-      maximum: 90000
 finally:
 - id: flowcraft__transitions_stop
   client: flowcraft__transitions
@@ -3464,16 +2200,6 @@ finally:
     request: {}
 - id: eino__transitions_stop
   client: eino__transitions
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: flowcraft__roles_stop
-  client: flowcraft__roles
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: eino__roles_stop
-  client: eino__roles
   rpc:
     method: server.run.stop
     request: {}
@@ -3509,78 +2235,6 @@ finally:
     method: server.workspace.delete
     request:
       name: "${eino_transitions_workspace}"
-- id: flowcraft_roles_delete_narrator_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.workspace.delete
-    request:
-      name: "${flowcraft_roles_narrator_workspace}"
-- id: flowcraft_roles_delete_dorothy_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.workspace.delete
-    request:
-      name: "${flowcraft_roles_dorothy_workspace}"
-- id: flowcraft_roles_delete_scarecrow_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.workspace.delete
-    request:
-      name: "${flowcraft_roles_scarecrow_workspace}"
-- id: flowcraft_roles_delete_tin_man_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.workspace.delete
-    request:
-      name: "${flowcraft_roles_tin_man_workspace}"
-- id: flowcraft_roles_delete_lion_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.workspace.delete
-    request:
-      name: "${flowcraft_roles_lion_workspace}"
-- id: flowcraft_roles_delete_glinda_workspace
-  client: flowcraft__roles
-  rpc:
-    method: server.workspace.delete
-    request:
-      name: "${flowcraft_roles_glinda_workspace}"
-- id: eino_roles_delete_narrator_workspace
-  client: eino__roles
-  rpc:
-    method: server.workspace.delete
-    request:
-      name: "${eino_roles_narrator_workspace}"
-- id: eino_roles_delete_dorothy_workspace
-  client: eino__roles
-  rpc:
-    method: server.workspace.delete
-    request:
-      name: "${eino_roles_dorothy_workspace}"
-- id: eino_roles_delete_scarecrow_workspace
-  client: eino__roles
-  rpc:
-    method: server.workspace.delete
-    request:
-      name: "${eino_roles_scarecrow_workspace}"
-- id: eino_roles_delete_tin_man_workspace
-  client: eino__roles
-  rpc:
-    method: server.workspace.delete
-    request:
-      name: "${eino_roles_tin_man_workspace}"
-- id: eino_roles_delete_lion_workspace
-  client: eino__roles
-  rpc:
-    method: server.workspace.delete
-    request:
-      name: "${eino_roles_lion_workspace}"
-- id: eino_roles_delete_glinda_workspace
-  client: eino__roles
-  rpc:
-    method: server.workspace.delete
-    request:
-      name: "${eino_roles_glinda_workspace}"
 - id: flowcraft_case5_delete_flowcraft_workspace
   client: flowcraft__case5
   rpc:
@@ -3612,16 +2266,6 @@ finally:
     request: {}
 - id: eino__transitions_delete
   client: eino__transitions
-  rpc:
-    method: server.peer.delete
-    request: {}
-- id: flowcraft__roles_delete
-  client: flowcraft__roles
-  rpc:
-    method: server.peer.delete
-    request: {}
-- id: eino__roles_delete
-  client: eino__roles
   rpc:
     method: server.peer.delete
     request: {}

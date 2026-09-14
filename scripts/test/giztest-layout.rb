@@ -11,7 +11,7 @@ module GiztestLayout
     return {} unless File.exist?(path)
     JSON.parse(File.read(path)).fetch('implementations').to_h do |name, impl|
       voice = YAML.load_file("workflows/#{raid}/#{impl.fetch('file')}").dig('spec', impl.fetch('driver'), 'voice_adapter') || {}
-      [name.tr('-', '_'), %w[default_voice node_voices state_voices].any? { |key| voice[key] && !voice[key].empty? }]
+      [name.tr('-', '_'), %w[default_voice node_voices state_voices speaker_voices].any? { |key| voice[key] && !voice[key].empty? }]
     end
   end
   def self.check_audio(step, capability, file)
@@ -152,6 +152,10 @@ module GiztestLayout
               }
               capability = capabilities[step.fetch('client').split('__').first]
               roundtrip_expect.delete_if { |key, _| key.match?(AUDIO_PATH) } if capability == false
+              if File.basename(file).match?(/\A(?:story|adventure)-/)
+                roundtrip_expect['/text'] = {'non_empty'=>true, 'not_contains'=>['【','】'], 'min_length'=>300, 'max_length'=>600}
+                roundtrip_expect['/audio_integrity/streams'] = {'equals'=>1}
+              end
               check(expect == roundtrip_expect, "#{file}: #{step['id']} must check complete realtime output without timing gates")
               first = steps(doc).find { |s| s['id'] == "#{step['id']}_first_response" }
               raid = File.basename(file, '.giztest.yaml')
@@ -169,7 +173,7 @@ module GiztestLayout
             check(expect.dig('/audio_pacing/underruns', 'equals') == 0 && expect.dig('/audio_pacing/minimum_buffer_ms', 'minimum') == 0, "#{file}: missing device playback buffer gates")
           end
         elsif tier == 'quality'
-          check(doc['timeout'] == '10m', "#{file}: quality budget must be 10m")
+          check(doc['timeout'] == (File.basename(file).match?(/\A(?:story|adventure)-/) ? '30m' : '10m'), "#{file}: quality budget must be 10m")
           check(!steps(doc).any? { |s| s['workspace_relay'] }, "#{file}: long dialogue relay belongs in soak")
           check(!steps(doc).any? { |s| s.dig('peer_stream', 'completion') == 'first_response' }, "#{file}: first-response latency probes belong in smoke")
           check(!doc.fetch('clients').keys.any? { |c| c.end_with?('_tester') }, "#{file}: idle Tester client in quality")
@@ -256,23 +260,15 @@ module GiztestLayout
         check(t['tier'] == t['file'].split('/')[2] && t['implementations'].sort == m.fetch('implementations').keys.sort, "#{file}: implementation registration mismatch")
       end
     end
-    adventures = Dir['workflows/adventure-*/flowcraft.yaml']
-    check(!adventures.empty?, 'missing adventure workflows')
-    (adventures + ['workflows/story-aesop/flowcraft.yaml']).each do |file|
-      nodes = YAML.load_file(file).dig('spec', 'flowcraft', 'graph', 'nodes')
-      nodes.select { |n| n['id'].start_with?('speak-') && n['id'] != 'speak-narrator' }.each do |node|
-        check(node.dig('config', 'system_prompt').include?('正文必须明确使用“我”自称'), "#{file}: #{node['id']} lacks explicit first person")
-      end
-      eino = File.read(file.sub('/flowcraft.yaml', '/eino.yaml'))
-      check(eino.include?('正文必须明确使用“我”自称'), "#{file}: Eino first-person parity missing")
-      if file.include?('/adventure-')
-        check(eino.include?('if role["key"] == speaker and speaker != "narrator":'), "#{file}: Eino role self-reference must exclude narrator")
-      end
+    Dir['workflows/{story,adventure}-*/{flowcraft,eino}.yaml'].each do |file|
+      source = File.read(file)
+      check(source.include?('旁白叙述与角色第一人称台词分段'), "#{file}: missing continuous dialogue contract")
+      check(!source.include?('每轮只由一人发声') && !source.include?('state_voices:'), "#{file}: obsolete single-speaker contract")
     end
     %w[flowcraft eino].each do |engine|
-      check(File.read("workflows/adventure-history/#{engine}.yaml").include?('情境重现声明不替代角色自述'), "history #{engine}: reenactment must preserve first person")
-      check(File.read("workflows/adventure-history/#{engine}.yaml").include?('并以“这是情境重现。我”开头'), "history #{engine}: missing explicit role opening")
-      check(File.read("workflows/adventure-history/#{engine}.yaml").include?('正文第一句必须逐字是‘来到'), "history #{engine}: missing explicit scene opening")
+      source = File.read("workflows/adventure-history/#{engine}.yaml")
+      check(source.include?('情境重现声明不替代角色自述'), "history #{engine}: reenactment boundary missing")
+      check(source.include?('正文第一句必须逐字是‘来到'), "history #{engine}: missing explicit scene opening")
     end
     old = Dir['tests/giztest/*/*.giztest.yaml'].reject { |f| (TIERS + %w[h106 reports]).include?(f.split('/')[2]) }
     check(old.empty?, "legacy Giztest files remain: #{old.join(', ')}")

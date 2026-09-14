@@ -141,7 +141,7 @@ steps:
             initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
           input: WORKSPACE_INPUT_MODE_REALTIME
 - id: probe_narrator
-  timeout: 2m
+  timeout: 4m
   parallel:
   - id: flowcraft_probe_narrator
     client: flowcraft
@@ -176,22 +176,22 @@ steps:
       - "```"
       - "- "
       - "* "
-      - 旁白说
-      - 旁白：
+      - "【"
+      - "】"
       contains_all:
       - 欢迎登上时空观察舱，我是你的向导，我们会悄悄回到古代，看看那时的人怎样生活。每一站你都可以选想先看的地方，也可以问我看到的东西是什么。
       - 时空观察舱停在一座古城外，我们只能观察不能改变历史，你想先看市场还是城门？
-      min_length: 15
-      max_length: 240
+      min_length: 300
+      max_length: 600
       non_empty: true
     "/flowcraft_probe_narrator/events":
       non_empty: true
     "/flowcraft_probe_narrator/text_eos_ms":
-      maximum: 90000
+      maximum: 30000
     "/flowcraft_probe_narrator/audio_eos_ms":
-      maximum: 90000
+      maximum: 180000
     "/flowcraft_probe_narrator/audio_integrity/streams":
-      minimum: 1
+      equals: 1
     "/flowcraft_probe_narrator/audio_integrity/max_active":
       equals: 1
     "/flowcraft_probe_narrator/audio_integrity/open":
@@ -218,22 +218,22 @@ steps:
       - "```"
       - "- "
       - "* "
-      - 旁白说
-      - 旁白：
+      - "【"
+      - "】"
       contains_all:
       - 欢迎登上时空观察舱，我是你的向导，我们会悄悄回到古代，看看那时的人怎样生活。每一站你都可以选想先看的地方，也可以问我看到的东西是什么。
       - 时空观察舱停在一座古城外，我们只能观察不能改变历史，你想先看市场还是城门？
-      min_length: 15
-      max_length: 240
+      min_length: 300
+      max_length: 600
       non_empty: true
     "/eino_probe_narrator/events":
       non_empty: true
     "/eino_probe_narrator/text_eos_ms":
-      maximum: 90000
+      maximum: 30000
     "/eino_probe_narrator/audio_eos_ms":
-      maximum: 90000
+      maximum: 180000
     "/eino_probe_narrator/audio_integrity/streams":
-      minimum: 1
+      equals: 1
     "/eino_probe_narrator/audio_integrity/max_active":
       equals: 1
     "/eino_probe_narrator/audio_integrity/open":
@@ -284,6 +284,14 @@ steps:
       maximum: 2000
     "/eino_probe_narrator_first_response/first_audio_ms":
       maximum: 3000
+    "/flowcraft_probe_narrator_first_response/text":
+      not_contains:
+      - "【"
+      - "】"
+    "/eino_probe_narrator_first_response/text":
+      not_contains:
+      - "【"
+      - "】"
 - id: flowcraft_probe_narrator_stop_probe
   client: flowcraft
   rpc:
@@ -306,694 +314,96 @@ steps:
   rpc:
     method: server.run.workspace.reload
     request: {}
-- id: historian_scene_setup_1
-  timeout: 2m
+- id: continuous_story
+  timeout: 4m
   parallel:
-  - id: flowcraft_historian_scene_setup_1
+  - id: flowcraft_continuous_story
     client: flowcraft
     peer_stream:
       mode: text
-      input: 开始体验。
+      input: 继续当前场景，旁白和在场角色交替讲述一个新变化，最后让我选择。
       idle_timeout: 90s
       require_text: true
       require_audio: true
-  - id: eino_historian_scene_setup_1
+  - id: eino_continuous_story
     client: eino
     peer_stream:
       mode: text
-      input: 开始体验。
+      input: 继续当前场景，旁白和在场角色交替讲述一个新变化，最后让我选择。
       idle_timeout: 90s
       require_text: true
       require_audio: true
   expect:
-    "/flowcraft_historian_scene_setup_1/text_eos":
+    "/flowcraft_continuous_story/text_eos":
       equals: true
-    "/flowcraft_historian_scene_setup_1/audio_eos":
+    "/flowcraft_continuous_story/audio_eos":
       equals: true
-    "/flowcraft_historian_scene_setup_1/audio_bytes":
+    "/flowcraft_continuous_story/audio_bytes":
       minimum: 1
-    "/flowcraft_historian_scene_setup_1/first_text_ms":
+    "/flowcraft_continuous_story/first_text_ms":
       maximum: 6000
-    "/flowcraft_historian_scene_setup_1/first_audio_ms":
+    "/flowcraft_continuous_story/first_audio_ms":
       maximum: 90000
-    "/flowcraft_historian_scene_setup_1/events":
+    "/flowcraft_continuous_story/text":
       non_empty: true
-    "/flowcraft_historian_scene_setup_1/text":
-      non_empty: true
-    "/flowcraft_historian_scene_setup_1/text_eos_ms":
-      maximum: 90000
-    "/flowcraft_historian_scene_setup_1/audio_eos_ms":
-      maximum: 90000
-    "/flowcraft_historian_scene_setup_1/audio_integrity/streams":
-      minimum: 1
-    "/flowcraft_historian_scene_setup_1/audio_integrity/max_active":
-      equals: 1
-    "/flowcraft_historian_scene_setup_1/audio_integrity/open":
-      equals: 0
-    "/flowcraft_historian_scene_setup_1/audio_integrity/violations":
-      equals: 0
-    "/flowcraft_historian_scene_setup_1/audio_pacing/minimum_buffer_ms":
-      minimum: 0
-    "/flowcraft_historian_scene_setup_1/audio_pacing/underruns":
-      equals: 0
-    "/eino_historian_scene_setup_1/text_eos":
-      equals: true
-    "/eino_historian_scene_setup_1/audio_eos":
-      equals: true
-    "/eino_historian_scene_setup_1/audio_bytes":
-      minimum: 1
-    "/eino_historian_scene_setup_1/first_text_ms":
-      maximum: 6000
-    "/eino_historian_scene_setup_1/first_audio_ms":
-      maximum: 90000
-    "/eino_historian_scene_setup_1/events":
-      non_empty: true
-    "/eino_historian_scene_setup_1/text":
-      non_empty: true
-    "/eino_historian_scene_setup_1/text_eos_ms":
-      maximum: 90000
-    "/eino_historian_scene_setup_1/audio_eos_ms":
-      maximum: 90000
-    "/eino_historian_scene_setup_1/audio_integrity/streams":
-      minimum: 1
-    "/eino_historian_scene_setup_1/audio_integrity/max_active":
-      equals: 1
-    "/eino_historian_scene_setup_1/audio_integrity/open":
-      equals: 0
-    "/eino_historian_scene_setup_1/audio_integrity/violations":
-      equals: 0
-    "/eino_historian_scene_setup_1/audio_pacing/minimum_buffer_ms":
-      minimum: 0
-    "/eino_historian_scene_setup_1/audio_pacing/underruns":
-      equals: 0
-- id: probe_historian
-  timeout: 2m
-  parallel:
-  - id: flowcraft_probe_historian
-    client: flowcraft
-    peer_stream:
-      mode: text
-      input: 请让历史讲解员亲自回应。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_probe_historian
-    client: eino
-    peer_stream:
-      mode: text
-      input: 请让历史讲解员亲自回应。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  expect:
-    "/flowcraft_probe_historian/text_eos":
-      equals: true
-    "/flowcraft_probe_historian/audio_eos":
-      equals: true
-    "/flowcraft_probe_historian/audio_bytes":
-      minimum: 1
-    "/flowcraft_probe_historian/first_text_ms":
-      maximum: 6000
-    "/flowcraft_probe_historian/first_audio_ms":
-      maximum: 90000
-    "/flowcraft_probe_historian/text":
       not_contains:
-      - 历史讲解员说
-      - 历史讲解员：
+      - "【"
+      - "】"
+      min_length: 300
+      max_length: 600
+    "/flowcraft_continuous_story/events":
       non_empty: true
-    "/flowcraft_probe_historian/events":
-      non_empty: true
-    "/flowcraft_probe_historian/text_eos_ms":
-      maximum: 90000
-    "/flowcraft_probe_historian/audio_eos_ms":
-      maximum: 90000
-    "/flowcraft_probe_historian/audio_integrity/streams":
-      minimum: 1
-    "/flowcraft_probe_historian/audio_integrity/max_active":
+    "/flowcraft_continuous_story/text_eos_ms":
+      maximum: 30000
+    "/flowcraft_continuous_story/audio_eos_ms":
+      maximum: 180000
+    "/flowcraft_continuous_story/audio_integrity/streams":
       equals: 1
-    "/flowcraft_probe_historian/audio_integrity/open":
+    "/flowcraft_continuous_story/audio_integrity/max_active":
+      equals: 1
+    "/flowcraft_continuous_story/audio_integrity/open":
       equals: 0
-    "/flowcraft_probe_historian/audio_integrity/violations":
+    "/flowcraft_continuous_story/audio_integrity/violations":
       equals: 0
-    "/flowcraft_probe_historian/audio_pacing/minimum_buffer_ms":
+    "/flowcraft_continuous_story/audio_pacing/minimum_buffer_ms":
       minimum: 0
-    "/flowcraft_probe_historian/audio_pacing/underruns":
+    "/flowcraft_continuous_story/audio_pacing/underruns":
       equals: 0
-    "/eino_probe_historian/text_eos":
+    "/eino_continuous_story/text_eos":
       equals: true
-    "/eino_probe_historian/audio_eos":
+    "/eino_continuous_story/audio_eos":
       equals: true
-    "/eino_probe_historian/audio_bytes":
+    "/eino_continuous_story/audio_bytes":
       minimum: 1
-    "/eino_probe_historian/first_text_ms":
+    "/eino_continuous_story/first_text_ms":
       maximum: 6000
-    "/eino_probe_historian/first_audio_ms":
+    "/eino_continuous_story/first_audio_ms":
       maximum: 90000
-    "/eino_probe_historian/text":
+    "/eino_continuous_story/text":
+      non_empty: true
       not_contains:
-      - 历史讲解员说
-      - 历史讲解员：
+      - "【"
+      - "】"
+      min_length: 300
+      max_length: 600
+    "/eino_continuous_story/events":
       non_empty: true
-    "/eino_probe_historian/events":
-      non_empty: true
-    "/eino_probe_historian/text_eos_ms":
-      maximum: 90000
-    "/eino_probe_historian/audio_eos_ms":
-      maximum: 90000
-    "/eino_probe_historian/audio_integrity/streams":
-      minimum: 1
-    "/eino_probe_historian/audio_integrity/max_active":
+    "/eino_continuous_story/text_eos_ms":
+      maximum: 30000
+    "/eino_continuous_story/audio_eos_ms":
+      maximum: 180000
+    "/eino_continuous_story/audio_integrity/streams":
       equals: 1
-    "/eino_probe_historian/audio_integrity/open":
-      equals: 0
-    "/eino_probe_historian/audio_integrity/violations":
-      equals: 0
-    "/eino_probe_historian/audio_pacing/minimum_buffer_ms":
-      minimum: 0
-    "/eino_probe_historian/audio_pacing/underruns":
-      equals: 0
-- id: probe_historian_first_response
-  timeout: 15s
-  parallel:
-  - id: flowcraft_probe_historian_first_response
-    client: flowcraft
-    peer_stream:
-      mode: text
-      input: 请让历史讲解员亲自回应。
-      completion: first_response
-      first_text_timeout: 2s
-      first_audio_timeout: 3s
-      require_text: true
-      require_audio: true
-  - id: eino_probe_historian_first_response
-    client: eino
-    peer_stream:
-      mode: text
-      input: 请让历史讲解员亲自回应。
-      completion: first_response
-      first_text_timeout: 2s
-      first_audio_timeout: 3s
-      require_text: true
-      require_audio: true
-  expect:
-    "/flowcraft_probe_historian_first_response/events":
-      non_empty: true
-    "/flowcraft_probe_historian_first_response/audio_bytes":
-      minimum: 1
-    "/flowcraft_probe_historian_first_response/first_text_ms":
-      maximum: 2000
-    "/flowcraft_probe_historian_first_response/first_audio_ms":
-      maximum: 3000
-    "/eino_probe_historian_first_response/events":
-      non_empty: true
-    "/eino_probe_historian_first_response/audio_bytes":
-      minimum: 1
-    "/eino_probe_historian_first_response/first_text_ms":
-      maximum: 2000
-    "/eino_probe_historian_first_response/first_audio_ms":
-      maximum: 3000
-- id: flowcraft_probe_historian_stop_probe
-  client: flowcraft
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: flowcraft_probe_historian_resume_workspace
-  client: flowcraft
-  timeout: 2m
-  rpc:
-    method: server.run.workspace.reload
-    request: {}
-- id: eino_probe_historian_stop_probe
-  client: eino
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: eino_probe_historian_resume_workspace
-  client: eino
-  timeout: 2m
-  rpc:
-    method: server.run.workspace.reload
-    request: {}
-- id: artisan_scene_setup_2
-  timeout: 2m
-  parallel:
-  - id: flowcraft_artisan_scene_setup_2
-    client: flowcraft
-    peer_stream:
-      mode: text
-      input: 进入工坊观察。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_artisan_scene_setup_2
-    client: eino
-    peer_stream:
-      mode: text
-      input: 进入工坊观察。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  expect:
-    "/flowcraft_artisan_scene_setup_2/text_eos":
-      equals: true
-    "/flowcraft_artisan_scene_setup_2/audio_eos":
-      equals: true
-    "/flowcraft_artisan_scene_setup_2/audio_bytes":
-      minimum: 1
-    "/flowcraft_artisan_scene_setup_2/first_text_ms":
-      maximum: 6000
-    "/flowcraft_artisan_scene_setup_2/first_audio_ms":
-      maximum: 90000
-    "/flowcraft_artisan_scene_setup_2/text":
-      contains: 工坊观察
-      non_empty: true
-    "/flowcraft_artisan_scene_setup_2/events":
-      non_empty: true
-    "/flowcraft_artisan_scene_setup_2/text_eos_ms":
-      maximum: 90000
-    "/flowcraft_artisan_scene_setup_2/audio_eos_ms":
-      maximum: 90000
-    "/flowcraft_artisan_scene_setup_2/audio_integrity/streams":
-      minimum: 1
-    "/flowcraft_artisan_scene_setup_2/audio_integrity/max_active":
+    "/eino_continuous_story/audio_integrity/max_active":
       equals: 1
-    "/flowcraft_artisan_scene_setup_2/audio_integrity/open":
+    "/eino_continuous_story/audio_integrity/open":
       equals: 0
-    "/flowcraft_artisan_scene_setup_2/audio_integrity/violations":
+    "/eino_continuous_story/audio_integrity/violations":
       equals: 0
-    "/flowcraft_artisan_scene_setup_2/audio_pacing/minimum_buffer_ms":
+    "/eino_continuous_story/audio_pacing/minimum_buffer_ms":
       minimum: 0
-    "/flowcraft_artisan_scene_setup_2/audio_pacing/underruns":
+    "/eino_continuous_story/audio_pacing/underruns":
       equals: 0
-    "/eino_artisan_scene_setup_2/text_eos":
-      equals: true
-    "/eino_artisan_scene_setup_2/audio_eos":
-      equals: true
-    "/eino_artisan_scene_setup_2/audio_bytes":
-      minimum: 1
-    "/eino_artisan_scene_setup_2/first_text_ms":
-      maximum: 6000
-    "/eino_artisan_scene_setup_2/first_audio_ms":
-      maximum: 90000
-    "/eino_artisan_scene_setup_2/text":
-      contains: 工坊观察
-      non_empty: true
-    "/eino_artisan_scene_setup_2/events":
-      non_empty: true
-    "/eino_artisan_scene_setup_2/text_eos_ms":
-      maximum: 90000
-    "/eino_artisan_scene_setup_2/audio_eos_ms":
-      maximum: 90000
-    "/eino_artisan_scene_setup_2/audio_integrity/streams":
-      minimum: 1
-    "/eino_artisan_scene_setup_2/audio_integrity/max_active":
-      equals: 1
-    "/eino_artisan_scene_setup_2/audio_integrity/open":
-      equals: 0
-    "/eino_artisan_scene_setup_2/audio_integrity/violations":
-      equals: 0
-    "/eino_artisan_scene_setup_2/audio_pacing/minimum_buffer_ms":
-      minimum: 0
-    "/eino_artisan_scene_setup_2/audio_pacing/underruns":
-      equals: 0
-- id: probe_artisan
-  timeout: 2m
-  parallel:
-  - id: flowcraft_probe_artisan
-    client: flowcraft
-    peer_stream:
-      mode: text
-      input: 请让工匠亲自回应。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_probe_artisan
-    client: eino
-    peer_stream:
-      mode: text
-      input: 请让工匠亲自回应。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  expect:
-    "/flowcraft_probe_artisan/text_eos":
-      equals: true
-    "/flowcraft_probe_artisan/audio_eos":
-      equals: true
-    "/flowcraft_probe_artisan/audio_bytes":
-      minimum: 1
-    "/flowcraft_probe_artisan/first_text_ms":
-      maximum: 6000
-    "/flowcraft_probe_artisan/first_audio_ms":
-      maximum: 90000
-    "/flowcraft_probe_artisan/text":
-      not_contains:
-      - 工匠说
-      - 工匠：
-      non_empty: true
-    "/flowcraft_probe_artisan/events":
-      non_empty: true
-    "/flowcraft_probe_artisan/text_eos_ms":
-      maximum: 90000
-    "/flowcraft_probe_artisan/audio_eos_ms":
-      maximum: 90000
-    "/flowcraft_probe_artisan/audio_integrity/streams":
-      minimum: 1
-    "/flowcraft_probe_artisan/audio_integrity/max_active":
-      equals: 1
-    "/flowcraft_probe_artisan/audio_integrity/open":
-      equals: 0
-    "/flowcraft_probe_artisan/audio_integrity/violations":
-      equals: 0
-    "/flowcraft_probe_artisan/audio_pacing/minimum_buffer_ms":
-      minimum: 0
-    "/flowcraft_probe_artisan/audio_pacing/underruns":
-      equals: 0
-    "/eino_probe_artisan/text_eos":
-      equals: true
-    "/eino_probe_artisan/audio_eos":
-      equals: true
-    "/eino_probe_artisan/audio_bytes":
-      minimum: 1
-    "/eino_probe_artisan/first_text_ms":
-      maximum: 6000
-    "/eino_probe_artisan/first_audio_ms":
-      maximum: 90000
-    "/eino_probe_artisan/text":
-      not_contains:
-      - 工匠说
-      - 工匠：
-      non_empty: true
-    "/eino_probe_artisan/events":
-      non_empty: true
-    "/eino_probe_artisan/text_eos_ms":
-      maximum: 90000
-    "/eino_probe_artisan/audio_eos_ms":
-      maximum: 90000
-    "/eino_probe_artisan/audio_integrity/streams":
-      minimum: 1
-    "/eino_probe_artisan/audio_integrity/max_active":
-      equals: 1
-    "/eino_probe_artisan/audio_integrity/open":
-      equals: 0
-    "/eino_probe_artisan/audio_integrity/violations":
-      equals: 0
-    "/eino_probe_artisan/audio_pacing/minimum_buffer_ms":
-      minimum: 0
-    "/eino_probe_artisan/audio_pacing/underruns":
-      equals: 0
-- id: probe_artisan_first_response
-  timeout: 15s
-  parallel:
-  - id: flowcraft_probe_artisan_first_response
-    client: flowcraft
-    peer_stream:
-      mode: text
-      input: 请让工匠亲自回应。
-      completion: first_response
-      first_text_timeout: 2s
-      first_audio_timeout: 3s
-      require_text: true
-      require_audio: true
-  - id: eino_probe_artisan_first_response
-    client: eino
-    peer_stream:
-      mode: text
-      input: 请让工匠亲自回应。
-      completion: first_response
-      first_text_timeout: 2s
-      first_audio_timeout: 3s
-      require_text: true
-      require_audio: true
-  expect:
-    "/flowcraft_probe_artisan_first_response/events":
-      non_empty: true
-    "/flowcraft_probe_artisan_first_response/audio_bytes":
-      minimum: 1
-    "/flowcraft_probe_artisan_first_response/first_text_ms":
-      maximum: 2000
-    "/flowcraft_probe_artisan_first_response/first_audio_ms":
-      maximum: 3000
-    "/eino_probe_artisan_first_response/events":
-      non_empty: true
-    "/eino_probe_artisan_first_response/audio_bytes":
-      minimum: 1
-    "/eino_probe_artisan_first_response/first_text_ms":
-      maximum: 2000
-    "/eino_probe_artisan_first_response/first_audio_ms":
-      maximum: 3000
-- id: flowcraft_probe_artisan_stop_probe
-  client: flowcraft
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: flowcraft_probe_artisan_resume_workspace
-  client: flowcraft
-  timeout: 2m
-  rpc:
-    method: server.run.workspace.reload
-    request: {}
-- id: eino_probe_artisan_stop_probe
-  client: eino
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: eino_probe_artisan_resume_workspace
-  client: eino
-  timeout: 2m
-  rpc:
-    method: server.run.workspace.reload
-    request: {}
-- id: market-guide_scene_setup_2
-  timeout: 2m
-  parallel:
-  - id: flowcraft_market-guide_scene_setup_2
-    client: flowcraft
-    peer_stream:
-      mode: text
-      input: 进入集市观察。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_market-guide_scene_setup_2
-    client: eino
-    peer_stream:
-      mode: text
-      input: 进入集市观察。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  expect:
-    "/flowcraft_market-guide_scene_setup_2/text_eos":
-      equals: true
-    "/flowcraft_market-guide_scene_setup_2/audio_eos":
-      equals: true
-    "/flowcraft_market-guide_scene_setup_2/audio_bytes":
-      minimum: 1
-    "/flowcraft_market-guide_scene_setup_2/first_text_ms":
-      maximum: 6000
-    "/flowcraft_market-guide_scene_setup_2/first_audio_ms":
-      maximum: 90000
-    "/flowcraft_market-guide_scene_setup_2/text":
-      contains: 集市观察
-      non_empty: true
-    "/flowcraft_market-guide_scene_setup_2/events":
-      non_empty: true
-    "/flowcraft_market-guide_scene_setup_2/text_eos_ms":
-      maximum: 90000
-    "/flowcraft_market-guide_scene_setup_2/audio_eos_ms":
-      maximum: 90000
-    "/flowcraft_market-guide_scene_setup_2/audio_integrity/streams":
-      minimum: 1
-    "/flowcraft_market-guide_scene_setup_2/audio_integrity/max_active":
-      equals: 1
-    "/flowcraft_market-guide_scene_setup_2/audio_integrity/open":
-      equals: 0
-    "/flowcraft_market-guide_scene_setup_2/audio_integrity/violations":
-      equals: 0
-    "/flowcraft_market-guide_scene_setup_2/audio_pacing/minimum_buffer_ms":
-      minimum: 0
-    "/flowcraft_market-guide_scene_setup_2/audio_pacing/underruns":
-      equals: 0
-    "/eino_market-guide_scene_setup_2/text_eos":
-      equals: true
-    "/eino_market-guide_scene_setup_2/audio_eos":
-      equals: true
-    "/eino_market-guide_scene_setup_2/audio_bytes":
-      minimum: 1
-    "/eino_market-guide_scene_setup_2/first_text_ms":
-      maximum: 6000
-    "/eino_market-guide_scene_setup_2/first_audio_ms":
-      maximum: 90000
-    "/eino_market-guide_scene_setup_2/text":
-      contains: 集市观察
-      non_empty: true
-    "/eino_market-guide_scene_setup_2/events":
-      non_empty: true
-    "/eino_market-guide_scene_setup_2/text_eos_ms":
-      maximum: 90000
-    "/eino_market-guide_scene_setup_2/audio_eos_ms":
-      maximum: 90000
-    "/eino_market-guide_scene_setup_2/audio_integrity/streams":
-      minimum: 1
-    "/eino_market-guide_scene_setup_2/audio_integrity/max_active":
-      equals: 1
-    "/eino_market-guide_scene_setup_2/audio_integrity/open":
-      equals: 0
-    "/eino_market-guide_scene_setup_2/audio_integrity/violations":
-      equals: 0
-    "/eino_market-guide_scene_setup_2/audio_pacing/minimum_buffer_ms":
-      minimum: 0
-    "/eino_market-guide_scene_setup_2/audio_pacing/underruns":
-      equals: 0
-- id: probe_market-guide
-  timeout: 2m
-  parallel:
-  - id: flowcraft_probe_market-guide
-    client: flowcraft
-    peer_stream:
-      mode: text
-      input: 请让集市向导亲自回应。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  - id: eino_probe_market-guide
-    client: eino
-    peer_stream:
-      mode: text
-      input: 请让集市向导亲自回应。
-      idle_timeout: 90s
-      require_text: true
-      require_audio: true
-  expect:
-    "/flowcraft_probe_market-guide/text_eos":
-      equals: true
-    "/flowcraft_probe_market-guide/audio_eos":
-      equals: true
-    "/flowcraft_probe_market-guide/audio_bytes":
-      minimum: 1
-    "/flowcraft_probe_market-guide/first_text_ms":
-      maximum: 6000
-    "/flowcraft_probe_market-guide/first_audio_ms":
-      maximum: 90000
-    "/flowcraft_probe_market-guide/text":
-      not_contains:
-      - 集市向导说
-      - 集市向导：
-      non_empty: true
-    "/flowcraft_probe_market-guide/events":
-      non_empty: true
-    "/flowcraft_probe_market-guide/text_eos_ms":
-      maximum: 90000
-    "/flowcraft_probe_market-guide/audio_eos_ms":
-      maximum: 90000
-    "/flowcraft_probe_market-guide/audio_integrity/streams":
-      minimum: 1
-    "/flowcraft_probe_market-guide/audio_integrity/max_active":
-      equals: 1
-    "/flowcraft_probe_market-guide/audio_integrity/open":
-      equals: 0
-    "/flowcraft_probe_market-guide/audio_integrity/violations":
-      equals: 0
-    "/flowcraft_probe_market-guide/audio_pacing/minimum_buffer_ms":
-      minimum: 0
-    "/flowcraft_probe_market-guide/audio_pacing/underruns":
-      equals: 0
-    "/eino_probe_market-guide/text_eos":
-      equals: true
-    "/eino_probe_market-guide/audio_eos":
-      equals: true
-    "/eino_probe_market-guide/audio_bytes":
-      minimum: 1
-    "/eino_probe_market-guide/first_text_ms":
-      maximum: 6000
-    "/eino_probe_market-guide/first_audio_ms":
-      maximum: 90000
-    "/eino_probe_market-guide/text":
-      not_contains:
-      - 集市向导说
-      - 集市向导：
-      non_empty: true
-    "/eino_probe_market-guide/events":
-      non_empty: true
-    "/eino_probe_market-guide/text_eos_ms":
-      maximum: 90000
-    "/eino_probe_market-guide/audio_eos_ms":
-      maximum: 90000
-    "/eino_probe_market-guide/audio_integrity/streams":
-      minimum: 1
-    "/eino_probe_market-guide/audio_integrity/max_active":
-      equals: 1
-    "/eino_probe_market-guide/audio_integrity/open":
-      equals: 0
-    "/eino_probe_market-guide/audio_integrity/violations":
-      equals: 0
-    "/eino_probe_market-guide/audio_pacing/minimum_buffer_ms":
-      minimum: 0
-    "/eino_probe_market-guide/audio_pacing/underruns":
-      equals: 0
-- id: probe_market-guide_first_response
-  timeout: 15s
-  parallel:
-  - id: flowcraft_probe_market-guide_first_response
-    client: flowcraft
-    peer_stream:
-      mode: text
-      input: 请让集市向导亲自回应。
-      completion: first_response
-      first_text_timeout: 2s
-      first_audio_timeout: 3s
-      require_text: true
-      require_audio: true
-  - id: eino_probe_market-guide_first_response
-    client: eino
-    peer_stream:
-      mode: text
-      input: 请让集市向导亲自回应。
-      completion: first_response
-      first_text_timeout: 2s
-      first_audio_timeout: 3s
-      require_text: true
-      require_audio: true
-  expect:
-    "/flowcraft_probe_market-guide_first_response/events":
-      non_empty: true
-    "/flowcraft_probe_market-guide_first_response/audio_bytes":
-      minimum: 1
-    "/flowcraft_probe_market-guide_first_response/first_text_ms":
-      maximum: 2000
-    "/flowcraft_probe_market-guide_first_response/first_audio_ms":
-      maximum: 3000
-    "/eino_probe_market-guide_first_response/events":
-      non_empty: true
-    "/eino_probe_market-guide_first_response/audio_bytes":
-      minimum: 1
-    "/eino_probe_market-guide_first_response/first_text_ms":
-      maximum: 2000
-    "/eino_probe_market-guide_first_response/first_audio_ms":
-      maximum: 3000
-- id: flowcraft_probe_market-guide_stop_probe
-  client: flowcraft
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: flowcraft_probe_market-guide_resume_workspace
-  client: flowcraft
-  timeout: 2m
-  rpc:
-    method: server.run.workspace.reload
-    request: {}
-- id: eino_probe_market-guide_stop_probe
-  client: eino
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: eino_probe_market-guide_resume_workspace
-  client: eino
-  timeout: 2m
-  rpc:
-    method: server.run.workspace.reload
-    request: {}
 - id: flowcraft_select_realtime
   client: flowcraft
   rpc:
@@ -1024,13 +434,13 @@ steps:
     method: server.speech.synthesize
     request:
       voice_name: giztest-input.zh
-      text: 请简短介绍当前故事，并告诉我现在可以做什么。
+      text: 请开始一段连续故事，让旁白和在场角色交替讲述，最后告诉我可以选择做什么。
       accepted_content_types:
       - audio/ogg
     cache: run
   save_as: input_audio
 - id: realtime_roundtrip
-  timeout: 2m
+  timeout: 4m
   parallel:
   - id: flowcraft_realtime_roundtrip
     client: flowcraft
@@ -1055,6 +465,11 @@ steps:
       non_empty: true
     "/flowcraft_realtime_roundtrip/text":
       non_empty: true
+      not_contains:
+      - "【"
+      - "】"
+      min_length: 300
+      max_length: 600
     "/flowcraft_realtime_roundtrip/text_eos":
       equals: true
     "/flowcraft_realtime_roundtrip/audio_bytes":
@@ -1062,7 +477,7 @@ steps:
     "/flowcraft_realtime_roundtrip/audio_eos":
       equals: true
     "/flowcraft_realtime_roundtrip/audio_integrity/streams":
-      minimum: 1
+      equals: 1
     "/flowcraft_realtime_roundtrip/audio_integrity/max_active":
       equals: 1
     "/flowcraft_realtime_roundtrip/audio_integrity/open":
@@ -1077,6 +492,11 @@ steps:
       non_empty: true
     "/eino_realtime_roundtrip/text":
       non_empty: true
+      not_contains:
+      - "【"
+      - "】"
+      min_length: 300
+      max_length: 600
     "/eino_realtime_roundtrip/text_eos":
       equals: true
     "/eino_realtime_roundtrip/audio_bytes":
@@ -1084,7 +504,7 @@ steps:
     "/eino_realtime_roundtrip/audio_eos":
       equals: true
     "/eino_realtime_roundtrip/audio_integrity/streams":
-      minimum: 1
+      equals: 1
     "/eino_realtime_roundtrip/audio_integrity/max_active":
       equals: 1
     "/eino_realtime_roundtrip/audio_integrity/open":
@@ -1137,6 +557,14 @@ steps:
       maximum: 2000
     "/eino_realtime_roundtrip_first_response/first_audio_ms":
       maximum: 3000
+    "/flowcraft_realtime_roundtrip_first_response/text":
+      not_contains:
+      - "【"
+      - "】"
+    "/eino_realtime_roundtrip_first_response/text":
+      not_contains:
+      - "【"
+      - "】"
 - id: flowcraft_realtime_roundtrip_stop_probe
   client: flowcraft
   rpc:

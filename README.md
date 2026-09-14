@@ -219,27 +219,28 @@ restart and established English opening on both implementations.
 
 ### Narrator and character voices
 
-All 31 multi-voice raids have paired Flowcraft and Eino implementations:
-19 stories use one narrator plus three to five characters; the 11 adventures
-use one narrator plus three characters (four in `adventure-space-rescue`);
-`murder-mystery` uses one host/narrator plus four witnesses. Characters enter
-only in their eligible chapters or scenes. Each turn selects one speaker;
-openings, transitions, corrections, safety management, and stage assessment
-belong to the narrator. Explicit requests select the first eligible named
-speaker in text order, excluding negated requests. Story choice names alone
-remain choices, not speaking requests. Roles speak directly in first person
-without speaker labels and stay within their knowledge boundaries.
+19 stories and 11 adventures use continuous audiobook narration in both
+engines: one narration LLM emits 300–600 characters per ordinary turn, with
+narration and 2–4 present characters alternating paragraphs. A scene with only
+one eligible character keeps that cast. Children may interrupt at any time;
+naming a present character increases that character's dialogue in the segment.
+Chapter/scene eligibility, knowledge boundaries, corrections and legacy memory
+recovery remain authoritative. The narrator ends with 2–3 concrete choices,
+except where the existing choice-completion sentence, final chapter, safety or
+limited confirmation/correction contract requires a different ending. Limited
+administrative and safety responses may be shorter than 300 characters.
 
-Flowcraft reconstructs story state after reload and routes to one published
-speaker output, using `voice_adapter.node_voices` for its Workflow-scoped Voice
-alias. Eino preserves one `text/plain` primary model output: an upstream
-Starlark selector writes `selected_speaker`, and
-`voice_adapter.state_voices` maps that string State to a Voice alias. Both
-engines retain ASR and use the same Voice resource for the same role in both
-`default` and `testing` RuntimeProfiles, with distinct Voice IDs within each
-implementation. Narrator defaults preserve `.storyteller`, `.adventure-guide`,
-and `.game-master` slots. Eino state-selected TTS requires **GizClaw >= v0.18.9**
-([#1270](https://github.com/GizClaw/gizclaw/issues/1270)).
+Every paragraph begins with exactly one configured `【旁白】` or Chinese
+character marker, immediately followed by prose; no other `【】` markers are
+allowed. `voice_adapter.speaker_voices` maps these names to existing aliases;
+`default_voice` is the narrator alias. AudioDock strips configured markers from
+device text, serializes audio and prefetches the next segment. Interruption
+cancels current and pending segments. This requires **GizClaw v0.18.12**.
+`murder-mystery` retains its existing single-speaker routing contract.
+
+Both engines retain ASR, existing voice slots and matching role Voice resources
+in `default` and `testing` RuntimeProfiles. Chapter controls and investigation
+phase rules feed the single narration LLM instead of selecting a speaking node.
 
 Workflows and `raid.json` reference only Voice aliases named
 `flowcraft-<raid>.<role>` or `eino-<raid>.<role>`. Narrator slots retain
@@ -247,7 +248,7 @@ Workflows and `raid.json` reference only Voice aliases named
 for murder mystery. Within each raid implementation, narrator and character
 slots must bind to distinct voices; the same role uses the same voice across
 engines. Per-raid READMEs document roles, Chinese names, aliases, and engine
-selection mechanisms.
+segment mappings.
 
 Concrete Voice resources are bound at runtime through `runtime-profiles/*.yaml`
 under `spec.resources.voices`; deployment bindings are owned by deploy's profile.
@@ -317,16 +318,22 @@ real provider credentials; `.env.example` remains the maintained list of
 allowed Credential and Tenant placeholders and validation fails if that file
 contains a populated value.
 
-The target also checks the manifest → published node / Eino State selector →
-Voice alias → both RuntimeProfiles → Voice resource chain, unique Voice IDs
-within each implementation, matching role Voices across engines, and registered
-role probes with EOS/audio and first-response gates. Each of the 31 migrated
-raids supplies a version-1 `routing-cases.json`. The gate executes its actual
-Flowcraft JavaScript and Eino Starlark against shared speaker expectations,
-covering naming, negation, order, eligibility, management priority, choices,
-old memory, and transitions. Expanded Voice mappings or `state_voices` without
-a routing fixture fail validation. The runner needs Ruby, Node.js, and a local
-Go toolchain with cached Starlark dependencies; Go module downloads are disabled.
+The target also checks the manifest → speaker mapping → both RuntimeProfiles →
+Voice resource chain, distinct role Voices and matching bindings across engines.
+For 30 continuous-narration raids it verifies a single narration LLM, configured
+Chinese markers, 300–600-character story probes, clean text, complete serial
+audio and zero underruns. First-response gates remain unchanged. Quality keeps
+safety, transitions, choice endings and correction/recovery contracts; soak
+keeps the relay/reload structure. Limited administrative/safety replies retain
+their original bounds. Quality budgets are 30 minutes for these longer stories.
+
+Each raid supplies a version-1 `routing-cases.json`. The gate executes actual
+Flowcraft JavaScript and Eino Starlark against state and content-control
+assertions. Single-speaker naming/order assertions have been removed from the
+30 story/adventure fixtures; murder mystery retains its existing tests. Ruby,
+Node.js and a local Go toolchain with cached Starlark dependencies are required;
+Go module downloads are disabled. Offline validation cannot establish real
+provider voice switching, timing, interruption or audible continuity.
 
 Passing this check establishes schema, binding, and deterministic routing
 contracts, not live behavior. CI still pins the immutable v0.18.2 Linux package

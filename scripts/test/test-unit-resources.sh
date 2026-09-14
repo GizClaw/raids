@@ -84,72 +84,48 @@ end
 voice_files = Dir['voices/**/*.yaml'].to_h do |file|
   [YAML.load_file(file).fetch('metadata').fetch('id'), file]
 end
-packages = Dir['workflows/story-*'].select { |p| File.directory?(p) }
+packages = Dir['workflows/{story,adventure}-*'].select { |p| File.directory?(p) }
 packages.each do |package|
   manifest = JSON.parse(File.read("#{package}/raid.json"))
-  impl = manifest.fetch('implementations').fetch('flowcraft')
-  slots = impl.fetch('parameters').fetch('voices')
-  test_file = "tests/giztest/smoke/#{manifest.fetch('id')}.giztest.yaml"
-  probes = GiztestLayout.probes(test_file, 'flowcraft')
-  workflow = YAML.load_file("#{package}/#{impl.fetch('file')}")
-  flow = workflow.fetch('spec').fetch('flowcraft')
-  graph = flow.fetch('graph')
-  nodes = graph.fetch('nodes').to_h { |n| [n.fetch('id'), n] }
-  edges = graph.fetch('edges')
-  bindings = flow.fetch('voice_adapter').fetch('node_voices')
-  check(bindings.values.sort == slots.keys.sort, "#{package}: node Voice aliases differ from manifest")
-  check(nodes.values.select { |n| n['publish'] == true }.map { |n| n['id'] }.sort == bindings.keys.sort, "#{package}: every published output needs a Voice")
-  routing_file = "#{package}/routing-cases.json"
-  routing = File.exist?(routing_file) ? JSON.parse(File.read(routing_file)).fetch('flowcraft') : {}
-  control = routing.fetch('node', 'control-story')
-  branches = edges.select { |e| e['from'] == control }
-  check(branches.last == {'from'=>control, 'to'=>'speak-narrator'}, "#{package}: narrator must be the last fallback")
-  roles = slots.values.map { |slot| slot.fetch('role') == 'storyteller' ? 'narrator' : slot.fetch('role') }
-  check(roles.uniq.size == roles.size, "#{package}: duplicate role keys")
-  source = nodes.fetch(control).fetch('config').fetch('source')
-  table_json = source[/const roleTable = (\[.*\]);/, 1]
-  if table_json
-    table = JSON.parse(table_json)
-    check(table.map { |r| r.fetch('key') }.sort == roles.sort, "#{package}: role table differs from manifest")
-    table.each do |role|
-      check(!role.fetch('aliases').empty? && !role.fetch('chapters').empty?, "#{package}: missing aliases or chapter eligibility")
+  maps = {}
+  %w[flowcraft eino].each do |engine|
+    impl = manifest.fetch('implementations').fetch(engine)
+    spec = YAML.load_file("#{package}/#{engine}.yaml").dig('spec', engine)
+    adapter = spec.fetch('voice_adapter')
+    bindings = adapter.fetch('speaker_voices')
+    maps[engine] = bindings
+    slots = impl.fetch('parameters').fetch('voices')
+    check(bindings.values.sort == slots.keys.sort, "#{package}/#{engine}: speaker aliases differ from slots")
+    check(bindings.fetch('旁白') == adapter.fetch('default_voice'), "#{package}/#{engine}: narrator default mismatch")
+    check(!adapter.key?('state_voices') && !adapter.key?('node_voices'), "#{package}/#{engine}: obsolete selection adapter")
+    nodes = spec.fetch('graph').fetch('nodes')
+    outputs = nodes.select { |n| engine == 'flowcraft' ? n['publish'] == true : n['type'] == 'chat_model' }
+    check(outputs.size == 1, "#{package}/#{engine}: expected one narration LLM")
+    check(nodes.none? { |n| n['id'].start_with?('speak-') || n['id'] == 'select-speaker' }, "#{package}/#{engine}: obsolete speaker node")
+    prompt = engine == 'flowcraft' ? outputs.first.dig('config','system_prompt') : nodes.find { |n| n['type'] == 'prompt' }.fetch('messages').select { |m| m['role'] == 'system' }.map { |m| m.fetch('template') }.join("\n")
+    check(prompt.include?('300至600') && prompt.include?('不输出其它【】标记'), "#{package}/#{engine}: missing narration contract")
+    bindings.each_key { |speaker| check(prompt.include?("【#{speaker}】"), "#{package}/#{engine}: missing configured marker #{speaker}") }
+    profiles.each do |name, profile|
+      ids = slots.keys.map { |a| profile.fetch(a).fetch('resource_id') }
+      check(ids.uniq.size == ids.size, "#{package}/#{name}: duplicate role Voices")
+      ids.each { |id| check(voice_files.key?(id), "#{package}/#{name}: missing Voice #{id}") }
     end
+    steps = GiztestLayout.probes("tests/giztest/smoke/#{manifest.fetch('id')}.giztest.yaml", engine)
+    full = steps.find { |p| p['id'] == 'continuous_story' }
+    check(full && full.dig('expect','/text','min_length') == 300 && full.dig('expect','/text','max_length') == 600, "#{package}/#{engine}: missing continuous story length gates")
+    check(full.dig('expect','/text','not_contains').include?('【') && full.dig('expect','/text','not_contains').include?('】'), "#{package}/#{engine}: missing marker stripping gates")
+    check(full.dig('expect','/audio_integrity/streams','equals') == 1 && full.dig('expect','/audio_pacing/underruns','equals') == 0, "#{package}/#{engine}: missing serial playback gates")
   end
-  check(branches.size == roles.size, "#{package}: unexpected speaker branches")
-  check(flow.fetch('voice_adapter').fetch('default_voice') == bindings.fetch('speak-narrator'), "#{package}: wrong narrator default Voice")
-  check(probes.select { |p| p['peer_stream'] && p['id'].start_with?('probe_') && !p['id'].end_with?('_first_response') }.size == roles.size, "#{package}: role probe count mismatch")
-  slots.each do |name, slot|
-    role = slot.fetch('role') == 'storyteller' ? 'narrator' : slot.fetch('role')
-    id = "speak-#{role}"
-    node = nodes.fetch(id)
-    check(bindings[id] == name, "#{package}/#{role}: wrong alias")
-    check(node['type'] == 'llm' && node['publish'] == true && node.dig('config', 'output_key') == 'answer', "#{package}/#{role}: invalid output node")
-    check(impl.fetch('parameters').fetch('models').key?(node.dig('config', 'model')), "#{package}/#{role}: unknown model alias")
-    check(edges.include?({'from'=>id, 'to'=>'persist-story'}), "#{package}/#{role}: missing persistence edge")
-    expected = {'from'=>control, 'to'=>id}
-    expected['condition'] = "selected_speaker == \"#{role}\"" unless role == 'narrator'
-    check(branches.count(expected) == 1, "#{package}/#{role}: missing or duplicated role branch")
-    prompt = node.fetch('config').fetch('system_prompt')
-    check(prompt.include?('等说话人标签'), "#{package}/#{role}: missing speaker label guard")
-    probe = probes.find { |p| p['id'] == "probe_#{role}" }
-    check(!probe.nil?, "#{package}/#{role}: missing full role probe")
-    labels = probe.dig('expect', '/text', 'not_contains') || []
-    spoken = labels.find { |label| label.end_with?('说') }
-    check(spoken && labels.include?(spoken.delete_suffix('说') + '：') && prompt.include?(spoken), "#{package}/#{role}: mismatched speaker label assertions")
-    check(probe.dig('peer_stream','require_audio') == true && probe.dig('expect','/audio_eos','equals') == true && probe.dig('expect','/text_eos','equals') == true && probe.dig('expect','/audio_bytes','minimum').to_i >= 1, "#{package}/#{role}: missing complete audio/text checks")
-    first = probes.find { |p| p['id'] == "probe_#{role}_first_response" }
-    check(first && first.dig('peer_stream','completion') == 'first_response' && first.dig('peer_stream','first_text_timeout') == '2s' && first.dig('peer_stream','first_audio_timeout') == '3s', "#{package}/#{role}: missing first response gates")
-  end
-  profiles.each do |profile_name, profile|
-    ids = slots.keys.map { |name| profile.fetch(name).fetch('resource_id') }
-    check(ids.uniq.size == ids.size, "#{package}/#{profile_name}: duplicate Voice resource IDs")
-    ids.each { |id| check(voice_files.key?(id), "#{package}/#{profile_name}: Voice file missing for #{id}") }
+  check(maps['flowcraft'].keys == maps['eino'].keys, "#{package}: engine speaker names differ")
+  profiles.each_value do |profile|
+    maps['flowcraft'].each { |name, a| check(profile.fetch(a)['resource_id'] == profile.fetch(maps['eino'].fetch(name))['resource_id'], "#{package}/#{name}: engine Voice mismatch") }
   end
 end
 # Non-story packages may use different graph/node names. Validate their declared
 # published-node -> alias -> manifest -> profiles -> Voice closure structurally.
 Dir['workflows/*/routing-cases.json'].sort.each do |fixture|
   package = File.dirname(fixture)
+  next if packages.include?(package)
   manifest = JSON.parse(File.read("#{package}/raid.json"))
   impl = manifest.fetch('implementations').fetch('flowcraft')
   slots = impl.fetch('parameters').fetch('voices')
@@ -198,7 +174,7 @@ Dir['workflows/**/eino.yaml'].each do |file|
     check(first && first.dig('peer_stream', 'first_text_timeout') == '2s' && first.dig('peer_stream', 'first_audio_timeout') == '3s', "#{file}/#{role}: missing latency gates")
   end
 end
-puts "validated #{packages.size} multi-voice stories: dynamic role counts, probes and Voice binding closure"
+puts "validated #{packages.size} continuous narration raids: markers, single LLM, playback probes and Voice binding closure"
 RUBY
 
 # Execute every declared routing suite against both real engine scripts.

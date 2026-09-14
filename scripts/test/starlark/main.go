@@ -46,6 +46,7 @@ func main() {
 			ID      string
 			Input   map[string]any
 			Speaker string
+			Expect  map[string]map[string]any
 		}
 	}
 	if err := json.NewDecoder(os.Stdin).Decode(&data); err != nil {
@@ -54,7 +55,7 @@ func main() {
 	for i, c := range data.Cases {
 		t := &starlark.Thread{Name: "routing"}
 		t.SetMaxExecutionSteps(100000)
-		globals, err := starlark.ExecFile(t, "select-speaker.star", data.Source, nil)
+		globals, err := starlark.ExecFile(t, "controller.star", data.Source, nil)
 		if err != nil {
 			panic(err)
 		}
@@ -62,13 +63,33 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		got, _, err := result.(*starlark.Dict).Get(starlark.String("speaker"))
-		if err != nil {
-			panic(err)
+		checks := c.Expect
+		if checks == nil {
+			checks = map[string]map[string]any{}
 		}
-		s, _ := starlark.AsString(got)
-		if s != c.Speaker {
-			panic(fmt.Sprintf("case %d (%s) %v: got %s want %s", i, c.ID, c.Input, s, c.Speaker))
+		if c.Speaker != "" {
+			checks["speaker"] = map[string]any{"equals": c.Speaker}
+		}
+		for key, ops := range checks {
+			got, found, err := result.(*starlark.Dict).Get(starlark.String(key))
+			if err != nil || !found {
+				panic(fmt.Sprintf("case %d (%s): missing %s", i, c.ID, key))
+			}
+			for op, want := range ops {
+				switch op {
+				case "equals":
+					equal, err := starlark.Equal(got, value(want))
+					if err != nil || !equal {
+						panic(fmt.Sprintf("%s: %s got %s want %v", c.ID, key, got, want))
+					}
+				case "non_empty":
+					if !got.Truth() {
+						panic(fmt.Sprintf("%s: empty %s", c.ID, key))
+					}
+				default:
+					panic("unknown assertion " + op)
+				}
+			}
 		}
 	}
 	fmt.Printf("validated Eino Starlark routing: %d cases\n", len(data.Cases))
