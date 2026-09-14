@@ -24,7 +24,7 @@ models/<model-name>.yaml
 memory-layouts/<layout-name>.yaml
 voices/<tenant-name>/<voice-id>.yaml
 workflows/<raid-name>/<engine>.yaml        # one directory per scenario: flowcraft.yaml, eino.yaml, ...
-workflows/<raid-name>/test.yaml            # the scenario's single Tester Workflow (id <raid-name>-test)
+workflows/<raid-name>/test.yaml            # original Tester Workflow (id <raid-name>-test)
 workflows/<raid-name>/raid.json            # scenario metadata: rating, category, tags, voices, models, testing
 workflows/<raid-name>/README.md            # human-readable play and test route
 workflows/<raid-name>/routing-cases.json   # shared dual-engine routing cases for multi-voice raids
@@ -250,6 +250,18 @@ recovery remain authoritative. The narrator ends with 2–3 concrete choices,
 except where the existing choice-completion sentence, final chapter, safety or
 limited confirmation/correction contract requires a different ending. Limited
 administrative and safety responses may be shorter than 300 characters.
+Ordinary narration targets 400–500 Unicode characters (including English spaces
+and punctuation), in five bounded paragraphs, leaving margin inside the 300–600
+contract. Corrections that also request continued narration are ordinary turns.
+
+Every raid with multi-role variants has a separate `test.multi-role.yaml`
+(`<raid>-test-multi-role`). Its deterministic checks strip known speaker markers
+and apply the multi-role reply contracts, retaining content and safety checks.
+`raid.json` keeps `tester` for originals and registers the variant under
+`testers.multi-role`, with explicit `implementations`. Soak multi-role clients
+select this Tester in `raidtest-testers`. Profiles must register its Workflow;
+it reuses the original `<raid>-test.model` judge alias. Murder-mystery retains
+its exact opening, bounded witness replies, correction and short-summary rules.
 
 Every paragraph begins with exactly one configured `【旁白】` or Chinese
 character marker, immediately followed by prose; no other `【】` markers are
@@ -371,7 +383,7 @@ release, and Beijing Default E2E remain separate evidence.
 
 Every scenario is one package directory `workflows/<raid>/`: one Workflow per
 engine implementation (`flowcraft.yaml`, `eino.yaml`, …), the scenario's single
-relay Tester (`test.yaml`, id `<raid>-test`), a `raid.json` manifest, and a
+original relay Tester (`test.yaml`, id `<raid>-test`), a `raid.json` manifest, and a
 README. `raid.json` declares the implementations and the slots each needs —
 model aliases, voice aliases, MemoryLayout — without binding them to concrete
 resources; rating (`raids-age-v1`), category, and tags make the catalog

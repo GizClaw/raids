@@ -65,6 +65,7 @@ test -d tests/giztest || {
 }
 
 require_command ruby
+python3 scripts/test/test-multi-role-testers.py
 ruby scripts/test/original-workflows.rb
 ruby scripts/test/test-eino-script-outputs.rb
 ruby scripts/test/eino-script-outputs.rb

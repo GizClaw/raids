@@ -213,6 +213,8 @@ def render_raid_manifest(
     manifest["implementations"] = {
         engine: manifest["implementations"][engine] for engine in ("eino", "flowcraft")
     }
+    # Learn packages have no multi-role variants or variant Testers.
+    manifest.pop("testers", None)
     for implementation in manifest["implementations"].values():
         # The original Eino/Flowcraft tutor owns only its default Voice.
         voices = implementation["parameters"]["voices"]
