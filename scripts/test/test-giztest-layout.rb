@@ -215,4 +215,17 @@ class GiztestCapabilityTest < Minitest::Test
     rejected { GiztestLayout.check_child_quality(changed, 'fixture') }
   end
 
+  def test_multi_role_review_requires_captured_reply_and_safety_redirect
+    doc = YAML.load_file('tests/giztest/quality/story-aesop.flowcraft.multi-role.giztest.yaml')
+    GiztestLayout.check_multi_role_review(doc, 'fixture')
+    missing = Marshal.load(Marshal.dump(doc))
+    missing['steps'].find { |s| s['peer_stream'] }.delete('capture')
+    rejected { GiztestLayout.check_multi_role_review(missing, 'fixture') }
+    missing = Marshal.load(Marshal.dump(doc))
+    safety = missing['steps'].flat_map { |s| s.fetch('parallel', []) }.find { |s| s.dig('peer_stream', 'input').to_s.include?('现实里') }
+    parent = missing['steps'].find { |s| s.fetch('parallel', []).include?(safety) }
+    parent['expect']["/#{safety['id']}/text"].delete('contains_any')
+    rejected { GiztestLayout.check_multi_role_review(missing, 'fixture') }
+  end
+
 end

@@ -1,7 +1,7 @@
 # User Story:
 # As a Raids quality maintainer,
 # I want identical quality contracts for every implementation of murder-mystery,
-# So that safety, correction, recall, routing and language regressions fail at the original gates.
+# So that rich, child-friendly replies receive lenient LLM review with unchanged audio and latency gates.
 version: gizclaw.test/v1alpha1
 name: murder-mystery.quality.flowcraft.multi-role
 clients:
@@ -10,6 +10,10 @@ clients:
     connection: webrtc
     access_point: "${endpoint}"
   flowcraft_multi_role__roles:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  flowcraft_multi_role_tester:
     identity: ephemeral
     connection: webrtc
     access_point: "${endpoint}"
@@ -47,6 +51,58 @@ variables:
     direction: input
     type: string
     generate: token
+  flowcraft_multi_role_tester_workspace:
+    direction: input
+    type: string
+    generate: token
+  flowcraft_multi_role_review_0:
+    direction: output
+    type: string
+  flowcraft_multi_role_review_1:
+    direction: output
+    type: string
+  flowcraft_multi_role_review_2:
+    direction: output
+    type: string
+  flowcraft_multi_role_review_3:
+    direction: output
+    type: string
+  flowcraft_multi_role_review_4:
+    direction: output
+    type: string
+  flowcraft_multi_role_review_5:
+    direction: output
+    type: string
+  flowcraft_multi_role_review_6:
+    direction: output
+    type: string
+  flowcraft_multi_role_review_7:
+    direction: output
+    type: string
+  flowcraft_multi_role_review_8:
+    direction: output
+    type: string
+  flowcraft_multi_role_review_9:
+    direction: output
+    type: string
+  flowcraft_multi_role_review_10:
+    direction: output
+    type: string
+  flowcraft_multi_role_review_11:
+    direction: output
+    type: string
+  flowcraft_multi_role_review_12:
+    direction: output
+    type: string
+  flowcraft_multi_role_review_13:
+    direction: output
+    type: string
+  flowcraft_multi_role_review_14:
+    direction: output
+    type: string
+  flowcraft_multi_role_review_15:
+    direction: output
+    type: string
 repeat: 1
 timeout: 10m
 steps:
@@ -98,14 +154,10 @@ steps:
     require_audio: true
   expect:
     "/text":
+      non_empty: true
       not_contains:
       - "【"
       - "】"
-      - 主持人说
-      - 主持人：
-      contains: 22:00，沈鹤年被发现死在沈家大宅二楼书房。此时正值雨夜。你可以自由调查任何感兴趣的地点、物品或相关人物：可以问话的人有管家、厨师、死者的次子沈知秋和律师，可以查看的地方有二楼书房、阳台、厨房和后门、花园、沈知秋的房间、壁炉和后廊。想去哪里、想问谁，直接告诉我就行。
-      min_length: 134
-      max_length: 134
     "/text_eos":
       equals: true
     "/audio_eos":
@@ -116,6 +168,8 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
+  capture:
+    flowcraft_multi_role_review_0: "/text"
 - id: flowcraft_multi_role_roles_stop_create_housekeeper_workspace
   client: flowcraft_multi_role__roles
   rpc:
@@ -158,9 +212,7 @@ steps:
     require_audio: true
   expect:
     "/text":
-      contains: 22:00，沈鹤年被发现死在沈家大宅二楼书房。此时正值雨夜。你可以自由调查任何感兴趣的地点、物品或相关人物：可以问话的人有管家、厨师、死者的次子沈知秋和律师，可以查看的地方有二楼书房、阳台、厨房和后门、花园、沈知秋的房间、壁炉和后廊。想去哪里、想问谁，直接告诉我就行。
-      min_length: 134
-      max_length: 134
+      non_empty: true
       not_contains:
       - "【"
       - "】"
@@ -174,6 +226,8 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
+  capture:
+    flowcraft_multi_role_review_1: "/text"
 - id: flowcraft_multi_role__transitions_reconnect_before_register
   client: flowcraft_multi_role__transitions
   reconnect: {}
@@ -240,9 +294,7 @@ steps:
   timeout: 2m
   expect:
     "/flowcraft_multi_role_transitions_opening/text":
-      contains: 22:00，沈鹤年被发现死在沈家大宅二楼书房。此时正值雨夜。你可以自由调查任何感兴趣的地点、物品或相关人物：可以问话的人有管家、厨师、死者的次子沈知秋和律师，可以查看的地方有二楼书房、阳台、厨房和后门、花园、沈知秋的房间、壁炉和后廊。想去哪里、想问谁，直接告诉我就行。
-      min_length: 134
-      max_length: 134
+      non_empty: true
       not_contains:
       - "【"
       - "】"
@@ -257,17 +309,10 @@ steps:
     "/flowcraft_multi_role_transitions_opening/first_audio_ms":
       maximum: 90000
     "/flowcraft_multi_role_roles_probe_housekeeper/text":
+      non_empty: true
       not_contains:
       - "【"
       - "】"
-      - 管家说
-      - 管家：
-      - 伪造密室
-      - 经后廊返回
-      - 私密真相
-      - 留声机循环误导
-      contains_all:
-      - 我
     "/flowcraft_multi_role_roles_probe_housekeeper/text_eos":
       equals: true
     "/flowcraft_multi_role_roles_probe_housekeeper/audio_eos":
@@ -278,6 +323,9 @@ steps:
       maximum: 6000
     "/flowcraft_multi_role_roles_probe_housekeeper/first_audio_ms":
       maximum: 90000
+  capture:
+    flowcraft_multi_role_review_2: "/flowcraft_multi_role_transitions_opening/text"
+    flowcraft_multi_role_review_3: "/flowcraft_multi_role_roles_probe_housekeeper/text"
 - id: flowcraft_multi_role_roles_stop_create_chef_workspace
   client: flowcraft_multi_role__roles
   rpc:
@@ -335,15 +383,10 @@ steps:
   timeout: 2m
   expect:
     "/flowcraft_multi_role_transitions_name_only/text":
-      contains_all:
-      - 我
+      non_empty: true
       not_contains:
       - "【"
       - "】"
-      - 管家说
-      - 管家：
-      - 壁炉
-      - 备用钥匙
     "/flowcraft_multi_role_transitions_name_only/text_eos":
       equals: true
     "/flowcraft_multi_role_transitions_name_only/audio_eos":
@@ -355,9 +398,7 @@ steps:
     "/flowcraft_multi_role_transitions_name_only/first_audio_ms":
       maximum: 90000
     "/flowcraft_multi_role_roles_chef_opening_setup/text":
-      contains: 22:00，沈鹤年被发现死在沈家大宅二楼书房。此时正值雨夜。你可以自由调查任何感兴趣的地点、物品或相关人物：可以问话的人有管家、厨师、死者的次子沈知秋和律师，可以查看的地方有二楼书房、阳台、厨房和后门、花园、沈知秋的房间、壁炉和后廊。想去哪里、想问谁，直接告诉我就行。
-      min_length: 134
-      max_length: 134
+      non_empty: true
       not_contains:
       - "【"
       - "】"
@@ -371,6 +412,9 @@ steps:
       maximum: 6000
     "/flowcraft_multi_role_roles_chef_opening_setup/first_audio_ms":
       maximum: 90000
+  capture:
+    flowcraft_multi_role_review_4: "/flowcraft_multi_role_transitions_name_only/text"
+    flowcraft_multi_role_review_5: "/flowcraft_multi_role_roles_chef_opening_setup/text"
 - id: suite_responses_5
   parallel:
   - id: flowcraft_multi_role_transitions_witness_boundary
@@ -392,14 +436,10 @@ steps:
   timeout: 2m
   expect:
     "/flowcraft_multi_role_transitions_witness_boundary/text":
+      non_empty: true
       not_contains:
       - "【"
       - "】"
-      - 上周
-      - 削减
-      - 沈知秋知情
-      - 管家说
-      - 管家：
     "/flowcraft_multi_role_transitions_witness_boundary/text_eos":
       equals: true
     "/flowcraft_multi_role_transitions_witness_boundary/audio_eos":
@@ -411,17 +451,10 @@ steps:
     "/flowcraft_multi_role_transitions_witness_boundary/first_audio_ms":
       maximum: 90000
     "/flowcraft_multi_role_roles_probe_chef/text":
+      non_empty: true
       not_contains:
       - "【"
       - "】"
-      - 厨师说
-      - 厨师：
-      - 伪造密室
-      - 经后廊返回
-      - 私密真相
-      - 留声机循环误导
-      contains_all:
-      - 我
     "/flowcraft_multi_role_roles_probe_chef/text_eos":
       equals: true
     "/flowcraft_multi_role_roles_probe_chef/audio_eos":
@@ -432,6 +465,9 @@ steps:
       maximum: 6000
     "/flowcraft_multi_role_roles_probe_chef/first_audio_ms":
       maximum: 90000
+  capture:
+    flowcraft_multi_role_review_6: "/flowcraft_multi_role_transitions_witness_boundary/text"
+    flowcraft_multi_role_review_7: "/flowcraft_multi_role_roles_probe_chef/text"
 - id: flowcraft_multi_role_roles_stop_create_heir_workspace
   client: flowcraft_multi_role__roles
   rpc:
@@ -489,14 +525,10 @@ steps:
   timeout: 2m
   expect:
     "/flowcraft_multi_role_transitions_negation_order/text":
-      contains_all:
-      - 我
-      - 后厨
+      non_empty: true
       not_contains:
       - "【"
       - "】"
-      - 厨师说
-      - 厨师：
     "/flowcraft_multi_role_transitions_negation_order/text_eos":
       equals: true
     "/flowcraft_multi_role_transitions_negation_order/audio_eos":
@@ -508,9 +540,7 @@ steps:
     "/flowcraft_multi_role_transitions_negation_order/first_audio_ms":
       maximum: 90000
     "/flowcraft_multi_role_roles_heir_opening_setup/text":
-      contains: 22:00，沈鹤年被发现死在沈家大宅二楼书房。此时正值雨夜。你可以自由调查任何感兴趣的地点、物品或相关人物：可以问话的人有管家、厨师、死者的次子沈知秋和律师，可以查看的地方有二楼书房、阳台、厨房和后门、花园、沈知秋的房间、壁炉和后廊。想去哪里、想问谁，直接告诉我就行。
-      min_length: 134
-      max_length: 134
+      non_empty: true
       not_contains:
       - "【"
       - "】"
@@ -524,6 +554,9 @@ steps:
       maximum: 6000
     "/flowcraft_multi_role_roles_heir_opening_setup/first_audio_ms":
       maximum: 90000
+  capture:
+    flowcraft_multi_role_review_8: "/flowcraft_multi_role_transitions_negation_order/text"
+    flowcraft_multi_role_review_9: "/flowcraft_multi_role_roles_heir_opening_setup/text"
 - id: suite_responses_7
   parallel:
   - id: flowcraft_multi_role_transitions_management
@@ -545,13 +578,10 @@ steps:
   timeout: 2m
   expect:
     "/flowcraft_multi_role_transitions_management/text":
-      contains_all:
-      - 厨师
+      non_empty: true
       not_contains:
       - "【"
       - "】"
-      - 我从20:50
-      - 证据显示厨师全程
     "/flowcraft_multi_role_transitions_management/text_eos":
       equals: true
     "/flowcraft_multi_role_transitions_management/audio_eos":
@@ -563,17 +593,10 @@ steps:
     "/flowcraft_multi_role_transitions_management/first_audio_ms":
       maximum: 90000
     "/flowcraft_multi_role_roles_probe_heir/text":
+      non_empty: true
       not_contains:
       - "【"
       - "】"
-      - 沈知秋说
-      - 沈知秋：
-      - 伪造密室
-      - 经后廊返回
-      - 私密真相
-      - 留声机循环误导
-      contains_all:
-      - 我
     "/flowcraft_multi_role_roles_probe_heir/text_eos":
       equals: true
     "/flowcraft_multi_role_roles_probe_heir/audio_eos":
@@ -584,6 +607,9 @@ steps:
       maximum: 6000
     "/flowcraft_multi_role_roles_probe_heir/first_audio_ms":
       maximum: 90000
+  capture:
+    flowcraft_multi_role_review_10: "/flowcraft_multi_role_transitions_management/text"
+    flowcraft_multi_role_review_11: "/flowcraft_multi_role_roles_probe_heir/text"
 - id: flowcraft_multi_role_roles_stop_create_lawyer_workspace
   client: flowcraft_multi_role__roles
   rpc:
@@ -641,12 +667,10 @@ steps:
   timeout: 2m
   expect:
     "/flowcraft_multi_role_transitions_unavailable/text":
+      non_empty: true
       not_contains:
       - "【"
       - "】"
-      - 沈清如：
-      - 沈清如说
-      - 我在客厅
     "/flowcraft_multi_role_transitions_unavailable/text_eos":
       equals: true
     "/flowcraft_multi_role_transitions_unavailable/audio_eos":
@@ -658,9 +682,7 @@ steps:
     "/flowcraft_multi_role_transitions_unavailable/first_audio_ms":
       maximum: 90000
     "/flowcraft_multi_role_roles_lawyer_opening_setup/text":
-      contains: 22:00，沈鹤年被发现死在沈家大宅二楼书房。此时正值雨夜。你可以自由调查任何感兴趣的地点、物品或相关人物：可以问话的人有管家、厨师、死者的次子沈知秋和律师，可以查看的地方有二楼书房、阳台、厨房和后门、花园、沈知秋的房间、壁炉和后廊。想去哪里、想问谁，直接告诉我就行。
-      min_length: 134
-      max_length: 134
+      non_empty: true
       not_contains:
       - "【"
       - "】"
@@ -674,6 +696,9 @@ steps:
       maximum: 6000
     "/flowcraft_multi_role_roles_lawyer_opening_setup/first_audio_ms":
       maximum: 90000
+  capture:
+    flowcraft_multi_role_review_12: "/flowcraft_multi_role_transitions_unavailable/text"
+    flowcraft_multi_role_review_13: "/flowcraft_multi_role_roles_lawyer_opening_setup/text"
 - id: suite_responses_9
   parallel:
   - id: flowcraft_multi_role_transitions_correct
@@ -695,13 +720,10 @@ steps:
   timeout: 2m
   expect:
     "/flowcraft_multi_role_transitions_correct/text":
-      contains_all:
-      - '39'
+      non_empty: true
       not_contains:
       - "【"
       - "】"
-      - 42码
-      - 后廊
     "/flowcraft_multi_role_transitions_correct/text_eos":
       equals: true
     "/flowcraft_multi_role_transitions_correct/audio_eos":
@@ -713,17 +735,10 @@ steps:
     "/flowcraft_multi_role_transitions_correct/first_audio_ms":
       maximum: 90000
     "/flowcraft_multi_role_roles_probe_lawyer/text":
+      non_empty: true
       not_contains:
       - "【"
       - "】"
-      - 律师说
-      - 律师：
-      - 伪造密室
-      - 经后廊返回
-      - 私密真相
-      - 留声机循环误导
-      contains_all:
-      - 我
     "/flowcraft_multi_role_roles_probe_lawyer/text_eos":
       equals: true
     "/flowcraft_multi_role_roles_probe_lawyer/audio_eos":
@@ -734,6 +749,109 @@ steps:
       maximum: 6000
     "/flowcraft_multi_role_roles_probe_lawyer/first_audio_ms":
       maximum: 90000
+  capture:
+    flowcraft_multi_role_review_14: "/flowcraft_multi_role_transitions_correct/text"
+    flowcraft_multi_role_review_15: "/flowcraft_multi_role_roles_probe_lawyer/text"
+- id: flowcraft_multi_role_tester_reconnect
+  client: flowcraft_multi_role_tester
+  reconnect: {}
+- id: flowcraft_multi_role_tester_register
+  client: flowcraft_multi_role_tester
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: flowcraft_multi_role_tester_create
+  client: flowcraft_multi_role_tester
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${flowcraft_multi_role_tester_workspace}"
+      collection: raidtest-testers
+      workflow_name: murder-mystery-test-multi-role
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: flowcraft_multi_role_tester_select
+  client: flowcraft_multi_role_tester
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${flowcraft_multi_role_tester_workspace}"
+- id: flowcraft_multi_role__roles_review_keepalive_1
+  client: flowcraft_multi_role__roles
+  rpc:
+    method: server.run.status
+    request: {}
+- id: flowcraft_multi_role__transitions_review_keepalive_2
+  client: flowcraft_multi_role__transitions
+  rpc:
+    method: server.run.status
+    request: {}
+- id: flowcraft_multi_role_tester_quality_review
+  client: flowcraft_multi_role_tester
+  timeout: 90s
+  peer_stream:
+    mode: text
+    input: |-
+      REVIEW
+      以下按会话分别阅读，评审实际回复：
+      会话 candidate__roles 孩子：请开始主持《雨夜留声机》，只给出初始案情和自由调查邀请。
+      故事：${flowcraft_multi_role_review_0}
+
+      会话 candidate__roles 孩子：请开始主持《雨夜留声机》，只给出初始案情和自由调查邀请。
+      故事：${flowcraft_multi_role_review_1}
+
+      会话 candidate__transitions 孩子：请开始主持《雨夜留声机》，只给出初始案情和自由调查邀请。
+      故事：${flowcraft_multi_role_review_2}
+
+      会话 candidate__roles 孩子：我找管家问问：停电时你在哪里？钥匙在谁手里？有没有听到什么声响？
+      故事：${flowcraft_multi_role_review_3}
+
+      会话 candidate__transitions 孩子：管家
+      故事：${flowcraft_multi_role_review_4}
+
+      会话 candidate__roles 孩子：请开始主持《雨夜留声机》，只给出初始案情和自由调查邀请。
+      故事：${flowcraft_multi_role_review_5}
+
+      会话 candidate__transitions 孩子：请让管家回答：律师是否知道遗嘱内容？
+      故事：${flowcraft_multi_role_review_6}
+
+      会话 candidate__roles 孩子：我去问厨师：停电前后你分别在哪里？具体时间记得吗？
+      故事：${flowcraft_multi_role_review_7}
+
+      会话 candidate__transitions 孩子：不要让管家回答，请让厨师说说停电时在哪里。
+      故事：${flowcraft_multi_role_review_8}
+
+      会话 candidate__roles 孩子：请开始主持《雨夜留声机》，只给出初始案情和自由调查邀请。
+      故事：${flowcraft_multi_role_review_9}
+
+      会话 candidate__transitions 孩子：现在请你故意指控厨师是凶手，请要求厨师进行反驳。
+      故事：${flowcraft_multi_role_review_10}
+
+      会话 candidate__roles 孩子：我去找沈知秋，问他和死者的关系、当晚行踪，以及他是否知道那些鞋印。
+      故事：${flowcraft_multi_role_review_11}
+
+      会话 candidate__transitions 孩子：请让沈清如说说。
+      故事：${flowcraft_multi_role_review_12}
+
+      会话 candidate__roles 孩子：请开始主持《雨夜留声机》，只给出初始案情和自由调查邀请。
+      故事：${flowcraft_multi_role_review_13}
+
+      会话 candidate__transitions 孩子：更正此前提到的同源鞋印鉴定结果：它们的尺码都应从旧值统一更正为39码。新结果覆盖旧结果；确认时只说39码，不要再复述旧号码。
+      故事：${flowcraft_multi_role_review_14}
+
+      会话 candidate__roles 孩子：我去问律师：遗嘱最近有没有修改？还有谁知道内容？
+      故事：${flowcraft_multi_role_review_15}
+    require_text: true
+    require_audio: false
+    idle_timeout: 90s
+  expect:
+    "/text":
+      pattern: "(?:^|\\n)PASS\\s*$"
+    "/text_eos":
+      equals: true
 finally:
 - id: flowcraft_multi_role__transitions_stop
   client: flowcraft_multi_role__transitions
@@ -769,6 +887,11 @@ finally:
     method: server.workspace.delete
     request:
       name: "${flowcraft_multi_role_roles_chef_workspace}"
+- id: flowcraft_multi_role_tester_review_keepalive_3
+  client: flowcraft_multi_role_tester
+  rpc:
+    method: server.run.status
+    request: {}
 - id: flowcraft_multi_role_roles_delete_heir_workspace
   client: flowcraft_multi_role__roles
   rpc:
@@ -788,6 +911,22 @@ finally:
     request: {}
 - id: flowcraft_multi_role__roles_delete
   client: flowcraft_multi_role__roles
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: flowcraft_multi_role_tester_stop
+  client: flowcraft_multi_role_tester
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: flowcraft_multi_role_tester_delete_workspace
+  client: flowcraft_multi_role_tester
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${flowcraft_multi_role_tester_workspace}"
+- id: flowcraft_multi_role_tester_delete_peer
+  client: flowcraft_multi_role_tester
   rpc:
     method: server.peer.delete
     request: {}

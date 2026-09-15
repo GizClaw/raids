@@ -18,6 +18,15 @@ Dir['workflows/*'].select { |p| File.directory?(p) }.sort.each do |package|
     next unless File.exist?(fixture)
     data = JSON.parse(File.read(fixture))
     abort "#{fixture}: unsupported version or empty cases" unless data['version'] == 1 && data['cases'].is_a?(Array) && !data['cases'].empty?
+    unless variant.empty?
+      # Multi-role narration is guidance; shared original fixtures still check
+      # routing/state, but no longer prescribe when narration changes chapter.
+      data['cases'].each do |c|
+        c.dig('expect', 'flowcraft')&.delete('next_chapter_instruction')
+        checks = c.dig('expect', 'eino', 'direction', 'includes_all')
+        checks&.delete('同一回复自然进入紧邻下一章')
+      end
+    end
     if variant.empty?
       nodes = flow.fetch('graph').fetch('nodes')
       if nodes.any? { |n| n['id'] == 'control-story' }

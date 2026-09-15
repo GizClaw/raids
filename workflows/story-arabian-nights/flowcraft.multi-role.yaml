@@ -153,7 +153,7 @@ spec:
             const beatsAfterTurn = priorProgressBeats.slice();
             if (countProgress && !beatsAfterTurn.includes("consequence")) beatsAfterTurn.push("consequence");
             if (countProgress && !beatsAfterTurn.includes("perspective")) beatsAfterTurn.push("perspective");
-            const nextChapterInstruction = "连续有声书规则：普通轮讲选择后果，目标达成同一回复自然进入紧邻下一章/场景并开场，无需许可。末尾【旁白】问一次，给2至3个具体安全行动/地点/解法。中文回复以恰好一个全角问号？结束；英文用?，禁双问号/尾文。禁“进入下一章”“要不要继续”“想继续听就说”“这一章的选择完成啦”等流程口令；主动转场可承接，特殊轮优先。第4章不增章，以未兑现责任给选择。";
+            const nextChapterInstruction = "让故事随孩子的选择自然推进，通常以故事内选择收尾。";
             board.setVar("announce_chapter", announce);
             board.setVar("transition_blocked", transitionBlocked);
             board.setVar("safety_request", current.includes("现实中模仿") || current.includes("现实模仿"));
@@ -167,7 +167,7 @@ spec:
             // These fields duplicate the current/adjacent chapter bible or are controller-only.
             for (const key of ["last_answer", "schema", "revision", "chapter_title", "location", "active_roles", "chapter_progress_beats", "chapter_choice_made"]) delete promptState[key];
             board.setVar("story_state_text", JSON.stringify(promptState));
-            board.setVar("story_bible", "故事：一千零一夜。前提：进入充满旅行、谜题和智慧选择的一千零一夜。\n玩家是能改变局面但不能替代角色作决定的同行者。\n世界规则：当前更正优先；选项禁杀害、伤害、威胁、报复。\n事实边界：经典来源、传说与本剧本原创设定必须区分；不得复制完整出版译文。\n安全边界：面向儿童，危险非血腥；现实模仿请求必须明确说“不要模仿”，并建议找可信任的成年人、家长或老师帮助。\n反重复：普通轮不重播确认、开场、选择、问题或总结。" + "\n" + ["第1章《移动之城》：进入=首次开场；目标=解决《移动之城》张力；节拍=具体后果+两角色不同回应；转场=选择关闭悬念，随结果自动续邻章；出口=同轮仅一次标题“第 2 章：诚实之灯”，并紧接新章开场。","第2章《诚实之灯》：进入=第1章选择达成转场；目标=解决《诚实之灯》张力；节拍=具体后果+两角色不同回应；转场=选择关闭悬念，随结果自动续邻章；出口=同轮仅一次标题“第 3 章：提问地图”，并紧接新章开场。","第3章《提问地图》：进入=第2章选择达成转场；目标=解决《提问地图》张力；节拍=具体后果+两角色不同回应；转场=选择关闭悬念，随结果自动续邻章；出口=同轮仅一次标题“第 4 章：黎明之门”，并紧接新章开场。","第4章《黎明之门》：进入=第3章选择达成转场；目标=解决《黎明之门》张力；节拍=具体后果+两角色不同回应；终局=确认持久选择，留未兑现责任线索；保持第4章，不建第5章。"].slice(state.chapter - 1, Math.min(state.chapter + 1, 4)).join("\n"));
+            board.setVar("story_bible", "故事：一千零一夜。前提：进入充满旅行、谜题和智慧选择的一千零一夜。\n玩家是能改变局面但不能替代角色作决定的同行者。\n世界规则：当前更正优先；选项禁杀害、伤害、威胁、报复。\n事实边界：经典来源、传说与本剧本原创设定必须区分；不得复制完整出版译文。\n安全边界：面向儿童，危险非血腥；现实模仿请求应劝阻危险，并建议找可信任的成年人、家长或老师帮助。\n反重复：普通轮不重播确认、开场、选择、问题或总结。" + "\n" + ["第1章《移动之城》：进入=首次开场；目标=解决《移动之城》张力；节拍=具体后果+两角色不同回应；转场=选择关闭悬念，随结果自动续邻章；后续参考=第 2 章：诚实之灯，自然衔接新章。","第2章《诚实之灯》：进入=第1章选择达成转场；目标=解决《诚实之灯》张力；节拍=具体后果+两角色不同回应；转场=选择关闭悬念，随结果自动续邻章；后续参考=第 3 章：提问地图，自然衔接新章。","第3章《提问地图》：进入=第2章选择达成转场；目标=解决《提问地图》张力；节拍=具体后果+两角色不同回应；转场=选择关闭悬念，随结果自动续邻章；后续参考=第 4 章：黎明之门，自然衔接新章。","第4章《黎明之门》：进入=第3章选择达成转场；目标=解决《黎明之门》张力；节拍=具体后果+两角色不同回应；终局=确认持久选择，留未兑现责任线索；保持第4章，不建第5章。"].slice(state.chapter - 1, Math.min(state.chapter + 1, 4)).join("\n"));
 
             // Include the exact opening for initial and explicit first-chapter opening requests.
             const openingForms = ["第一章开始","第一章重新开始","第一章从头开始","第一章重来","第一章重开","第一章重启","开始第一章","重新开始第一章","从头开始第一章","重开第一章","重启第一章","第1章开始","第1章重新开始","第1章从头开始","第1章重来","第1章重开","第1章重启","开始第1章","重新开始第1章","从头开始第1章","重开第1章","重启第1章","startchapter1","startfirstchapter","startfromchapter1","startfromfirstchapter","startatchapter1","startatfirstchapter","startthechapter1","startthefirstchapter","beginchapter1","beginfirstchapter","beginfromchapter1","beginfromfirstchapter","beginatchapter1","beginatfirstchapter","beginthechapter1","beginthefirstchapter","restartchapter1","restartfirstchapter","restartfromchapter1","restartfromfirstchapter","restartatchapter1","restartatfirstchapter","restartthechapter1","restartthefirstchapter"];
@@ -231,15 +231,15 @@ spec:
           output_key: answer
           system_prompt: |-
             ${board.story_bible}
-            当前权威状态：${board.story_state_text}
+            当前故事状态：${board.story_state_text}
             安全请求=${board.safety_request}：为true须制止危险模仿，给安全替代，请孩子找家长、老师或可信任成年人帮助，简短回应。
-            announce_chapter 或自然转场时，【旁白】后首行只写一次精确“第 N 章：标题”（数字两侧空格），同轮续新地点、在场人、事件与交替对白，不能只有标题。
+            转场时自然交代新地点、角色和事件，可用旁白章节标题帮助衔接。
             ${board.opening_instruction}
             若用户只要求回忆或确认旅程代号，只回答当前代号；存在更正时绝不输出旧值。
             ${board.next_chapter_instruction}
 
-            互动规则（普通200至900字）：承接孩子的选择；改选以最新意愿为准，不执行已否定的选择。追问、角色对话、插话和重听自然融入连续叙述，重听只重述所指片段后接回当前故事，不重开。普通回复末尾由旁白给一个故事内选择。记名确认与回忆可用4至360字符简答，记住最新旅程名字，不必提问或推进；安全优先制止危险模仿，说明安全替代并请孩子找家长、老师或可信任成年人帮助，4至360字符，不必提问。篇幅执行规则：去角色标记后，中文Unicode计数含标点空白，目标500字、5段每段约100字；不要少于 200 字，不要超过 900 字。英文100至450词，目标约220个英文单词、5段各44词，无中文上限。依次行动、两种回应、结果、选择。勿重复/虚构凑数或输出分析计数。
-            有声书连续讲述：旁白叙述与角色第一人称台词分段，与2至4位在场角色交替；单角色不添人。只知亲历/公开信息。插话接续，点名仅增台词不换场/整轮。
+            有声书连续讲述：约1至2分钟，旁白叙述与角色第一人称台词分段，让在场角色有来有回，生动有趣、细节丰富。回应孩子刚说的话，尊重改选和更正，记住最新事实；追问、插话和重听自然接续。故事自然推进，通常以故事内选择收尾。回忆和确认可以简短；遇到现实危险，劝阻模仿并引导找家长、老师或可信任的大人。
+            有声书连续讲述：旁白叙述与角色第一人称台词分段，与在场角色交替；单角色不添人。只知亲历/公开信息。插话接续，点名仅增台词不换场/整轮。
             标记格式：每段选一个【旁白】、【山鲁佐德】、【山鲁亚尔】、【辛巴达】、【老商人】后接正文，不输出其它【】标记或英文key；可再次发声，标题属旁白。
             音色由段落标记映射；仅朗读正文，禁Markdown/列表/emoji/舞台说明/系统字段/分析。
           track_steps: true

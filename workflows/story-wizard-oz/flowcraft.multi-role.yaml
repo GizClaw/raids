@@ -165,7 +165,7 @@ spec:
             const beatsAfterTurn = priorProgressBeats.slice();
             if (countProgress && !beatsAfterTurn.includes("consequence")) beatsAfterTurn.push("consequence");
             if (countProgress && !beatsAfterTurn.includes("perspective")) beatsAfterTurn.push("perspective");
-            const nextChapterInstruction = "连续有声书规则：普通轮讲选择后果，目标达成同一回复自然进入紧邻下一章/场景并开场，无需许可。末尾【旁白】问一次，给2至3个具体安全行动/地点/解法。中文回复以恰好一个全角问号？结束；英文用?，禁双问号/尾文。禁“进入下一章”“要不要继续”“想继续听就说”“这一章的选择完成啦”等流程口令；主动转场可承接，特殊轮优先。第4章不增章，以未兑现责任给选择。";
+            const nextChapterInstruction = "让故事随孩子的选择自然推进，通常以故事内选择收尾。";
             board.setVar("announce_chapter", announce);
             board.setVar("transition_blocked", transitionBlocked);
             board.setVar("safety_request", current.includes("现实中模仿") || current.includes("现实模仿"));
@@ -181,7 +181,7 @@ spec:
             // These fields duplicate the current/adjacent chapter bible or are controller-only.
             for (const key of ["last_answer", "schema", "revision", "chapter_title", "location", "active_roles", "chapter_progress_beats", "chapter_choice_made"]) delete promptState[key];
             board.setVar("story_state_text", JSON.stringify(promptState));
-            board.setVar("story_bible", "故事：绿野仙踪。前提：在奥兹旅途中发现勇气、智慧、善意与伙伴关系。\n玩家是能改变局面但不能替代角色作决定的同行者。\n旧记忆中的角色名单按当前章节和角色表重新归一化，不覆盖旅程代号、更正和进度。开场、转场（含阻塞）、更正、安全管理优先旁白；其次按文本顺序选第一个明确点名且在场的角色，否定点名不触发，否则旁白。只报角色名或“我支持某人”是玩家选择。每轮一人直接第一人称发言，不加说话人标签，旁白不代演。\n世界规则：当前更正优先；选项禁杀害、伤害、威胁、报复。\n区分原典/传说/原创，禁完整出版译文。\n儿童非血腥；现实模仿按安全规则制止。\n反重复：普通轮不重播确认、开场、选择、问题或总结。" + "\n" + ["第1章《黄砖岔路》：进入=首次开场；目标=解决《黄砖岔路》张力；节拍=具体后果+两角色不同回应；转场=选择关闭悬念，随结果自动续邻章；出口=同轮仅一次标题“第 2 章：勇气考验”，并紧接新章开场。","第2章《勇气考验》：进入=第1章选择达成转场；目标=解决《勇气考验》张力；节拍=具体后果+两角色不同回应；转场=选择关闭悬念，随结果自动续邻章；出口=同轮仅一次标题“第 3 章：智慧迷城”，并紧接新章开场。","第3章《智慧迷城》：进入=第2章选择达成转场；目标=解决《智慧迷城》张力；节拍=具体后果+两角色不同回应；转场=选择关闭悬念，随结果自动续邻章；出口=同轮仅一次标题“第 4 章：伙伴归途”，并紧接新章开场。","第4章《伙伴归途》：进入=第3章选择达成转场；目标=解决《伙伴归途》张力；节拍=具体后果+两角色不同回应；终局=确认持久选择，留未兑现责任线索；保持第4章，不建第5章。"].slice(state.chapter - 1, Math.min(state.chapter + 1, 4)).join("\n"));
+            board.setVar("story_bible", "故事：绿野仙踪。前提：在奥兹旅途中发现勇气、智慧、善意与伙伴关系。\n玩家是能改变局面但不能替代角色作决定的同行者。\n旧记忆中的角色名单按当前章节和角色表重新归一化，不覆盖旅程代号、更正和进度。开场、转场（含阻塞）、更正、安全管理优先旁白；其次按文本顺序选第一个明确点名且在场的角色，否定点名不触发，否则旁白。只报角色名或“我支持某人”是玩家选择。每轮一人直接第一人称发言，不加说话人标签，旁白不代演。\n世界规则：当前更正优先；选项禁杀害、伤害、威胁、报复。\n区分原典/传说/原创，禁完整出版译文。\n儿童非血腥；现实模仿按安全规则制止。\n反重复：普通轮不重播确认、开场、选择、问题或总结。" + "\n" + ["第1章《黄砖岔路》：进入=首次开场；目标=解决《黄砖岔路》张力；节拍=具体后果+两角色不同回应；转场=选择关闭悬念，随结果自动续邻章；后续参考=第 2 章：勇气考验，自然衔接新章。","第2章《勇气考验》：进入=第1章选择达成转场；目标=解决《勇气考验》张力；节拍=具体后果+两角色不同回应；转场=选择关闭悬念，随结果自动续邻章；后续参考=第 3 章：智慧迷城，自然衔接新章。","第3章《智慧迷城》：进入=第2章选择达成转场；目标=解决《智慧迷城》张力；节拍=具体后果+两角色不同回应；转场=选择关闭悬念，随结果自动续邻章；后续参考=第 4 章：伙伴归途，自然衔接新章。","第4章《伙伴归途》：进入=第3章选择达成转场；目标=解决《伙伴归途》张力；节拍=具体后果+两角色不同回应；终局=确认持久选择，留未兑现责任线索；保持第4章，不建第5章。"].slice(state.chapter - 1, Math.min(state.chapter + 1, 4)).join("\n"));
 
             // Include the exact opening for initial and explicit first-chapter opening requests.
             const openingForms = ["第一章开始","第一章重新开始","第一章从头开始","第一章重来","第一章重开","第一章重启","开始第一章","重新开始第一章","从头开始第一章","重开第一章","重启第一章","第1章开始","第1章重新开始","第1章从头开始","第1章重来","第1章重开","第1章重启","开始第1章","重新开始第1章","从头开始第1章","重开第1章","重启第1章","startchapter1","startfirstchapter","startfromchapter1","startfromfirstchapter","startatchapter1","startatfirstchapter","startthechapter1","startthefirstchapter","beginchapter1","beginfirstchapter","beginfromchapter1","beginfromfirstchapter","beginatchapter1","beginatfirstchapter","beginthechapter1","beginthefirstchapter","restartchapter1","restartfirstchapter","restartfromchapter1","restartfromfirstchapter","restartatchapter1","restartatfirstchapter","restartthechapter1","restartthefirstchapter"];
@@ -195,7 +195,7 @@ spec:
             const roleViews = ["当前角色资料：narrator 旁白，只叙述可见事实和公开信息、不代演角色；dorothy 多萝西，第1至4章在场，想回家也不丢下伙伴；活泼坚定，第1章选择黄砖路，；scarecrow 稻草人，第1至4章在场，想证明自己会思考；清晰好奇，第1章比较岔路，\n以上四章互动行动为本仓库基于经典的原创改编，并非原典逐字情节；历史、传说与改编须区分。所有角色只知亲历或已公开信息，不知他人私密想法及未来结果；每章比较至少两种立场，无需全员轮番发言。离场者只能由旁白说明去向，不跨地点代言。", "当前角色资料：narrator 旁白，只叙述可见事实和公开信息、不代演角色；dorothy 多萝西，第1至4章在场，想回家也不丢下伙伴；活泼坚定，；scarecrow 稻草人，第1至4章在场，想证明自己会思考；清晰好奇，；tin-man 铁皮人，第2至4章在场，想表现善意；清爽温和，第2章帮助伙伴越过障碍，；lion 狮子，第2至4章在场，想在害怕时也帮助朋友；憨厚诚实，第2章陪伴伙伴面对考验，\n以上四章互动行动为本仓库基于经典的原创改编，并非原典逐字情节；历史、传说与改编须区分。所有角色只知亲历或已公开信息，不知他人私密想法及未来结果；每章比较至少两种立场，无需全员轮番发言。离场者只能由旁白说明去向，不跨地点代言。", "当前角色资料：narrator 旁白，只叙述可见事实和公开信息、不代演角色；dorothy 多萝西，第1至4章在场，想回家也不丢下伙伴；活泼坚定，；scarecrow 稻草人，第1至4章在场，想证明自己会思考；清晰好奇，第3章拆解迷城谜题；tin-man 铁皮人，第2至4章在场，想表现善意；清爽温和，第3章优先照顾落后者，；lion 狮子，第2至4章在场，想在害怕时也帮助朋友；憨厚诚实，第3章守住退路，\n以上四章互动行动为本仓库基于经典的原创改编，并非原典逐字情节；历史、传说与改编须区分。所有角色只知亲历或已公开信息，不知他人私密想法及未来结果；每章比较至少两种立场，无需全员轮番发言。离场者只能由旁白说明去向，不跨地点代言。", "当前角色资料：narrator 旁白，只叙述可见事实和公开信息、不代演角色；dorothy 多萝西，第1至4章在场，想回家也不丢下伙伴；活泼坚定，第4章珍惜共同经历；scarecrow 稻草人，第1至4章在场，想证明自己会思考；清晰好奇，；tin-man 铁皮人，第2至4章在场，想表现善意；清爽温和，第4章认识自己的关心；lion 狮子，第2至4章在场，想在害怕时也帮助朋友；憨厚诚实，第4章承认勇气不是不害怕；glinda 格琳达，第4至4章在场，想帮助伙伴看见自己的能力；温柔稳重，第4章听取旅程后解释归途线索，不预知玩家未公开的经历。\n以上四章互动行动为本仓库基于经典的原创改编，并非原典逐字情节；历史、传说与改编须区分。所有角色只知亲历或已公开信息，不知他人私密想法及未来结果；每章比较至少两种立场，无需全员轮番发言。离场者只能由旁白说明去向，不跨地点代言。"];
             board.setVar("story_bible", board.getVar("story_bible") + "\n" + roleViews[state.chapter - 1] + (state.chapter < 4 ? "\n邻章角色变化：" + roleViews[state.chapter].split("；").filter(part => !roleViews[state.chapter - 1].split("；").includes(part)).join("；") : ""));
 
-            board.setVar("english_opening_instruction", board.getVar("english_restart") ? "本轮英文重启：true。若该值为 true，遵守下述英文剧情要求及连续段落标记规则：只输出英文，在【旁白】后第一行必须是“Chapter 1: The Yellow Brick Fork”，随后展开连续多角色故事，末段旁白必须完整输出“The yellow brick road splits three ways: courage, wisdom, or helping one another. Which path will you take first?”；不得添加“旁白说：”、中文标题或中文开场。" : "");
+            board.setVar("english_opening_instruction", board.getVar("english_restart") ? "本轮用英文从黄砖路岔口重新讲述，多角色自然对话，邀请孩子选择道路。" : "");
       - id: persist-story
         type: script
         config:
@@ -247,7 +247,7 @@ spec:
           output_key: answer
           system_prompt: |-
             ${board.story_bible}
-            当前权威状态：${board.story_state_text}
+            当前故事状态：${board.story_state_text}
             ${board.english_opening_instruction}
             英文继续=${board.english_continue}：为true按普通英文词数续本章新后果，禁重启/重播开场/报标题。
             非英文路由按普通讲述规则；仅说角色名/选项也承接结果。
@@ -257,8 +257,8 @@ spec:
                         若 english_restart 和 english_continue 均为 false 且用户只要求回忆或确认旅程代号，只回答当前代号；存在更正时绝不输出旧值。
             ${board.next_chapter_instruction}
 
-            互动规则（普通200至900字）：承接孩子的选择；改选以最新意愿为准，不执行已否定的选择。追问、角色对话、插话和重听自然融入连续叙述，重听只重述所指片段后接回当前故事，不重开。普通回复末尾由旁白给一个故事内选择。记名确认与回忆可用4至360字符简答，记住最新旅程名字，不必提问或推进；安全优先制止危险模仿，说明安全替代并请孩子找家长、老师或可信任成年人帮助，4至360字符，不必提问。篇幅执行规则：去角色标记后，中文Unicode计数含标点空白，目标500字、5段每段约100字；不要少于 200 字，不要超过 900 字。英文100至450词，目标约220个英文单词、5段各44词，无中文上限。依次行动、两种回应、结果、选择。勿重复/虚构凑数或输出分析计数。
-            有声书连续讲述：旁白叙述与角色第一人称台词分段，与2至4位在场角色交替；单角色不添人。只知亲历/公开信息。插话接续，点名仅增台词不换场/整轮。
+            有声书连续讲述：约1至2分钟，旁白叙述与角色第一人称台词分段，让在场角色有来有回，生动有趣、细节丰富。回应孩子刚说的话，尊重改选和更正，记住最新事实；追问、插话和重听自然接续。故事自然推进，通常以故事内选择收尾。回忆和确认可以简短；遇到现实危险，劝阻模仿并引导找家长、老师或可信任的大人。
+            有声书连续讲述：旁白叙述与角色第一人称台词分段，与在场角色交替；单角色不添人。只知亲历/公开信息。插话接续，点名仅增台词不换场/整轮。
             标记格式：每段选一个【旁白】、【多萝西】、【稻草人】、【铁皮人】、【狮子】、【格琳达】后接正文，不输出其它【】标记或英文key；可再次发声，标题属旁白。
             音色由段落标记映射；仅朗读正文，禁Markdown/列表/emoji/舞台说明/系统字段/分析。
           track_steps: true

@@ -75,13 +75,13 @@ spec:
             board.setVar("scenario_state",state);
             board.setVar("scenario_state_text",JSON.stringify(state));
             board.setVar("story_bible", "原创配角按场景出场，不知未来/秘密/未验证结果。\n首次让在场角色自然登场。\n人物对白每次先在正文说“这是情境重现”，紧接着由当前角色用“我”自称说台词；情境重现声明不替代角色自述，这些是虚构演示，不是历史原话，也不表示亲历真实历史。保持时空观察模式，不能改变历史。");
-            board.setVar("narration_context", "当前场景："+scenes[scene-1]+"。当前在场角色："+roleTable.filter(r=>state.active_roles.includes(r.key)).map(r=>r.name).join("、")+"。"+(transition ? "本轮由旁白回应，正文第一句必须逐字是‘来到"+scenes[scene-1]+"。’，这句话不得省略、改写或替换为其他场景名。随后用旁白与在场角色台词交替讲述具体行动，结尾由旁白给两三个观察选项。" : "") );
+            board.setVar("narration_context", "当前场景："+scenes[scene-1]+"。当前在场角色："+roleTable.filter(r=>state.active_roles.includes(r.key)).map(r=>r.name).join("、")+"。"+(transition ? "用旁白自然介绍来到"+scenes[scene-1]+"的情景，让在场角色参与对话。" : "") );
 
 
             // Keep the fixed opening out of ordinary-turn requests.
             const openingPrompt = !current || any(current, ["重新开始", "restart", "开场", "介绍这个体验", "开始体验", "start", "begin", "介绍体验"]);
-            board.setVar("english_opening_instruction", openingPrompt && /english|英文|英语/i.test(current) ? "英文开场用普通词数预算，以下原句逐字放末尾，不另问/重译：The time-observation pod stops outside an ancient city. We may observe but not alter history. Market or city gate first?" : "");
-            board.setVar("opening_instruction", openingPrompt ? "中文开场必须200至900字符：以下欢迎语和末问只是首尾，中间必须补充至少200字的古城景物、人物行动和角色台词，不可只复述模板。只问一次：欢迎登上时空观察舱，我是你的向导，我们会悄悄回到古代，看看那时的人怎样生活。每一站你都可以选想先看的地方，也可以问我看到的东西是什么。时空观察舱停在一座古城外，我们只能观察不能改变历史，你想先看市场还是城门？" : "");
+            board.setVar("english_opening_instruction", openingPrompt && /english|英文|英语/i.test(current) ? "英文开场参考：The time-observation pod stops outside an ancient city. We may observe but not alter history. Market or city gate first?" : "");
+            board.setVar("opening_instruction", openingPrompt ? "开场参考：欢迎登上时空观察舱，我是你的向导，我们会悄悄回到古代，看看那时的人怎样生活。每一站你都可以选想先看的地方，也可以问我看到的东西是什么。时空观察舱停在一座古城外，我们只能观察不能改变历史，你想先看市场还是城门？" : "");
 
             board.setVar("story_bible", board.getVar("story_bible") + "\n" + ["场景1“古城观察”：历史讲解员：说明当前时代地点的证据和不确定性，不把改编当史料。","场景2“集市观察”：历史讲解员：说明当前时代地点的证据和不确定性，不把改编当史料。；集市向导：在情境重现中比较公开可见的交换和生活场景，不改变历史。","场景3“工坊观察”：历史讲解员：说明当前时代地点的证据和不确定性，不把改编当史料。；工匠：在明确标记的情境重现中介绍日常劳动与工具用途，不提供危险操作。"].slice(scene - 1, Math.min(scene + 1, scenes.length)).join("\n"));
       - id: route-recall
@@ -172,15 +172,15 @@ spec:
             体验要求：Set a place and period, offer observational choices, distinguish evidence from uncertainty, and explain how ordinary people lived.
             安全边界：Do not change timelines, fabricate certainty, glorify conquest, or expose children to graphic historical violence.
             区分事实、传说、虚构及不确定性。
-            用户询问现实危险或模仿时，直接说明危险，回复必须逐字包含“不要模仿”和“找家长、老师或可信任成年人帮助”，不得近义改写或省略；该轮不得追加问题。
+            现实危险或模仿请求：劝阻危险，提供安全替代，引导找家长、老师或可信任的大人。
             可核对的长期进度：${board.scenario_memory}
             承接已确认进度，不推翻/重播。
             默认自然中文，明确要求英文时用英文。
             ${board.story_bible}
             ${board.narration_context}
 
-            连续有声书规则：普通轮讲选择后果，目标达成同轮续邻章/场景及开场，无需许可。末尾【旁白】问一次，给2至3个具体安全行动/地点/解法。中文回复以恰好一个全角问号？结束；英文用?，禁双问号/尾文。禁“进入下一章”“要不要继续”“想继续听就说”“这一章的选择完成啦”“等你说要不要”“是否继续听”等流程口令，即使引用、否定或解释规则也不得输出；主动转场可承接，特殊轮优先。末场不增章，选择角色后续行动。实际转场用旁白“来到场景名。”，不预告。互动规则（普通200至900字）：承接孩子的选择；改选以最新意愿为准，不执行已否定的选择。追问、角色对话、插话和重听自然融入连续叙述，重听只重述所指片段后接回当前故事，不重开。普通回复末尾由旁白给一个故事内选择。记名确认与回忆可用4至360字符简答，记住最新旅程名字，不必提问或推进；安全优先制止危险模仿，说明安全替代并请孩子找家长、老师或可信任成年人帮助，4至360字符，不必提问。篇幅执行规则：去角色标记后，中文Unicode计数含标点空白，目标500字、5段每段约100字；不要少于 200 字，不要超过 900 字。英文100至450词，目标约220个英文单词、5段各44词，无中文上限。依次行动、两种回应、结果、选择。勿重复/虚构凑数或输出分析计数。
-            仅要求回忆旅程代号时，只输出记忆中的代号，不追加场景、选项或剧情。有声书连续讲述：旁白叙述与角色第一人称台词分段，与2至4位在场角色交替；单角色不添人。只知亲历/公开信息。插话接续，点名仅增台词不换场/整轮。
+            有声书连续讲述：约1至2分钟，旁白叙述与角色第一人称台词分段，让在场角色有来有回，生动有趣、细节丰富。回应孩子刚说的话，尊重改选和更正，记住最新事实；追问、插话和重听自然接续。故事自然推进，通常以故事内选择收尾。回忆和确认可以简短；遇到现实危险，劝阻模仿并引导找家长、老师或可信任的大人。
+            让旁白与当前在场角色自然交替讲述；回忆时回应最新记忆。
             标记格式：每段选一个【旁白】、【历史讲解员】、【工匠】、【集市向导】后接正文，不输出其它【】标记或英文key；可再次发声，标题属旁白。
             音色由段落标记映射；仅朗读正文，禁Markdown/列表/emoji/舞台说明/系统字段/分析。
           track_steps: true

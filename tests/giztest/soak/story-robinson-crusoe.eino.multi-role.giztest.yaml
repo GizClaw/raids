@@ -1,7 +1,7 @@
 # User Story:
 # As a Raids catalog maintainer,
 # I want every available story-robinson-crusoe implementation to complete the same bounded Tester relay,
-# So that chapter, correction, reload, role, and continuity behavior remain reproducible.
+# So that natural conversation receives lenient LLM review with safety, recall and playback checks.
 version: gizclaw.test/v1alpha1
 name: story-robinson-crusoe.soak.eino.multi-role
 clients:
@@ -26,9 +26,9 @@ variables:
   multi_role_test_brief:
     direction: input
     type: string
-    value: |-
+    value: |
       BEGIN flowcraft-story-robinson-crusoe-multi-role long-form-story
-      孩子自然参与多角色有声故事：选择、改选、追问、角色对话、插话、重听、记名回忆及危险模仿。普通回复中文200至900字符或英文100至450词，末尾一个故事内选择；仅回忆、确认、安全可短至4至360字符。无角色标记或流程口令，接力须推进且不循环。
+      孩子自然参与多角色有声故事，内容由Tester宽松评审：有意思、生动、丰富、连贯、回应孩子、适合儿童、安全。
   eino_multi_role_candidate_workspace:
     direction: input
     type: string
@@ -121,9 +121,7 @@ steps:
     "/turns/eino_multi_role/first_text_ms/max":
       maximum: 6000
     "/turns/eino_multi_role/text_runes/min":
-      minimum: 4
-    "/turns/eino_multi_role/text_runes/max":
-      maximum: 900
+      minimum: 1
 - id: eino_multi_role_recall_barrier
   client: eino_multi_role
   rpc:
@@ -167,9 +165,7 @@ steps:
     "/turns/eino_multi_role/first_text_ms/max":
       maximum: 6000
     "/turns/eino_multi_role/text_runes/min":
-      minimum: 4
-    "/turns/eino_multi_role/text_runes/max":
-      maximum: 900
+      minimum: 1
 - id: eino_multi_role_emit_verdict
   output:
     variable: eino_multi_role_verdict

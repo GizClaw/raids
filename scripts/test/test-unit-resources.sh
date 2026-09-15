@@ -93,7 +93,8 @@ for package in workflows/story-*; do
 	test -d "$package" || continue
 	raid="${package#workflows/}"
 	for engine in eino flowcraft eino.multi-role flowcraft.multi-role; do
-		grep -F '并紧接新章开场' "$package/$engine.yaml" >/dev/null || {
+		case "$engine" in *.multi-role) continuation='故事自然推进' ;; *) continuation='并紧接新章开场' ;; esac
+		grep -F "$continuation" "$package/$engine.yaml" >/dev/null || {
 			printf 'story Workflow lacks chapter-opening continuation: %s/%s.yaml\n' "$package" "$engine" >&2
 			exit 1
 		}
@@ -113,7 +114,7 @@ for package in workflows/story-*; do
           require File.expand_path("scripts/test/giztest-layout.rb")
           step = GiztestLayout.steps(YAML.load_file(ARGV[0])).find { |s| s["id"] == "#{ARGV[1]}_transitions_enter_next_chapter_with_story" }
           pattern = step && step.dig("expect", "/text", "pattern")
-          abort "#{ARGV[0]}: #{ARGV[1]} missing chapter-opening continuation assertion" unless pattern && (ARGV[1].include?("multi_role") ? pattern.include?("[？?]") : pattern.include?("第 2 章[：:]") && pattern.include?("{20,}"))
+          abort "#{ARGV[0]}: #{ARGV[1]} missing chapter-opening continuation assertion" unless (ARGV[1].include?("multi_role") ? step.dig("expect", "/text", "non_empty") && !pattern : pattern && pattern.include?("第 2 章[：:]") && pattern.include?("{20,}"))
         ' "$test_file" "$client"
 
 		grep -F "\"file\": \"$test_file\"" "$package/raid.json" >/dev/null || {

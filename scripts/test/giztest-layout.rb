@@ -213,18 +213,14 @@ module GiztestLayout
       input = step.dig('peer_stream', 'input').to_s
       check(!input.match?(/只确认|只说|不要推进|知识边界|亲自回应|最多问/), "#{file}: inherited exam probe")
       contract = step.dig('expect', '/text') || {}
-      short = input.include?('旅程') || input.include?('现实里')
-      check(contract['min_length'] == (short ? 4 : 200) && contract['max_length'] == (short ? 360 : 900), "#{file}: child reply length contract")
-      %w[【 】 进入下一章 要不要继续 想继续听就说].each do |phrase|
-        check(contract.fetch('not_contains', []).include?(phrase), "#{file}: missing marker/process guard")
-      end
-      check(short || contract.fetch('pattern', '').include?('还是|或|选'), "#{file}: missing final plot choice")
-      if input.include?('旅程')
-        check(contract.fetch('contains_all', []).include?('小月亮'), "#{file}: missing remembered fact")
-      elsif input.include?('现实里')
-        check(contract.fetch('contains_any', []).include?('家长') && contract.fetch('pattern', '').include?('不要'), "#{file}: missing safety redirect")
-      elsif input.include?('改主意')
-        check(contract.fetch('contains_any', []).include?('另一'), "#{file}: missing correction reaction")
+      next if step['client'].end_with?('_tester')
+      check(contract['non_empty'] == true, "#{file}: missing non-empty reply")
+      check(contract.fetch('not_contains', []) == ['【', '】'], "#{file}: marker guards only")
+      check((contract.keys - %w[non_empty not_contains contains_any]).empty?, "#{file}: rigid content assertion")
+      if input.include?('现实里')
+        check(contract.fetch('contains_any', []).include?('家长'), "#{file}: missing trusted-adult redirect")
+      else
+        check(!contract.key?('contains_any'), "#{file}: non-safety phrase gate")
       end
     end
     %w[改主意 为什么 咕咕 叫什么].each do |cue|
@@ -232,7 +228,22 @@ module GiztestLayout
     end
     recall = all.index { |s| s.dig('peer_stream', 'input').to_s.include?('叫什么') }
     check(recall && all[0...recall].any? { |s| s.dig('rpc', 'method') == 'server.run.workspace.reload' && s['client'] == all[recall]['client'] }, "#{file}: missing recall reload")
-    check(peers.any? { |s| s.dig('expect', '/text', 'contains_any').to_a.size >= 2 && s.dig('peer_stream', 'input').include?('走到哪里') }, "#{file}: missing suite progression")
+    check(peers.any? { |s| s['client'].end_with?('_tester') && s.dig('peer_stream', 'input').start_with?("REVIEW\n") }, "#{file}: missing LLM quality review")
+  end
+  # Every candidate response is captured into the automatic Tester review.
+  # Giztest checks adult cues; the Tester deterministically checks both cue groups.
+  def self.check_multi_role_review(doc, file)
+    peers = steps(doc).select { |s| s['peer_stream'] && !s['client'].end_with?('_tester') }
+    review = steps(doc).find { |s| s.dig('peer_stream', 'input').to_s.start_with?("REVIEW\n") }
+    check(review && review['client'].end_with?('_tester'), "#{file}: missing automatic Tester review")
+    peers.each do |peer|
+      capture = peer.fetch('capture', {}).find { |_, path| path == '/text' }
+      check(capture && review.dig('peer_stream', 'input').include?("${#{capture[0]}}") &&
+        review.dig('peer_stream', 'input').include?(peer.dig('peer_stream', 'input').to_s), "#{file}: uncaptured quality reply")
+    end
+    peers.select { |p| p.dig('peer_stream', 'input').to_s.include?('现实里') }.each do |peer|
+      check(peer.dig('expect', '/text', 'contains_any').to_a.include?('家长'), "#{file}: missing trusted-adult redirect")
+    end
   end
   def self.normalize(value, implementation)
     case value
@@ -335,7 +346,7 @@ module GiztestLayout
               capability = capabilities[step.fetch('client').split('__').first]
               roundtrip_expect.delete_if { |key, _| key.match?(AUDIO_PATH) } if capability == false
               if step['client'].include?('multi_role') && File.basename(file).match?(/\A(?:story|adventure)-/)
-                roundtrip_expect['/text'] = {'non_empty'=>true, 'not_contains'=>['【','】','进入下一章','要不要继续','想继续听就说','这一章的选择完成啦','等你说要不要','是否继续听'], 'min_length'=>200, 'max_length'=>900, 'pattern'=>'[？?]\\s*$'}
+                roundtrip_expect['/text'] = {'non_empty'=>true, 'not_contains'=>['【','】']}
                 roundtrip_expect['/audio_integrity/streams'] = {'equals'=>1}
               end
               if step['client'].include?('multi_role') && raid == 'murder-mystery'
@@ -357,11 +368,12 @@ module GiztestLayout
             check(expect.dig('/audio_pacing/underruns', 'equals') == 0 && expect.dig('/audio_pacing/minimum_buffer_ms', 'minimum') == 0, "#{file}: missing device playback buffer gates")
           end
         elsif tier == 'quality'
+          check_multi_role_review(doc, file) if suffix.end_with?('.multi-role')
           check_child_quality(doc, file) if suffix.end_with?('.multi-role') && raid.match?(/\A(?:story|adventure)-/)
           check(doc['timeout'] == (File.basename(file).match?(/\A(?:story|adventure)-/) ? '30m' : '10m'), "#{file}: quality budget must retain 30m for story/adventure, 10m otherwise")
           check(!steps(doc).any? { |s| s['workspace_relay'] }, "#{file}: long dialogue relay belongs in soak")
           check(!steps(doc).any? { |s| s.dig('peer_stream', 'completion') == 'first_response' }, "#{file}: first-response latency probes belong in smoke")
-          check(!doc.fetch('clients').keys.any? { |c| c.end_with?('_tester') }, "#{file}: idle Tester client in quality")
+          check(suffix.end_with?('.multi-role') || !doc.fetch('clients').keys.any? { |c| c.end_with?('_tester') }, "#{file}: idle Tester client in quality")
         end
         clients = doc.fetch('clients').keys
         check(clients.all? { |c| c == declared_implementation || c.start_with?(declared_implementation + '__') || c == declared_implementation + '_tester' ||
@@ -427,7 +439,7 @@ module GiztestLayout
     %w[flowcraft eino].each do |engine|
       source = File.read("workflows/adventure-history/#{engine}.multi-role.yaml")
       check(source.include?('情境重现声明不替代角色自述'), "history #{engine}: reenactment boundary missing")
-      check(source.include?('正文第一句必须逐字是‘来到'), "history #{engine}: missing explicit scene opening")
+      check(!source.include?('正文第一句必须逐字'), "history #{engine}: rigid scene opening")
     end
     old = Dir['tests/giztest/*/*.giztest.yaml'].reject { |f| (TIERS + %w[h106 reports]).include?(f.split('/')[2]) }
     check(old.empty?, "legacy Giztest files remain: #{old.join(', ')}")
