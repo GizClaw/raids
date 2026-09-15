@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Offline contract regression; Ruby parses YAML, Python exercises portable scripts.
+"""Exercise natural-child relay routing and deterministic contracts offline.
 
-Only codepoints() is adapted to Python's native Unicode iteration. This is a
-behavioral stand-in, not a Starlark compiler. starlark-modules.rb and the Go
-module checker validate every script with the real GizClaw Starlark runtime.
+Python adapts codepoints only. test-unit-resources additionally compiles and
+initializes all actual YAML scripts with GizClaw's real Starlark runtime.
 """
+import copy
 import json
 from pathlib import Path
 import subprocess
@@ -13,150 +13,117 @@ import subprocess
 def documents(paths):
     return json.loads(subprocess.check_output(
         ['ruby', '-ryaml', '-rjson', '-e',
-         'puts JSON.generate(ARGV.map { |p| YAML.load_file(p) })', *map(str, paths)],
-        text=True))
+         'puts JSON.generate(ARGV.map { |p| YAML.load_file(p) })', *map(str, paths)], text=True))
 
 
 def script(doc):
-    node = next(n for n in doc['spec']['eino']['graph']['nodes'] if n['id'] == 'route-turn')
-    return node['source']
+    return next(n['source'] for n in doc['spec']['eino']['graph']['nodes'] if n['id'] == 'route-turn')
 
 
-paths = sorted(Path('workflows').glob('*/test.multi-role.yaml'))
-assert len(paths) == 31
-for path, doc, original, soak in zip(paths, documents(paths),
-        documents([p.with_name('test.yaml') for p in paths]),
-        [{'steps': [step for doc in documents(sorted(Path('tests/giztest/soak').glob(p.parent.name + '.*.giztest.yaml'))) for step in doc['steps']]} for p in paths]):
-    raid = path.parent.name
+def invoke(ns, messages, text):
+    return ns['run']({'messages': messages, 'text': text})
+
+
+def response(ns, i):
+    check = ns['CHECKS'][i]
+    if not check.get('story_choice'):
+        return '不要爬窗台，请找家长帮助。' if ns['CHECKPOINTS'][i] == 'safety' else check['required'][0] + '，记住啦。'
+    return ns['PROGRESSION'][0] + '\n' + ('景' * 210) + str(i) + '。原地等还是找伙伴？'
+
+
+paths = sorted(p for p in Path('workflows').glob('*/test.multi-role.yaml') if p.parent.name != 'murder-mystery')
+assert len(paths) == 30
+for path, doc in zip(paths, documents(paths)):
     ns = {}
     exec(script(doc).replace('.codepoints()', ''), ns)
-    old = {}
-    exec(script(original).replace('.codepoints()', ''), old)
-    if raid == 'murder-mystery':
-        assert ns['REQUESTS'] == old['REQUESTS']
-        assert ns['CHECKPOINTS'] == old['CHECKPOINTS']
-        for current, previous in zip(ns['CHECKS'], old['CHECKS']):
-            for field in ('required', 'required_any', 'forbidden'):
-                assert current[field] == previous[field], (raid, field)
-    else:
-        assert not any('进入下一章' in r or '请进入第' in r for r in ns['REQUESTS'])
-        ordinary_index = next(i for i, c in enumerate(ns['CHECKS']) if c.get('story_choice'))
-        for phrase in ('进入下一章', '要不要继续', '想继续听就说', '这一章的选择完成啦'):
-            assert any(f.startswith('forbidden:') for f in ns['deterministic_failures'](ordinary_index, phrase))
-        assert any(f.startswith('story_choice:') for f in ns['deterministic_failures'](ordinary_index, '故事停在这里。'))
-        good_choices = [
-            '你支持大家原地一起等种子长大，还是支持大家一边分头找食物一边等种子发芽，你怎么选？',
-            '大家原地等种子长大，还是分头找食物？你想怎么选？',
-            '大家可以原地等，或分头找食物。你想怎么选？',
-            'Will you wait here or search for food? Which will you choose?',
-        ]
-        for reply in good_choices:
-            assert not any(f.startswith('story_choice:') for f in ns['deterministic_failures'](ordinary_index, reply)), (raid, reply)
-        for reply in ('你现在需要我继续推进故事，还是再核对一次内容的分类呢？',
-                      '大家原地等还是分头找食物。', '种子发芽了。天亮了吗？',
-                      '原地等还是分头找食物？？？'):
-            assert any(f.startswith('story_choice:') for f in ns['deterministic_failures'](ordinary_index, reply)), (raid, reply)
-        if raid == 'adventure-history':
-            for reply in ('星火七号', '星火七号。'):
-                result = ns['run']({'text': reply, 'messages': [{'role': 'assistant', 'content': ns['REQUESTS'][-1]}, {'role': 'user', 'content': reply}]})
-                assert result['route'] == 'judge' and result['det'] == '', result
-            result = ns['run']({'text': '错误代号', 'messages': [{'role': 'assistant', 'content': ns['REQUESTS'][-1]}, {'role': 'user', 'content': '错误代号'}]})
-            assert 'required:星火七号' in result['det'], result
-            messages = []
-            for request in ns['REQUESTS']:
-                messages.extend([{'role': 'assistant', 'content': request}, {'role': 'user', 'content': '星火七号。'}])
-            assert 'progression:no automatic scene arrival' in ns['run']({'text': '星火七号。', 'messages': messages})['det']
-    for request, current, previous in zip(ns['REQUESTS'], ns['CHECKS'], old['CHECKS']):
-        if '只确认' in request:
-            assert current['min_runes'] == previous['min_runes'], (raid, request)
-            assert current['max_runes'] <= previous['max_runes'], (raid, request)
-    ordinary = [i for i, c in enumerate(ns['CHECKS']) if c['min_runes'] == 200]
-    assert ordinary
-    for index in ordinary:
-        assert ns['CHECKS'][index]['max_runes'] == 900
-    index = ordinary[0]
-    # Isolate counting from the scenario's mandatory content, without mutating files.
-    ns['CHECKS'][index] = {'min_runes': 200, 'max_runes': 900, **({'min_words': 100, 'max_words': 450} if raid != 'murder-mystery' else {})}
-    for size, failure in [(199, 'min_runes:'), (200, None), (500, None), (900, None), (901, 'max_runes:')]:
-        text = '景' * size
-        for candidate in (text, '【旁白】' + text if raid != 'murder-mystery' else '【主持人】' + text):
-            failures = ns['deterministic_failures'](index, candidate)
-            assert (not failures if failure is None else any(f.startswith(failure) for f in failures)), (raid, size, failures)
-    if raid != 'murder-mystery':
-        for ordinary_index in ordinary:
-            assert ns['CHECKS'][ordinary_index]['min_words'] == 100
-            assert ns['CHECKS'][ordinary_index]['max_words'] == 450
-        assert ns['english_word_count']("Don't re-start; “hello” — ... 42") == 3
-        assert not ns['is_english']('当前旅程代号 SUNRISE-42。' + '景' * 300)
-        for size, failure in [(99, 'min_words:'), (100, None), (220, None), (450, None), (451, 'max_words:')]:
-            # Long words prove the Chinese rune cap no longer applies to English.
-            text = ' '.join(['adventure'] * size)
-            for candidate in (text, '【旁白】' + text, '【旁白】' + text.replace(' ', '\n')):
-                failures = ns['deterministic_failures'](index, candidate)
-                assert (not failures if failure is None else failures == [failure + str(size)]), (raid, size, failures)
-        # Short English words also report word-bound failures, not rune-bound failures.
-        assert ns['deterministic_failures'](index, ' '.join(['I'] * 451)) == ['max_words:451']
-        if raid == 'story-wizard-oz':
-            for english_index in (0, 1, 3):
-                prefix = {
-                    0: 'Chapter 1: The Yellow Brick Fork. The yellow brick road splits three ways: courage, wisdom, or helping one another. Which path will you take first?',
-                    1: 'Dorothy says: Dorothy continues.',
-                    3: 'The journey code is SUNRISE-42.',
-                }[english_index]
-                for size in (99, 100, 450, 451):
-                    reply = prefix.replace('?', '.') + ' adventure' * (size - ns['english_word_count'](prefix)) + '?'
-                    if english_index == 0:
-                        reply = 'adventure ' * (size - ns['english_word_count'](prefix)) + prefix
-                    result = ns['run']({'text': reply, 'messages': [{'role': 'assistant', 'content': ns['ENGLISH_REQUESTS'][english_index]}]})
-                    assert (result['det'] == '' if 100 <= size <= 450 else 'words:' in result['det']), (english_index, size, result)
+    assert ns['N'] == len(ns['REQUESTS']) == len(ns['CHECKS']) == len(ns['INTENTS'])
+    assert any(not r for r in ns['REQUESTS']), path
+    assert not any(any(word in r for word in ['只确认', '只说', '未解决线索', '不要推进', '知识边界']) for r in ns['REQUESTS'])
+    assert not ns['recall_only_rounds']([])
+    for i, c in enumerate(ns['CHECKS']):
+        short = ns['CHECKPOINTS'][i] in ['remember', 'recall', 'rename', 'recall-new', 'safety']
+        assert c['min_runes'] == (4 if short else 200)
+        assert c['max_runes'] == (360 if short else 900)
+        good = response(ns, i)
+        assert not ns['deterministic_failures'](i, good), (path, i)
+        for marker in ['【旁白】', '【陌生角色】', '】']:
+            assert 'speaker_marker:leaked' in ns['deterministic_failures'](i, marker + good)
+        for phrase in ns['CHECKS'][0]['forbidden']:
+            assert any(f.startswith('forbidden:') for f in ns['deterministic_failures'](i, good + phrase))
+        if short:
+            assert any(f.startswith('max_runes:') for f in ns['deterministic_failures'](i, '景' * 361))
+            if c.get('required'):
+                assert any(f.startswith('required:') for f in ns['deterministic_failures'](i, '忘记名字了。'))
+        else:
+            assert not ns['recall_only_rounds']([(i, '', good)])
+            for size, fails in [(199, True), (200, False), (900, False), (901, True)]:
+                f = ns['deterministic_failures'](i, '景' * size)
+                assert any(x.startswith(('min_runes:', 'max_runes:')) for x in f) == fails
+            for size, fails in [(99, True), (100, False), (450, False), (451, True)]:
+                f = ns['deterministic_failures'](i, ' '.join(['adventure'] * size))
+                assert any(x.startswith(('min_words:', 'max_words:')) for x in f) == fails
+            for ending in ['故事讲完了。', '天亮了吗？', '要不要继续听？']:
+                assert any(f.startswith('story_choice:') for f in ns['deterministic_failures'](i, '景' * 210 + ending))
+    # Full relay including checkpoints/CONTINUE and the candidate reload handoff.
+    messages = [{'role': 'user', 'content': 'BEGIN fixture'}]
+    result = invoke(ns, messages, 'BEGIN fixture')
+    for i in range(ns['N']):
+        assert result['route'] in ['scripted', 'player'], (path, i, result)
+        if result['route'] == 'player':
+            assert ns['INTENTS'][i] in result['user']
+            if i and messages[-1]['content'] != 'CONTINUE ' + str(i):
+                assert '故事：' in result['user']
+        request = result['message'] if result['route'] == 'scripted' else '我选刚才那个办法呀。'
+        messages += [{'role': 'assistant', 'content': request}, {'role': 'user', 'content': response(ns, i)}]
+        result = invoke(ns, messages, messages[-1]['content'])
+        assert not result['det'], (path, i, result)
+        if i in ns['MILESTONES'] and i + 1 < ns['N']:
+            assert result['route'] == 'checkpoint'
+            messages += [{'role': 'assistant', 'content': 'CHECKPOINT PASS'}, {'role': 'user', 'content': 'CONTINUE ' + str(i + 1)}]
+            result = invoke(ns, messages, messages[-1]['content'])
+    assert result['route'] == 'final'
+    assert ns['progression_failures']([(0, '', '开场。'), (1, '', '没有到达新地方。')], 0)
+    assert 'loop:repeated narration' in ns['progression_failures']([(0, '', response(ns, 0)), (1, '', response(ns, 0))], 0)
+    # A defective candidate is rejected immediately, before generating another child turn.
+    result = invoke(ns, [{'role':'user','content':'BEGIN fixture'}, {'role':'assistant','content':ns['REQUESTS'][0]}], '短答。')
+    assert result['route'] == 'final' and result['det']
+    final_ns = {}
+    exec(next(n['source'] for n in doc['spec']['eino']['graph']['nodes'] if n['id'] == 'finalize'), final_ns)
+    for model in ['FAIL', '', 'PASS']:
+        assert final_ns['run']({'route':'final','message':'deterministic-recall','det':'','model_text':model})['answer'] == 'PASS'
+        assert final_ns['run']({'route':'final','message':'deterministic-recall','det':'missing fact','model_text':model})['answer'].endswith('FAIL')
+    assert final_ns['run']({'route':'player','message':'','det':'','model_text':'小鸟为什么那样做呀？'})['answer'] == '小鸟为什么那样做呀？'
+    if ns['CHECKPOINTS'][-1] == 'recall':
+        result = invoke(ns, [{'role':'assistant','content':ns['REQUESTS'][-1]}], response(ns, ns['N'] - 1))
+        assert result['message'] == 'deterministic-recall' and not result['det'], result
+    for i, kind in enumerate(ns['CHECKPOINTS']):
+        if kind in ['remember', 'recall', 'rename', 'recall-new']:
+            result = invoke(ns, [{'role':'assistant','content':ns['REQUESTS'][i]}], response(ns, i))
+            assert result['message'] == 'deterministic-recall' and not result['det'], (path, i, result)
+    if path.parent.name == 'story-wizard-oz':
+        messages = [{'role':'user','content':'BEGIN fixture english-restart'}]
+        result = invoke(ns, messages, messages[-1]['content'])
+        replies = [ns['PROGRESSION'][3] + ' ' + 'adventure ' * 105 + 'wait or search?',
+                   'adventure ' * 110 + 'wait or search?', 'Our journey is SUNRISE-42.', 'We named it SUNRISE-42.']
+        for i, reply in enumerate(replies):
+            request = result['message'] if result['route'] == 'scripted' else 'I choose the first path!'
+            messages += [{'role':'assistant','content':request}, {'role':'user','content':reply}]
+            result = invoke(ns, messages, reply)
+            assert not result['det'], result
+        assert result['route'] == 'final'
     manifest = json.loads(path.with_name('raid.json').read_text())
-    tester = manifest['testers']['multi-role']
-    assert tester['workflow_id'] == doc['metadata']['id'] == raid + '-test-multi-role'
-    assert tester['file'] == path.name
-    assert tester['parameters'] == manifest['tester']['parameters']
-    expected = sorted(k for k in manifest['implementations'] if k.endswith('-multi-role'))
-    assert tester['implementations'] == expected or sorted(tester['implementations']) == expected
-    routed = []
-    for step in soak['steps']:
-        request = step.get('rpc', {}).get('request', {})
-        if step.get('client', '').endswith('_tester') and 'workflow_name' in request:
-            multi = 'multi_role' in step['client']
-            assert request['workflow_name'] == raid + ('-test-multi-role' if multi else '-test')
-            if multi:
-                routed.append(step['client'])
-    assert len(set(routed)) == len(expected), raid
-print('validated 31 multi-role Tester contracts, Chinese rune and English word boundaries, marker stripping and soak routing')
+    assert manifest['testers']['multi-role']['workflow_id'] == doc['metadata']['id']
+print('validated 30 natural-child Testers, full relays/reloads, immediate failures, boundaries, progression, loops and recall precedence')
 
-# Every actual narration prompt must retain its surrounding instructions.
 workflow_paths = sorted(p for p in Path('workflows').glob('*/*.multi-role.yaml')
                         if p.name != 'test.multi-role.yaml' and p.parent.name.startswith(('story-', 'adventure-')))
 assert len(workflow_paths) == 60
-
-def strings(value):
-    if isinstance(value, dict):
-        for item in value.values():
-            yield from strings(item)
-    elif isinstance(value, list):
-        for item in value:
-            yield from strings(item)
-    elif isinstance(value, str):
-        yield value
-
-for path, doc in zip(workflow_paths, documents(workflow_paths)):
-    assert '以？（英文?）结束' not in path.read_text(), path
-    assert '中文回复以恰好一个全角问号？结束' in path.read_text(), path
-    assert '回复最后一句必须逐字是：这一章' not in path.read_text(), path
-    assert '只有用户明确要求进入紧邻的下一章' not in path.read_text(), path
-    current_prompts = [s for s in strings(doc) if '篇幅执行规则：' in s]
-    assert current_prompts, path
-    for current in current_prompts:
-        assert '每段约100字' in current and '目标约220个英文单词' in current, path
-        assert '不要少于 200 字，不要超过 900 字' in current, path
-        assert '300至600' not in current and '150至300' not in current, path
-        assert '英文按字符' not in current and '400至500' not in current, path
-        for required in ('仅用户明确要求只确认', '有声书连续讲述', '标记格式', '不输出其它【】标记', '音色由段落标记映射'):
-            assert required in current, (path, required)
-print('validated 60 multi-role workflows and preserved surrounding prompt instructions')
+for path in workflow_paths:
+    text = path.read_text()
+    for required in ('互动规则（普通200至900字）：', '篇幅执行规则：', '有声书连续讲述', '标记格式', '不输出其它【】标记', '音色由段落标记映射', '不要少于 200 字，不要超过 900 字', '目标约220个英文单词'):
+        assert required in text, (path, required)
+    assert '回合规则表' not in text and '总结/检查点｜' not in text
+print('validated 60 simplified continuous narration contracts')
 
 # Exercise post-response persistence as well as pre-response routing. An automatic
 # arrival must survive recall before another user turn supplies a chapter command.

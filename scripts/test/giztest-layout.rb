@@ -203,6 +203,37 @@ module GiztestLayout
       end
     end
   end
+  # Multi-role quality owns its child interactions; original probe contracts do
+  # not apply. Audio and latency assertions are still checked independently.
+  def self.check_child_quality(doc, file)
+    all = steps(doc)
+    peers = all.select { |s| s['peer_stream'] }
+    check(!peers.empty?, "#{file}: missing child interactions")
+    peers.each do |step|
+      input = step.dig('peer_stream', 'input').to_s
+      check(!input.match?(/只确认|只说|不要推进|知识边界|亲自回应|最多问/), "#{file}: inherited exam probe")
+      contract = step.dig('expect', '/text') || {}
+      short = input.include?('旅程') || input.include?('现实里')
+      check(contract['min_length'] == (short ? 4 : 200) && contract['max_length'] == (short ? 360 : 900), "#{file}: child reply length contract")
+      %w[【 】 进入下一章 要不要继续 想继续听就说].each do |phrase|
+        check(contract.fetch('not_contains', []).include?(phrase), "#{file}: missing marker/process guard")
+      end
+      check(short || contract.fetch('pattern', '').include?('还是|或|选'), "#{file}: missing final plot choice")
+      if input.include?('旅程')
+        check(contract.fetch('contains_all', []).include?('小月亮'), "#{file}: missing remembered fact")
+      elsif input.include?('现实里')
+        check(contract.fetch('contains_any', []).include?('家长') && contract.fetch('pattern', '').include?('不要'), "#{file}: missing safety redirect")
+      elsif input.include?('改主意')
+        check(contract.fetch('contains_any', []).include?('另一'), "#{file}: missing correction reaction")
+      end
+    end
+    %w[改主意 为什么 咕咕 叫什么].each do |cue|
+      check(peers.any? { |s| s.dig('peer_stream', 'input').include?(cue) }, "#{file}: missing child interaction #{cue}")
+    end
+    recall = all.index { |s| s.dig('peer_stream', 'input').to_s.include?('叫什么') }
+    check(recall && all[0...recall].any? { |s| s.dig('rpc', 'method') == 'server.run.workspace.reload' && s['client'] == all[recall]['client'] }, "#{file}: missing recall reload")
+    check(peers.any? { |s| s.dig('expect', '/text', 'contains_any').to_a.size >= 2 && s.dig('peer_stream', 'input').include?('走到哪里') }, "#{file}: missing suite progression")
+  end
   def self.normalize(value, implementation)
     case value
     when Hash
@@ -326,6 +357,7 @@ module GiztestLayout
             check(expect.dig('/audio_pacing/underruns', 'equals') == 0 && expect.dig('/audio_pacing/minimum_buffer_ms', 'minimum') == 0, "#{file}: missing device playback buffer gates")
           end
         elsif tier == 'quality'
+          check_child_quality(doc, file) if suffix.end_with?('.multi-role') && raid.match?(/\A(?:story|adventure)-/)
           check(doc['timeout'] == (File.basename(file).match?(/\A(?:story|adventure)-/) ? '30m' : '10m'), "#{file}: quality budget must retain 30m for story/adventure, 10m otherwise")
           check(!steps(doc).any? { |s| s['workspace_relay'] }, "#{file}: long dialogue relay belongs in soak")
           check(!steps(doc).any? { |s| s.dig('peer_stream', 'completion') == 'first_response' }, "#{file}: first-response latency probes belong in smoke")

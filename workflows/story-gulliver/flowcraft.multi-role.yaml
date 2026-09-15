@@ -108,7 +108,7 @@ spec:
             const lastChoiceDenial = choiceDenialCues.reduce((max, cue) => Math.max(max, lower.lastIndexOf(cue)), -1);
             const hasPositiveChoice = lastPositiveChoice >= 0;
             const choiceDenied = lastChoiceDenial >= 0 && lastChoiceDenial > lastPositiveChoice;
-            const naturalChoiceBlocked = ["请", "不要", "别", "不知道", "随便", "你决定", "再说", "继续", "等等", "等一下", "只确认", "旅程代号", "代号", "更正", "作废", "重连", "回忆", "记住", "事实", "传说", "原创设定", "总结", "说明当前章节", "just continue", "you decide", "not sure", "reconnect", "recall", "remember", "correct"].some((cue) => lower.includes(cue)) || /[？?]/.test(current);
+            const naturalChoiceBlocked = ["请", "不要", "别", "不知道", "随便", "你决定", "再说", "继续", "等等", "等一下", "只确认", "旅程", "旅程代号", "代号", "更正", "作废", "重连", "回忆", "记住", "事实", "传说", "原创设定", "总结", "说明当前章节", "just continue", "you decide", "not sure", "reconnect", "recall", "remember", "correct"].some((cue) => lower.includes(cue)) || /[？?]/.test(current);
             const fillerOnly = ["好", "好的", "好吧", "可以", "行", "嗯", "哦", "知道了", "明白", "ok", "okay", "yes", "sure"].includes(lower.replace(/[。！!,.，]/g, ""));
             const naturalShortChoice = current.length > 0 && current.length <= 32 && !transitionIntent && !naturalChoiceBlocked && !fillerOnly;
             const choiceMadeNow = !choiceDenied && (hasPositiveChoice || naturalShortChoice);
@@ -127,7 +127,7 @@ spec:
             }
             const asksBlockedExplanation = ["为什么还不能", "为何不能", "说明为什么", "why can't", "why cannot", "why not ready"].some((cue) => lower.includes(cue));
             const transitionBlocked = transitionTarget > 0 && transitionTarget !== currentChapter && !transition && ((transitionIntent && !transitionDenied) || asksBlockedExplanation);
-            const administrativeTurn = ["旅程代号", "更正", "改成", "纠正", "修正", "作废", "重连", "回忆", "事实", "传说", "原创设定", "总结", "说明当前章节"].some((cue) => current.includes(cue)) || current.includes("不要推进") || current.includes("不推进章节") || current.includes("只确认") || /\b(correct|correction|reconnect|recall)\b/i.test(current);
+            const administrativeTurn = ["旅程", "旅程代号", "更正", "改成", "纠正", "修正", "作废", "重连", "回忆", "事实", "传说", "原创设定", "总结", "说明当前章节"].some((cue) => current.includes(cue)) || current.includes("不要推进") || current.includes("不推进章节") || current.includes("只确认") || /\b(correct|correction|reconnect|recall)\b/i.test(current);
             const requestsOutcome = ["直接结果", "直接后果", "具体后果", "眼前结果", "新局面", "新线索", "推进一个场景", "推进当前章"].some((cue) => current.includes(cue));
             const requestsPerspective = ["亲自回应", "不同立场", "不同回应", "比较两名角色"].some((cue) => current.includes(cue));
             const safetyOnly = current.includes("现实中模仿") && !requestsOutcome;
@@ -232,13 +232,13 @@ spec:
           system_prompt: |-
             ${board.story_bible}
             当前权威状态：${board.story_state_text}
-            安全请求=${board.safety_request}：为true须逐字说“不要模仿”“找家长、老师或可信任成年人帮助”，讲安全替代的直接结果，不提问。
+            安全请求=${board.safety_request}：为true须制止危险模仿，给安全替代，请孩子找家长、老师或可信任成年人帮助，简短回应。
             announce_chapter 或自然转场时，【旁白】后首行只写一次精确“第 N 章：标题”（数字两侧空格），同轮续新地点、在场人、事件与交替对白，不能只有标题。
             ${board.opening_instruction}
             若用户只要求回忆或确认旅程代号，只回答当前代号；存在更正时绝不输出旧值。
             ${board.next_chapter_instruction}
 
-            回合规则表（普通200至900字；本轮分类）：续讲/改选｜普通；旁白线索钩子｜普通，展开悬念与角色反应；角色追问/亲自回应/裸角色名/否定点名｜普通，被点名者在场景中长篇发言，旁白和在场角色接续，禁单句台词；事实边界｜普通，多声部解释当前事实/传说/原创，不添剧情；总结/检查点｜多声部回顾已知情节与悬念，不添剧情，中文120至900字符、英文60至450词，目标仍500字。以上均连续多声部叙述，末尾【旁白】恰好一个故事内选择（2至3个具体行动），禁知识问答收尾；短句风格不缩短整轮。特殊优先：否定/拒选/不推进（含 do not choose/advance）｜按原短上限确认“选择尚未作出”，禁执行/转场/标题/口令，原选择收尾，优先于只确认不提问；仅用户明确要求只确认、回忆、更正或制止且不要求续讲｜短契约不提问；安全｜原安全契约优先。续讲恢复普通要求。篇幅执行规则：去角色标记后，中文Unicode计数含标点空白，目标500字、5段每段约100字；不要少于 200 字，不要超过 900 字。英文100至450词，目标约220个英文单词、5段各44词，无中文上限。依次行动、两种回应、结果、选择。勿重复/虚构凑数或输出分析计数。
+            互动规则（普通200至900字）：承接孩子的选择；改选以最新意愿为准，不执行已否定的选择。追问、角色对话、插话和重听自然融入连续叙述，重听只重述所指片段后接回当前故事，不重开。普通回复末尾由旁白给一个故事内选择。记名确认与回忆可用4至360字符简答，记住最新旅程名字，不必提问或推进；安全优先制止危险模仿，说明安全替代并请孩子找家长、老师或可信任成年人帮助，4至360字符，不必提问。篇幅执行规则：去角色标记后，中文Unicode计数含标点空白，目标500字、5段每段约100字；不要少于 200 字，不要超过 900 字。英文100至450词，目标约220个英文单词、5段各44词，无中文上限。依次行动、两种回应、结果、选择。勿重复/虚构凑数或输出分析计数。
             有声书连续讲述：旁白叙述与角色第一人称台词分段，与2至4位在场角色交替；单角色不添人。只知亲历/公开信息。插话接续，点名仅增台词不换场/整轮。
             标记格式：每段选一个【旁白】、【格列佛】、【当地向导】、【国王】、【葛兰达克利赤】后接正文，不输出其它【】标记或英文key；可再次发声，标题属旁白。
             音色由段落标记映射；仅朗读正文，禁Markdown/列表/emoji/舞台说明/系统字段/分析。

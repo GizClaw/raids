@@ -122,7 +122,7 @@ spec:
                   option = option.replace(mark, "")
               option_only = any([option in aliases for _, aliases in roles])
               opening = not current or (not any([m["role"] == "assistant" for m in history]) and (contains_any(current, ["第一章", "第 1 章"]) or (contains_any(current, ["start", "begin", "restart"]) and contains_any(current, ["chapter 1", "first chapter"]))))
-              management = contains_any(current, ["旅程代号", "更正", "改成", "纠正", "修正", "作废", "重连", "回忆", "事实", "传说", "原创设定", "总结", "说明当前章节", "不要推进", "不推进章节", "只确认", "correct", "correction", "reconnect", "recall", "现实中模仿", "现实模仿"])
+              management = contains_any(current, ["旅程", "旅程代号", "更正", "改成", "纠正", "修正", "作废", "重连", "回忆", "事实", "传说", "原创设定", "总结", "说明当前章节", "不要推进", "不推进章节", "只确认", "correct", "correction", "reconnect", "recall", "现实中模仿", "现实模仿"])
               target = 0
               for number, chinese in [(2, "二"), (3, "三"), (4, "四")]:
                   if contains_any(current, ["第" + chinese + "章", "第" + str(number) + "章", "第 " + str(number) + " 章"]):
@@ -144,10 +144,8 @@ spec:
               # Content obligations follow voice style so role brevity cannot suppress them.
               safety_request = any([cue in current for cue in ["现实", "模仿", "照做", "安全", "危险", "受伤", "喝生水", "吃野果", "爬高墙", "关闭生命保障", "直视太阳", "尝陌生植物", "danger", "safety", "imitate"]])
               turn_contract = ""
-              if "未解决" in current:
-                  turn_contract = "本轮明确要求保留未解决线索：说出一项具体仍未解决的问题，并明确使用‘未解决’一词，不得只含糊说还在纠结。"
               if safety_request:
-                  turn_contract = "本轮是安全请求，优先于角色风格和章节推进：逐字说‘不要模仿’‘找家长、老师或可信任成年人帮助’，说明危险及安全替代直接结果，不提问/转场。"
+                  turn_contract = "本轮是安全请求，优先于角色风格和章节推进：制止危险模仿，给安全替代，并请孩子找家长、老师或可信任成年人帮助，简短回应。"
               choice_positive = ["我选择", "我选", "我决定", "我支持", "我愿意", "我要走", "我会走", "我来帮助", "我跟随", "走需要", "i choose", "my choice is", "i decide", "i support", "i’ll take", "i'll take", "i will take", "i’ll follow", "i'll follow", "i will follow", "let's take", "let's follow"]
               choice_denial = ["不选择", "不选", "没选择", "没有选择", "尚未选择", "还没选择", "还没有选择", "不决定", "没决定", "没有决定", "尚未决定", "还没决定", "还未决定", "还没有决定", "不支持", "不想选", "do not choose", "don't choose", "did not choose", "didn't choose", "have not chosen", "haven't chosen", "has not chosen", "hasn't chosen", "will not choose", "won't choose", "not choose", "not to choose", "no choice", "do not decide", "don't decide", "did not decide", "didn't decide", "have not decided", "haven't decided", "will not decide", "won't decide", "not decided", "not to decide", "undecided", "do not support", "don't support", "not support"]
               last_positive = max([current.rfind(cue) for cue in choice_positive])
@@ -191,14 +189,14 @@ spec:
             连续有声书规则：普通轮讲选择后果，目标达成同一回复自然进入紧邻下一章/场景并开场，无需许可。末尾【旁白】问一次，给2至3个具体安全行动/地点/解法。中文回复以恰好一个全角问号？结束；英文用?，禁双问号/尾文。禁“进入下一章”“要不要继续”“想继续听就说”“这一章的选择完成啦”等流程口令；主动转场可承接，特殊轮优先。第4章不增章，以未兑现责任给选择。
             不重置/重播开头、上一轮或总结，不仅问“你想怎么做”。
             代号仅用用户最新值，更正覆盖旧值，不预告或杜撰。
-            区分事实/传说/原创，不复制完整出版译文；儿童危险非血腥。现实模仿逐字说“不要模仿”“找家长、老师或可信任成年人帮助”。
+            区分事实/传说/原创，不复制完整出版译文；儿童危险非血腥。现实危险模仿须制止，并建议找家长、老师或可信任成年人帮助。
             默认中文，可按要求用英文。
 
             本轮章/角色/约束：{narration_context}
 
             记忆（更正优先）：
             {memory}
-            回合规则表（普通200至900字；本轮分类）：续讲/改选｜普通；旁白线索钩子｜普通，展开悬念与角色反应；角色追问/亲自回应/裸角色名/否定点名｜普通，被点名者在场景中长篇发言，旁白和在场角色接续，禁单句台词；事实边界｜普通，多声部解释当前事实/传说/原创，不添剧情；总结/检查点｜多声部回顾已知情节与悬念，不添剧情，中文120至900字符、英文60至450词，目标仍500字。以上均连续多声部叙述，末尾【旁白】恰好一个故事内选择（2至3个具体行动），禁知识问答收尾；短句风格不缩短整轮。特殊优先：否定/拒选/不推进（含 do not choose/advance）｜按原短上限确认“选择尚未作出”，禁执行/转场/标题/口令，原选择收尾，优先于只确认不提问；仅用户明确要求只确认、回忆、更正或制止且不要求续讲｜短契约不提问；安全｜原安全契约优先。续讲恢复普通要求。篇幅执行规则：去角色标记后，中文Unicode计数含标点空白，目标500字、5段每段约100字；不要少于 200 字，不要超过 900 字。英文100至450词，目标约220个英文单词、5段各44词，无中文上限。依次行动、两种回应、结果、选择。勿重复/虚构凑数或输出分析计数。
+            互动规则（普通200至900字）：承接孩子的选择；改选以最新意愿为准，不执行已否定的选择。追问、角色对话、插话和重听自然融入连续叙述，重听只重述所指片段后接回当前故事，不重开。普通回复末尾由旁白给一个故事内选择。记名确认与回忆可用4至360字符简答，记住最新旅程名字，不必提问或推进；安全优先制止危险模仿，说明安全替代并请孩子找家长、老师或可信任成年人帮助，4至360字符，不必提问。篇幅执行规则：去角色标记后，中文Unicode计数含标点空白，目标500字、5段每段约100字；不要少于 200 字，不要超过 900 字。英文100至450词，目标约220个英文单词、5段各44词，无中文上限。依次行动、两种回应、结果、选择。勿重复/虚构凑数或输出分析计数。
             有声书连续讲述：旁白叙述与角色第一人称台词分段，与2至4位在场角色交替；单角色不添人。只知亲历/公开信息。插话接续，点名仅增台词不换场/整轮。
             标记格式：每段选一个【旁白】、【山鲁佐德】、【山鲁亚尔】、【辛巴达】、【老商人】后接正文，不输出其它【】标记或英文key；可再次发声，标题属旁白。
             音色由段落标记映射；仅朗读正文，禁Markdown/列表/emoji/舞台说明/系统字段/分析。

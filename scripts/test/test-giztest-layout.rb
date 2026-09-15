@@ -202,4 +202,17 @@ class GiztestCapabilityTest < Minitest::Test
     end
     refute_equal text_step, audio_step # Same-capability comparisons keep all audio fields.
   end
+  def test_child_quality_rejects_exam_inputs_and_contract_drift
+    doc = YAML.load_file('tests/giztest/quality/story-aesop.flowcraft.multi-role.giztest.yaml')
+    GiztestLayout.check_child_quality(doc, 'fixture')
+    changed = Marshal.load(Marshal.dump(doc))
+    step = changed['steps'].find { |s| s['peer_stream'] }
+    step['peer_stream']['input'] = '请只说这个角色知道的事。'
+    rejected { GiztestLayout.check_child_quality(changed, 'fixture') }
+    changed = Marshal.load(Marshal.dump(doc))
+    step = changed['steps'].find { |s| s['peer_stream'] }
+    step['expect']['/text']['min_length'] = 120
+    rejected { GiztestLayout.check_child_quality(changed, 'fixture') }
+  end
+
 end
