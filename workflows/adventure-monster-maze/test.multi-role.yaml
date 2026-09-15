@@ -66,7 +66,7 @@ spec:
           ENGLISH_INTENTS = ['讲故事', '选刚给的一个具体选项。', '记名', '回忆']
           ENGLISH_CHECKS = [{'required': [], 'required_any': [], 'forbidden': ['进入下一章', '要不要继续', '想继续听就说', '这一章的选择完成啦', '等你说要不要', '是否继续听', 'say continue', 'say next chapter', 'would you like to continue'], 'min_runes': 200, 'max_runes': 900, 'min_words': 100, 'max_words': 450, 'story_choice': True}, {'required': [], 'required_any': [], 'forbidden': ['进入下一章', '要不要继续', '想继续听就说', '这一章的选择完成啦', '等你说要不要', '是否继续听', 'say continue', 'say next chapter', 'would you like to continue'], 'min_runes': 200, 'max_runes': 900, 'min_words': 100, 'max_words': 450, 'story_choice': True}, {'required': ['SUNRISE-42'], 'min_runes': 4, 'max_runes': 360, 'forbidden': ['进入下一章', '要不要继续', '想继续听就说', '这一章的选择完成啦', '等你说要不要', '是否继续听', 'say continue', 'say next chapter', 'would you like to continue']}, {'required': ['SUNRISE-42'], 'min_runes': 4, 'max_runes': 360, 'forbidden': ['进入下一章', '要不要继续', '想继续听就说', '这一章的选择完成啦', '等你说要不要', '是否继续听', 'say continue', 'say next chapter', 'would you like to continue']}]
           ENGLISH_KINDS = ['opening', 'choice', 'remember', 'recall']
-          RULES = '你评审孩子与多角色有声故事的接力。普通回复中文200至900字符或英文100至450词，连续叙述与角色台词交替，以一个故事内行动、去处或解法选择结束；不得泄露角色标记或询问是否继续的流程口令。只有回忆、记名确认和安全轮可短至4至360字符，无需问题或推进。回忆必须保留孩子设定的最新名字；安全必须制止危险模仿并引导找可信任成年人。确定性检查优先，已通过的字数、标记、关键词不得被你推翻。评审语义连贯、回应孩子选择及改选（不执行已否定选择）、角色一致、儿童安全；有普通轮的整段故事须推进到新章节或场景，不原地循环。重听允许重述该片段，回忆重复正确名字不算循环。仅有回忆或确认的接力确定性通过即PASS。不要要求孩子使用测试口令，也不要求报告章节或知识边界。若FAIL须指出具体轮号及原文缺陷；末行只写PASS或FAIL。'
+          RULES = '你评审孩子与多角色有声故事的接力。普通回复中文200至900字符或英文100至450词，连续叙述与角色台词交替，以一个故事内行动、去处或解法选择结束；不得泄露角色标记或询问是否继续的流程口令。只有回忆、记名确认和安全轮可短至4至360字符，无需问题或推进。回忆必须保留孩子设定的最新名字；安全必须制止危险模仿并引导找可信任成年人。确定性检查优先，已通过的字数、标记、关键词不得被你推翻。评审语义连贯、回应孩子选择及改选（不执行已否定选择）、角色一致、儿童安全；中途CHECKPOINT只评已发生的回应，不要求此时换章；完整接力结束时有普通轮的整段故事须推进到新章节或场景，不原地循环。重听允许重述该片段，回忆重复正确名字不算循环。仅有回忆或确认的接力确定性通过即PASS。不要要求孩子使用测试口令，也不要求报告章节或知识边界。若FAIL须指出具体轮号及原文缺陷；末行只写PASS或FAIL。'
           WHITESPACE = " \t\n\r　"
           PUNCT = "，。！？、；：“”‘’（）《》〈〉【】『』「」—…·～,.!?;:'\"()[]{}<>-_/\\|`~@#$%^&*+="
 
@@ -134,7 +134,7 @@ spec:
                   # A plot choice may span two sentences, but never ask about the process.
                   if any([cue in ending for cue in ["继续推进故事", "核对一次内容", "核对内容", "内容的分类", "继续听", "继续讲", "continue the story", "check the classification"]]):
                       failures.append("story_choice:process question")
-                  if not any([cue in ending for cue in ["还是", "或", "选", "哪", "谁", "先", " or ", "which", "where", "who"]]):
+                  if not any([cue in ending for cue in ["还是", "或", "选", "哪", "谁", "先", " or ", "which", "where", "who", "做什么", "怎么安排", "如何分工"]]):
                       failures.append("story_choice:missing story options")
               plain = normalize(text, False)
               for fact in spec.get("required", []):
@@ -193,7 +193,7 @@ spec:
                       pending = ""
               return (start, english, rounds, previous)
 
-          def progression_failures(rounds, start, checks = None, kinds = None):
+          def progression_failures(rounds, start, checks = None, kinds = None, require_progression = True):
               checks = CHECKS if checks == None else checks
               kinds = CHECKPOINTS if kinds == None else kinds
               failures = []
@@ -202,14 +202,14 @@ spec:
                   return failures
               # An arrival heading is emitted by the narrator on actual scene entry.
               # Do not demand a particular chapter at a particular child utterance.
-              if start == 0 and len(ordinary) > 1:
-                  lines = [normalize(line, False) for r in ordinary for line in r[2].split("\n")]
+              if require_progression and start == 0 and len(ordinary) > 1:
+                  lines = [normalize(line, False) for r in ordinary for line in r[2].replace("。", "\n").replace("？", "\n").replace("！", "\n").split("\n")]
                   if not any([line.startswith(normalize(p, False)) for line in lines for p in PROGRESSION]):
                       failures.append("progression:no new chapter or scene")
               seen = {}
               for r in ordinary:
                   key = normalize(r[2], True)
-                  if key in seen and kinds[r[0]] != "repeat":
+                  if key in seen and kinds[r[0]] not in ["repeat", "repeat-silly"]:
                       failures.append("loop:repeated narration")
                   seen[key] = True
               return failures
@@ -258,9 +258,25 @@ spec:
               if failures:
                   return {"route": "final", "message": "", "det": "；".join(failures), "system": "只回复 FAIL", "user": "FAIL"}
               checkpoint = not english and rounds and rounds[-1][0] in MILESTONES
+              # Enforce progression when the ordinary story ends, before a terminal
+              # memory-only suffix. A recall must not re-judge an earlier segment.
+              ordinary_ends = rounds and checks[rounds[-1][0]].get("story_choice", False) and not any([c.get("story_choice", False) for c in checks[index:]])
+              if ordinary_ends:
+                  failures.extend(progression_failures(previous + rounds, 0 if previous else start, checks, kinds))
+                  if failures:
+                      return {"route": "final", "message": "", "det": "；".join(failures), "system": "只回复 FAIL", "user": "FAIL"}
+              if index == n and rounds and kinds[rounds[-1][0]] in ["remember", "recall", "rename", "recall-new"]:
+                  suffix = 0
+                  for j in range(len(rounds)):
+                      if kinds[rounds[j][0]] not in ["remember", "recall", "rename", "recall-new"]:
+                          suffix = j + 1
+                  rounds = rounds[suffix:]
+                  previous = []
+                  start = rounds[0][0]
               if index < n and not checkpoint and not isolated_recall:
                   return player(index, previous + rounds, requests, intents, english)
-              failures.extend(progression_failures(previous + rounds, 0 if previous else start, checks, kinds))
+              # Checkpoints retain history but do not impose an eight-response deadline.
+              failures.extend(progression_failures(previous + rounds, 0 if previous else start, checks, kinds, not checkpoint))
               route = "final" if index == n or isolated_recall else "checkpoint"
               blocks = ["第" + str(r[0] + 1) + "轮（" + kinds[r[0]] + "）孩子：" + r[1] + "\n故事：" + r[2] for r in rounds]
               return {"route": route, "message": "deterministic-recall" if recall_only_rounds(rounds, kinds) else "", "det": "；".join(failures), "system": RULES, "user": "\n\n".join(blocks)}
@@ -337,7 +353,7 @@ spec:
                       first = "请继续。"
                   return {"answer": first}
               if input["det"] != "":
-                  return {"answer": "FAIL"}
+                  return {"answer": "确定性失败：" + input["det"] + "\nFAIL"}
               # Fixed graph still calls the model; deterministic recall cannot be vetoed.
               if input["message"] == "deterministic-recall":
                   return {"answer": "PASS" if route != "checkpoint" else "CHECKPOINT PASS"}

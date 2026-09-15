@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Exercise natural-child relay routing and deterministic contracts offline.
 
-Python adapts codepoints only. test-unit-resources additionally compiles and
-initializes all actual YAML scripts with GizClaw's real Starlark runtime.
+Python covers the schedule exhaustively; the real go.starlark.net harness
+executes transcript regressions and verdicts without translating the YAML source.
 """
 import copy
 import json
@@ -168,3 +168,114 @@ for (const c of JSON.parse(require('fs').readFileSync(0, 'utf8'))) {
 }
 '''], input=json.dumps(persistence_cases), text=True, check=True)
 print('validated 60 multi-role post-response observations and automatic arrival persistence')
+
+# Execute unmodified YAML in go.starlark.net, including retained Tester history.
+# The candidate alone is reloaded in e2e13; its last naming answer is the next
+# relay's handoff, completing the Tester's outstanding naming turn exactly once.
+import os
+import tempfile
+real_cases = []
+def real_case(name, source, messages, expected):
+    real_cases.append({'ID': name, 'Source': source,
+                       'Input': {'messages': copy.deepcopy(messages), 'text': messages[-1]['content']},
+                       'Expect': expected})
+history_doc = documents([Path('workflows/adventure-history/test.multi-role.yaml')])[0]
+history_source = script(history_doc)
+for fixture in json.loads(Path('scripts/test/fixtures/multi-role-e2e13.json').read_text()):
+    messages = fixture['messages']
+    assert messages[-3]['content'] == fixture['handoff']
+    for history in (messages, messages[-3:]):
+        real_case(fixture['id'] + ('-retained' if history == messages else '-fresh'),
+                  history_source, history,
+                  {'route': 'final', 'message': 'deterministic-recall', 'det': ''})
+    broken = copy.deepcopy(messages)
+    broken[-1]['content'] = '我们的旅程叫错误名字。'
+    real_case(fixture['id'] + '-wrong', history_source, broken,
+              {'route': 'final', 'det': 'recall required:星火七号'})
+
+for path, doc in zip(paths, documents(paths)):
+    ns = {}
+    exec(script(doc).replace('.codepoints()', ''), ns)
+    i = next(i for i, k in enumerate(ns['CHECKPOINTS']) if k == 'recall')
+    # CONTINUE is deliberately present: the recall bypass must work with a
+    # command as well as with a natural candidate handoff.
+    messages = [{'role': 'user', 'content': 'CONTINUE ' + str(i)},
+                {'role': 'assistant', 'content': ns['REQUESTS'][i]},
+                {'role': 'user', 'content': response(ns, i)}]
+    # Interior recalls continue playing; terminal recalls yield a verdict.
+    if i == ns['N'] - 1:
+        real_case(path.parent.name + '-continue', script(doc), messages,
+                  {'route': 'final', 'message': 'deterministic-recall', 'det': ''})
+    real_case(path.parent.name + '-isolated', script(doc), messages[1:],
+              {'route': 'final', 'message': 'deterministic-recall', 'det': ''})
+    finalize = next(n['source'] for n in doc['spec']['eino']['graph']['nodes'] if n['id'] == 'finalize')
+    for det, answer in [('', 'PASS'), ('recall required:missing', '确定性失败：recall required:missing\nFAIL')]:
+        real_cases.append({'ID': path.parent.name + '-verdict-' + det,
+                           'Source': finalize,
+                           'Input': {'route': 'final', 'message': 'deterministic-recall', 'det': det, 'model_text': 'FAIL'},
+                           'Expect': {'answer': answer}})
+
+aesop_doc = documents([Path('workflows/story-aesop/test.multi-role.yaml')])[0]
+aesop_source = script(aesop_doc)
+ns = {}
+exec(aesop_source.replace('.codepoints()', ''), ns)
+for fixture in json.loads(Path('scripts/test/fixtures/multi-role-aesop-e2e13.json').read_text()):
+    candidate = next(k for k in fixture['turns'] if not k.endswith('_tester'))
+    replies = fixture['turns'][candidate]['texts']
+    # Exact character-response text and delivered chapter headings.
+    assert not ns['deterministic_failures'](3, replies[3])
+    assert not ns['progression_failures']([(i, '', r) for i, r in enumerate(replies)], 0)
+    real_cases.append({'ID': candidate + '-delivered-arrivals',
+                       'Entry': 'check_arrivals',
+                       'Source': aesop_source + '\ndef check_arrivals(input):\n    return {"failures": progression_failures(input["rounds"], 0)}\n',
+                       'Input': {'rounds': [[i, '', r] for i, r in enumerate(replies)]},
+                       'Expect': {'failures': []}})
+    # Use the real character turn alone at its actual scheduled index.
+    real_case(candidate + '-character', aesop_source,
+              [{'role': 'user', 'content': 'CONTINUE 3'},
+               {'role': 'assistant', 'content': fixture['turns'][candidate + '_tester']['texts'][3]},
+               {'role': 'user', 'content': replies[3]}], {'route': 'player', 'det': ''})
+
+# A checkpoint may still be in chapter one; final evaluation sees both segments.
+messages = [{'role': 'user', 'content': 'BEGIN fixture'}]
+for i in range(8):
+    good = response(ns, i).replace(ns['PROGRESSION'][0], '第一章的草地')
+    messages += [{'role': 'assistant', 'content': ns['REQUESTS'][i] or '我选那个办法呀。'},
+                 {'role': 'user', 'content': good}]
+real_case('aesop-checkpoint-no-arrival-yet', aesop_source, messages, {'route': 'checkpoint', 'det': ''})
+messages += [{'role': 'assistant', 'content': 'CHECKPOINT PASS'}, {'role': 'user', 'content': 'CONTINUE 8'}]
+for i in range(8, ns['N']):
+    good = response(ns, i).replace(ns['PROGRESSION'][0], '第一章的草地')
+    messages += [{'role': 'assistant', 'content': ns['REQUESTS'][i] or '我选那个办法呀。'},
+                 {'role': 'user', 'content': good}]
+real_case('aesop-final-no-arrival', aesop_source, messages,
+          {'route': 'final', 'det': 'progression:no new chapter or scene'})
+messages[-1]['content'] = ns['PROGRESSION'][0] + messages[-1]['content']
+real_case('aesop-final-arrival', aesop_source, copy.deepcopy(messages), {'route': 'final', 'det': ''})
+# The quality arrival turn selects a real destination in child language.
+for engine in ['eino', 'flowcraft']:
+    doc = documents([Path('workflows/adventure-history/' + engine + '.multi-role.yaml')])[0]
+    utterance = '我们走到哪里啦？我想去集市看看，听听那里的伙伴怎么说！'
+    if engine == 'eino':
+        control = next(n['source'] for n in doc['spec']['eino']['graph']['nodes'] if n['id'] == 'control-narration')
+        real_cases.append({'ID': 'history-natural-destination', 'Source': control,
+                           'Input': {'text': utterance, 'history': [], 'memory': ''},
+                           'Expect': {'scene': '2'}})
+    else:
+        control = next(n['config']['source'] for n in doc['spec']['flowcraft']['graph']['nodes']
+                       if 'const scenes =' in n.get('config', {}).get('source', ''))
+        subprocess.run(['node', '-e', """
+const vm = require('vm'), assert = require('assert/strict');
+const c = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+const vars = {input: c.text};
+vm.runInNewContext(c.source, {board: {getVar: k => vars[k], setVar: (k, v) => {vars[k] = v;}}});
+assert.equal(vars.scenario_state.voice_scene, 2);
+"""], input=json.dumps({'source': control, 'text': utterance}), text=True, check=True)
+
+with tempfile.NamedTemporaryFile(mode='w', suffix='.json') as payload:
+    json.dump(real_cases, payload)
+    payload.flush()
+    env = dict(os.environ, RAIDS_MULTI_ROLE_CASES=payload.name, GOPROXY='off', GOSUMDB='off', GOTOOLCHAIN='local')
+    env.setdefault('GOMODCACHE', '/Volumes/H002-R02T-APFS/Caches/go/pkg/mod')
+    subprocess.run(['go', '-C', 'scripts/test/starlark', 'test', '-run', '^TestMultiRoleTranscript$', '-count=1'], env=env, check=True)
+print('validated real Starlark e2e13 transcripts, 30 recall finalizers, checkpoints and full-relay progression')
