@@ -31,6 +31,38 @@ module GiztestLayout
             "#{file}: #{step['id']} non-TTS implementation must not require audio")
     end
   end
+  # Match pkgs/giztest Expectation operand types. Also reject the known
+  # stream-fragment -> string capture mismatch before any network run.
+  def self.check_matcher_types(doc, file)
+    visit = lambda do |step|
+      step.fetch('expect', {}).each do |path, matchers|
+        check(matchers.is_a?(Hash), "#{file}: #{step['id']} #{path} needs matcher mapping")
+        matchers.each do |key, value|
+          valid = case key
+          when 'equals' then true
+          when 'present', 'non_empty' then value == true || value == false
+          when 'count', 'min_length', 'max_length' then value.is_a?(Integer) && value >= 0
+          when 'minimum', 'maximum' then value.is_a?(Numeric)
+          when 'contains', 'pattern' then value.is_a?(String)
+          when 'contains_all', 'contains_any', 'normalize' then value.is_a?(Array) && value.all? { |v| v.is_a?(String) }
+          when 'not_contains' then value.is_a?(String) || (value.is_a?(Array) && value.all? { |v| v.is_a?(String) })
+          else false
+          end
+          check(valid, "#{file}: #{step['id']} #{path} invalid #{key} value type")
+        end
+      end
+      streams = step['parallel'] || [step]
+      step.fetch('capture', {}).each do |name, path|
+        streams.each do |child|
+          target = step['parallel'] ? "/#{child['id']}/text" : '/text'
+          check(!(child['peer_stream'] && path == target && doc.dig('variables', name, 'type') == 'string'),
+                "#{file}: #{step['id']} /text fragments cannot be captured as string; use assistant history text")
+        end
+      end
+      step.fetch('parallel', []).each { |child| visit.call(child) }
+    end
+    %w[steps finally].each { |section| doc.fetch(section, []).each { |step| visit.call(step) } }
+  end
   def self.check_workspace_order(doc, file)
     # Generated Workspace names must be created on that client before selection.
     created = []
@@ -214,9 +246,9 @@ module GiztestLayout
       check(!input.match?(/只确认|只说|不要推进|知识边界|亲自回应|最多问/), "#{file}: inherited exam probe")
       contract = step.dig('expect', '/text') || {}
       next if step['client'].end_with?('_tester')
-      check(contract['non_empty'] == true, "#{file}: missing non-empty reply")
+      check(contract['min_length'] == 1, "#{file}: missing non-empty reply")
       check(contract.fetch('not_contains', []) == ['【', '】'], "#{file}: marker guards only")
-      check((contract.keys - %w[non_empty not_contains contains_any]).empty?, "#{file}: rigid content assertion")
+      check((contract.keys - %w[min_length not_contains contains_any]).empty?, "#{file}: rigid content assertion")
       if input.include?('现实里')
         check(contract.fetch('contains_any', []).include?('家长'), "#{file}: missing trusted-adult redirect")
       else
@@ -237,7 +269,17 @@ module GiztestLayout
     review = steps(doc).find { |s| s.dig('peer_stream', 'input').to_s.start_with?("REVIEW\n") }
     check(review && review['client'].end_with?('_tester'), "#{file}: missing automatic Tester review")
     peers.each do |peer|
-      capture = peer.fetch('capture', {}).find { |_, path| path == '/text' }
+      all = steps(doc)
+      following = all[(all.index { |s| s['id'] == peer['id'] } + 1)..-1].find { |s| s['client'] == peer['client'] }
+      history = following if following && following['id'].end_with?('_review_history')
+      capture = history && history.fetch('capture', {}).find { |_, path| path == '/items/0/text' }
+      check(history && following && following['id'] == history['id'] &&
+        history.dig('rpc', 'request', 'limit') == 1 &&
+        history.dig('rpc', 'request', 'order') == 'PEER_RUN_HISTORY_LIST_REQUEST_ORDER_DESC',
+        "#{file}: review must read latest history before the next client interaction")
+      check(peer.dig('peer_stream', 'wait_for_history') == true && history && history['client'] == peer['client'] &&
+        history.dig('rpc', 'method') == 'server.run.workspace.history' && history.dig('expect', '/items/0/type', 'equals') == 'PEER_RUN_HISTORY_ENTRY_TYPE_AGENT',
+        "#{file}: missing persisted assistant review capture")
       check(capture && review.dig('peer_stream', 'input').include?("${#{capture[0]}}") &&
         review.dig('peer_stream', 'input').include?(peer.dig('peer_stream', 'input').to_s), "#{file}: uncaptured quality reply")
     end
@@ -304,6 +346,7 @@ module GiztestLayout
       files.each do |file|
         doc = YAML.load_file(file)
         check(File.readlines(file).first(4).map { |s| s.split[0,2].join(' ') } == ['# User', '# As', '# I', '# So'], "#{file}: missing User Story")
+        check_matcher_types(doc, file)
         check_local_references(doc, file)
         check_speech_order(doc, file)
         check_workspace_order(doc, file)
@@ -331,6 +374,16 @@ module GiztestLayout
           implementation = step.fetch('client', '').split('__').first
           check_audio(step, capabilities[implementation], file) if capabilities.key?(implementation)
         end
+        if suffix.end_with?('.multi-role')
+          # Peer retirement owns partial-setup cleanup; expect_error requires an
+          # error and cannot express success OR not-found for Workspace deletion.
+          check(!steps(doc, 'finally').any? { |s| s.dig('rpc', 'method') == 'server.workspace.delete' },
+                "#{file}: use ephemeral peer retirement for partial Workspace setup")
+          doc.fetch('clients').each do |client, spec|
+            check(spec['identity'] == 'ephemeral' && steps(doc, 'finally').any? { |s| s['client'] == client && s.dig('rpc', 'method') == 'server.peer.delete' },
+                  "#{file}: missing ephemeral peer cleanup")
+          end
+        end
         if tier == 'smoke'
           steps(doc).each do |step|
             expect = step.fetch('expect', {})
@@ -349,11 +402,11 @@ module GiztestLayout
               capability = capabilities[step.fetch('client').split('__').first]
               roundtrip_expect.delete_if { |key, _| key.match?(AUDIO_PATH) } if capability == false
               if step['client'].include?('multi_role') && File.basename(file).match?(/\A(?:story|adventure)-/)
-                roundtrip_expect['/text'] = {'non_empty'=>true, 'not_contains'=>['【','】']}
+                roundtrip_expect['/text'] = {'min_length'=>1, 'not_contains'=>['【','】']}
                 roundtrip_expect['/audio_integrity/streams'] = {'equals'=>1}
               end
               if step['client'].include?('multi_role') && raid == 'murder-mystery'
-                roundtrip_expect['/text']['not_contains'] = ['【', '】']
+                roundtrip_expect['/text'] = {'min_length' => 1, 'not_contains' => ['【', '】']}
               end
               check(expect == roundtrip_expect, "#{file}: #{step['id']} must check complete realtime output without timing gates")
               first = steps(doc).find { |s| s['id'] == "#{step['id']}_first_response" }

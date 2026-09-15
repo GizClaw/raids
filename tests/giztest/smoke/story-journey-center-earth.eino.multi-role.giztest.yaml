@@ -104,7 +104,7 @@ steps:
     require_audio: true
   expect:
     "/text":
-      non_empty: true
+      min_length: 1
       not_contains:
       - "【"
       - "】"
@@ -147,7 +147,7 @@ steps:
     require_audio: true
   expect:
     "/text":
-      non_empty: true
+      min_length: 1
       not_contains:
       - "【"
       - "】"
@@ -200,7 +200,7 @@ steps:
     "/first_audio_ms":
       maximum: 3000
     "/text":
-      non_empty: true
+      min_length: 1
       not_contains:
       - "【"
       - "】"
@@ -226,7 +226,7 @@ steps:
     require_audio: true
   expect:
     "/text":
-      non_empty: true
+      min_length: 1
       not_contains:
       - "【"
       - "】"
@@ -284,7 +284,7 @@ steps:
     "/events":
       non_empty: true
     "/text":
-      non_empty: true
+      min_length: 1
       not_contains:
       - "【"
       - "】"
@@ -328,7 +328,7 @@ steps:
     "/first_audio_ms":
       maximum: 3000
     "/text":
-      non_empty: true
+      min_length: 1
       not_contains:
       - "【"
       - "】"
@@ -344,23 +344,13 @@ steps:
     method: server.run.workspace.reload
     request: {}
 finally:
+# Ephemeral peer deletion retires its owned Workspaces, including partial setup.
+# Ephemeral peer deletion retires its owned Workspaces, including partial setup.
 - id: eino_multi_role_stop_run
   client: eino_multi_role
   rpc:
     method: server.run.stop
     request: {}
-- id: eino_multi_role_delete_text
-  client: eino_multi_role
-  rpc:
-    method: server.workspace.delete
-    request:
-      name: "${eino_multi_role_text_workspace}"
-- id: eino_multi_role_delete_realtime
-  client: eino_multi_role
-  rpc:
-    method: server.workspace.delete
-    request:
-      name: "${eino_multi_role_realtime_workspace}"
 - id: eino_multi_role_delete_peer
   client: eino_multi_role
   rpc:

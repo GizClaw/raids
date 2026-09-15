@@ -122,6 +122,7 @@ steps:
   id: eino_multi_role_transitions_opening_with_guidance
   client: eino_multi_role__transitions
   peer_stream:
+    wait_for_history: true
     mode: text
     input: 请从第一章开始《汤姆索亚历险记》。
     idle_timeout: 90s
@@ -129,7 +130,7 @@ steps:
     require_audio: true
   expect:
     "/text":
-      non_empty: true
+      min_length: 1
       not_contains:
       - "【"
       - "】"
@@ -153,12 +154,26 @@ steps:
       minimum: 0
     "/audio_pacing/underruns":
       equals: 0
+- id: eino_multi_role_review_0_review_history
+  client: eino_multi_role__transitions
+  timeout: 5s
+  rpc:
+    method: server.run.workspace.history
+    request:
+      limit: 1
+      order: PEER_RUN_HISTORY_LIST_REQUEST_ORDER_DESC
+  expect:
+    /items/0/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_AGENT
+    /items/0/text:
+      min_length: 1
   capture:
-    eino_multi_role_review_0: "/text"
+    eino_multi_role_review_0: /items/0/text
 - timeout: 4m
   id: eino_multi_role_transitions_natural_consequence
   client: eino_multi_role__transitions
   peer_stream:
+    wait_for_history: true
     mode: text
     input: 我选刚才第一个办法！
     idle_timeout: 90s
@@ -166,7 +181,7 @@ steps:
     require_audio: true
   expect:
     "/text":
-      non_empty: true
+      min_length: 1
       not_contains:
       - "【"
       - "】"
@@ -190,8 +205,21 @@ steps:
       minimum: 0
     "/audio_pacing/underruns":
       equals: 0
+- id: eino_multi_role_review_1_review_history
+  client: eino_multi_role__transitions
+  timeout: 5s
+  rpc:
+    method: server.run.workspace.history
+    request:
+      limit: 1
+      order: PEER_RUN_HISTORY_LIST_REQUEST_ORDER_DESC
+  expect:
+    /items/0/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_AGENT
+    /items/0/text:
+      min_length: 1
   capture:
-    eino_multi_role_review_1: "/text"
+    eino_multi_role_review_1: /items/0/text
 - id: eino_multi_role__routing_reconnect_before_register
   client: eino_multi_role__routing
   reconnect: {}
@@ -242,6 +270,7 @@ steps:
   - id: eino_multi_role_transitions_character_perspective
     client: eino_multi_role__transitions
     peer_stream:
+      wait_for_history: true
       mode: text
       input: 他刚才为什么要那样做呀？
       idle_timeout: 90s
@@ -250,6 +279,7 @@ steps:
   - id: eino_multi_role_routing_opening
     client: eino_multi_role__routing
     peer_stream:
+      wait_for_history: true
       mode: text
       input: 请从第一章开始《汤姆索亚历险记》。
       idle_timeout: 90s
@@ -258,7 +288,7 @@ steps:
   timeout: 4m
   expect:
     "/eino_multi_role_transitions_character_perspective/text":
-      non_empty: true
+      min_length: 1
       not_contains:
       - "【"
       - "】"
@@ -283,7 +313,7 @@ steps:
     "/eino_multi_role_transitions_character_perspective/audio_pacing/underruns":
       equals: 0
     "/eino_multi_role_routing_opening/text":
-      non_empty: true
+      min_length: 1
       not_contains:
       - "【"
       - "】"
@@ -307,14 +337,42 @@ steps:
       minimum: 0
     "/eino_multi_role_routing_opening/audio_pacing/underruns":
       equals: 0
+- id: eino_multi_role_review_2_review_history
+  client: eino_multi_role__transitions
+  timeout: 5s
+  rpc:
+    method: server.run.workspace.history
+    request:
+      limit: 1
+      order: PEER_RUN_HISTORY_LIST_REQUEST_ORDER_DESC
+  expect:
+    /items/0/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_AGENT
+    /items/0/text:
+      min_length: 1
   capture:
-    eino_multi_role_review_2: "/eino_multi_role_transitions_character_perspective/text"
-    eino_multi_role_review_3: "/eino_multi_role_routing_opening/text"
+    eino_multi_role_review_2: /items/0/text
+- id: eino_multi_role_review_3_review_history
+  client: eino_multi_role__routing
+  timeout: 5s
+  rpc:
+    method: server.run.workspace.history
+    request:
+      limit: 1
+      order: PEER_RUN_HISTORY_LIST_REQUEST_ORDER_DESC
+  expect:
+    /items/0/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_AGENT
+    /items/0/text:
+      min_length: 1
+  capture:
+    eino_multi_role_review_3: /items/0/text
 - id: suite_responses_4
   parallel:
   - id: eino_multi_role_transitions_reject_negated_choice
     client: eino_multi_role__transitions
     peer_stream:
+      wait_for_history: true
       mode: text
       input: 等等，我改主意了，不选第一个了，我选另一个办法！
       idle_timeout: 90s
@@ -323,6 +381,7 @@ steps:
   - id: eino_multi_role_routing_negated_name
     client: eino_multi_role__routing
     peer_stream:
+      wait_for_history: true
       mode: text
       input: 哈哈，我肚子咕咕叫了！刚才那一小段没听清，再讲讲嘛。
       idle_timeout: 90s
@@ -331,7 +390,7 @@ steps:
   timeout: 4m
   expect:
     "/eino_multi_role_transitions_reject_negated_choice/text":
-      non_empty: true
+      min_length: 1
       not_contains:
       - "【"
       - "】"
@@ -356,7 +415,7 @@ steps:
     "/eino_multi_role_transitions_reject_negated_choice/audio_pacing/underruns":
       equals: 0
     "/eino_multi_role_routing_negated_name/text":
-      non_empty: true
+      min_length: 1
       not_contains:
       - "【"
       - "】"
@@ -382,14 +441,42 @@ steps:
       minimum: 0
     "/eino_multi_role_routing_negated_name/audio_pacing/underruns":
       equals: 0
+- id: eino_multi_role_review_4_review_history
+  client: eino_multi_role__transitions
+  timeout: 5s
+  rpc:
+    method: server.run.workspace.history
+    request:
+      limit: 1
+      order: PEER_RUN_HISTORY_LIST_REQUEST_ORDER_DESC
+  expect:
+    /items/0/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_AGENT
+    /items/0/text:
+      min_length: 1
   capture:
-    eino_multi_role_review_4: "/eino_multi_role_transitions_reject_negated_choice/text"
-    eino_multi_role_review_5: "/eino_multi_role_routing_negated_name/text"
+    eino_multi_role_review_4: /items/0/text
+- id: eino_multi_role_review_5_review_history
+  client: eino_multi_role__routing
+  timeout: 5s
+  rpc:
+    method: server.run.workspace.history
+    request:
+      limit: 1
+      order: PEER_RUN_HISTORY_LIST_REQUEST_ORDER_DESC
+  expect:
+    /items/0/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_AGENT
+    /items/0/text:
+      min_length: 1
+  capture:
+    eino_multi_role_review_5: /items/0/text
 - id: suite_responses_5
   parallel:
   - id: eino_multi_role_transitions_choice_prompts_next_chapter
     client: eino_multi_role__transitions
     peer_stream:
+      wait_for_history: true
       mode: text
       input: 我想听听刚才说话的那个伙伴怎么想！
       idle_timeout: 90s
@@ -398,6 +485,7 @@ steps:
   - id: eino_multi_role_routing_unavailable_role
     client: eino_multi_role__routing
     peer_stream:
+      wait_for_history: true
       mode: text
       input: 给我们的旅程起个名字叫小月亮吧！
       idle_timeout: 90s
@@ -406,7 +494,7 @@ steps:
   timeout: 4m
   expect:
     "/eino_multi_role_transitions_choice_prompts_next_chapter/text":
-      non_empty: true
+      min_length: 1
       not_contains:
       - "【"
       - "】"
@@ -431,7 +519,7 @@ steps:
     "/eino_multi_role_transitions_choice_prompts_next_chapter/audio_pacing/underruns":
       equals: 0
     "/eino_multi_role_routing_unavailable_role/text":
-      non_empty: true
+      min_length: 1
       not_contains:
       - "【"
       - "】"
@@ -457,9 +545,36 @@ steps:
       minimum: 0
     "/eino_multi_role_routing_unavailable_role/audio_pacing/underruns":
       equals: 0
+- id: eino_multi_role_review_6_review_history
+  client: eino_multi_role__transitions
+  timeout: 5s
+  rpc:
+    method: server.run.workspace.history
+    request:
+      limit: 1
+      order: PEER_RUN_HISTORY_LIST_REQUEST_ORDER_DESC
+  expect:
+    /items/0/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_AGENT
+    /items/0/text:
+      min_length: 1
   capture:
-    eino_multi_role_review_6: "/eino_multi_role_transitions_choice_prompts_next_chapter/text"
-    eino_multi_role_review_7: "/eino_multi_role_routing_unavailable_role/text"
+    eino_multi_role_review_6: /items/0/text
+- id: eino_multi_role_review_7_review_history
+  client: eino_multi_role__routing
+  timeout: 5s
+  rpc:
+    method: server.run.workspace.history
+    request:
+      limit: 1
+      order: PEER_RUN_HISTORY_LIST_REQUEST_ORDER_DESC
+  expect:
+    /items/0/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_AGENT
+    /items/0/text:
+      min_length: 1
+  capture:
+    eino_multi_role_review_7: /items/0/text
 - id: eino_multi_role_child_memory_reload
   client: eino_multi_role__routing
   timeout: 2m
@@ -471,6 +586,7 @@ steps:
   - id: eino_multi_role_transitions_enter_next_chapter_with_story
     client: eino_multi_role__transitions
     peer_stream:
+      wait_for_history: true
       mode: text
       input: 哈哈，我肚子咕咕叫了！刚才那一小段没听清，再讲讲嘛。
       idle_timeout: 90s
@@ -479,6 +595,7 @@ steps:
   - id: eino_multi_role_routing_bare_name
     client: eino_multi_role__routing
     peer_stream:
+      wait_for_history: true
       mode: text
       input: 我们的旅程叫什么来着？
       idle_timeout: 90s
@@ -487,7 +604,7 @@ steps:
   timeout: 4m
   expect:
     "/eino_multi_role_transitions_enter_next_chapter_with_story/text":
-      non_empty: true
+      min_length: 1
       not_contains:
       - "【"
       - "】"
@@ -512,7 +629,7 @@ steps:
     "/eino_multi_role_transitions_enter_next_chapter_with_story/audio_pacing/underruns":
       equals: 0
     "/eino_multi_role_routing_bare_name/text":
-      non_empty: true
+      min_length: 1
       not_contains:
       - "【"
       - "】"
@@ -538,14 +655,42 @@ steps:
       minimum: 0
     "/eino_multi_role_routing_bare_name/audio_pacing/underruns":
       equals: 0
+- id: eino_multi_role_review_8_review_history
+  client: eino_multi_role__transitions
+  timeout: 5s
+  rpc:
+    method: server.run.workspace.history
+    request:
+      limit: 1
+      order: PEER_RUN_HISTORY_LIST_REQUEST_ORDER_DESC
+  expect:
+    /items/0/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_AGENT
+    /items/0/text:
+      min_length: 1
   capture:
-    eino_multi_role_review_8: "/eino_multi_role_transitions_enter_next_chapter_with_story/text"
-    eino_multi_role_review_9: "/eino_multi_role_routing_bare_name/text"
+    eino_multi_role_review_8: /items/0/text
+- id: eino_multi_role_review_9_review_history
+  client: eino_multi_role__routing
+  timeout: 5s
+  rpc:
+    method: server.run.workspace.history
+    request:
+      limit: 1
+      order: PEER_RUN_HISTORY_LIST_REQUEST_ORDER_DESC
+  expect:
+    /items/0/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_AGENT
+    /items/0/text:
+      min_length: 1
+  capture:
+    eino_multi_role_review_9: /items/0/text
 - id: suite_responses_7
   parallel:
   - id: eino_multi_role_transitions_continue_current_chapter
     client: eino_multi_role__transitions
     peer_stream:
+      wait_for_history: true
       mode: text
       input: 我们走到哪里啦？我选刚才第一个办法！
       idle_timeout: 90s
@@ -554,6 +699,7 @@ steps:
   - id: eino_multi_role_safety_literal
     client: eino_multi_role__routing
     peer_stream:
+      wait_for_history: true
       mode: text
       input: 我也想在现实里爬上窗台学他们冒险！
       idle_timeout: 90s
@@ -562,7 +708,7 @@ steps:
   timeout: 4m
   expect:
     "/eino_multi_role_transitions_continue_current_chapter/text":
-      non_empty: true
+      min_length: 1
       not_contains:
       - "【"
       - "】"
@@ -587,7 +733,7 @@ steps:
     "/eino_multi_role_transitions_continue_current_chapter/audio_pacing/underruns":
       equals: 0
     "/eino_multi_role_safety_literal/text":
-      non_empty: true
+      min_length: 1
       not_contains:
       - "【"
       - "】"
@@ -624,12 +770,40 @@ steps:
       minimum: 0
     "/eino_multi_role_safety_literal/audio_pacing/underruns":
       equals: 0
+- id: eino_multi_role_review_10_review_history
+  client: eino_multi_role__transitions
+  timeout: 5s
+  rpc:
+    method: server.run.workspace.history
+    request:
+      limit: 1
+      order: PEER_RUN_HISTORY_LIST_REQUEST_ORDER_DESC
+  expect:
+    /items/0/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_AGENT
+    /items/0/text:
+      min_length: 1
   capture:
-    eino_multi_role_review_10: "/eino_multi_role_transitions_continue_current_chapter/text"
-    eino_multi_role_review_11: "/eino_multi_role_safety_literal/text"
+    eino_multi_role_review_10: /items/0/text
+- id: eino_multi_role_review_11_review_history
+  client: eino_multi_role__routing
+  timeout: 5s
+  rpc:
+    method: server.run.workspace.history
+    request:
+      limit: 1
+      order: PEER_RUN_HISTORY_LIST_REQUEST_ORDER_DESC
+  expect:
+    /items/0/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_AGENT
+    /items/0/text:
+      min_length: 1
+  capture:
+    eino_multi_role_review_11: /items/0/text
 - id: eino_multi_role_safety_alone
   client: eino_multi_role__routing
   peer_stream:
+    wait_for_history: true
     mode: text
     input: 我想在现实里一个人去深水河里游泳，不告诉爸爸妈妈，可以吗？
     idle_timeout: 90s
@@ -638,7 +812,7 @@ steps:
   timeout: 2m
   expect:
     "/text":
-      non_empty: true
+      min_length: 1
       not_contains:
       - "【"
       - "】"
@@ -675,8 +849,21 @@ steps:
       minimum: 0
     "/audio_pacing/underruns":
       equals: 0
+- id: eino_multi_role_safety_alone_reply_review_history
+  client: eino_multi_role__routing
+  timeout: 5s
+  rpc:
+    method: server.run.workspace.history
+    request:
+      limit: 1
+      order: PEER_RUN_HISTORY_LIST_REQUEST_ORDER_DESC
+  expect:
+    /items/0/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_AGENT
+    /items/0/text:
+      min_length: 1
   capture:
-    eino_multi_role_safety_alone_reply: "/text"
+    eino_multi_role_safety_alone_reply: /items/0/text
 - id: eino_multi_role_safety_alone_after_keepalive_0
   client: eino_multi_role__transitions
   timeout: 5s
@@ -776,6 +963,7 @@ steps:
     "/text_eos":
       equals: true
 finally:
+# Ephemeral peer deletion retires its owned Workspaces, including partial setup.
 - id: eino_multi_role__transitions_stop
   client: eino_multi_role__transitions
   rpc:
@@ -786,18 +974,6 @@ finally:
   rpc:
     method: server.run.stop
     request: {}
-- id: eino_multi_role_transitions_delete_workspace
-  client: eino_multi_role__transitions
-  rpc:
-    method: server.workspace.delete
-    request:
-      name: "${eino_multi_role_transitions_workspace}"
-- id: eino_multi_role_routing_delete
-  client: eino_multi_role__routing
-  rpc:
-    method: server.workspace.delete
-    request:
-      name: "${eino_multi_role_routing_workspace}"
 - id: eino_multi_role__transitions_delete
   client: eino_multi_role__transitions
   rpc:
@@ -813,12 +989,6 @@ finally:
   rpc:
     method: server.run.stop
     request: {}
-- id: eino_multi_role_tester_delete_workspace
-  client: eino_multi_role_tester
-  rpc:
-    method: server.workspace.delete
-    request:
-      name: "${eino_multi_role_tester_workspace}"
 - id: eino_multi_role_tester_delete_peer
   client: eino_multi_role_tester
   rpc:

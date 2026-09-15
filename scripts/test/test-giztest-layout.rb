@@ -219,13 +219,32 @@ class GiztestCapabilityTest < Minitest::Test
     doc = YAML.load_file('tests/giztest/quality/story-aesop.flowcraft.multi-role.giztest.yaml')
     GiztestLayout.check_multi_role_review(doc, 'fixture')
     missing = Marshal.load(Marshal.dump(doc))
-    missing['steps'].find { |s| s['peer_stream'] }.delete('capture')
+    missing['steps'].find { |s| s['id'].end_with?('_review_history') }.delete('capture')
     rejected { GiztestLayout.check_multi_role_review(missing, 'fixture') }
     missing = Marshal.load(Marshal.dump(doc))
     safety = missing['steps'].flat_map { |s| s.fetch('parallel', []) }.find { |s| s.dig('peer_stream', 'input').to_s.include?('现实里') }
     parent = missing['steps'].find { |s| s.fetch('parallel', []).include?(safety) }
     parent['expect']["/#{safety['id']}/text"].delete('contains_any')
     rejected { GiztestLayout.check_multi_role_review(missing, 'fixture') }
+  end
+
+  def test_matcher_operand_types_and_stream_capture_types
+    valid = {'id' => 'reply', 'peer_stream' => {}, 'expect' => {'/text' => {'non_empty' => true, 'min_length' => 1, 'not_contains' => ['【', '】']}}}
+    doc = {'steps' => [valid], 'variables' => {'reply' => {'type' => 'string'}}}
+    GiztestLayout.check_matcher_types(doc, 'fixture')
+    {'non_empty' => 'true', 'min_length' => true, 'contains' => [], 'not_contains' => [true], 'maximum' => '1', 'unknown' => 1}.each do |key, value|
+      bad = Marshal.load(Marshal.dump(doc))
+      bad['steps'][0]['expect']['/text'][key] = value
+      rejected { GiztestLayout.check_matcher_types(bad, 'fixture') }
+      bad['finally'] = bad.delete('steps')
+      rejected { GiztestLayout.check_matcher_types(bad, 'fixture') }
+      bad['steps'] = [{'id' => 'batch', 'parallel' => bad.delete('finally')}]
+      rejected { GiztestLayout.check_matcher_types(bad, 'fixture') }
+    end
+    valid['capture'] = {'reply' => '/text'}
+    rejected { GiztestLayout.check_matcher_types(doc, 'fixture') }
+    doc['steps'] = [{'id' => 'batch', 'parallel' => [valid.reject { |k, _| k == 'capture' }], 'capture' => {'reply' => '/reply/text'}}]
+    rejected { GiztestLayout.check_matcher_types(doc, 'fixture') }
   end
 
 end

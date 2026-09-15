@@ -138,10 +138,17 @@ print('validated 30 natural-child Testers, full relays/reloads, immediate failur
 workflow_paths = sorted(p for p in Path('workflows').glob('*/*.multi-role.yaml')
                         if p.name != 'test.multi-role.yaml' and p.parent.name.startswith(('story-', 'adventure-')))
 assert len(workflow_paths) == 60
-for path in workflow_paths:
+for path, workflow in zip(workflow_paths, documents(workflow_paths)):
     text = path.read_text()
     for required in ('约1至2分钟', '有声书连续讲述', '标记格式', '音色由段落标记映射', '尊重改选和更正'):
         assert required in text, (path, required)
+    voices = workflow['spec'][workflow['spec']['driver']]['voice_adapter']['speaker_voices']
+    marker_rules = [line for line in text.splitlines() if line.strip().startswith('标记格式：')]
+    assert marker_rules, path
+    for rule in marker_rules:
+        import re
+        assert set(re.findall(r'【([^】]+)】', rule)) == set(voices), path
+        assert all(cue in rule for cue in ('未列名人物', '由【旁白】转述', '禁止新增姓名标记', '禁止给孩子加标记')), path
     assert '篇幅执行规则' not in text
     assert '回合规则表' not in text and '总结/检查点｜' not in text
 print('validated 60 simplified continuous narration contracts')

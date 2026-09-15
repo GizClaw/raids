@@ -173,6 +173,7 @@ steps:
   output:
     variable: eino_multi_role_verdict
 finally:
+# Ephemeral peer deletion retires its owned Workspaces, including partial setup.
 - id: eino_multi_role_stop_candidate_run
   client: eino_multi_role
   rpc:
@@ -183,18 +184,6 @@ finally:
   rpc:
     method: server.run.stop
     request: {}
-- id: eino_multi_role_delete_candidate_workspace
-  client: eino_multi_role
-  rpc:
-    method: server.workspace.delete
-    request:
-      name: "${eino_multi_role_candidate_workspace}"
-- id: eino_multi_role_delete_tester_workspace
-  client: eino_multi_role_tester
-  rpc:
-    method: server.workspace.delete
-    request:
-      name: "${eino_multi_role_tester_workspace}"
 - id: eino_multi_role_delete_candidate_peer
   client: eino_multi_role
   rpc:

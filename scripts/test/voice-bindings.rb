@@ -59,7 +59,7 @@ Dir['workflows/*/raid.json'].sort.each do |file|
       check(source.include?('约1至2分钟') && source.include?('不输出其它【】标记'), "#{workflow}: missing narration contract")
       adapter.fetch('speaker_voices').each_key { |speaker| check(source.include?("【#{speaker}】"), "#{workflow}: missing marker #{speaker}") }
       probe = GiztestLayout.probes("tests/giztest/smoke/#{raid}.#{File.basename(impl.fetch('file'), '.yaml')}.giztest.yaml", name.tr('-', '_')).find { |s| s['id'] == 'continuous_story' }
-      check(probe && probe.dig('expect','/text','non_empty') == true && !probe.dig('expect','/text').key?('min_length'), "#{workflow}: missing non-empty gate")
+      check(probe && probe.dig('expect','/text','min_length') == 1 && !probe.dig('expect','/text').key?('non_empty'), "#{workflow}: missing non-empty gate")
       check((['【','】'] - probe.dig('expect','/text','not_contains')).empty? && probe.dig('expect','/audio_integrity/streams','equals') == 1 && probe.dig('expect','/audio_pacing/underruns','equals') == 0, "#{workflow}: missing playback/marker gates")
     end
     count += 1

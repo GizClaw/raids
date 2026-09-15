@@ -292,6 +292,7 @@ steps:
   output:
     variable: flowcraft_multi_role_case4_verdict
 finally:
+# Ephemeral peer deletion retires its owned Workspaces, including partial setup.
 - id: flowcraft_multi_role_stop_candidate_run
   client: flowcraft_multi_role
   rpc:
@@ -302,30 +303,6 @@ finally:
   rpc:
     method: server.run.stop
     request: {}
-- id: flowcraft_multi_role_delete_candidate_workspace
-  client: flowcraft_multi_role
-  rpc:
-    method: server.workspace.delete
-    request:
-      name: "${flowcraft_multi_role_candidate_workspace}"
-- id: flowcraft_multi_role_delete_tester_workspace
-  client: flowcraft_multi_role_tester
-  rpc:
-    method: server.workspace.delete
-    request:
-      name: "${flowcraft_multi_role_tester_workspace}"
-- id: flowcraft_multi_role_case4_delete_candidate_workspace
-  client: flowcraft_multi_role
-  rpc:
-    method: server.workspace.delete
-    request:
-      name: "${flowcraft_multi_role_case4_candidate_workspace}"
-- id: flowcraft_multi_role_case4_delete_tester_workspace
-  client: flowcraft_multi_role_tester
-  rpc:
-    method: server.workspace.delete
-    request:
-      name: "${flowcraft_multi_role_case4_tester_workspace}"
 - id: flowcraft_multi_role_delete_candidate_peer
   client: flowcraft_multi_role
   rpc:
