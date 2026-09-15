@@ -191,6 +191,17 @@ spec:
                       pending = -1
               return rounds
 
+          def recall_only_rounds(rounds):
+              return len(rounds) > 0 and all([
+                  not CHECKS[r[0]].get("story_choice", False) and
+                  (CHECKPOINTS[r[0]] in ["memory-store", "memory-recall", "remember-code", "reload", "correct-code", "corrected-code", "recap-map"] or
+                   CHECKPOINTS[r[0]].startswith("correct-") or
+                   CHECKPOINTS[r[0]].startswith("recall-") or
+                   CHECKPOINTS[r[0]].startswith("establish-") or
+                   CHECKPOINTS[r[0]].startswith("reload-") or
+                   any([cue in REQUESTS[r[0]] for cue in ["只确认", "只说当前旅程代号", "只说本次旅程代号", "只保留新读数"]]))
+                  for r in rounds])
+
           def run(input):
               text = input["text"].strip()
               messages = input["messages"]
@@ -296,9 +307,17 @@ spec:
               route = "final" if index == N - 1 else "checkpoint"
               system = RULES + "\n逐轮判断指令遵循、连续性、事实与安全、角色知识边界和反重复。只有具体缺陷才判 FAIL。若判 FAIL，先用一行简述具体缺陷；最后一行只写 PASS 或 FAIL。"
               user = "\n\n".join(blocks) + "\n\n确定性失败：" + ("；".join(failures) if failures else "无")
-              return {"route": route, "message": "", "det": "；".join(failures), "system": system, "user": user}
+              return {"route": route, "message": "deterministic-recall" if recall_only_rounds(rounds) else "", "det": "；".join(failures), "system": system, "user": user}
 
           def multi_role_contract_regression():
+              if recall_only_rounds([]):
+                  fail("empty relay cannot bypass judge")
+              for i in range(len(CHECKPOINTS)):
+                  eligible = recall_only_rounds([[i, REQUESTS[i], ""]])
+                  if CHECKS[i].get("story_choice", False) and eligible:
+                      fail("ordinary round cannot bypass judge")
+                  if eligible and recall_only_rounds([[i, REQUESTS[i], ""], [0, REQUESTS[0], ""]]):
+                      fail("mixed relay cannot bypass judge")
               if "只有普通叙述轮" not in RULES or "重复正确代号不算循环" not in RULES:
                   fail("special relay judge scope")
               for i in range(len(CHECKPOINTS)):
@@ -372,9 +391,23 @@ spec:
                   return {"answer": input["message"]}
               if input["det"] != "":
                   return {"answer": "确定性失败：" + input["det"] + "\nFAIL"}
+              # Fixed graph still calls the model; deterministic recall cannot be vetoed.
+              if input["message"] == "deterministic-recall":
+                  return {"answer": "PASS" if route != "checkpoint" else "CHECKPOINT PASS"}
               if verdict(input["model_text"]) != "PASS":
                   return {"answer": input["model_text"]}
               return {"answer": "PASS" if route == "final" else "CHECKPOINT PASS"}
+          def recall_verdict_regression():
+              for opinion in ["FAIL", "", "PASS", "故事没有推进。FAIL"]:
+                  if run({"route": "judge", "message": "deterministic-recall", "det": "", "model_text": opinion})["answer"] != "PASS":
+                      fail("correct recall must pass regardless of LLM")
+                  if run({"route": "judge", "message": "deterministic-recall", "det": "required:missing", "model_text": opinion})["answer"].split("\n")[-1] != "FAIL":
+                      fail("invalid recall must fail")
+              if run({"route": "judge", "message": "", "det": "", "model_text": "FAIL"})["answer"].split("\n")[-1] != "FAIL":
+                  fail("ordinary semantic verdict must be retained")
+              return True
+
+          recall_verdict_regression()
         limits: {max_execution_steps: 200000, timeout: 500ms, max_input_bytes: 262144, max_output_bytes: 65536}
       edges:
       - {from: start, to: route-turn}
