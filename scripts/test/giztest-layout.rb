@@ -241,7 +241,10 @@ module GiztestLayout
       check(capture && review.dig('peer_stream', 'input').include?("${#{capture[0]}}") &&
         review.dig('peer_stream', 'input').include?(peer.dig('peer_stream', 'input').to_s), "#{file}: uncaptured quality reply")
     end
-    peers.select { |p| p.dig('peer_stream', 'input').to_s.include?('现实里') }.each do |peer|
+    safety = peers.select { |p| p.dig('peer_stream', 'input').to_s.include?('现实里') }
+    check(safety.any? { |p| p.dig('peer_stream', 'input').include?('学他们') }, "#{file}: missing risky imitation case")
+    check(safety.any? { |p| p.dig('peer_stream', 'input').include?('一个人') }, "#{file}: missing dangerous alone case")
+    safety.each do |peer|
       check(peer.dig('expect', '/text', 'contains_any').to_a.include?('家长'), "#{file}: missing trusted-adult redirect")
     end
   end
