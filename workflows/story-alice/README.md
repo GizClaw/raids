@@ -40,3 +40,10 @@ Flowcraft selects exactly one published node per external response. Chapter entr
 GIZCLAW=/absolute/path/to/gizclaw-v0.7.7 GIZCLAW_TEST_CLI=/absolute/path/to/gizclaw-v0.7.7 make test-unit-resources
 GIZCLAW=/absolute/path/to/gizclaw-v0.7.7 GIZCLAW_TEST_CLI=/absolute/path/to/gizclaw-v0.7.7 GIZCLAW_CONTEXT=e2e-server-volc-bj-01 GIZCLAW_TEST_ENDPOINT=edge-bj-01.e2e.gizclaw.com:9821 GIZCLAW_TEST_REGISTRATION_TOKEN=<testing-runtime-token> APPLY=1 RAID=story-alice PARALLEL=3 make test-e2e
 ```
+
+## Multi-role implementations
+
+Continuous multi-character narration is available separately; original implementations remain unchanged.
+
+- `eino.multi-role.yaml`: `eino-story-alice-multi-role`; Voice aliases: `eino-story-alice-mr.storyteller`, `eino-story-alice-mr.alice`, `eino-story-alice-mr.white-rabbit`, `eino-story-alice-mr.hatter`, `eino-story-alice-mr.cheshire-cat`, `eino-story-alice-mr.queen-of-hearts`.
+- `flowcraft.multi-role.yaml`: `flowcraft-story-alice-multi-role`; Voice aliases: `flowcraft-story-alice-mr.storyteller`, `flowcraft-story-alice-mr.alice`, `flowcraft-story-alice-mr.white-rabbit`, `flowcraft-story-alice-mr.hatter`, `flowcraft-story-alice-mr.cheshire-cat`, `flowcraft-story-alice-mr.queen-of-hearts`.

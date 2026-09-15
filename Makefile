@@ -2,12 +2,13 @@
 
 GIZCLAW ?= gizclaw
 GIZCLAW_TEST_CLI ?= $(GIZCLAW)
+TIER ?= all
 RAID ?= all
-PARALLEL ?= 1
+PARALLEL ?= 4
 APPLY ?= 0
 
 export GIZCLAW GIZCLAW_TEST_CLI
-export RAID PARALLEL APPLY GIZCLAW_CONTEXT REPORT
+export TIER RAID PARALLEL APPLY GIZCLAW_CONTEXT REPORT
 
 .PHONY: help test-unit-resources test-unit-learn test-unit-voices test-e2e
 

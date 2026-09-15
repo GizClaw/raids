@@ -40,3 +40,10 @@ Flowcraft selects exactly one published node per external response. Chapter entr
 GIZCLAW=/absolute/path/to/gizclaw-v0.7.7 GIZCLAW_TEST_CLI=/absolute/path/to/gizclaw-v0.7.7 make test-unit-resources
 GIZCLAW=/absolute/path/to/gizclaw-v0.7.7 GIZCLAW_TEST_CLI=/absolute/path/to/gizclaw-v0.7.7 GIZCLAW_CONTEXT=e2e-server-volc-bj-01 GIZCLAW_TEST_ENDPOINT=edge-bj-01.e2e.gizclaw.com:9821 GIZCLAW_TEST_REGISTRATION_TOKEN=<testing-runtime-token> APPLY=1 RAID=story-around-world-80-days PARALLEL=3 make test-e2e
 ```
+
+## Multi-role implementations
+
+Continuous multi-character narration is available separately; original implementations remain unchanged.
+
+- `eino.multi-role.yaml`: `eino-story-around-world-80-days-multi-role`; Voice aliases: `eino-story-around-world-80-days-mr.storyteller`, `eino-story-around-world-80-days-mr.fogg`, `eino-story-around-world-80-days-mr.aouda`, `eino-story-around-world-80-days-mr.passepartout`, `eino-story-around-world-80-days-mr.fix`.
+- `flowcraft.multi-role.yaml`: `flowcraft-story-around-world-80-days-multi-role`; Voice aliases: `flowcraft-story-around-world-80-days-mr.storyteller`, `flowcraft-story-around-world-80-days-mr.fogg`, `flowcraft-story-around-world-80-days-mr.aouda`, `flowcraft-story-around-world-80-days-mr.passepartout`, `flowcraft-story-around-world-80-days-mr.fix`.

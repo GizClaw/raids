@@ -40,3 +40,10 @@ Flowcraft selects exactly one published node per external response. Chapter entr
 GIZCLAW=/absolute/path/to/gizclaw-v0.7.7 GIZCLAW_TEST_CLI=/absolute/path/to/gizclaw-v0.7.7 make test-unit-resources
 GIZCLAW=/absolute/path/to/gizclaw-v0.7.7 GIZCLAW_TEST_CLI=/absolute/path/to/gizclaw-v0.7.7 GIZCLAW_CONTEXT=e2e-server-volc-bj-01 GIZCLAW_TEST_ENDPOINT=edge-bj-01.e2e.gizclaw.com:9821 GIZCLAW_TEST_REGISTRATION_TOKEN=<testing-runtime-token> APPLY=1 RAID=story-robinson-crusoe PARALLEL=3 make test-e2e
 ```
+
+## Multi-role implementations
+
+Continuous multi-character narration is available separately; original implementations remain unchanged.
+
+- `eino.multi-role.yaml`: `eino-story-robinson-crusoe-multi-role`; Voice aliases: `eino-story-robinson-crusoe-mr.storyteller`, `eino-story-robinson-crusoe-mr.robinson`, `eino-story-robinson-crusoe-mr.friday`, `eino-story-robinson-crusoe-mr.captain`.
+- `flowcraft.multi-role.yaml`: `flowcraft-story-robinson-crusoe-multi-role`; Voice aliases: `flowcraft-story-robinson-crusoe-mr.storyteller`, `flowcraft-story-robinson-crusoe-mr.robinson`, `flowcraft-story-robinson-crusoe-mr.friday`, `flowcraft-story-robinson-crusoe-mr.captain`.

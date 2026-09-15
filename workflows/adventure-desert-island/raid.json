@@ -81,6 +81,93 @@
           }
         }
       }
+    },
+    "eino-multi-role": {
+      "file": "eino.multi-role.yaml",
+      "workflow_id": "eino-adventure-desert-island-multi-role",
+      "driver": "eino",
+      "input": [
+        "text",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "adventure"
+      },
+      "parameters": {
+        "models": {
+          "eino-adventure-desert-island-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "eino-adventure-desert-island-mr.adventure-guide": {
+            "role": "adventure-guide",
+            "language": "zh-CN",
+            "description": "旁白：连续剧本段落音色"
+          },
+          "eino-adventure-desert-island-mr.scout": {
+            "role": "scout",
+            "language": "zh-CN",
+            "description": "侦察伙伴：连续剧本段落音色"
+          },
+          "eino-adventure-desert-island-mr.signal-officer": {
+            "role": "signal-officer",
+            "language": "zh-CN",
+            "description": "求救信号员：连续剧本段落音色"
+          },
+          "eino-adventure-desert-island-mr.safety-officer": {
+            "role": "safety-officer",
+            "language": "zh-CN",
+            "description": "安全队员：连续剧本段落音色"
+          }
+        }
+      }
+    },
+    "flowcraft-multi-role": {
+      "file": "flowcraft.multi-role.yaml",
+      "workflow_id": "flowcraft-adventure-desert-island-multi-role",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "adventure"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-adventure-desert-island-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-adventure-desert-island-mr.adventure-guide": {
+            "role": "adventure-guide",
+            "language": "zh-CN",
+            "description": "旁白：连续剧本段落音色"
+          },
+          "flowcraft-adventure-desert-island-mr.scout": {
+            "role": "scout",
+            "language": "zh-CN",
+            "description": "侦察伙伴：连续剧本段落音色"
+          },
+          "flowcraft-adventure-desert-island-mr.signal-officer": {
+            "role": "signal-officer",
+            "language": "zh-CN",
+            "description": "求救信号员：连续剧本段落音色"
+          },
+          "flowcraft-adventure-desert-island-mr.safety-officer": {
+            "role": "safety-officer",
+            "language": "zh-CN",
+            "description": "安全队员：连续剧本段落音色"
+          }
+        }
+      }
     }
   },
   "tester": {
@@ -109,34 +196,122 @@
       ]
     }
   },
+  "testers": {
+    "multi-role": {
+      "file": "test.multi-role.yaml",
+      "workflow_id": "adventure-desert-island-test-multi-role",
+      "driver": "eino",
+      "parameters": {
+        "models": {
+          "adventure-desert-island-test.model": {
+            "kind": "llm",
+            "role": "judge",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        }
+      },
+      "route": {
+        "responses": 7,
+        "checkpoints": [
+          "opening",
+          "english-opening",
+          "continue-choice",
+          "fact-boundary",
+          "safety-boundary",
+          "memory-store",
+          "memory-recall"
+        ]
+      },
+      "implementations": [
+        "eino-multi-role",
+        "flowcraft-multi-role"
+      ]
+    }
+  },
   "tests": [
     {
-      "file": "tests/giztest/adventure-desert-island/eino.giztest.yaml",
-      "implementation": "eino",
-      "topology": "relay",
-      "reload": true,
-      "timeout": "35m"
+      "file": "tests/giztest/smoke/adventure-desert-island.eino.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "eino"
+      ]
     },
     {
-      "file": "tests/giztest/adventure-desert-island/flowcraft.giztest.yaml",
-      "implementation": "flowcraft",
-      "topology": "relay",
-      "reload": true,
-      "timeout": "35m"
+      "file": "tests/giztest/smoke/adventure-desert-island.flowcraft.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "flowcraft"
+      ]
     },
     {
-      "file": "tests/giztest/adventure-desert-island/eino.realtime.giztest.yaml",
-      "implementation": "eino",
-      "topology": "realtime-roundtrip",
-      "reload": true,
-      "requires_audio": true
+      "file": "tests/giztest/smoke/adventure-desert-island.eino.multi-role.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "eino-multi-role"
+      ]
     },
     {
-      "file": "tests/giztest/adventure-desert-island/flowcraft.realtime.giztest.yaml",
-      "implementation": "flowcraft",
-      "topology": "realtime-roundtrip",
-      "reload": true,
-      "requires_audio": true
+      "file": "tests/giztest/smoke/adventure-desert-island.flowcraft.multi-role.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "flowcraft-multi-role"
+      ]
+    },
+    {
+      "file": "tests/giztest/quality/adventure-desert-island.eino.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "eino"
+      ]
+    },
+    {
+      "file": "tests/giztest/quality/adventure-desert-island.flowcraft.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "flowcraft"
+      ]
+    },
+    {
+      "file": "tests/giztest/quality/adventure-desert-island.eino.multi-role.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "eino-multi-role"
+      ]
+    },
+    {
+      "file": "tests/giztest/quality/adventure-desert-island.flowcraft.multi-role.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "flowcraft-multi-role"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/adventure-desert-island.eino.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "eino"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/adventure-desert-island.flowcraft.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "flowcraft"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/adventure-desert-island.eino.multi-role.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "eino-multi-role"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/adventure-desert-island.flowcraft.multi-role.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "flowcraft-multi-role"
+      ]
     }
   ]
 }

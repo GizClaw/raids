@@ -82,6 +82,103 @@
           }
         }
       }
+    },
+    "eino-multi-role": {
+      "file": "eino.multi-role.yaml",
+      "workflow_id": "eino-adventure-space-rescue-multi-role",
+      "driver": "eino",
+      "input": [
+        "text",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "adventure"
+      },
+      "parameters": {
+        "models": {
+          "eino-adventure-space-rescue-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "eino-adventure-space-rescue-mr.adventure-guide": {
+            "role": "adventure-guide",
+            "language": "zh-CN",
+            "description": "旁白：连续剧本段落音色"
+          },
+          "eino-adventure-space-rescue-mr.captain": {
+            "role": "captain",
+            "language": "zh-CN",
+            "description": "救援队长：连续剧本段落音色"
+          },
+          "eino-adventure-space-rescue-mr.engineer": {
+            "role": "engineer",
+            "language": "zh-CN",
+            "description": "工程师：连续剧本段落音色"
+          },
+          "eino-adventure-space-rescue-mr.navigator": {
+            "role": "navigator",
+            "language": "zh-CN",
+            "description": "领航员：连续剧本段落音色"
+          },
+          "eino-adventure-space-rescue-mr.medic": {
+            "role": "medic",
+            "language": "zh-CN",
+            "description": "医护员：连续剧本段落音色"
+          }
+        }
+      }
+    },
+    "flowcraft-multi-role": {
+      "file": "flowcraft.multi-role.yaml",
+      "workflow_id": "flowcraft-adventure-space-rescue-multi-role",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "adventure"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-adventure-space-rescue-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-adventure-space-rescue-mr.adventure-guide": {
+            "role": "adventure-guide",
+            "language": "zh-CN",
+            "description": "旁白：连续剧本段落音色"
+          },
+          "flowcraft-adventure-space-rescue-mr.captain": {
+            "role": "captain",
+            "language": "zh-CN",
+            "description": "救援队长：连续剧本段落音色"
+          },
+          "flowcraft-adventure-space-rescue-mr.engineer": {
+            "role": "engineer",
+            "language": "zh-CN",
+            "description": "工程师：连续剧本段落音色"
+          },
+          "flowcraft-adventure-space-rescue-mr.navigator": {
+            "role": "navigator",
+            "language": "zh-CN",
+            "description": "领航员：连续剧本段落音色"
+          },
+          "flowcraft-adventure-space-rescue-mr.medic": {
+            "role": "medic",
+            "language": "zh-CN",
+            "description": "医护员：连续剧本段落音色"
+          }
+        }
+      }
     }
   },
   "tester": {
@@ -116,34 +213,128 @@
       ]
     }
   },
+  "testers": {
+    "multi-role": {
+      "file": "test.multi-role.yaml",
+      "workflow_id": "adventure-space-rescue-test-multi-role",
+      "driver": "eino",
+      "parameters": {
+        "models": {
+          "adventure-space-rescue-test.model": {
+            "kind": "llm",
+            "role": "judge",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        }
+      },
+      "route": {
+        "responses": 13,
+        "checkpoints": [
+          "opening",
+          "restore-communications",
+          "establish-energy",
+          "correct-energy",
+          "assign-roles",
+          "reject-sacrifice",
+          "choose-window",
+          "reload-stage-checkpoint",
+          "establish-coordinate",
+          "correct-coordinate",
+          "reject-attack",
+          "recall-coordinate",
+          "recap-state"
+        ]
+      },
+      "implementations": [
+        "eino-multi-role",
+        "flowcraft-multi-role"
+      ]
+    }
+  },
   "tests": [
     {
-      "file": "tests/giztest/adventure-space-rescue/eino.giztest.yaml",
-      "implementation": "eino",
-      "topology": "relay",
-      "reload": true,
-      "timeout": "55m"
+      "file": "tests/giztest/smoke/adventure-space-rescue.eino.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "eino"
+      ]
     },
     {
-      "file": "tests/giztest/adventure-space-rescue/flowcraft.giztest.yaml",
-      "implementation": "flowcraft",
-      "topology": "relay",
-      "reload": true,
-      "timeout": "55m"
+      "file": "tests/giztest/smoke/adventure-space-rescue.flowcraft.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "flowcraft"
+      ]
     },
     {
-      "file": "tests/giztest/adventure-space-rescue/eino.realtime.giztest.yaml",
-      "implementation": "eino",
-      "topology": "realtime-roundtrip",
-      "reload": true,
-      "requires_audio": true
+      "file": "tests/giztest/smoke/adventure-space-rescue.eino.multi-role.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "eino-multi-role"
+      ]
     },
     {
-      "file": "tests/giztest/adventure-space-rescue/flowcraft.realtime.giztest.yaml",
-      "implementation": "flowcraft",
-      "topology": "realtime-roundtrip",
-      "reload": true,
-      "requires_audio": true
+      "file": "tests/giztest/smoke/adventure-space-rescue.flowcraft.multi-role.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "flowcraft-multi-role"
+      ]
+    },
+    {
+      "file": "tests/giztest/quality/adventure-space-rescue.eino.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "eino"
+      ]
+    },
+    {
+      "file": "tests/giztest/quality/adventure-space-rescue.flowcraft.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "flowcraft"
+      ]
+    },
+    {
+      "file": "tests/giztest/quality/adventure-space-rescue.eino.multi-role.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "eino-multi-role"
+      ]
+    },
+    {
+      "file": "tests/giztest/quality/adventure-space-rescue.flowcraft.multi-role.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "flowcraft-multi-role"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/adventure-space-rescue.eino.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "eino"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/adventure-space-rescue.flowcraft.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "flowcraft"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/adventure-space-rescue.eino.multi-role.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "eino-multi-role"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/adventure-space-rescue.flowcraft.multi-role.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "flowcraft-multi-role"
+      ]
     }
   ]
 }

@@ -18,8 +18,8 @@ Install an implementation into a RuntimeProfile with `raids install adventure-hi
 
 Tester: `test.yaml` (`adventure-history-test`, eino), shared by every implementation; one Giztest scenario per implementation:
 
-- `tests/giztest/adventure-history/eino.giztest.yaml` (relay, with reload, timeout 35m)
-- `tests/giztest/adventure-history/flowcraft.giztest.yaml` (relay, with reload, timeout 35m)
+- `tests/giztest/soak/adventure-history.eino.giztest.yaml` (relay, with reload, timeout 35m)
+- `tests/giztest/soak/adventure-history.flowcraft.giztest.yaml` (relay, with reload, timeout 35m)
 
 The route has 7 target responses:
 
@@ -38,3 +38,10 @@ Run:
 ```sh
 make test-e2e RAID=adventure-history PARALLEL=2
 ```
+
+## Multi-role implementations
+
+Continuous multi-character narration is available separately; original implementations remain unchanged.
+
+- `eino.multi-role.yaml`: `eino-adventure-history-multi-role`; Voice aliases: `eino-adventure-history-mr.adventure-guide`, `eino-adventure-history-mr.historian`, `eino-adventure-history-mr.artisan`, `eino-adventure-history-mr.market-guide`.
+- `flowcraft.multi-role.yaml`: `flowcraft-adventure-history-multi-role`; Voice aliases: `flowcraft-adventure-history-mr.adventure-guide`, `flowcraft-adventure-history-mr.historian`, `flowcraft-adventure-history-mr.artisan`, `flowcraft-adventure-history-mr.market-guide`.

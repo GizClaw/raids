@@ -13,7 +13,9 @@
   "rating": {
     "age": "6+",
     "scheme": "raids-age-v1",
-    "content": []
+    "content": [
+
+    ]
   },
   "tags": [
     "space",
@@ -80,6 +82,93 @@
           }
         }
       }
+    },
+    "eino-multi-role": {
+      "file": "eino.multi-role.yaml",
+      "workflow_id": "eino-adventure-space-encyclopedia-multi-role",
+      "driver": "eino",
+      "input": [
+        "text",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "adventure"
+      },
+      "parameters": {
+        "models": {
+          "eino-adventure-space-encyclopedia-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "eino-adventure-space-encyclopedia-mr.adventure-guide": {
+            "role": "adventure-guide",
+            "language": "zh-CN",
+            "description": "旁白：连续剧本段落音色"
+          },
+          "eino-adventure-space-encyclopedia-mr.astronomer": {
+            "role": "astronomer",
+            "language": "zh-CN",
+            "description": "天文学家：连续剧本段落音色"
+          },
+          "eino-adventure-space-encyclopedia-mr.robot": {
+            "role": "robot",
+            "language": "zh-CN",
+            "description": "资料机器人：连续剧本段落音色"
+          },
+          "eino-adventure-space-encyclopedia-mr.navigator": {
+            "role": "navigator",
+            "language": "zh-CN",
+            "description": "星图领航员：连续剧本段落音色"
+          }
+        }
+      }
+    },
+    "flowcraft-multi-role": {
+      "file": "flowcraft.multi-role.yaml",
+      "workflow_id": "flowcraft-adventure-space-encyclopedia-multi-role",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "adventure"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-adventure-space-encyclopedia-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-adventure-space-encyclopedia-mr.adventure-guide": {
+            "role": "adventure-guide",
+            "language": "zh-CN",
+            "description": "旁白：连续剧本段落音色"
+          },
+          "flowcraft-adventure-space-encyclopedia-mr.astronomer": {
+            "role": "astronomer",
+            "language": "zh-CN",
+            "description": "天文学家：连续剧本段落音色"
+          },
+          "flowcraft-adventure-space-encyclopedia-mr.robot": {
+            "role": "robot",
+            "language": "zh-CN",
+            "description": "资料机器人：连续剧本段落音色"
+          },
+          "flowcraft-adventure-space-encyclopedia-mr.navigator": {
+            "role": "navigator",
+            "language": "zh-CN",
+            "description": "星图领航员：连续剧本段落音色"
+          }
+        }
+      }
     }
   },
   "tester": {
@@ -108,34 +197,122 @@
       ]
     }
   },
+  "testers": {
+    "multi-role": {
+      "file": "test.multi-role.yaml",
+      "workflow_id": "adventure-space-encyclopedia-test-multi-role",
+      "driver": "eino",
+      "parameters": {
+        "models": {
+          "adventure-space-encyclopedia-test.model": {
+            "kind": "llm",
+            "role": "judge",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        }
+      },
+      "route": {
+        "responses": 7,
+        "checkpoints": [
+          "opening",
+          "english-opening",
+          "continue-choice",
+          "fact-boundary",
+          "safety-boundary",
+          "memory-store",
+          "memory-recall"
+        ]
+      },
+      "implementations": [
+        "eino-multi-role",
+        "flowcraft-multi-role"
+      ]
+    }
+  },
   "tests": [
     {
-      "file": "tests/giztest/adventure-space-encyclopedia/eino.giztest.yaml",
-      "implementation": "eino",
-      "topology": "relay",
-      "reload": true,
-      "timeout": "35m"
+      "file": "tests/giztest/smoke/adventure-space-encyclopedia.eino.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "eino"
+      ]
     },
     {
-      "file": "tests/giztest/adventure-space-encyclopedia/flowcraft.giztest.yaml",
-      "implementation": "flowcraft",
-      "topology": "relay",
-      "reload": true,
-      "timeout": "35m"
+      "file": "tests/giztest/smoke/adventure-space-encyclopedia.flowcraft.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "flowcraft"
+      ]
     },
     {
-      "file": "tests/giztest/adventure-space-encyclopedia/eino.realtime.giztest.yaml",
-      "implementation": "eino",
-      "topology": "realtime-roundtrip",
-      "reload": true,
-      "requires_audio": true
+      "file": "tests/giztest/smoke/adventure-space-encyclopedia.eino.multi-role.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "eino-multi-role"
+      ]
     },
     {
-      "file": "tests/giztest/adventure-space-encyclopedia/flowcraft.realtime.giztest.yaml",
-      "implementation": "flowcraft",
-      "topology": "realtime-roundtrip",
-      "reload": true,
-      "requires_audio": true
+      "file": "tests/giztest/smoke/adventure-space-encyclopedia.flowcraft.multi-role.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "flowcraft-multi-role"
+      ]
+    },
+    {
+      "file": "tests/giztest/quality/adventure-space-encyclopedia.eino.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "eino"
+      ]
+    },
+    {
+      "file": "tests/giztest/quality/adventure-space-encyclopedia.flowcraft.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "flowcraft"
+      ]
+    },
+    {
+      "file": "tests/giztest/quality/adventure-space-encyclopedia.eino.multi-role.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "eino-multi-role"
+      ]
+    },
+    {
+      "file": "tests/giztest/quality/adventure-space-encyclopedia.flowcraft.multi-role.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "flowcraft-multi-role"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/adventure-space-encyclopedia.eino.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "eino"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/adventure-space-encyclopedia.flowcraft.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "flowcraft"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/adventure-space-encyclopedia.eino.multi-role.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "eino-multi-role"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/adventure-space-encyclopedia.flowcraft.multi-role.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "flowcraft-multi-role"
+      ]
     }
   ]
 }

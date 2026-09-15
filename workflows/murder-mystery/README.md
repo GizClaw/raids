@@ -17,7 +17,7 @@ Install an implementation into a RuntimeProfile with `raids install murder-myste
 
 Tester: `test.yaml` (`murder-mystery-test`, eino), shared by every implementation; one Giztest scenario per implementation:
 
-- `tests/giztest/murder-mystery/flowcraft.giztest.yaml` (relay, with reload, timeout 99m)
+- `tests/giztest/soak/murder-mystery.flowcraft.giztest.yaml` (relay, with reload, timeout 99m)
 
 The route has 26 target responses:
 
@@ -55,3 +55,9 @@ Run:
 ```sh
 make test-e2e RAID=murder-mystery PARALLEL=2
 ```
+
+## Multi-role implementations
+
+Continuous multi-character narration is available separately; original implementations remain unchanged.
+
+- `flowcraft.multi-role.yaml`: `flowcraft-murder-mystery-multi-role`; Voice aliases: `flowcraft-murder-mystery-mr.game-master`, `flowcraft-murder-mystery-mr.housekeeper`, `flowcraft-murder-mystery-mr.chef`, `flowcraft-murder-mystery-mr.heir`, `flowcraft-murder-mystery-mr.lawyer`.

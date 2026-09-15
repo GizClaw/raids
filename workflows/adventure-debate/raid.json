@@ -13,7 +13,9 @@
   "rating": {
     "age": "9+",
     "scheme": "raids-age-v1",
-    "content": []
+    "content": [
+
+    ]
   },
   "tags": [
     "debate",
@@ -80,6 +82,93 @@
           }
         }
       }
+    },
+    "eino-multi-role": {
+      "file": "eino.multi-role.yaml",
+      "workflow_id": "eino-adventure-debate-multi-role",
+      "driver": "eino",
+      "input": [
+        "text",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "adventure"
+      },
+      "parameters": {
+        "models": {
+          "eino-adventure-debate-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "eino-adventure-debate-mr.adventure-guide": {
+            "role": "adventure-guide",
+            "language": "zh-CN",
+            "description": "旁白：连续剧本段落音色"
+          },
+          "eino-adventure-debate-mr.proponent": {
+            "role": "proponent",
+            "language": "zh-CN",
+            "description": "正方小辩手：连续剧本段落音色"
+          },
+          "eino-adventure-debate-mr.opponent": {
+            "role": "opponent",
+            "language": "zh-CN",
+            "description": "反方小辩手：连续剧本段落音色"
+          },
+          "eino-adventure-debate-mr.fact-checker": {
+            "role": "fact-checker",
+            "language": "zh-CN",
+            "description": "事实核对员：连续剧本段落音色"
+          }
+        }
+      }
+    },
+    "flowcraft-multi-role": {
+      "file": "flowcraft.multi-role.yaml",
+      "workflow_id": "flowcraft-adventure-debate-multi-role",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "adventure"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-adventure-debate-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-adventure-debate-mr.adventure-guide": {
+            "role": "adventure-guide",
+            "language": "zh-CN",
+            "description": "旁白：连续剧本段落音色"
+          },
+          "flowcraft-adventure-debate-mr.proponent": {
+            "role": "proponent",
+            "language": "zh-CN",
+            "description": "正方小辩手：连续剧本段落音色"
+          },
+          "flowcraft-adventure-debate-mr.opponent": {
+            "role": "opponent",
+            "language": "zh-CN",
+            "description": "反方小辩手：连续剧本段落音色"
+          },
+          "flowcraft-adventure-debate-mr.fact-checker": {
+            "role": "fact-checker",
+            "language": "zh-CN",
+            "description": "事实核对员：连续剧本段落音色"
+          }
+        }
+      }
     }
   },
   "tester": {
@@ -108,34 +197,122 @@
       ]
     }
   },
+  "testers": {
+    "multi-role": {
+      "file": "test.multi-role.yaml",
+      "workflow_id": "adventure-debate-test-multi-role",
+      "driver": "eino",
+      "parameters": {
+        "models": {
+          "adventure-debate-test.model": {
+            "kind": "llm",
+            "role": "judge",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        }
+      },
+      "route": {
+        "responses": 7,
+        "checkpoints": [
+          "opening",
+          "english-opening",
+          "continue-choice",
+          "fact-boundary",
+          "safety-boundary",
+          "memory-store",
+          "memory-recall"
+        ]
+      },
+      "implementations": [
+        "eino-multi-role",
+        "flowcraft-multi-role"
+      ]
+    }
+  },
   "tests": [
     {
-      "file": "tests/giztest/adventure-debate/eino.giztest.yaml",
-      "implementation": "eino",
-      "topology": "relay",
-      "reload": true,
-      "timeout": "35m"
+      "file": "tests/giztest/smoke/adventure-debate.eino.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "eino"
+      ]
     },
     {
-      "file": "tests/giztest/adventure-debate/flowcraft.giztest.yaml",
-      "implementation": "flowcraft",
-      "topology": "relay",
-      "reload": true,
-      "timeout": "35m"
+      "file": "tests/giztest/smoke/adventure-debate.flowcraft.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "flowcraft"
+      ]
     },
     {
-      "file": "tests/giztest/adventure-debate/eino.realtime.giztest.yaml",
-      "implementation": "eino",
-      "topology": "realtime-roundtrip",
-      "reload": true,
-      "requires_audio": true
+      "file": "tests/giztest/smoke/adventure-debate.eino.multi-role.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "eino-multi-role"
+      ]
     },
     {
-      "file": "tests/giztest/adventure-debate/flowcraft.realtime.giztest.yaml",
-      "implementation": "flowcraft",
-      "topology": "realtime-roundtrip",
-      "reload": true,
-      "requires_audio": true
+      "file": "tests/giztest/smoke/adventure-debate.flowcraft.multi-role.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "flowcraft-multi-role"
+      ]
+    },
+    {
+      "file": "tests/giztest/quality/adventure-debate.eino.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "eino"
+      ]
+    },
+    {
+      "file": "tests/giztest/quality/adventure-debate.flowcraft.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "flowcraft"
+      ]
+    },
+    {
+      "file": "tests/giztest/quality/adventure-debate.eino.multi-role.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "eino-multi-role"
+      ]
+    },
+    {
+      "file": "tests/giztest/quality/adventure-debate.flowcraft.multi-role.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "flowcraft-multi-role"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/adventure-debate.eino.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "eino"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/adventure-debate.flowcraft.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "flowcraft"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/adventure-debate.eino.multi-role.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "eino-multi-role"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/adventure-debate.flowcraft.multi-role.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "flowcraft-multi-role"
+      ]
     }
   ]
 }

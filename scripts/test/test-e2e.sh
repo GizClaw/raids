@@ -10,58 +10,52 @@ set -eu
 # environment.
 #
 #   GIZCLAW_TEST_ENDPOINT=<host:port> GIZCLAW_TEST_REGISTRATION_TOKEN=<token> \
-#   make test-e2e RAID=story-aesop/eino
+#   make test-e2e TIER=smoke RAID=story-aesop
 #
-# RAID selects the scope:
-#   all                  every scenario directory except tests/giztest/h106,
-#                        whose targets are not part of the testing profile
-#   <raid>               every scenario of one raid, for example story-aesop
-#   <raid>/<scenario>    one scenario file, for example story-aesop/eino
+# TIER=smoke|quality|soak|all and RAID=<raid>|all select tier files.
+# Audio-only raids have no soak file; TIER=all selects their available tiers.
 #
 # APPLY=1 applies the complete testing closure (every raid package, the testing
 # RuntimeProfile, and the testing token) with GIZCLAW_CONTEXT before running.
 # That replaces the retired raidtest shadow mode: edit
 # workflows/<raid>/<engine>.yaml, then run
-# `APPLY=1 make test-e2e RAID=<raid>/<engine>` to publish the edit and exercise
+# `APPLY=1 make test-e2e TIER=smoke RAID=<raid>` to publish the edit and exercise
 # just that scenario.
 . "$(dirname -- "$0")/../common/repo.sh"
 root="$(repo_root)"
 : "${GIZCLAW:=gizclaw}"
 : "${GIZCLAW_TEST_CLI:=$GIZCLAW}"
 : "${RAID:=all}"
-: "${PARALLEL:=1}"
+: "${TIER:=all}"
+: "${PARALLEL:=4}"
 : "${APPLY:=0}"
 : "${REPORT:=}"
 
 require_command "$GIZCLAW_TEST_CLI"
 cd "$root"
 
-raid="${RAID%%/*}"
-scenario=''
-case "$RAID" in */*) scenario="${RAID#*/}" ;; esac
-
-# Resolve the selection into positional parameters.
+case "$TIER" in
+ all) tiers='smoke quality soak' ;;
+ smoke|quality|soak) tiers="$TIER" ;;
+ *) printf 'unknown TIER: %s\n' "$TIER" >&2; exit 1 ;;
+esac
+case "$RAID" in ''|*[!a-z0-9-]*) printf 'invalid RAID: %s\n' "$RAID" >&2; exit 1 ;; esac
 set --
-if test "$RAID" = all; then
-	for dir in tests/giztest/*/; do
-		case "$(basename -- "$dir")" in h106 | reports) continue ;; esac
-		set -- "$@" "${dir%/}"
-	done
-elif test -n "$scenario"; then
-	file="tests/giztest/$raid/$scenario.giztest.yaml"
-	test -f "$file" || {
-		printf 'unknown scenario: %s\n' "$file" >&2
-		ls -1 "tests/giztest/$raid" 2>/dev/null | sed 's|^|  available: |' >&2 || true
-		exit 1
-	}
-	set -- "$file"
-else
-	test -d "tests/giztest/$raid" || {
-		printf 'unknown raid scenario directory: tests/giztest/%s\n' "$raid" >&2
-		exit 1
-	}
-	set -- "tests/giztest/$raid"
-fi
+for tier in $tiers; do
+ if test "$RAID" = all; then
+  set -- "$@" "tests/giztest/$tier"
+ else
+  found=0
+  for file in "tests/giztest/$tier/$RAID".*.giztest.yaml; do
+   test -f "$file" || continue
+   set -- "$@" "$file"
+   found=1
+  done
+  if test "$found" = 0 && test "$TIER" != all; then
+   printf 'no %s tests for RAID=%s\n' "$tier" "$RAID" >&2; exit 1
+  fi
+ fi
+done
 test "$#" -gt 0 || {
 	printf 'no Giztest scenarios selected\n' >&2
 	exit 1

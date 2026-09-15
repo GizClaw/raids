@@ -24,9 +24,10 @@ models/<model-name>.yaml
 memory-layouts/<layout-name>.yaml
 voices/<tenant-name>/<voice-id>.yaml
 workflows/<raid-name>/<engine>.yaml        # one directory per scenario: flowcraft.yaml, eino.yaml, ...
-workflows/<raid-name>/test.yaml            # the scenario's single Tester Workflow (id <raid-name>-test)
+workflows/<raid-name>/test.yaml            # original Tester Workflow (id <raid-name>-test)
 workflows/<raid-name>/raid.json            # scenario metadata: rating, category, tags, voices, models, testing
 workflows/<raid-name>/README.md            # human-readable play and test route
+workflows/<raid-name>/routing-cases.json   # shared dual-engine routing cases for multi-voice raids
 runtime-profiles/<profile-name>.yaml
 registration-tokens/<token-name>.yaml
 runtime-profile.example.yaml
@@ -129,12 +130,10 @@ Voice roles use the same Workflow namespace:
 | `doubao-realtime-conversation` | `assistant` |
 | `flowcraft-chat-assistant` | `assistant` |
 | each `ast-translate-*` Workflow | `translator` |
-| `flowcraft-murder-mystery` | `game-master` |
+| `flowcraft-murder-mystery` | `game-master`, `housekeeper`, `chef`, `heir`, `lawyer` |
 | `flowcraft-journey-guide` | `narrator` |
-| each `flowcraft-story-*` Workflow | `storyteller` plus two title-specific character roles declared by its `raid.json` |
-| `flowcraft-adventure-space-rescue` | `adventure-guide` |
-| `flowcraft-adventure-monster-maze` | `adventure-guide` |
-| `flowcraft-adventure-castle-mystery` | `adventure-guide` |
+| each `flowcraft-story-*` / `eino-story-*` Workflow | `storyteller` plus every title-specific character role declared by its `raid.json` |
+| each `flowcraft-adventure-*` / `eino-adventure-*` Workflow | `adventure-guide` plus every scene-specific character role declared by its `raid.json` |
 | each `flowcraft-learn-chinese-poetry-grade*` Workflow | `tutor` |
 | each `flowcraft-learn-math-grade*` Workflow | `tutor` |
 | each `flowcraft-learn-science-grade*` Workflow | `tutor` |
@@ -224,8 +223,8 @@ when the current choice satisfies the adjacent chapter condition; entering a
 chapter emits its localized title once and continues straight into that
 chapter's opening scene in the same reply, while ordinary turns never repeat
 it. Every chapter-one opening states the setting, the child's role, and the
-two characters, and explains how to play: answer with a choice, ask a named
-character to speak, and say “进入下一章” once the chapter's choice is made.
+currently present characters, previews later arrivals, and explains how to play:
+answer with a choice, ask a named character to speak, and say “进入下一章” once the chapter's choice is made.
 Whenever a story asks the child to choose, the question names the concrete
 options. After the chapter's choice and its consequences, the narrator tells
 the child once that “进入下一章” continues; Flowcraft also accepts that phrase
@@ -233,14 +232,65 @@ as a request for the adjacent chapter.
 The Wizard of Oz additionally preserves its explicit English chapter-one
 restart and established English opening on both implementations.
 
-Flowcraft reconstructs `story_contract_v1` after reload, selects narrator or
-one of two in-scene characters, and routes to exactly one published model node.
-The three nodes resolve three distinct Workflow-scoped Voice aliases; chapter
-transitions, invalid roles, and fallback use the compatible `storyteller`
-alias. Eino implements the same player-visible story and state contract with
-one `text/plain` primary output, synthesized with its Workflow-scoped
-`storyteller` default Voice. Character-dependent Voice switching remains a
-Flowcraft capability; Eino uses one Voice for the entire primary output.
+### Narrator and character voices
+
+Original Flowcraft stories reconstruct `story_contract_v1` after reload and
+route narrator or character turns to one published model node with its own
+Voice alias. Original Eino stories preserve the same story/state contract with
+one `text/plain` primary output synthesized by the `storyteller` default Voice.
+
+
+The multi-role variants of 19 stories and 11 adventures use continuous audiobook narration in both
+engines: one narration LLM emits 300–600 characters per ordinary turn, with
+narration and 2–4 present characters alternating paragraphs. A scene with only
+one eligible character keeps that cast. Children may interrupt at any time;
+naming a present character increases that character's dialogue in the segment.
+Chapter/scene eligibility, knowledge boundaries, corrections and legacy memory
+recovery remain authoritative. The narrator ends with 2–3 concrete choices,
+except where the existing choice-completion sentence, final chapter, safety or
+limited confirmation/correction contract requires a different ending. Limited
+administrative and safety responses may be shorter than 300 characters.
+Ordinary narration targets 400–500 Unicode characters (including English spaces
+and punctuation), in five bounded paragraphs, leaving margin inside the 300–600
+contract. Corrections that also request continued narration are ordinary turns.
+
+Every raid with multi-role variants has a separate `test.multi-role.yaml`
+(`<raid>-test-multi-role`). Its deterministic checks strip known speaker markers
+and apply the multi-role reply contracts, retaining content and safety checks.
+`raid.json` keeps `tester` for originals and registers the variant under
+`testers.multi-role`, with explicit `implementations`. Soak multi-role clients
+select this Tester in `raidtest-testers`. Profiles must register its Workflow;
+it reuses the original `<raid>-test.model` judge alias. Murder-mystery retains
+its exact opening, bounded witness replies, correction and short-summary rules.
+
+Every paragraph begins with exactly one configured `【旁白】` or Chinese
+character marker, immediately followed by prose; no other `【】` markers are
+allowed. `voice_adapter.speaker_voices` maps these names to existing aliases;
+`default_voice` is the narrator alias. AudioDock strips configured markers from
+device text, serializes audio and prefetches the next segment. Interruption
+cancels current and pending segments. This requires **GizClaw v0.18.12**.
+`murder-mystery` retains its existing single-speaker routing contract.
+
+Both engines retain ASR, existing voice slots and matching role Voice resources
+in `default` and `testing` RuntimeProfiles. Chapter controls and investigation
+phase rules feed the single narration LLM instead of selecting a speaking node.
+
+Workflows and `raid.json` reference only Voice aliases named
+`flowcraft-<raid>-mr.<role>` or `eino-<raid>-mr.<role>` for multi-role variants. Original aliases retain their Workflow namespace. Narrator slots retain
+`.storyteller` for stories, `.adventure-guide` for adventures, and `.game-master`
+for murder mystery. Within each raid implementation, narrator and character
+slots must bind to distinct voices; the same role uses the same voice across
+engines. Per-raid READMEs document roles, Chinese names, aliases, and engine
+segment mappings.
+
+Concrete Voice resources are bound at runtime through `runtime-profiles/*.yaml`
+under `spec.resources.voices`; deployment bindings are owned by deploy's profile.
+Workflow and raid documentation does not pin concrete Voice resource IDs.
+
+New voices require **online verification in the tenant**. Catalog bindings and
+offline checks do not establish provider access, actual selected voices,
+latency, or sound quality; synthesis logs and listening remain separate
+acceptance evidence.
 
 Each Layout defines portable Flowcraft, Mem0, and Volc Mem0 policy. The public
 default profile selects Flowcraft with `connection.type: flowcraft_bbh`; it
@@ -275,7 +325,7 @@ merged by [GizClaw #590](https://github.com/GizClaw/gizclaw/pull/590).
 ## Static resource validation
 
 Raids uses the released GizClaw binary as the only authority for declarative
-Resource format validation. With GizClaw v0.18.2 or later on `PATH`, validate
+Resource format validation. With GizClaw v0.18.9 or later on `PATH`, validate
 every applyable catalog Resource with:
 
 ```sh
@@ -301,14 +351,30 @@ real provider credentials; `.env.example` remains the maintained list of
 allowed Credential and Tenant placeholders and validation fails if that file
 contains a populated value.
 
-Passing this check means each file conforms to the Resource schema embedded in
-that GizClaw release. CI pins the immutable v0.18.2 Linux package and verifies
-its published SHA-256 digest before validation. `make test-unit-voices`
-separately requires exactly 635 MiniMax Voice files and exactly one
-`model: speech-2.6-turbo` field in each. It also checks that spoken Eino
-Voice slots match Flowcraft roles, are declared in package manifests, and
-resolve to existing Voices in both public RuntimeProfiles. Per-file schema
-validation alone does not prove other runtime-only requirements such as cross-resource references or
+The target also checks the manifest → speaker mapping → both RuntimeProfiles →
+Voice resource chain, distinct role Voices and matching bindings across engines.
+For 30 continuous-narration raids it verifies a single narration LLM, configured
+Chinese markers, 300–600-character story probes, clean text, complete serial
+audio and zero underruns. First-response gates remain unchanged. Quality keeps
+safety, transitions, choice endings and correction/recovery contracts; soak
+keeps the relay/reload structure. Limited administrative/safety replies retain
+their original bounds. Quality budgets are 30 minutes for these longer stories.
+
+Each raid supplies a version-1 `routing-cases.json`. The gate executes actual
+Flowcraft JavaScript and Eino Starlark against state and content-control
+assertions. Single-speaker naming/order assertions have been removed from the
+30 story/adventure fixtures; murder mystery retains its existing tests. Ruby,
+Node.js and a local Go toolchain with cached Starlark dependencies are required;
+Go module downloads are disabled. Offline validation cannot establish real
+provider voice switching, timing, interruption or audible continuity.
+
+Passing this check establishes schema, binding, and deterministic routing
+contracts, not live behavior. CI still pins the immutable v0.18.2 Linux package
+and verifies its published SHA-256 digest; that pin predates `speaker_voices`
+and must be upgraded separately to validate this merged catalog.
+`make test-unit-voices` separately requires exactly 635 MiniMax Voice files and exactly one
+`model: speech-2.6-turbo` field in each. Per-file schema validation alone does
+not prove other runtime-only requirements such as cross-resource references or
 aliases resolve, provider credentials work, or a live Server
 will accept and run the complete catalog. Apply, runtime, `make test-e2e`,
 release, and Beijing Default E2E remain separate evidence.
@@ -317,7 +383,7 @@ release, and Beijing Default E2E remain separate evidence.
 
 Every scenario is one package directory `workflows/<raid>/`: one Workflow per
 engine implementation (`flowcraft.yaml`, `eino.yaml`, …), the scenario's single
-relay Tester (`test.yaml`, id `<raid>-test`), a `raid.json` manifest, and a
+original relay Tester (`test.yaml`, id `<raid>-test`), a `raid.json` manifest, and a
 README. `raid.json` declares the implementations and the slots each needs —
 model aliases, voice aliases, MemoryLayout — without binding them to concrete
 resources; rating (`raids-age-v1`), category, and tags make the catalog
@@ -329,47 +395,25 @@ voice aliases the manifest lists.
 
 ## Declarative live tests
 
-[`tests/giztest`](tests/giztest/README.md) holds every live Raids test as one
-`gizclaw.test/v1alpha1` document: 104 paired candidate/Tester relays (every
-story, adventure, learn, Journey, and Murder Mystery target on both engines), the
-100 paced-audio RealTime roundtrips covering every story/adventure/learn Flowcraft and
-Eino implementation, the 19 Flowcraft story role probes, the 38 story transition
-contracts (every story on both engines), the Wizard of Oz dual-engine English restart,
-the default assistant, Journey,
-Doubao realtime, and AST translation routes, the Journey TTFT benchmark, and
-the historical 3×/5× qualification repeats. `gizclaw test run tests/giztest --parallel N` isolates each
-file and repeat in its own ephemeral Peers and Workspaces and schedules them
-through one global worker pool; `make test-e2e` runs them against a provisioned
-deployment and `make test-unit-resources` validates the corpus offline. Each scenario's single Tester Workflow (`workflows/<raid>/test.yaml`, id `<raid>-test`, shared by every engine implementation) speaks the
-`workspace_relay` text protocol: they drive the scripted route, audit the
-deterministic contracts over their own History. Long story routes end bounded
-segments in `CHECKPOINT PASS` and the final segment in `PASS`; each role probe
-requires complete text/audio EOS and non-empty synthesized Opus, then applies
-independent 2-second first-text and 3-second first-audio gates without waiting
-for the second probe's EOS. Provisioning stays outside the runner: `APPLY=1 make test-e2e`
-applies the catalog, the Testers, the `testing` RuntimeProfile, and the
-`testing-runtime` token with the selected Admin context before running.
+Live tests use `tests/giztest/{smoke,quality,soak}/<raid>.<implementation>.giztest.yaml`, one implementation per file, named after its Workflow file. There are **517 tier files**: **175 smoke**, **175 quality**, and **167 soak**. The two external H106 files remain separate, for **519 `.giztest.yaml` files** total; generated reports are excluded. Selected files run concurrently with `gizclaw test run --parallel N`.
 
-CI is pinned to GizClaw v0.18.2, which drops the retired gameplay surface
-(PetDefs, the `pet` driver, and RuntimeProfile system Workflow roles) and
-names the Workspace initiative enum `CONVERSATION_PARAMETERS_INITIATIVE_*`. The
-story contract requires GizClaw v0.7.19 or later; the rest of the corpus
-requires GizClaw v0.6.0 or later (GizClaw #916, #921, #923). The bounded
-story-role first-response gates require the GizClaw #991/#992 contract first
-released in v0.7.13. GizClaw #994/#997 removed reload-time RuntimeProfile
-dependency revalidation in v0.7.16. The modality-selective first-response
-contract from GizClaw #1003/#1004 is first released in v0.7.19 and supports
-independent text and audio first-response gates. Reload is reported separately
-from the measured first-response gates. This corpus replaces the retired `tools/raidtest` Go runner: validating one locally edited
-Workflow is now `APPLY=1 make test-e2e RAID=<raid>/<engine>`, which applies that
-raid package and the testing closure before running its scenario.
+- **smoke** measures speed, latency and responsiveness, including complete audio and independent first-response probes.
+- **quality** enforces deterministic quality and safety guardrails, including transitions, corrections, language and role boundaries. Independent suite responses run in parallel and finish together within the existing file budget; long Tester relays live in soak.
+- **soak** runs long conversations between the Tester and target Workflow, including reload and memory continuity.
 
-Each story/adventure RealTime document synthesizes a short Chinese Opus fixture
-and sends it at 20 ms pacing through a warmed `WORKSPACE_INPUT_MODE_REALTIME`
-Workspace. Both engines require complete assistant text and audio plus a separate
-2-second text / 3-second audio first-response sample. Their voice adapters
-select `asr` for audio input and a Workflow-owned default Voice for synthesis.
-Raids declares the Voice slot; consuming RuntimeProfiles bind its Voice resource.
+The audio-only `ast-translate` and `doubao-realtime` targets have no soak protocol. Murder Mystery is Flowcraft-only. Journey tests all four implementations against equal gates, including recall; its history-only implementation has no recall exemption.
+
+```sh
+make test-e2e TIER=smoke RAID=story-aesop
+make test-e2e TIER=quality RAID=all
+make test-e2e TIER=soak RAID=journey-guide
+```
+
+Set `GIZCLAW_TEST_ENDPOINT` and `GIZCLAW_TEST_REGISTRATION_TOKEN` for live runs. Defaults are `TIER=all RAID=all PARALLEL=4 APPLY=0`; H106 is excluded. `REPORT` selects the output JSON. `APPLY=1` retains its existing behavior: apply the entire testing closure with the Admin context before running the selected files.
+
+`make test-unit-resources` validates schemas, tier inventory, manifest registration, Voice/role closure, internal routing fixtures and equivalent implementation steps offline. It checks client idle gaps (180s scheduling budget, including cleanup) and compares implementation files per variant for complete inputs, assertions, captures, timeouts and relay plans after normalizing client identifiers and Workspace implementation settings. `make test-unit-voices` checks the Voice catalog.
+
+Smoke retains the 2-second first-text / 3-second first-audio probes and the original complete-response gates. Complete streams additionally require closed, non-overlapping audio, zero underruns and a nonnegative minimum playback buffer under Giztest’s 500ms prebuffer model; packet gaps remain diagnostic evidence. The CLI must support `/audio_integrity` and `/audio_pacing`. Necessary role setup can exceed the two-minute target; file budgets do not relax per-step gates. A failure stops subsequent steps: skipped steps are not passes, and cleanup is reported separately. See the [test guide](tests/giztest/README.md) for the full layout, selection rules and Tester protocol.
 
 ## Catalog behavior notes
 
@@ -378,6 +422,16 @@ asynchronous. Same-Workspace turn continuity and reload recall come from the
 GizClaw Flowcraft History store; deployments must configure
 `services.agent_host.flowcraft.history_store`. Memory supplies longer-lived
 semantic recall and must not become a per-turn response barrier.
+
+[Murder Mystery](workflows/murder-mystery/README.md) remains a free-investigation
+`adventure`, rated **12+ / mystery-death**. Its host handles openings, evidence
+checks, corrections, reasoning, provisional accusations, and conclusions.
+The housekeeper, chef, Shen Zhiqiu (沈知秋), and lawyer answer individual
+interviews in first person using their own testimony and public dialogue;
+they do not receive the host's private truth or raw recall notes. The host does
+not impersonate witnesses. Flowcraft retains the 26-response investigation
+regression and five-role audio and handoff/leakage-guard tests.
+
 Murder Mystery follows the same History ownership for its full transcript and
 observes only its explicit authoritative shoe-size state into Memory. It does
 not run a second whole-conversation semantic extraction after publishing each
@@ -520,7 +574,7 @@ The Volc `seed-tts-2.0` snapshot comes from the public
 `1257544` updated `2026-08-20T07:24:41Z`. It contains 444 Voices: 93 system,
 200 public ICL, and 151 multilingual entries. Provider-documented synthesis
 mode restrictions are descriptive selection metadata; the provider remains
-the enforcement point. The public `ICL_uranus_*_tob` entries still use
+the enforcement point. The public ICL entries still use
 `seed-tts-2.0`; `seed-icl-2.0` is reserved for account-private trained Voices
 and remains outside this snapshot.
 
@@ -532,3 +586,9 @@ different providers, endpoints, or regions remain separate. For example,
 Workspace instances, real credential values, secrets, private Workflows,
 product- or hardware-specific RuntimeProfiles and RegistrationTokens, and other
 user or runtime state remain outside this repository.
+
+### Original Eino voice behavior
+
+Original story, adventure and learn Eino Workflows use their Workflow-scoped default Voice for the complete primary text output; multi-role Eino variants add character Voice switching. Both engines use ASR for paced RealTime audio input. Journey Eino history, asynchronous-memory and recall variants also retain ASR and the narrator default Voice. RuntimeProfiles bind these aliases to the same role Voice as Flowcraft.
+
+The smoke RealTime probes require complete text/audio output and separate 2-second text / 3-second audio first responses for TTS-capable implementations. Offline checks validate Eino Voice ownership, manifest declarations and resolution in both RuntimeProfiles alongside tier parity and multi-role Voice closure.

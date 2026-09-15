@@ -18,8 +18,8 @@ Install an implementation into a RuntimeProfile with `raids install adventure-ca
 
 Tester: `test.yaml` (`adventure-castle-mystery-test`, eino), shared by every implementation; one Giztest scenario per implementation:
 
-- `tests/giztest/adventure-castle-mystery/eino.giztest.yaml` (relay, with reload, timeout 55m)
-- `tests/giztest/adventure-castle-mystery/flowcraft.giztest.yaml` (relay, with reload, timeout 55m)
+- `tests/giztest/soak/adventure-castle-mystery.eino.giztest.yaml` (relay, with reload, timeout 55m)
+- `tests/giztest/soak/adventure-castle-mystery.flowcraft.giztest.yaml` (relay, with reload, timeout 55m)
 
 The route has 13 target responses:
 
@@ -44,3 +44,10 @@ Run:
 ```sh
 make test-e2e RAID=adventure-castle-mystery PARALLEL=2
 ```
+
+## Multi-role implementations
+
+Continuous multi-character narration is available separately; original implementations remain unchanged.
+
+- `eino.multi-role.yaml`: `eino-adventure-castle-mystery-multi-role`; Voice aliases: `eino-adventure-castle-mystery-mr.adventure-guide`, `eino-adventure-castle-mystery-mr.keeper`, `eino-adventure-castle-mystery-mr.mechanic`, `eino-adventure-castle-mystery-mr.archivist`.
+- `flowcraft.multi-role.yaml`: `flowcraft-adventure-castle-mystery-multi-role`; Voice aliases: `flowcraft-adventure-castle-mystery-mr.adventure-guide`, `flowcraft-adventure-castle-mystery-mr.keeper`, `flowcraft-adventure-castle-mystery-mr.mechanic`, `flowcraft-adventure-castle-mystery-mr.archivist`.

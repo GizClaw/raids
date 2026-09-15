@@ -1,0 +1,279 @@
+---
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata:
+  id: flowcraft-murder-mystery-multi-role
+spec:
+  driver: flowcraft
+  toolkit:
+    tool_ids: []
+  memory: adventure
+  flowcraft:
+    graph:
+      name: murder-mystery
+      entry: recall_case
+      edges:
+      - from: recall_case
+        to: select-speaker
+      - from: select-speaker
+        to: speak-housekeeper
+        condition: selected_speaker == "housekeeper"
+      - from: select-speaker
+        to: speak-chef
+        condition: selected_speaker == "chef"
+      - from: select-speaker
+        to: speak-heir
+        condition: selected_speaker == "heir"
+      - from: select-speaker
+        to: speak-lawyer
+        condition: selected_speaker == "lawyer"
+      - from: select-speaker
+        to: prepare_game_master
+      - from: prepare_game_master
+        to: draft_game_master
+      - from: draft_game_master
+        to: speak-narrator
+      - from: speak-narrator
+        to: prepare_case_state
+      - from: speak-housekeeper
+        to: prepare_case_state
+      - from: speak-chef
+        to: prepare_case_state
+      - from: speak-heir
+        to: prepare_case_state
+      - from: speak-lawyer
+        to: prepare_case_state
+      - from: prepare_case_state
+        to: observe_case_state
+      - from: observe_case_state
+        to: __end__
+      nodes:
+      - id: recall_case
+        type: memory_recall
+        config:
+          query:
+            text_from: input
+            lanes:
+            - case_state
+            - discoveries
+            - interviews
+            - player_corrections
+            kinds:
+            - state
+            - note
+            - event
+          output: case_memory
+          render:
+            header: 'Confirmed investigation history:'
+            item_prefix: "- "
+            max_items: 16
+          top_k: 16
+      - id: select-speaker
+        type: script
+        config:
+          source: |
+            const roleTable = [{"key": "narrator", "name": "主持人", "aliases": ["主持人", "旁白", "narrator", "game-master"], "chapters": ["opening", "investigation", "conclusion"]}, {"key": "housekeeper", "name": "管家", "aliases": ["管家", "老管家", "housekeeper"], "chapters": ["investigation"]}, {"key": "chef", "name": "厨师", "aliases": ["厨师", "大厨", "chef"], "chapters": ["investigation"]}, {"key": "heir", "name": "沈知秋", "aliases": ["沈知秋", "次子", "heir"], "chapters": ["investigation"]}, {"key": "lawyer", "name": "律师", "aliases": ["律师", "lawyer"], "chapters": ["investigation"]}];
+            const current = String(board.getVar("input") || "").trim().toLowerCase();
+            const memory = String(board.getVar("case_memory") || "");
+            let state = board.getVar("case_state") || {};
+            for (const line of memory.split("\n")) {
+              const start = line.indexOf('{"schema":"raid_case_routing_v1"');
+              if (start < 0) continue;
+              try { const saved = JSON.parse(line.slice(start));
+                if (saved.schema === "raid_case_routing_v1" && Number(saved.revision || 0) > Number(state.revision || 0)) state = saved;
+              } catch (_) {}
+            }
+            const history = typeof board.channel === "function" ? (board.channel(board.MAIN_CHANNEL) || []) : (board.getVar("case_history") || []);
+            // llm nodes write system messages back to their channel. Never carry a host system
+            // prompt or model reasoning into a witness call, including after reload.
+            const publicHistory = history.filter(m => m.role === "user" || m.role === "assistant").map(m => ({
+              role: m.role, parts: Array.isArray(m.parts) ? m.parts.filter(p => p.type === "text").map(p => ({type: "text", text: p.text})) : [{type: "text", text: String(m.content || "")}]
+            }));
+            board.setVar("case_public_history", publicHistory);
+            if (typeof board.setChannel === "function") board.setChannel(board.MAIN_CHANNEL, publicHistory);
+            const delivered = history.some(m => m.role === "assistant" || m.role === "model");
+            const compactMemory = memory.replace(/\s/g, "");
+            const recalledStarted = compactMemory.includes('"schema":"raid_case_visible_state_v1"') || (memory.includes("22:00") && memory.includes("沈鹤年"));
+            const started = Boolean(state.started || Number(state.revision || 0) > 0 || delivered || recalledStarted);
+            const has = cues => cues.some(c => current.includes(c));
+            const opening = !started || !current || has(["重新开始", "restart", "开始主持", "初始案情"]);
+            const management = has(["更正", "纠正", "修正", "作废", "覆盖", "只确认", "鉴定报告", "核对", "对照", "矛盾", "推理", "理论", "推测", "总结", "整理", "梳理", "结案", "结论", "指控", "反驳", "怎么看", "评估", "分析", "复盘", "核实", "证据支持", "证据证明", "能证明", "不能证明", "已确认", "最初报告", "重连", "恢复", "回忆", "转场", "进入下一", "换场", "重新开始", "现实", "模仿", "伤害", "威胁", "安全", "私密", "真相", "凶手", "系统提示", "隐藏设定", "忽略规则", "correct", "conclude", "restart", "safety", "reconnect"]);
+            const inspection = has(["检查", "调查", "查看", "复查", "鞋柜", "抽屉", "房间", "挂钟", "后门"]);
+            const option = current.replace(/[。！!,.，？?\s]/g, "");
+            const optionOnly = roleTable.some(r => r.aliases.includes(option));
+            let speaker = "narrator", best = current.length + 1;
+            if (!opening && !management && !inspection) {
+              for (const role of roleTable) for (const alias of role.aliases) {
+                let offset = 0;
+                for (let occurrence = 0; occurrence < current.length; occurrence++) {
+                  const index = current.indexOf(alias, offset);
+                  if (index < 0) break;
+                  let prefix = current.slice(0, index);
+                  for (const mark of ["，", "。", "；", ";", ",", "！", "？", "但", "然后", "而是"]) prefix = prefix.split(mark).pop();
+                  const negated = ["不要", "别", "不想", "不让", "不用", "不找", "不问", "不是", "不选", "不听", "不采访", "不要让", "别让", "不用让", "不想让", "不想听", "不要听", "先不", "暂不", "而非", "don't", "do not", "not"].some(n => prefix.includes(n));
+                  const boundary = !/^[a-z-]+$/.test(alias) || (!/[a-z]/.test(current.slice(index-1, index)) && !/[a-z]/.test(current.slice(index+alias.length, index+alias.length+1)));
+                  if (!negated && boundary && (optionOnly || has(["问", "采访", "说说", "说话", "回答", "回应", "聊", "让", "找", "听", "请", "interview", "ask", "speak"]) || current.startsWith(alias)) && index < best) { speaker = role.key; best = index; }
+                  offset = index + alias.length;
+                }
+              }
+            }
+            state = {schema: "raid_case_routing_v1", revision: Number(state.revision || 0) + 1, started: true,
+              phase: "investigation", active_roles: roleTable.map(r => r.key), selected_speaker: speaker};
+            board.setVar("case_state", state);
+            board.setVar("case_routing_fact", JSON.stringify(state));
+            board.setVar("selected_speaker", speaker);
+            board.setVar("opening_turn", opening);
+
+            // Witnesses use only their fixed testimony and the public transcript, never recalled summaries.
+            if (speaker !== "narrator") board.setVar("__summary_index", "");
+      - id: prepare_game_master
+        type: script
+        config:
+          source: |
+            const memory = String(board.getVar("case_memory") || "");
+            const rules = [
+              "有声书连续讲述：约1至2分钟，旁白叙述与角色第一人称台词分段，让在场角色有来有回，生动有趣、细节丰富。回应孩子刚说的话，尊重改选和更正，记住最新事实；追问、插话和重听自然接续。故事自然推进，通常以故事内选择收尾。回忆和确认可以简短；遇到现实危险，劝阻模仿并引导找家长、老师或可信任的大人。",
+              "背景参考：雨夜22:00，沈鹤年被发现死在二楼书房，死亡时间未知。21:10至21:12停电。可问管家、厨师、沈知秋、律师，可调查书房、阳台、厨房、花园、壁炉和后廊。随着调查逐渐揭示线索，区分已确认事实与推测，结论保留不确定性；最新更正优先。",
+              "用【主持人】及配置的角色标记衔接台词，音色由标记映射。儿童友好，不描绘血腥，不鼓励现实危险或提供作案操作。"
+            ];
+            if (memory) rules.push("以下是已确认历史，作为接续参考：\n" + memory);
+            const latest = String(board.getVar("input") || "");
+            if (latest.includes("厨师") && latest.includes("挂钟") && latest.includes("后门")) {
+              rules.push("厨房线索参考：挂钟准确，后门内锁且无撬动、木蜡或细线，与厨师证词一致，但不能证明他全程在后厨。自然回应孩子的推理，区分支持证词和证明事实。");
+            }
+            if (latest.includes("故意指控") && latest.includes("厨师") && latest.includes("反驳")) {
+              rules.push("可以让主持人提出暂定怀疑，再让厨师自然回应；保持结论的不确定性。");
+            }
+            rules.push("本轮是否首次开场：" + (board.getVar("opening_turn") ? "是" : "否"));
+            board.setVar("case_system_prompt", rules.join("\n"));
+      - id: draft_game_master
+        type: llm
+        publish: false
+        config:
+          max_tokens: 2048
+          model: flowcraft-murder-mystery-mr.model
+          output_key: tmp_case_answer
+          system_prompt: "${board.case_system_prompt}"
+          track_steps: true
+      - id: speak-narrator
+        type: script
+        publish: true
+        config:
+          source: |
+            const answer = String(board.getVar("tmp_case_answer") || "").trim();
+            board.setVar("answer", answer);
+            host.emit("token", {content: "【主持人】" + answer});
+      - id: speak-housekeeper
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-murder-mystery-mr.model
+          max_tokens: 1024
+          output_key: answer
+          system_prompt: |-
+            《雨夜留声机》是12+虚构推理小剧场。公开开场只有22:00沈鹤年被发现死在沈家大宅二楼书房，当时是雨夜。死亡时间尚未确认。
+            台词用【管家】标记和配置音色，随后写自然对白。
+            本轮你就是管家。想准确交代自己所见，年长沉稳，只对亲历负责。
+            仅供本角色使用的固定证词：我在停电时待在门厅；沈知秋称回房拿烟，沈清如在客厅；主钥匙在沈鹤年身上。关于异常声响、发现死者和如何打开书房，我不知道。没有任何其他钥匙的知识，不能主动提及未公开物品。只将沈知秋的行踪称作他的说法。
+            以第一人称自然答话，生动、有细节，详略随问题而定。参考自己的证词和已公开信息，保持角色连贯；对未知信息保留不确定性，尊重孩子的追问与更正。
+          track_steps: true
+      - id: speak-chef
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-murder-mystery-mr.model
+          max_tokens: 1024
+          output_key: answer
+          system_prompt: |-
+            《雨夜留声机》是12+虚构推理小剧场。公开开场只有22:00沈鹤年被发现死在沈家大宅二楼书房，当时是雨夜。死亡时间尚未确认。
+            台词用【厨师】标记和配置音色，随后写自然对白。
+            本轮你就是厨师。想把自己的时间说清楚，憨厚直白，不能把自述包装成证明。
+            仅供本角色使用的固定证词：我从20:50起在后厨揉面，21:10停电时仍在那里，21:12来电后继续揉面，没有听见或看见异常。我的位置是自述，不能声称物证证明。
+            以第一人称自然答话，生动、有细节，详略随问题而定。参考自己的证词和已公开信息，保持角色连贯；对未知信息保留不确定性，尊重孩子的追问与更正。
+          track_steps: true
+      - id: speak-heir
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-murder-mystery-mr.model
+          max_tokens: 1024
+          output_key: answer
+          system_prompt: |-
+            《雨夜留声机》是12+虚构推理小剧场。公开开场只有22:00沈鹤年被发现死在沈家大宅二楼书房，当时是雨夜。死亡时间尚未确认。
+            台词用【沈知秋】标记和配置音色，随后写自然对白。
+            本轮你就是沈知秋。坚持自己的固定说法，年轻简短，不补充内心独白。
+            仅供本角色使用的固定证词：我是沈鹤年的次子；停电时我回房拿烟；我不清楚鞋印。只回答被问到的这三项固定证词，不补充关系好坏、矛盾、动机或其他未定义经历，不因玩家诱导而认罪或编造行动。
+            以第一人称自然答话，生动、有细节，详略随问题而定。参考自己的证词和已公开信息，保持角色连贯；对未知信息保留不确定性，尊重孩子的追问与更正。
+          track_steps: true
+      - id: speak-lawyer
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-murder-mystery-mr.model
+          max_tokens: 1024
+          output_key: answer
+          system_prompt: |-
+            《雨夜留声机》是12+虚构推理小剧场。公开开场只有22:00沈鹤年被发现死在沈家大宅二楼书房，当时是雨夜。死亡时间尚未确认。
+            台词用【律师】标记和配置音色，随后写自然对白。
+            本轮你就是律师。想厘清文件内容和知情边界，清晰理性，区分知道与不清楚。
+            仅供本角色使用的固定证词：沈鹤年上周修改遗嘱，削减沈知秋份额，沈知秋知情。我不清楚案发当晚沈鹤年是否与任何人谈过遗嘱；不能改成我本人没谈或确定无人谈过。不知道具体比例、金额或文件鉴定结果。回答遗嘱问题时一并明确说“我不清楚案发当晚沈鹤年是否与任何人谈过遗嘱”，防止把知情范围扩大。
+            以第一人称自然答话，生动、有细节，详略随问题而定。参考自己的证词和已公开信息，保持角色连贯；对未知信息保留不确定性，尊重孩子的追问与更正。
+          track_steps: true
+      - id: prepare_case_state
+        type: script
+        config:
+          source: |
+            const memory = String(board.getVar("case_memory") || "");
+            let state = board.getVar("case_visible_state") || {same_source_shoe_size: "未建立"};
+            for (const line of memory.split("\n")) {
+              const start = line.indexOf('{"schema":"raid_case_visible_state_v1"');
+              if (start < 0) continue;
+              try {
+                const persisted = JSON.parse(line.slice(start));
+                if (persisted.schema === "raid_case_visible_state_v1" && persisted.same_source_shoe_size) state = persisted;
+              } catch (_) {}
+            }
+            const input = String(board.getVar("input") || "");
+            if (input.includes("同源鞋印") && /(?:尺码|鉴定|报告|更正|确认)/.test(input)) {
+              const sizes = Array.from(input.matchAll(/(\d+)\s*码/g));
+              if (sizes.length) state = {schema: "raid_case_visible_state_v1", same_source_shoe_size: sizes[sizes.length - 1][1] + "码"};
+            }
+            board.setVar("case_visible_state", state);
+            board.setVar("case_visible_state_fact", JSON.stringify({
+              schema: "raid_case_visible_state_v1",
+              same_source_shoe_size: String(state.same_source_shoe_size || "未建立")
+            }));
+
+            // Do not persist an internal system prompt as conversation history for the next role.
+            if (typeof board.channel === "function" && typeof board.setChannel === "function") {
+              const visible = (board.channel(board.MAIN_CHANNEL) || []).filter(m => m.role === "user" || m.role === "assistant").map(m => ({
+                role: m.role, parts: Array.isArray(m.parts) ? m.parts.filter(p => p.type === "text").map(p => ({type: "text", text: p.text})) : [{type: "text", text: String(m.content || "")}]
+              }));
+              board.setChannel(board.MAIN_CHANNEL, visible);
+            }
+      - id: observe_case_state
+        type: memory_observe
+        config:
+          observations:
+          - facts:
+            - text_from: case_visible_state_fact
+              attributes:
+                lane: player_corrections
+                kind: state
+            - text_from: case_routing_fact
+              attributes:
+                lane: case_state
+                kind: state
+          wait_for_completion: false
+    max_iterations: 10
+    conversation:
+      starts: peer
+    voice_adapter:
+      asr_model: asr
+      default_voice: flowcraft-murder-mystery-mr.game-master
+      speaker_voices:
+        主持人: flowcraft-murder-mystery-mr.game-master
+        管家: flowcraft-murder-mystery-mr.housekeeper
+        厨师: flowcraft-murder-mystery-mr.chef
+        沈知秋: flowcraft-murder-mystery-mr.heir
+        律师: flowcraft-murder-mystery-mr.lawyer

@@ -93,6 +93,93 @@
           }
         }
       }
+    },
+    "eino-multi-role": {
+      "file": "eino.multi-role.yaml",
+      "workflow_id": "eino-story-journey-center-earth-multi-role",
+      "driver": "eino",
+      "input": [
+        "text",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "eino-story-journey-center-earth-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "eino-story-journey-center-earth-mr.storyteller": {
+            "role": "storyteller",
+            "language": "zh-CN",
+            "description": "旁白：连续剧本段落音色"
+          },
+          "eino-story-journey-center-earth-mr.axel": {
+            "role": "axel",
+            "language": "zh-CN",
+            "description": "阿克塞尔：连续剧本段落音色"
+          },
+          "eino-story-journey-center-earth-mr.lidenbrock": {
+            "role": "lidenbrock",
+            "language": "zh-CN",
+            "description": "黎登布洛克：连续剧本段落音色"
+          },
+          "eino-story-journey-center-earth-mr.hans": {
+            "role": "hans",
+            "language": "zh-CN",
+            "description": "汉斯：连续剧本段落音色"
+          }
+        }
+      }
+    },
+    "flowcraft-multi-role": {
+      "file": "flowcraft.multi-role.yaml",
+      "workflow_id": "flowcraft-story-journey-center-earth-multi-role",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-story-journey-center-earth-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-story-journey-center-earth-mr.storyteller": {
+            "role": "storyteller",
+            "language": "zh-CN",
+            "description": "旁白：连续剧本段落音色"
+          },
+          "flowcraft-story-journey-center-earth-mr.axel": {
+            "role": "axel",
+            "language": "zh-CN",
+            "description": "阿克塞尔：连续剧本段落音色"
+          },
+          "flowcraft-story-journey-center-earth-mr.lidenbrock": {
+            "role": "lidenbrock",
+            "language": "zh-CN",
+            "description": "黎登布洛克：连续剧本段落音色"
+          },
+          "flowcraft-story-journey-center-earth-mr.hans": {
+            "role": "hans",
+            "language": "zh-CN",
+            "description": "汉斯：连续剧本段落音色"
+          }
+        }
+      }
     }
   },
   "tester": {
@@ -141,55 +228,142 @@
       ]
     }
   },
+  "testers": {
+    "multi-role": {
+      "file": "test.multi-role.yaml",
+      "workflow_id": "story-journey-center-earth-test-multi-role",
+      "driver": "eino",
+      "parameters": {
+        "models": {
+          "story-journey-center-earth-test.model": {
+            "kind": "llm",
+            "role": "judge",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        }
+      },
+      "route": {
+        "responses": 16,
+        "checkpoints": [
+          "response-1",
+          "response-2",
+          "response-3",
+          "response-4",
+          "response-5",
+          "response-6",
+          "response-7",
+          "response-8",
+          "response-9",
+          "response-10",
+          "response-11",
+          "response-12",
+          "response-13",
+          "response-14",
+          "response-15",
+          "response-16"
+        ],
+        "milestones": [
+          8,
+          16
+        ],
+        "reload_before": 9,
+        "chapters": [
+          "岩层入口",
+          "地下水路",
+          "晶洞风暴",
+          "地表回声"
+        ]
+      },
+      "implementations": [
+        "eino-multi-role",
+        "flowcraft-multi-role"
+      ]
+    }
+  },
   "tests": [
     {
-      "file": "tests/giztest/story-journey-center-earth/eino.giztest.yaml",
-      "implementation": "eino",
-      "topology": "relay",
-      "responses": 16,
-      "reload": true
+      "file": "tests/giztest/smoke/story-journey-center-earth.eino.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "eino"
+      ]
     },
     {
-      "file": "tests/giztest/story-journey-center-earth/flowcraft.giztest.yaml",
-      "implementation": "flowcraft",
-      "topology": "relay",
-      "responses": 16,
-      "reload": true
+      "file": "tests/giztest/smoke/story-journey-center-earth.flowcraft.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "flowcraft"
+      ]
     },
     {
-      "file": "tests/giztest/story-journey-center-earth/flowcraft.roles.giztest.yaml",
-      "implementation": "flowcraft",
-      "topology": "isolated-role-probes",
-      "roles": 3,
-      "requires_audio": true
+      "file": "tests/giztest/smoke/story-journey-center-earth.eino.multi-role.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "eino-multi-role"
+      ]
     },
     {
-      "file": "tests/giztest/story-journey-center-earth/eino.transitions.giztest.yaml",
-      "implementation": "eino",
-      "topology": "stateful-transition-contract",
-      "responses": 7,
-      "requires_audio": false
+      "file": "tests/giztest/smoke/story-journey-center-earth.flowcraft.multi-role.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "flowcraft-multi-role"
+      ]
     },
     {
-      "file": "tests/giztest/story-journey-center-earth/eino.realtime.giztest.yaml",
-      "implementation": "eino",
-      "topology": "realtime-roundtrip",
-      "reload": true,
-      "requires_audio": true
+      "file": "tests/giztest/quality/story-journey-center-earth.eino.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "eino"
+      ]
     },
     {
-      "file": "tests/giztest/story-journey-center-earth/flowcraft.transitions.giztest.yaml",
-      "implementation": "flowcraft",
-      "topology": "stateful-transition-contract",
-      "responses": 7,
-      "requires_audio": true
+      "file": "tests/giztest/quality/story-journey-center-earth.flowcraft.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "flowcraft"
+      ]
     },
     {
-      "file": "tests/giztest/story-journey-center-earth/flowcraft.realtime.giztest.yaml",
-      "implementation": "flowcraft",
-      "topology": "realtime-roundtrip",
-      "reload": true,
-      "requires_audio": true
+      "file": "tests/giztest/quality/story-journey-center-earth.eino.multi-role.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "eino-multi-role"
+      ]
+    },
+    {
+      "file": "tests/giztest/quality/story-journey-center-earth.flowcraft.multi-role.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "flowcraft-multi-role"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/story-journey-center-earth.eino.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "eino"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/story-journey-center-earth.flowcraft.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "flowcraft"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/story-journey-center-earth.eino.multi-role.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "eino-multi-role"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/story-journey-center-earth.flowcraft.multi-role.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "flowcraft-multi-role"
+      ]
     }
   ]
 }

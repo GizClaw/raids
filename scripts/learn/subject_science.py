@@ -302,10 +302,11 @@ and 四至六年级上册 use 修订版 based on the 2022 curriculum standard. �
 
 Tester: `test.yaml` (`{raid}-test`, eino), shared by every implementation:
 
-- `tests/giztest/{raid}/eino.giztest.yaml` (relay, with reload, timeout 35m)
-- `tests/giztest/{raid}/flowcraft.giztest.yaml` (relay, with reload, timeout 35m)
-- `tests/giztest/{raid}/eino.realtime.giztest.yaml` (paced-audio RealTime roundtrip)
-- `tests/giztest/{raid}/flowcraft.realtime.giztest.yaml` (paced-audio RealTime roundtrip)
+- `tests/giztest/smoke/{raid}.<implementation>.giztest.yaml`: speed, latency and responsiveness.
+- `tests/giztest/quality/{raid}.<implementation>.giztest.yaml`: quality control and safety guardrails.
+- `tests/giztest/soak/{raid}.<implementation>.giztest.yaml`: long-turn Tester relay with reload.
+
+Run `make test-e2e TIER=smoke RAID={raid}`. Each tier has one file per implementation, run concurrently with `PARALLEL=4`; see [the test guide](../../tests/giztest/README.md) for budgets and failure reporting.
 
 The route has {len(route)} target responses and verifies safe prediction-first
 experiments, observation-based explanation, gentle misconception correction,
@@ -354,8 +355,8 @@ def generate(repo: Path, out: Path, raids: Sequence[str]) -> list[str]:
         shared.write_json(workflow_dir / "knowledge.json", card)
         shared.write_text(workflow_dir / "README.md", render_readme(grade, raid, manifest, card, route, len(flowcraft_prompt)))
         for filename, text in shared.render_giztests(
-            repo, raid, len(route), ROUTES[grade]["next"], f"我{name}，给我讲一个有趣的科学知识吧。"
+            repo, raid, len(route), ROUTES[grade]["next"], f"我{name}，给我讲一个有趣的科学知识吧。", opening(grade)
         ).items():
-            shared.write_text(out / "tests" / "giztest" / raid / filename, text)
+            shared.write_text(out / "tests" / "giztest" / filename, text)
         generated.append(f"{raid}: {sum(len(volume['units']) for volume in card['volumes'])} units, prompt chars {len(flowcraft_prompt)}")
     return generated

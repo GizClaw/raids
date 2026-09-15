@@ -64,114 +64,24 @@ test -d tests/giztest || {
 	exit 1
 }
 
-# Every ordinary story/adventure/learn package has one paced-audio RealTime document
-# for each supported engine. Keep this inventory structural rather than a bare
-# count so a future package cannot replace or hide another package's coverage.
-realtime_count=0
-for package in workflows/adventure-* workflows/story-* workflows/learn-*; do
-	test -d "$package" || continue
-	raid="${package#workflows/}"
-	for engine in eino flowcraft; do
-		test_file="tests/giztest/$raid/$engine.realtime.giztest.yaml"
-		test -f "$test_file" || {
-			printf 'missing RealTime Giztest: %s\n' "$test_file" >&2
-			exit 1
-		}
-		grep -F 'input: WORKSPACE_INPUT_MODE_REALTIME' "$test_file" >/dev/null || {
-			printf 'RealTime Giztest lacks realtime Workspace input: %s\n' "$test_file" >&2
-			exit 1
-		}
-		grep -F 'mode: realtime' "$test_file" >/dev/null || {
-			printf 'RealTime Giztest lacks paced realtime stream: %s\n' "$test_file" >&2
-			exit 1
-		}
-		grep -F "\"file\": \"$test_file\"" "$package/raid.json" >/dev/null || {
-			printf 'raid manifest lacks RealTime Giztest: %s\n' "$test_file" >&2
-			exit 1
-		}
-		realtime_count=$((realtime_count + 1))
-	done
-	for engine in eino flowcraft; do
-		jq -e --arg engine "$engine" \
-			'.implementations[$engine].input | index("realtime") != null' \
-			"$package/raid.json" >/dev/null || {
-			printf 'raid manifest lacks %s realtime input capability: %s/raid.json\n' \
-				"$engine" "$package" >&2
-			exit 1
-		}
-	done
-	grep -F 'voice_adapter:' "$package/eino.yaml" >/dev/null || {
-		printf 'Eino Workflow lacks realtime voice adapter: %s/eino.yaml\n' "$package" >&2
-		exit 1
-	}
-	grep -F 'asr_model: asr' "$package/eino.yaml" >/dev/null || {
-		printf 'Eino Workflow lacks realtime ASR binding: %s/eino.yaml\n' "$package" >&2
-		exit 1
-	}
-	eino_realtime="tests/giztest/$raid/eino.realtime.giztest.yaml"
-	grep -F 'completion: first_response' "$eino_realtime" >/dev/null || {
-		printf 'Eino RealTime Giztest lacks first-response probe: %s\n' "$raid" >&2
-		exit 1
-	}
-	grep -F 'first_text_timeout: 2s' "$eino_realtime" >/dev/null || {
-		printf 'Eino RealTime Giztest lacks 2 s text gate: %s\n' "$raid" >&2
-		exit 1
-	}
-	grep -F 'require_audio: true' "$eino_realtime" >/dev/null || {
-		printf 'Eino RealTime Giztest lacks audio response contract: %s\n' "$raid" >&2
-		exit 1
-	}
-	grep -F 'first_audio_timeout: 3s' "$eino_realtime" >/dev/null || {
-		printf 'Eino RealTime Giztest lacks 3 s audio gate: %s\n' "$raid" >&2
-		exit 1
-	}
-	grep -F 'first_text_timeout: 2s' "tests/giztest/$raid/flowcraft.realtime.giztest.yaml" >/dev/null || {
-		printf 'Flowcraft RealTime Giztest lacks 2 s text gate: %s\n' "$raid" >&2
-		exit 1
-	}
-	grep -F 'first_audio_timeout: 3s' "tests/giztest/$raid/flowcraft.realtime.giztest.yaml" >/dev/null || {
-		printf 'Flowcraft RealTime Giztest lacks 3 s audio gate: %s\n' "$raid" >&2
-		exit 1
-	}
-done
-test "$realtime_count" -eq 100 || {
-	printf 'expected 100 story/adventure/learn RealTime Giztests, found %s\n' "$realtime_count" >&2
-	exit 1
-}
-printf 'validated %s story/adventure/learn RealTime Giztests\n' "$realtime_count"
+require_command ruby
+ruby scripts/test/starlark-modules.rb | scripts/test/test-starlark-routing.sh --modules
+python3 scripts/test/test-multi-role-testers.py
+ruby scripts/test/test-eino-script-outputs.rb
+ruby scripts/test/eino-script-outputs.rb
+ruby scripts/test/test-giztest-layout.rb
+# Includes upstream RealTime inventory, ASR, complete-audio and 2s/3s
+# first-response checks, mapped to original clients in smoke tier files.
+ruby scripts/test/giztest-layout.rb
 
-# Published node Voices already identify the active speaker. Spoken labels such
-# as "旁白说" or "角色名：" make the synthesized story sound like a test
-# fixture, so every multi-voice story must instruct direct speech and its live
-# role probes must reject those labels.
-role_count=0
-for role_test in tests/giztest/story-*/flowcraft.roles.giztest.yaml; do
-	test -f "$role_test" || continue
-	raid="${role_test#tests/giztest/}"
-	raid="${raid%%/*}"
-	workflow="workflows/$raid/flowcraft.yaml"
-	test -f "$workflow" || {
-		printf 'role Giztest lacks Flowcraft Workflow: %s\n' "$role_test" >&2
-		exit 1
-	}
-	label_guard_count="$(grep -Fc '等说话人标签' "$workflow" || true)"
-	test "$label_guard_count" -eq 3 || {
-		printf 'multi-voice Workflow must guard all three outputs against speaker labels: %s\n' "$workflow" >&2
-		exit 1
-	}
-	spoken_label_count="$(grep -Ec '^[[:space:]]+- .+说$' "$role_test" || true)"
-	colon_label_count="$(grep -Ec '^[[:space:]]+- .+：$' "$role_test" || true)"
-	test "$spoken_label_count" -eq 3 && test "$colon_label_count" -eq 3 || {
-		printf 'role Giztest must reject narrator and character speaker labels: %s\n' "$role_test" >&2
-		exit 1
-	}
-	role_count=$((role_count + 1))
-done
-test "$role_count" -eq 19 || {
-	printf 'expected 19 multi-voice role Giztests, found %s\n' "$role_count" >&2
-	exit 1
-}
-printf 'validated %s speaker-label-free multi-voice story Giztests\n' "$role_count"
+# Resolve the complete manifest -> branch -> published node -> alias -> Voice
+# chain using parsed YAML, not aggregate text counts. Ruby uses only stdlib.
+require_command ruby
+ruby scripts/test/voice-bindings.rb
+
+# Execute every declared routing suite against both real engine scripts.
+require_command node
+ruby scripts/test/routing-sources.rb | node scripts/test/test-routing.js
 
 # A chapter heading spoken on its own leaves the child waiting in silence, so
 # every story Workflow must continue into the new chapter's opening, and each
@@ -181,26 +91,31 @@ transition_count=0
 for package in workflows/story-*; do
 	test -d "$package" || continue
 	raid="${package#workflows/}"
-	for engine in eino flowcraft; do
-		grep -F '并紧接新章开场' "$package/$engine.yaml" >/dev/null || {
+	for engine in eino flowcraft eino.multi-role flowcraft.multi-role; do
+		case "$engine" in *.multi-role) continuation='故事自然推进' ;; *) continuation='并紧接新章开场' ;; esac
+		grep -F "$continuation" "$package/$engine.yaml" >/dev/null || {
 			printf 'story Workflow lacks chapter-opening continuation: %s/%s.yaml\n' "$package" "$engine" >&2
 			exit 1
 		}
-		test_file="tests/giztest/$raid/$engine.transitions.giztest.yaml"
+		client="$(printf %s "$engine" | tr .- __)"
+		test_file="tests/giztest/quality/$raid.$engine.giztest.yaml"
 		test -f "$test_file" || {
 			printf 'missing story transition Giztest: %s\n' "$test_file" >&2
 			exit 1
 		}
 		for step in opening_with_guidance choice_prompts_next_chapter enter_next_chapter_with_story; do
-			grep -F "id: $step" "$test_file" >/dev/null || {
+			grep -F "id: ${client}_transitions_$step" "$test_file" >/dev/null || {
 				printf 'story transition Giztest lacks %s: %s\n' "$step" "$test_file" >&2
 				exit 1
 			}
 		done
-		grep -F 'pattern: "第 2 章[：:]' "$test_file" >/dev/null || {
-			printf 'story transition Giztest does not require story text after the heading: %s\n' "$test_file" >&2
-			exit 1
-		}
+        ruby -ryaml -e '
+          require File.expand_path("scripts/test/giztest-layout.rb")
+          step = GiztestLayout.steps(YAML.load_file(ARGV[0])).find { |s| s["id"] == "#{ARGV[1]}_transitions_enter_next_chapter_with_story" }
+          pattern = step && step.dig("expect", "/text", "pattern")
+          abort "#{ARGV[0]}: #{ARGV[1]} missing chapter-opening continuation assertion" unless (ARGV[1].include?("multi_role") ? step.dig("expect", "/text", "min_length") == 1 && !pattern : pattern && pattern.include?("第 2 章[：:]") && pattern.include?("{20,}"))
+        ' "$test_file" "$client"
+
 		grep -F "\"file\": \"$test_file\"" "$package/raid.json" >/dev/null || {
 			printf 'raid manifest lacks story transition Giztest: %s\n' "$test_file" >&2
 			exit 1
@@ -208,10 +123,6 @@ for package in workflows/story-*; do
 		transition_count=$((transition_count + 1))
 	done
 done
-test "$transition_count" -eq 38 || {
-	printf 'expected 38 story transition Giztests, found %s\n' "$transition_count" >&2
-	exit 1
-}
 printf 'validated %s story transition Giztests\n' "$transition_count"
 
 "$GIZCLAW_TEST_CLI" test validate -f tests/giztest

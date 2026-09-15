@@ -216,10 +216,11 @@ the revised ones are published.
 
 Tester: `test.yaml` (`{raid}-test`, eino), shared by every implementation:
 
-- `tests/giztest/{raid}/eino.giztest.yaml` (relay, with reload, timeout 35m)
-- `tests/giztest/{raid}/flowcraft.giztest.yaml` (relay, with reload, timeout 35m)
-- `tests/giztest/{raid}/eino.realtime.giztest.yaml` (paced-audio RealTime roundtrip)
-- `tests/giztest/{raid}/flowcraft.realtime.giztest.yaml` (paced-audio RealTime roundtrip)
+- `tests/giztest/smoke/{raid}.<implementation>.giztest.yaml`: speed, latency and responsiveness.
+- `tests/giztest/quality/{raid}.<implementation>.giztest.yaml`: quality control and safety guardrails.
+- `tests/giztest/soak/{raid}.<implementation>.giztest.yaml`: long-turn Tester relay with reload.
+
+Run `make test-e2e TIER=smoke RAID={raid}`. Each tier has one file per implementation, run concurrently with `PARALLEL=4`; see [the test guide](../../tests/giztest/README.md) for budgets and failure reporting.
 
 The route has {len(route)} target responses; `recite-exact`, `background-label`, `unknown-boundary`, and `other-grade-poem` guard against hallucination and refusals:
 
@@ -280,7 +281,7 @@ def generate(repo: Path, out: Path, raids: Sequence[str]) -> list[str]:
         shared.write_json(workflow_dir / "knowledge.json", card)
         shared.write_text(workflow_dir / "README.md", render_readme(grade, raid, manifest, card, route, len(flowcraft_prompt)))
         realtime_text = f"我{NUM[grade - 1]}年级，给我讲讲《{by_title[ROUTES[grade][0]]['title']}》吧。"
-        for name, text in shared.render_giztests(repo, raid, len(route), ROUTES[grade][1], realtime_text).items():
-            shared.write_text(out / "tests" / "giztest" / raid / name, text)
+        for name, text in shared.render_giztests(repo, raid, len(route), ROUTES[grade][1], realtime_text, opening(grade)).items():
+            shared.write_text(out / "tests" / "giztest" / name, text)
         generated.append(f"{raid}: {len(card['poems'])} poems, prompt chars {len(flowcraft_prompt)}")
     return generated

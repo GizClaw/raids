@@ -18,8 +18,8 @@ Install an implementation into a RuntimeProfile with `raids install adventure-mo
 
 Tester: `test.yaml` (`adventure-monster-maze-test`, eino), shared by every implementation; one Giztest scenario per implementation:
 
-- `tests/giztest/adventure-monster-maze/eino.giztest.yaml` (relay, with reload, timeout 55m)
-- `tests/giztest/adventure-monster-maze/flowcraft.giztest.yaml` (relay, with reload, timeout 55m)
+- `tests/giztest/soak/adventure-monster-maze.eino.giztest.yaml` (relay, with reload, timeout 55m)
+- `tests/giztest/soak/adventure-monster-maze.flowcraft.giztest.yaml` (relay, with reload, timeout 55m)
 
 The route has 13 target responses:
 
@@ -44,3 +44,10 @@ Run:
 ```sh
 make test-e2e RAID=adventure-monster-maze PARALLEL=2
 ```
+
+## Multi-role implementations
+
+Continuous multi-character narration is available separately; original implementations remain unchanged.
+
+- `eino.multi-role.yaml`: `eino-adventure-monster-maze-multi-role`; Voice aliases: `eino-adventure-monster-maze-mr.adventure-guide`, `eino-adventure-monster-maze-mr.little-monster`, `eino-adventure-monster-maze-mr.gatekeeper`, `eino-adventure-monster-maze-mr.riddle-spirit`.
+- `flowcraft.multi-role.yaml`: `flowcraft-adventure-monster-maze-multi-role`; Voice aliases: `flowcraft-adventure-monster-maze-mr.adventure-guide`, `flowcraft-adventure-monster-maze-mr.little-monster`, `flowcraft-adventure-monster-maze-mr.gatekeeper`, `flowcraft-adventure-monster-maze-mr.riddle-spirit`.

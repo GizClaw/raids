@@ -18,8 +18,8 @@ Install an implementation into a RuntimeProfile with `raids install adventure-tr
 
 Tester: `test.yaml` (`adventure-treasure-test`, eino), shared by every implementation; one Giztest scenario per implementation:
 
-- `tests/giztest/adventure-treasure/eino.giztest.yaml` (relay, with reload, timeout 35m)
-- `tests/giztest/adventure-treasure/flowcraft.giztest.yaml` (relay, with reload, timeout 35m)
+- `tests/giztest/soak/adventure-treasure.eino.giztest.yaml` (relay, with reload, timeout 35m)
+- `tests/giztest/soak/adventure-treasure.flowcraft.giztest.yaml` (relay, with reload, timeout 35m)
 
 The route has 7 target responses:
 
@@ -38,3 +38,10 @@ Run:
 ```sh
 make test-e2e RAID=adventure-treasure PARALLEL=2
 ```
+
+## Multi-role implementations
+
+Continuous multi-character narration is available separately; original implementations remain unchanged.
+
+- `eino.multi-role.yaml`: `eino-adventure-treasure-multi-role`; Voice aliases: `eino-adventure-treasure-mr.adventure-guide`, `eino-adventure-treasure-mr.cartographer`, `eino-adventure-treasure-mr.codebreaker`, `eino-adventure-treasure-mr.old-sailor`.
+- `flowcraft.multi-role.yaml`: `flowcraft-adventure-treasure-multi-role`; Voice aliases: `flowcraft-adventure-treasure-mr.adventure-guide`, `flowcraft-adventure-treasure-mr.cartographer`, `flowcraft-adventure-treasure-mr.codebreaker`, `flowcraft-adventure-treasure-mr.old-sailor`.

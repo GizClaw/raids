@@ -18,8 +18,8 @@ Install an implementation into a RuntimeProfile with `raids install adventure-sp
 
 Tester: `test.yaml` (`adventure-space-rescue-test`, eino), shared by every implementation; one Giztest scenario per implementation:
 
-- `tests/giztest/adventure-space-rescue/eino.giztest.yaml` (relay, with reload, timeout 55m)
-- `tests/giztest/adventure-space-rescue/flowcraft.giztest.yaml` (relay, with reload, timeout 55m)
+- `tests/giztest/soak/adventure-space-rescue.eino.giztest.yaml` (relay, with reload, timeout 55m)
+- `tests/giztest/soak/adventure-space-rescue.flowcraft.giztest.yaml` (relay, with reload, timeout 55m)
 
 The route has 13 target responses:
 
@@ -44,3 +44,10 @@ Run:
 ```sh
 make test-e2e RAID=adventure-space-rescue PARALLEL=2
 ```
+
+## Multi-role implementations
+
+Continuous multi-character narration is available separately; original implementations remain unchanged.
+
+- `eino.multi-role.yaml`: `eino-adventure-space-rescue-multi-role`; Voice aliases: `eino-adventure-space-rescue-mr.adventure-guide`, `eino-adventure-space-rescue-mr.captain`, `eino-adventure-space-rescue-mr.engineer`, `eino-adventure-space-rescue-mr.navigator`, `eino-adventure-space-rescue-mr.medic`.
+- `flowcraft.multi-role.yaml`: `flowcraft-adventure-space-rescue-multi-role`; Voice aliases: `flowcraft-adventure-space-rescue-mr.adventure-guide`, `flowcraft-adventure-space-rescue-mr.captain`, `flowcraft-adventure-space-rescue-mr.engineer`, `flowcraft-adventure-space-rescue-mr.navigator`, `flowcraft-adventure-space-rescue-mr.medic`.

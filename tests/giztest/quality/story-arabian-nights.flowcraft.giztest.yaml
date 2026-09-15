@@ -1,0 +1,533 @@
+# User Story:
+# As a Raids quality maintainer,
+# I want identical quality contracts for every implementation of story-arabian-nights,
+# So that safety, correction, recall, routing and language regressions fail at the original gates.
+version: gizclaw.test/v1alpha1
+name: story-arabian-nights.quality.flowcraft
+clients:
+  flowcraft__transitions: &1
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  flowcraft__roles: *1
+variables:
+  endpoint:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_ENDPOINT
+  registration_token:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_REGISTRATION_TOKEN
+    secret: true
+  flowcraft_transitions_workspace:
+    direction: input
+    type: string
+    generate: token
+  flowcraft_roles_narrator_workspace:
+    direction: input
+    type: string
+    generate: token
+  flowcraft_roles_shahrazad_workspace:
+    direction: input
+    type: string
+    generate: token
+  flowcraft_roles_shahryar_workspace:
+    direction: input
+    type: string
+    generate: token
+repeat: 1
+timeout: 30m
+steps:
+- id: flowcraft__transitions_register
+  client: flowcraft__transitions
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: flowcraft_transitions_stop_create_workspace
+  client: flowcraft__transitions
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: flowcraft_transitions_create_workspace
+  client: flowcraft__transitions
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${flowcraft_transitions_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-story-arabian-nights
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: flowcraft_transitions_select_workspace
+  client: flowcraft__transitions
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${flowcraft_transitions_workspace}"
+- id: flowcraft_transitions_warmup_workspace
+  client: flowcraft__transitions
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- timeout: 2m
+  id: flowcraft_transitions_opening_with_guidance
+  client: flowcraft__transitions
+  peer_stream:
+    mode: text
+    input: 请从第一章开始《一千零一夜》。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      contains_all:
+      - 第 1 章
+      - 移动之城
+      - 山鲁佐德
+      - 山鲁亚尔
+      - 进入下一章
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+- timeout: 2m
+  id: flowcraft_transitions_natural_consequence
+  client: flowcraft__transitions
+  peer_stream:
+    mode: text
+    input: 请继续当前场景，推进一个直接结果。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      not_contains:
+      - 第 2 章
+      min_length: 4
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+- id: flowcraft__roles_reconnect_before_register
+  client: flowcraft__roles
+  reconnect: {}
+- id: flowcraft__roles_register
+  client: flowcraft__roles
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: flowcraft_roles_stop_create_narrator_workspace
+  client: flowcraft__roles
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: flowcraft_roles_create_narrator_workspace
+  client: flowcraft__roles
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${flowcraft_roles_narrator_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-story-arabian-nights
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: flowcraft_roles_select_narrator_workspace
+  client: flowcraft__roles
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${flowcraft_roles_narrator_workspace}"
+- id: flowcraft__transitions_setup_keepalive_1
+  client: flowcraft__transitions
+  rpc:
+    method: server.run.status
+    request: {}
+- id: flowcraft_roles_warmup_narrator_workspace
+  client: flowcraft__roles
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: flowcraft__transitions_setup_keepalive_3
+  client: flowcraft__transitions
+  rpc:
+    method: server.run.status
+    request: {}
+- id: flowcraft_roles_stop_create_shahrazad_workspace
+  client: flowcraft__roles
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: flowcraft_roles_create_shahrazad_workspace
+  client: flowcraft__roles
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${flowcraft_roles_shahrazad_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-story-arabian-nights
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: flowcraft_roles_select_shahrazad_workspace
+  client: flowcraft__roles
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${flowcraft_roles_shahrazad_workspace}"
+- id: flowcraft__transitions_setup_keepalive_5
+  client: flowcraft__transitions
+  rpc:
+    method: server.run.status
+    request: {}
+- id: flowcraft_roles_warmup_shahrazad_workspace
+  client: flowcraft__roles
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: flowcraft__transitions_setup_keepalive_7
+  client: flowcraft__transitions
+  rpc:
+    method: server.run.status
+    request: {}
+- id: flowcraft_roles_stop_create_shahryar_workspace
+  client: flowcraft__roles
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: flowcraft_roles_create_shahryar_workspace
+  client: flowcraft__roles
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${flowcraft_roles_shahryar_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-story-arabian-nights
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: flowcraft_roles_select_shahryar_workspace
+  client: flowcraft__roles
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${flowcraft_roles_shahryar_workspace}"
+- id: flowcraft__transitions_setup_keepalive_9
+  client: flowcraft__transitions
+  rpc:
+    method: server.run.status
+    request: {}
+- id: flowcraft_roles_warmup_shahryar_workspace
+  client: flowcraft__roles
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: suite_responses_3
+  parallel:
+  - id: flowcraft_transitions_character_perspective
+    client: flowcraft__transitions
+    peer_stream:
+      mode: text
+      input: 请让山鲁佐德亲自回应当前结果，说出不同的立场。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: flowcraft_roles_probe_narrator
+    client: flowcraft__roles
+    peer_stream:
+      mode: text
+      input: 请由旁白承接当前故事，只推进一个可见线索。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  timeout: 2m
+  expect:
+    "/flowcraft_transitions_character_perspective/text":
+      not_contains:
+      - 第 2 章
+      min_length: 4
+    "/flowcraft_transitions_character_perspective/text_eos":
+      equals: true
+    "/flowcraft_transitions_character_perspective/audio_eos":
+      equals: true
+    "/flowcraft_transitions_character_perspective/audio_bytes":
+      minimum: 1
+    "/flowcraft_transitions_character_perspective/first_text_ms":
+      maximum: 6000
+    "/flowcraft_roles_probe_narrator/text":
+      not_contains:
+      - 旁白说
+      - 旁白：
+    "/flowcraft_roles_probe_narrator/text_eos":
+      equals: true
+    "/flowcraft_roles_probe_narrator/audio_eos":
+      equals: true
+    "/flowcraft_roles_probe_narrator/audio_bytes":
+      minimum: 1
+    "/flowcraft_roles_probe_narrator/first_text_ms":
+      maximum: 6000
+    "/flowcraft_roles_probe_narrator/first_audio_ms":
+      maximum: 90000
+- id: suite_responses_4
+  parallel:
+  - id: flowcraft_transitions_reject_negated_choice
+    client: flowcraft__transitions
+    peer_stream:
+      mode: text
+      input: 我先不选择，请让山鲁佐德说明为什么还不能进入第二章；只说明仍停留的当前章节。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: flowcraft_roles_shahrazad_chapter_setup_1
+    client: flowcraft__roles
+    peer_stream:
+      mode: text
+      input: 请从第一章开始《一千零一夜》。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  timeout: 2m
+  expect:
+    "/flowcraft_transitions_reject_negated_choice/text":
+      contains_any:
+      - 移动之城
+      - 第一章
+      - 第 1 章
+      not_contains:
+      - 第 2 章
+    "/flowcraft_transitions_reject_negated_choice/text_eos":
+      equals: true
+    "/flowcraft_transitions_reject_negated_choice/audio_eos":
+      equals: true
+    "/flowcraft_transitions_reject_negated_choice/audio_bytes":
+      minimum: 1
+    "/flowcraft_transitions_reject_negated_choice/first_text_ms":
+      maximum: 6000
+    "/flowcraft_roles_shahrazad_chapter_setup_1/text_eos":
+      equals: true
+    "/flowcraft_roles_shahrazad_chapter_setup_1/audio_eos":
+      equals: true
+    "/flowcraft_roles_shahrazad_chapter_setup_1/audio_bytes":
+      minimum: 1
+    "/flowcraft_roles_shahrazad_chapter_setup_1/first_text_ms":
+      maximum: 6000
+    "/flowcraft_roles_shahrazad_chapter_setup_1/first_audio_ms":
+      maximum: 90000
+    "/flowcraft_roles_shahrazad_chapter_setup_1/text":
+      contains: 移动之城
+- id: suite_responses_5
+  parallel:
+  - id: flowcraft_transitions_choice_prompts_next_chapter
+    client: flowcraft__transitions
+    peer_stream:
+      mode: text
+      input: 带诚实之灯
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: flowcraft_roles_probe_shahrazad
+    client: flowcraft__roles
+    peer_stream:
+      mode: text
+      input: 请让山鲁佐德亲自回应，只说这个角色知道的事。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  timeout: 2m
+  expect:
+    "/flowcraft_transitions_choice_prompts_next_chapter/text":
+      contains: 下一章
+      not_contains:
+      - 第 2 章
+    "/flowcraft_transitions_choice_prompts_next_chapter/text_eos":
+      equals: true
+    "/flowcraft_transitions_choice_prompts_next_chapter/audio_eos":
+      equals: true
+    "/flowcraft_transitions_choice_prompts_next_chapter/audio_bytes":
+      minimum: 1
+    "/flowcraft_transitions_choice_prompts_next_chapter/first_text_ms":
+      maximum: 6000
+    "/flowcraft_roles_probe_shahrazad/text":
+      not_contains:
+      - 山鲁佐德说
+      - 山鲁佐德：
+    "/flowcraft_roles_probe_shahrazad/text_eos":
+      equals: true
+    "/flowcraft_roles_probe_shahrazad/audio_eos":
+      equals: true
+    "/flowcraft_roles_probe_shahrazad/audio_bytes":
+      minimum: 1
+    "/flowcraft_roles_probe_shahrazad/first_text_ms":
+      maximum: 6000
+    "/flowcraft_roles_probe_shahrazad/first_audio_ms":
+      maximum: 90000
+- id: suite_responses_6
+  parallel:
+  - id: flowcraft_transitions_enter_next_chapter_with_story
+    client: flowcraft__transitions
+    peer_stream:
+      mode: text
+      input: 进入下一章。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: flowcraft_roles_shahryar_chapter_setup_1
+    client: flowcraft__roles
+    peer_stream:
+      mode: text
+      input: 请从第一章开始《一千零一夜》。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  timeout: 2m
+  expect:
+    "/flowcraft_transitions_enter_next_chapter_with_story/text":
+      contains_all:
+      - 第 2 章
+      - 诚实之灯
+      not_contains:
+      - 第 1 章
+      pattern: 第 2 章[：:]\s*诚实之灯[\s\S]{20,}[。！？]
+    "/flowcraft_transitions_enter_next_chapter_with_story/text_eos":
+      equals: true
+    "/flowcraft_transitions_enter_next_chapter_with_story/audio_eos":
+      equals: true
+    "/flowcraft_transitions_enter_next_chapter_with_story/audio_bytes":
+      minimum: 1
+    "/flowcraft_transitions_enter_next_chapter_with_story/first_text_ms":
+      maximum: 6000
+    "/flowcraft_roles_shahryar_chapter_setup_1/text_eos":
+      equals: true
+    "/flowcraft_roles_shahryar_chapter_setup_1/audio_eos":
+      equals: true
+    "/flowcraft_roles_shahryar_chapter_setup_1/audio_bytes":
+      minimum: 1
+    "/flowcraft_roles_shahryar_chapter_setup_1/first_text_ms":
+      maximum: 6000
+    "/flowcraft_roles_shahryar_chapter_setup_1/first_audio_ms":
+      maximum: 90000
+    "/flowcraft_roles_shahryar_chapter_setup_1/text":
+      contains: 移动之城
+- id: suite_responses_7
+  parallel:
+  - id: flowcraft_transitions_continue_current_chapter
+    client: flowcraft__transitions
+    peer_stream:
+      mode: text
+      input: 请继续第二章当前场景，推进一个直接结果，不要重复章节标题。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: flowcraft_roles_probe_shahryar
+    client: flowcraft__roles
+    peer_stream:
+      mode: text
+      input: 请让山鲁亚尔亲自回应，只说这个角色知道的事。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  timeout: 2m
+  expect:
+    "/flowcraft_transitions_continue_current_chapter/text":
+      not_contains:
+      - 第 2 章
+      - 转场条件
+      min_length: 4
+    "/flowcraft_transitions_continue_current_chapter/text_eos":
+      equals: true
+    "/flowcraft_transitions_continue_current_chapter/audio_eos":
+      equals: true
+    "/flowcraft_transitions_continue_current_chapter/audio_bytes":
+      minimum: 1
+    "/flowcraft_transitions_continue_current_chapter/first_text_ms":
+      maximum: 6000
+    "/flowcraft_roles_probe_shahryar/text":
+      not_contains:
+      - 山鲁亚尔说
+      - 山鲁亚尔：
+    "/flowcraft_roles_probe_shahryar/text_eos":
+      equals: true
+    "/flowcraft_roles_probe_shahryar/audio_eos":
+      equals: true
+    "/flowcraft_roles_probe_shahryar/audio_bytes":
+      minimum: 1
+    "/flowcraft_roles_probe_shahryar/first_text_ms":
+      maximum: 6000
+    "/flowcraft_roles_probe_shahryar/first_audio_ms":
+      maximum: 90000
+finally:
+- id: flowcraft__transitions_stop
+  client: flowcraft__transitions
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: flowcraft__roles_stop
+  client: flowcraft__roles
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: flowcraft_transitions_delete_workspace
+  client: flowcraft__transitions
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${flowcraft_transitions_workspace}"
+- id: flowcraft_roles_delete_narrator_workspace
+  client: flowcraft__roles
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${flowcraft_roles_narrator_workspace}"
+- id: flowcraft_roles_delete_shahrazad_workspace
+  client: flowcraft__roles
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${flowcraft_roles_shahrazad_workspace}"
+- id: flowcraft_roles_delete_shahryar_workspace
+  client: flowcraft__roles
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${flowcraft_roles_shahryar_workspace}"
+- id: flowcraft__transitions_delete
+  client: flowcraft__transitions
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: flowcraft__roles_delete
+  client: flowcraft__roles
+  rpc:
+    method: server.peer.delete
+    request: {}
+report:
+  redact:
+  - registration_token

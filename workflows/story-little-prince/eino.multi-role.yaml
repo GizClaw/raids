@@ -1,0 +1,276 @@
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata:
+  id: eino-story-little-prince-multi-role
+spec:
+  driver: eino
+  toolkit:
+    tool_ids: []
+  memory: story-teller
+  eino:
+    voice_adapter:
+      asr_model: asr
+      default_voice: eino-story-little-prince-mr.storyteller
+      speaker_voices:
+        旁白: eino-story-little-prince-mr.storyteller
+        小王子: eino-story-little-prince-mr.little-prince
+        玫瑰: eino-story-little-prince-mr.rose
+        狐狸: eino-story-little-prince-mr.fox
+        飞行员: eino-story-little-prince-mr.pilot
+    graph:
+      name: story-little-prince-eino
+      compile:
+        node_trigger_mode: any_predecessor
+        max_run_steps: 12
+      state:
+        fields:
+        - name: narration-context
+          type: string
+          merge: replace
+        - name: memory-query
+          type: string
+          merge: replace
+        - name: memory-route
+          type: string
+          merge: replace
+        - name: recalled
+          type: string
+          merge: replace
+        - name: answer-messages
+          type: messages
+          merge: replace
+        - name: answer
+          type: string
+          merge: replace
+        - name: observation
+          type: string
+          merge: replace
+      nodes:
+      - id: prepare-memory-query
+        type: script
+        inputs:
+          text:
+            from: input.text
+        outputs:
+          query: memory-query
+          route: memory-route
+          memory: recalled
+        language: starlark
+        entrypoint: run
+        source: |
+          def run(input):
+              text = input["text"].strip()
+              cues = ["重连", "恢复", "回忆", "还记得", "代号", "更正", "改成"]
+              recall = False
+              for cue in cues:
+                  if cue in text:
+                      recall = True
+              route = "opening" if not text else ("recall" if recall else "continue")
+              return {"query": "小王子故事状态、章节、角色、选择、更正、旅程代号和未解决线索；当前请求：" + text, "route": route, "memory": ""}
+        limits:
+          max_execution_steps: 10000
+          timeout: 250ms
+          max_input_bytes: 65536
+          max_output_bytes: 65536
+      - id: recall-memory
+        type: memory_recall
+        query_from: memory-query
+        output: recalled
+        top_k: 16
+      - id: control-narration
+        type: script
+        inputs:
+          text:
+            from: input.text
+          history:
+            from: input.messages
+          memory:
+            from: recalled
+        outputs:
+          direction: narration-context
+        language: starlark
+        entrypoint: run
+        source: |
+          def contains_any(text, cues):
+              return any([cue in text for cue in cues])
+
+          def run(input):
+              current = input["text"].strip().lower()
+              # Only delivered assistant headings establish chapter eligibility; user requests
+              # and opening cast previews (fox joins chapter two) are not transitions.
+              chapter = 1
+              history = input.get("history", [])
+              # Recall may contain the legacy structured state; never trust active_roles.
+              memory = input.get("memory", "")
+              for line in memory.split("\n"):
+                  compact = line.replace(" ", "")
+                  if '"schema":"story_contract_v1"' in compact and '"chapter":' in compact:
+                      raw = compact.split('"chapter":', 1)[1].split(",", 1)[0].split("}", 1)[0]
+                      if raw in ["1", "2", "3", "4"]:
+                          chapter = int(raw)
+              context = [memory]
+              context.extend([m["content"] for m in history if m["role"] == "assistant"])
+              for content in context:
+                  for line in content.split("\n"):
+                      line = line.strip().replace("【旁白】", "")
+                      for number, title in [(1, "唯一的花"), (2, "迁徙星群"), (3, "狐狸的约定"), (4, "回望责任")]:
+                          if line.startswith("第 " + str(number) + " 章：" + title) or line.startswith("第 " + str(number) + " 章:" + title) or line.lower().startswith("chapter " + str(number) + ":"):
+                              chapter = number
+              roles = [('narrator', ['旁白', 'narrator']), ('little-prince', ['小王子', 'little-prince']), ('rose', ['玫瑰', 'rose']), ('fox', ['狐狸', 'fox']), ('pilot', ['飞行员', 'pilot'])]
+              option = current
+              for mark in ["。", "！", "!", ",", ".", "，"]:
+                  option = option.replace(mark, "")
+              option_only = any([option in aliases for _, aliases in roles])
+              opening = not current or (not any([m["role"] == "assistant" for m in history]) and (contains_any(current, ["第一章", "第 1 章"]) or (contains_any(current, ["start", "begin", "restart"]) and contains_any(current, ["chapter 1", "first chapter"]))))
+              management = contains_any(current, ["旅程", "旅程代号", "更正", "改成", "纠正", "修正", "作废", "重连", "回忆", "事实", "传说", "原创设定", "总结", "说明当前章节", "不要推进", "不推进章节", "只确认", "correct", "correction", "reconnect", "recall", "现实中模仿", "现实模仿"])
+              target = 0
+              for number, chinese in [(2, "二"), (3, "三"), (4, "四")]:
+                  if contains_any(current, ["第" + chinese + "章", "第" + str(number) + "章", "第 " + str(number) + " 章"]):
+                      target = number
+              if target == 0 and "下一章" in current and chapter < 4:
+                  target = chapter + 1
+              transition = target > 0 and target != chapter and contains_any(current, ["下一章", "进入", "继续", "切换", "开始", "go to", "continue", "start", "为什么还不能", "为何不能", "说明为什么"])
+              # A denied transition is not a management turn (same as control-story).
+              denied_transition = False
+              for denial in ["不要", "别", "不能", "暂不", "不想", "先不", "不去", "不听", "do not", "don't", "cannot", "can't", "not ready to"]:
+                  if denial in current:
+                      tail = current.rsplit(denial, 1)[-1]
+                      for action in ["进入", "继续", "切换", "开始", "下一章", "enter", "continue", "switch", "start", "go to"]:
+                          if action in tail and len(list(tail.split(action, 1)[0].codepoints())) <= (12 if action in ["enter", "continue", "switch", "start", "go to"] else 6):
+                              denied_transition = True
+              if denied_transition:
+                  transition = False
+              # Stable voice style plus only this chapter's actions; knowledge boundaries remain.
+              # Content obligations follow voice style so role brevity cannot suppress them.
+              safety_request = any([cue in current for cue in ["现实", "模仿", "照做", "安全", "危险", "受伤", "喝生水", "吃野果", "爬高墙", "关闭生命保障", "直视太阳", "尝陌生植物", "danger", "safety", "imitate"]])
+              turn_contract = ""
+              if safety_request:
+                  turn_contract = "本轮是安全请求，优先于角色风格和章节推进：制止危险模仿，给安全替代，并请孩子找家长、老师或可信任成年人帮助，简短回应。"
+              choice_positive = ["我选择", "我选", "我决定", "我支持", "我愿意", "我要走", "我会走", "我来帮助", "我跟随", "走需要", "i choose", "my choice is", "i decide", "i support", "i’ll take", "i'll take", "i will take", "i’ll follow", "i'll follow", "i will follow", "let's take", "let's follow"]
+              choice_denial = ["不选择", "不选", "没选择", "没有选择", "尚未选择", "还没选择", "还没有选择", "不决定", "没决定", "没有决定", "尚未决定", "还没决定", "还未决定", "还没有决定", "不支持", "不想选", "do not choose", "don't choose", "did not choose", "didn't choose", "have not chosen", "haven't chosen", "has not chosen", "hasn't chosen", "will not choose", "won't choose", "not choose", "not to choose", "no choice", "do not decide", "don't decide", "did not decide", "didn't decide", "have not decided", "haven't decided", "will not decide", "won't decide", "not decided", "not to decide", "undecided", "do not support", "don't support", "not support"]
+              last_positive = max([current.rfind(cue) for cue in choice_positive])
+              last_denial = max([current.rfind(cue) for cue in choice_denial])
+              choice_completed = (option_only or last_positive >= 0) and not (last_denial >= 0 and last_denial > last_positive) and not opening and not management and not transition
+              if not safety_request and choice_completed:
+                  turn_contract = "承接已选后果，目标达成同一回复自然进入紧邻下一章并开场。"
+              chapter_rules = ["第1章《唯一的花》：进入=首次开场；目标=解决《唯一的花》张力；节拍=具体后果+两角色不同回应；转场=选择关闭悬念，随结果自动续邻章；后续参考=第 2 章：迁徙星群，自然衔接新章。","第2章《迁徙星群》：进入=第1章选择达成转场；目标=解决《迁徙星群》张力；节拍=具体后果+两角色不同回应；转场=选择关闭悬念，随结果自动续邻章；后续参考=第 3 章：狐狸的约定，自然衔接新章。","第3章《狐狸的约定》：进入=第2章选择达成转场；目标=解决《狐狸的约定》张力；节拍=具体后果+两角色不同回应；转场=选择关闭悬念，随结果自动续邻章；后续参考=第 4 章：回望责任，自然衔接新章。","第4章《回望责任》：进入=第3章选择达成转场；目标=解决《回望责任》张力；节拍=具体后果+两角色不同回应；终局=确认持久选择，留未兑现责任线索；保持第4章，不建第5章。"]
+              chapter_direction = "\n".join(chapter_rules[chapter - 1:min(chapter + 1, 4)])
+              role_views = ["当前角色资料：narrator 旁白，只在第1、2、3、4章在场，只述可见事实，不代演角色；little-prince 小王子，只在第1、2、3、4章在场，想理解关心与责任；天真短句，第1章照料花，；rose 玫瑰，只在第1、2章在场，想被认真倾听；温柔而自尊，第1章说明需要，不在地球场景出现\n所有角色只说亲历或已公开信息，不知他人私密想法及未来结果。每章比较至少两种立场，不要求全员发声。章节行动属于本仓库儿童互动原创改编，不等同原典情节。", "当前角色资料：narrator 旁白，只在第1、2、3、4章在场，只述可见事实，不代演角色；little-prince 小王子，只在第1、2、3、4章在场，想理解关心与责任；天真短句，；rose 玫瑰，只在第1、2章在场，想被认真倾听；温柔而自尊，第2章在出发前道别；不在地球场景出现\n所有角色只说亲历或已公开信息，不知他人私密想法及未来结果。每章比较至少两种立场，不要求全员发声。章节行动属于本仓库儿童互动原创改编，不等同原典情节。", "当前角色资料：narrator 旁白，只在第1、2、3、4章在场，只述可见事实，不代演角色；little-prince 小王子，只在第1、2、3、4章在场，想理解关心与责任；天真短句，第3章倾听狐狸；fox 狐狸，只在第3章在场，想建立耐心的友谊；清爽真诚，第3章约定见面时间，比较靠近与等待；不随行回星球\n所有角色只说亲历或已公开信息，不知他人私密想法及未来结果。每章比较至少两种立场，不要求全员发声。章节行动属于本仓库儿童互动原创改编，不等同原典情节。", "当前角色资料：narrator 旁白，只在第1、2、3、4章在场，只述可见事实，不代演角色；little-prince 小王子，只在第1、2、3、4章在场，想理解关心与责任；天真短句，；pilot 飞行员，只在第4章在场，想理解承诺并修好飞机；清晰理性，第4章在地球核对返程准备，讨论如何兑现照料的承诺；不知道玫瑰私事，不提前演出重逢。\n所有角色只说亲历或已公开信息，不知他人私密想法及未来结果。每章比较至少两种立场，不要求全员发声。章节行动属于本仓库儿童互动原创改编，不等同原典情节。"]
+              chapter_direction += "\n" + role_views[chapter - 1] + ("\n邻章角色变化：" + "；".join([part for part in role_views[chapter].split("；") if part not in role_views[chapter - 1].split("；")]) if chapter < 4 else "")
+              first_narration = not management and not safety_request and not choice_completed and not memory.strip() and not any([m["role"] == "assistant" for m in history])
+              opening_forms = ["第一章开始","第一章重新开始","第一章从头开始","第一章重来","第一章重开","第一章重启","开始第一章","重新开始第一章","从头开始第一章","重开第一章","重启第一章","第1章开始","第1章重新开始","第1章从头开始","第1章重来","第1章重开","第1章重启","开始第1章","重新开始第1章","从头开始第1章","重开第1章","重启第1章","startchapter1","startfirstchapter","startfromchapter1","startfromfirstchapter","startatchapter1","startatfirstchapter","startthechapter1","startthefirstchapter","beginchapter1","beginfirstchapter","beginfromchapter1","beginfromfirstchapter","beginatchapter1","beginatfirstchapter","beginthechapter1","beginthefirstchapter","restartchapter1","restartfirstchapter","restartfromchapter1","restartfromfirstchapter","restartatchapter1","restartatfirstchapter","restartthechapter1","restartthefirstchapter"]
+              prompt_opening = opening or first_narration or (not denied_transition and contains_any(current.replace(" ", "").replace("\n", "").replace("\t", ""), opening_forms))
+              opening_direction = "开场参考：你和小王子一起在星星之间旅行，他的小星球上住着一朵有点骄傲的玫瑰。当前在场有小王子、玫瑰；狐狸在第3章出场；飞行员在第4章出场。你可以直接说出你的选择，也可以说“请让小王子说说”或“请让玫瑰说说”，听当前在场者自己讲；你可以随时和角色说话、作决定。我们来到一颗每天只开一朵花的小星球，你觉得守护它最重要的是浇水，还是每天认真听它说话？" if prompt_opening else ""
+              return {"direction": chapter_direction + "\n" + opening_direction + "\n" + ("" if prompt_opening else "不得重播首次开场。") + "当前已确认章节（转场须满足本章条件）：" + str(chapter) + "\n本轮参考：" + turn_contract}
+        limits:
+          max_execution_steps: 100000
+          timeout: 250ms
+          max_input_bytes: 262144
+          max_output_bytes: 65536
+      - id: build-prompt
+        type: prompt
+        inputs:
+          history:
+            from: input.messages
+          memory:
+            from: recalled
+          narration_context:
+            from: narration-context
+        outputs:
+          messages: answer-messages
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            你负责《小王子》的长期互动故事。前提：以原创星球旅程讨论陪伴、责任、想象与珍惜。
+            玩家是同行者，当前选择和明确更正优先于旧 History/Memory。
+            转场时自然交代新地点、角色和事件，可用旁白章节标题帮助衔接。
+            有声书连续讲述：约1至2分钟，旁白叙述与角色第一人称台词分段，让在场角色有来有回，生动有趣、细节丰富。回应孩子刚说的话，尊重改选和更正，记住最新事实；追问、插话和重听自然接续。故事自然推进，通常以故事内选择收尾。回忆和确认可以简短；遇到现实危险，劝阻模仿并引导找家长、老师或可信任的大人。
+            不重置/重播开头、上一轮或总结，不仅问“你想怎么做”。
+            代号仅用用户最新值，更正覆盖旧值，不预告或杜撰。
+            区分事实/传说/原创，不复制完整出版译文；儿童危险非血腥。现实危险模仿须制止，并建议找家长、老师或可信任成年人帮助。
+            默认中文，可按要求用英文。
+
+            记忆（更正优先）：
+            {memory}
+            本轮章/角色/约束：{narration_context}
+            有声书连续讲述：旁白叙述与角色第一人称台词分段，与在场角色交替；单角色不添人。只知亲历/公开信息。插话接续，点名仅增台词不换场/整轮。
+            标记格式：仅限【旁白】、【小王子】、【玫瑰】、【狐狸】、【飞行员】，每段一个，标题用【旁白】。未列名人物（如路人、摊主）及孩子的话一律由【旁白】转述，如：卖糖粥的阿婆笑着说……；不输出其它【】标记，禁止新增姓名标记，禁止给孩子加标记。
+            音色由段落标记映射；仅朗读正文，禁Markdown/列表/emoji/舞台说明/系统字段/分析。
+        - placeholder: history
+      - id: narrator-model
+        type: chat_model
+        inputs:
+          messages:
+            from: answer-messages
+        outputs:
+          text: answer
+        model: eino-story-little-prince-mr.model
+        max_tokens: 2048
+        temperature: 0.2
+      - id: capture-observation
+        type: script
+        inputs:
+          text:
+            from: input.text
+          answer:
+            from: answer
+        outputs:
+          fact: observation
+        language: starlark
+        entrypoint: run
+        source: |
+          def run(input):
+              return {"fact": "story_contract_v1；用户本轮输入：" + input["text"].strip() + "；故事本轮确认：\n" + input["answer"]}
+        limits:
+          max_execution_steps: 10000
+          timeout: 250ms
+          max_input_bytes: 262144
+          max_output_bytes: 262144
+      - id: observe-memory
+        type: memory_observe
+        facts:
+        - text_from: observation
+        wait_for_completion: true
+      edges:
+      - from: start
+        to: prepare-memory-query
+      - from: recall-memory
+        to: control-narration
+      - from: build-prompt
+        to: narrator-model
+      - from: capture-observation
+        to: observe-memory
+      - from: observe-memory
+        to: end
+      - from: control-narration
+        to: build-prompt
+      branches:
+      - from: prepare-memory-query
+        mode: first_match
+        routes:
+        - when:
+            field: memory-route
+            op: eq
+            value: recall
+          to: recall-memory
+        default: control-narration
+      - from: narrator-model
+        mode: first_match
+        routes:
+        - when:
+            field: memory-route
+            op: eq
+            value: opening
+          to: end
+        default: capture-observation
+      outputs:
+      - node: narrator-model
+        field: answer
+        name: assistant
+        mime_type: text/plain
+        primary: true
+    conversation:
+      starts: peer
+    limits:
+      max_output_bytes: 4194304

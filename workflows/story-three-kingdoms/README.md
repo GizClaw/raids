@@ -40,3 +40,10 @@ Flowcraft selects exactly one published node per external response. Chapter entr
 GIZCLAW=/absolute/path/to/gizclaw-v0.7.7 GIZCLAW_TEST_CLI=/absolute/path/to/gizclaw-v0.7.7 make test-unit-resources
 GIZCLAW=/absolute/path/to/gizclaw-v0.7.7 GIZCLAW_TEST_CLI=/absolute/path/to/gizclaw-v0.7.7 GIZCLAW_CONTEXT=e2e-server-volc-bj-01 GIZCLAW_TEST_ENDPOINT=edge-bj-01.e2e.gizclaw.com:9821 GIZCLAW_TEST_REGISTRATION_TOKEN=<testing-runtime-token> APPLY=1 RAID=story-three-kingdoms PARALLEL=3 make test-e2e
 ```
+
+## Multi-role implementations
+
+Continuous multi-character narration is available separately; original implementations remain unchanged.
+
+- `eino.multi-role.yaml`: `eino-story-three-kingdoms-multi-role`; Voice aliases: `eino-story-three-kingdoms-mr.storyteller`, `eino-story-three-kingdoms-mr.liu-bei`, `eino-story-three-kingdoms-mr.zhuge-liang`, `eino-story-three-kingdoms-mr.guan-yu`, `eino-story-three-kingdoms-mr.zhang-fei`.
+- `flowcraft.multi-role.yaml`: `flowcraft-story-three-kingdoms-multi-role`; Voice aliases: `flowcraft-story-three-kingdoms-mr.storyteller`, `flowcraft-story-three-kingdoms-mr.liu-bei`, `flowcraft-story-three-kingdoms-mr.zhuge-liang`, `flowcraft-story-three-kingdoms-mr.guan-yu`, `flowcraft-story-three-kingdoms-mr.zhang-fei`.

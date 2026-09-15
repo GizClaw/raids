@@ -82,6 +82,93 @@
           }
         }
       }
+    },
+    "eino-multi-role": {
+      "file": "eino.multi-role.yaml",
+      "workflow_id": "eino-adventure-treasure-multi-role",
+      "driver": "eino",
+      "input": [
+        "text",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "adventure"
+      },
+      "parameters": {
+        "models": {
+          "eino-adventure-treasure-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "eino-adventure-treasure-mr.adventure-guide": {
+            "role": "adventure-guide",
+            "language": "zh-CN",
+            "description": "旁白：连续剧本段落音色"
+          },
+          "eino-adventure-treasure-mr.cartographer": {
+            "role": "cartographer",
+            "language": "zh-CN",
+            "description": "地图员：连续剧本段落音色"
+          },
+          "eino-adventure-treasure-mr.codebreaker": {
+            "role": "codebreaker",
+            "language": "zh-CN",
+            "description": "解谜伙伴：连续剧本段落音色"
+          },
+          "eino-adventure-treasure-mr.old-sailor": {
+            "role": "old-sailor",
+            "language": "zh-CN",
+            "description": "老水手：连续剧本段落音色"
+          }
+        }
+      }
+    },
+    "flowcraft-multi-role": {
+      "file": "flowcraft.multi-role.yaml",
+      "workflow_id": "flowcraft-adventure-treasure-multi-role",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "adventure"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-adventure-treasure-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-adventure-treasure-mr.adventure-guide": {
+            "role": "adventure-guide",
+            "language": "zh-CN",
+            "description": "旁白：连续剧本段落音色"
+          },
+          "flowcraft-adventure-treasure-mr.cartographer": {
+            "role": "cartographer",
+            "language": "zh-CN",
+            "description": "地图员：连续剧本段落音色"
+          },
+          "flowcraft-adventure-treasure-mr.codebreaker": {
+            "role": "codebreaker",
+            "language": "zh-CN",
+            "description": "解谜伙伴：连续剧本段落音色"
+          },
+          "flowcraft-adventure-treasure-mr.old-sailor": {
+            "role": "old-sailor",
+            "language": "zh-CN",
+            "description": "老水手：连续剧本段落音色"
+          }
+        }
+      }
     }
   },
   "tester": {
@@ -110,34 +197,122 @@
       ]
     }
   },
+  "testers": {
+    "multi-role": {
+      "file": "test.multi-role.yaml",
+      "workflow_id": "adventure-treasure-test-multi-role",
+      "driver": "eino",
+      "parameters": {
+        "models": {
+          "adventure-treasure-test.model": {
+            "kind": "llm",
+            "role": "judge",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        }
+      },
+      "route": {
+        "responses": 7,
+        "checkpoints": [
+          "opening",
+          "english-opening",
+          "continue-choice",
+          "fact-boundary",
+          "safety-boundary",
+          "memory-store",
+          "memory-recall"
+        ]
+      },
+      "implementations": [
+        "eino-multi-role",
+        "flowcraft-multi-role"
+      ]
+    }
+  },
   "tests": [
     {
-      "file": "tests/giztest/adventure-treasure/eino.giztest.yaml",
-      "implementation": "eino",
-      "topology": "relay",
-      "reload": true,
-      "timeout": "35m"
+      "file": "tests/giztest/smoke/adventure-treasure.eino.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "eino"
+      ]
     },
     {
-      "file": "tests/giztest/adventure-treasure/flowcraft.giztest.yaml",
-      "implementation": "flowcraft",
-      "topology": "relay",
-      "reload": true,
-      "timeout": "35m"
+      "file": "tests/giztest/smoke/adventure-treasure.flowcraft.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "flowcraft"
+      ]
     },
     {
-      "file": "tests/giztest/adventure-treasure/eino.realtime.giztest.yaml",
-      "implementation": "eino",
-      "topology": "realtime-roundtrip",
-      "reload": true,
-      "requires_audio": true
+      "file": "tests/giztest/smoke/adventure-treasure.eino.multi-role.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "eino-multi-role"
+      ]
     },
     {
-      "file": "tests/giztest/adventure-treasure/flowcraft.realtime.giztest.yaml",
-      "implementation": "flowcraft",
-      "topology": "realtime-roundtrip",
-      "reload": true,
-      "requires_audio": true
+      "file": "tests/giztest/smoke/adventure-treasure.flowcraft.multi-role.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "flowcraft-multi-role"
+      ]
+    },
+    {
+      "file": "tests/giztest/quality/adventure-treasure.eino.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "eino"
+      ]
+    },
+    {
+      "file": "tests/giztest/quality/adventure-treasure.flowcraft.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "flowcraft"
+      ]
+    },
+    {
+      "file": "tests/giztest/quality/adventure-treasure.eino.multi-role.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "eino-multi-role"
+      ]
+    },
+    {
+      "file": "tests/giztest/quality/adventure-treasure.flowcraft.multi-role.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "flowcraft-multi-role"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/adventure-treasure.eino.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "eino"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/adventure-treasure.flowcraft.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "flowcraft"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/adventure-treasure.eino.multi-role.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "eino-multi-role"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/adventure-treasure.flowcraft.multi-role.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "flowcraft-multi-role"
+      ]
     }
   ]
 }

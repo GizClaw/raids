@@ -92,6 +92,103 @@
           }
         }
       }
+    },
+    "eino-multi-role": {
+      "file": "eino.multi-role.yaml",
+      "workflow_id": "eino-story-three-kingdoms-multi-role",
+      "driver": "eino",
+      "input": [
+        "text",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "eino-story-three-kingdoms-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "eino-story-three-kingdoms-mr.storyteller": {
+            "role": "storyteller",
+            "language": "zh-CN",
+            "description": "旁白：连续剧本段落音色"
+          },
+          "eino-story-three-kingdoms-mr.liu-bei": {
+            "role": "liu-bei",
+            "language": "zh-CN",
+            "description": "刘备：连续剧本段落音色"
+          },
+          "eino-story-three-kingdoms-mr.zhuge-liang": {
+            "role": "zhuge-liang",
+            "language": "zh-CN",
+            "description": "诸葛亮：连续剧本段落音色"
+          },
+          "eino-story-three-kingdoms-mr.guan-yu": {
+            "role": "guan-yu",
+            "language": "zh-CN",
+            "description": "关羽：连续剧本段落音色"
+          },
+          "eino-story-three-kingdoms-mr.zhang-fei": {
+            "role": "zhang-fei",
+            "language": "zh-CN",
+            "description": "张飞：连续剧本段落音色"
+          }
+        }
+      }
+    },
+    "flowcraft-multi-role": {
+      "file": "flowcraft.multi-role.yaml",
+      "workflow_id": "flowcraft-story-three-kingdoms-multi-role",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-story-three-kingdoms-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-story-three-kingdoms-mr.storyteller": {
+            "role": "storyteller",
+            "language": "zh-CN",
+            "description": "旁白：连续剧本段落音色"
+          },
+          "flowcraft-story-three-kingdoms-mr.liu-bei": {
+            "role": "liu-bei",
+            "language": "zh-CN",
+            "description": "刘备：连续剧本段落音色"
+          },
+          "flowcraft-story-three-kingdoms-mr.zhuge-liang": {
+            "role": "zhuge-liang",
+            "language": "zh-CN",
+            "description": "诸葛亮：连续剧本段落音色"
+          },
+          "flowcraft-story-three-kingdoms-mr.guan-yu": {
+            "role": "guan-yu",
+            "language": "zh-CN",
+            "description": "关羽：连续剧本段落音色"
+          },
+          "flowcraft-story-three-kingdoms-mr.zhang-fei": {
+            "role": "zhang-fei",
+            "language": "zh-CN",
+            "description": "张飞：连续剧本段落音色"
+          }
+        }
+      }
     }
   },
   "tester": {
@@ -140,55 +237,142 @@
       ]
     }
   },
+  "testers": {
+    "multi-role": {
+      "file": "test.multi-role.yaml",
+      "workflow_id": "story-three-kingdoms-test-multi-role",
+      "driver": "eino",
+      "parameters": {
+        "models": {
+          "story-three-kingdoms-test.model": {
+            "kind": "llm",
+            "role": "judge",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        }
+      },
+      "route": {
+        "responses": 16,
+        "checkpoints": [
+          "response-1",
+          "response-2",
+          "response-3",
+          "response-4",
+          "response-5",
+          "response-6",
+          "response-7",
+          "response-8",
+          "response-9",
+          "response-10",
+          "response-11",
+          "response-12",
+          "response-13",
+          "response-14",
+          "response-15",
+          "response-16"
+        ],
+        "milestones": [
+          8,
+          16
+        ],
+        "reload_before": 9,
+        "chapters": [
+          "营帐军情",
+          "百姓与追击",
+          "联盟试探",
+          "责任定策"
+        ]
+      },
+      "implementations": [
+        "eino-multi-role",
+        "flowcraft-multi-role"
+      ]
+    }
+  },
   "tests": [
     {
-      "file": "tests/giztest/story-three-kingdoms/eino.giztest.yaml",
-      "implementation": "eino",
-      "topology": "relay",
-      "responses": 16,
-      "reload": true
+      "file": "tests/giztest/smoke/story-three-kingdoms.eino.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "eino"
+      ]
     },
     {
-      "file": "tests/giztest/story-three-kingdoms/flowcraft.giztest.yaml",
-      "implementation": "flowcraft",
-      "topology": "relay",
-      "responses": 16,
-      "reload": true
+      "file": "tests/giztest/smoke/story-three-kingdoms.flowcraft.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "flowcraft"
+      ]
     },
     {
-      "file": "tests/giztest/story-three-kingdoms/flowcraft.roles.giztest.yaml",
-      "implementation": "flowcraft",
-      "topology": "isolated-role-probes",
-      "roles": 3,
-      "requires_audio": true
+      "file": "tests/giztest/smoke/story-three-kingdoms.eino.multi-role.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "eino-multi-role"
+      ]
     },
     {
-      "file": "tests/giztest/story-three-kingdoms/eino.transitions.giztest.yaml",
-      "implementation": "eino",
-      "topology": "stateful-transition-contract",
-      "responses": 7,
-      "requires_audio": false
+      "file": "tests/giztest/smoke/story-three-kingdoms.flowcraft.multi-role.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "flowcraft-multi-role"
+      ]
     },
     {
-      "file": "tests/giztest/story-three-kingdoms/eino.realtime.giztest.yaml",
-      "implementation": "eino",
-      "topology": "realtime-roundtrip",
-      "reload": true,
-      "requires_audio": true
+      "file": "tests/giztest/quality/story-three-kingdoms.eino.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "eino"
+      ]
     },
     {
-      "file": "tests/giztest/story-three-kingdoms/flowcraft.transitions.giztest.yaml",
-      "implementation": "flowcraft",
-      "topology": "stateful-transition-contract",
-      "responses": 7,
-      "requires_audio": true
+      "file": "tests/giztest/quality/story-three-kingdoms.flowcraft.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "flowcraft"
+      ]
     },
     {
-      "file": "tests/giztest/story-three-kingdoms/flowcraft.realtime.giztest.yaml",
-      "implementation": "flowcraft",
-      "topology": "realtime-roundtrip",
-      "reload": true,
-      "requires_audio": true
+      "file": "tests/giztest/quality/story-three-kingdoms.eino.multi-role.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "eino-multi-role"
+      ]
+    },
+    {
+      "file": "tests/giztest/quality/story-three-kingdoms.flowcraft.multi-role.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "flowcraft-multi-role"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/story-three-kingdoms.eino.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "eino"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/story-three-kingdoms.flowcraft.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "flowcraft"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/story-three-kingdoms.eino.multi-role.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "eino-multi-role"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/story-three-kingdoms.flowcraft.multi-role.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "flowcraft-multi-role"
+      ]
     }
   ]
 }

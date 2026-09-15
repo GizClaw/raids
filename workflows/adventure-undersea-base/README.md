@@ -18,8 +18,8 @@ Install an implementation into a RuntimeProfile with `raids install adventure-un
 
 Tester: `test.yaml` (`adventure-undersea-base-test`, eino), shared by every implementation; one Giztest scenario per implementation:
 
-- `tests/giztest/adventure-undersea-base/eino.giztest.yaml` (relay, with reload, timeout 35m)
-- `tests/giztest/adventure-undersea-base/flowcraft.giztest.yaml` (relay, with reload, timeout 35m)
+- `tests/giztest/soak/adventure-undersea-base.eino.giztest.yaml` (relay, with reload, timeout 35m)
+- `tests/giztest/soak/adventure-undersea-base.flowcraft.giztest.yaml` (relay, with reload, timeout 35m)
 
 The route has 7 target responses:
 
@@ -38,3 +38,10 @@ Run:
 ```sh
 make test-e2e RAID=adventure-undersea-base PARALLEL=2
 ```
+
+## Multi-role implementations
+
+Continuous multi-character narration is available separately; original implementations remain unchanged.
+
+- `eino.multi-role.yaml`: `eino-adventure-undersea-base-multi-role`; Voice aliases: `eino-adventure-undersea-base-mr.adventure-guide`, `eino-adventure-undersea-base-mr.biologist`, `eino-adventure-undersea-base-mr.engineer`, `eino-adventure-undersea-base-mr.diver`.
+- `flowcraft.multi-role.yaml`: `flowcraft-adventure-undersea-base-multi-role`; Voice aliases: `flowcraft-adventure-undersea-base-mr.adventure-guide`, `flowcraft-adventure-undersea-base-mr.biologist`, `flowcraft-adventure-undersea-base-mr.engineer`, `flowcraft-adventure-undersea-base-mr.diver`.

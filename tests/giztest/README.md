@@ -1,199 +1,54 @@
-# Declarative Giztest corpus
+# Giztest 测试
 
-Every Raids live test is one `gizclaw.test/v1alpha1` document under this
-directory. `gizclaw test run <dir> --parallel N` gives each file (and each
-`repeat` task) its own ephemeral Peers, Workspaces, variables, and bounded
-`finally` cleanup, so one cluster can run the whole catalog concurrently under
-one global worker pool. This corpus replaced the retired `tools/raidtest` Go
-runner, which owned paired, catalog, and default qualification before the raid
-package layout.
+测试布局为 `tests/giztest/{smoke,quality,soak}/<raid>.<implementation>.giztest.yaml`，每个文件只运行一个实现，共 517 个三档文件。implementation 与 workflow 文件名一致，例如 `flowcraft`、`eino`、`flowcraft.multi-role`、`eino.multi-role`。文档名为 `<raid>.<tier>.<implementation>`。另保留 `h106/` 的 2 个外部设备测试，合计 519 个 `.giztest.yaml`；`reports/` 仅存运行产物，不计入用例。
 
-Requires GizClaw v0.6.0 or later, the first release containing the declarative
-runner, assertion matchers, and `workspace_relay` operation (GizClaw #916,
-#921, #923). The bounded story-role latency probes additionally require the
-`peer_stream.completion: first_response` contract from GizClaw #991/#992,
-first released in v0.7.13. CI uses GizClaw v0.18.2, which also contains the
-RuntimeProfile reload repair from GizClaw #994/#997 and the modality-selective
-first-response contract from GizClaw #1003/#1004 for independent text/audio probes.
-`make test-unit-resources` validates the corpus offline.
+| 档位 | 文件数 | 定义 |
+| --- | ---: | --- |
+| smoke | 175 | 速度、延迟、响应度：开场、角色探针、RealTime，完整音频与独立首响应 |
+| quality | 175 | 质量控制与安全围栏：剧情、转场、更正、语言、角色边界；只保留确定性断言 |
+| soak | 167 | Tester 与被测 workflow 长回合对跑，检查记忆、重载及长程一致性 |
 
-## Layout
-
-One directory per scenario (raid), mirroring `workflows/<raid>/`, with one
-`.giztest.yaml` per engine implementation or per single-client case:
-
-```text
-tests/giztest/<raid>/<engine>.giztest.yaml            # relay: candidate <engine> vs. workflows/<raid>/test.yaml
-tests/giztest/<raid>/<engine>.realtime.giztest.yaml   # paced-audio RealTime roundtrip for that implementation
-tests/giztest/<raid>/<engine>.<case>.giztest.yaml     # extra scenarios for the same implementation
-tests/giztest/ast-translate/<pair>.<case>.giztest.yaml
-tests/giztest/doubao-realtime/conversation.<case>.giztest.yaml
-tests/giztest/h106/…                                  # targets outside this catalog
-```
-
-| Group | Files | Topology |
-| --- | --- | --- |
-| 50 story/adventure/learn raids × `flowcraft` + `eino` | 100 | `workspace_relay` against the raid's `<raid>-test` Tester |
-| 50 story/adventure/learn raids × `flowcraft.realtime` + `eino.realtime` | 100 | warmed, paced-audio RealTime roundtrip; Flowcraft enforces 2 s text / 3 s audio first response and Eino enforces 2 s text first response |
-| 19 `story-*` Flowcraft role probes | 19 | three isolated narrator/character Workspaces requiring complete text/audio EOS evidence plus bounded 2 s text / 3 s audio first-response probes |
-| 19 `story-*` × `flowcraft.transitions` + `eino.transitions` | 38 | single-client stateful contract: guided opening, natural progress, negated choice, choice that prompts “进入下一章”, adjacent transition whose heading is followed by story text, and same-chapter continuation |
-| `story-wizard-oz/english-restart*` | 2 | direct Flowcraft audio plus Eino relay preserving English restart and non-reset continuation |
-| `journey-guide/` (`flowcraft`, `eino-history`, `eino-memory-recall`, `eino-memory-async`, `flowcraft.benchmark-6s`) | 5 | 4 relays sharing `journey-guide-test` + 1 single-client TTFT benchmark |
-| `murder-mystery/`, `chat-assistant/` | 2 | relay |
-| `doubao-realtime/` | 2 | single client, realtime audio |
-| `ast-translate/` | 8 | single client, push-to-talk audio, one per direction |
-| `h106/` | 2 | single client; external targets |
-
-The giztest files live beside `tests/giztest` rather than inside `workflows/`
-only because the deploy catalog walker reads every `*.yaml` under `workflows/`
-as an Admin resource; once it skips `*.giztest.yaml` they move next to the
-Workflows they test.
-
-## Relay protocol
-
-A paired file creates two Workspaces from the stable `testing` RuntimeProfile
-(`raidtest-targets` collection for the candidate, `raidtest-testers` for the
-Tester), selects both, and runs bounded `workspace_relay` steps with
-`first_client: tester`. The Tester receives the brief, emits the first scripted
-player message, and the runner forwards every assistant text fragment as the
-other side's user input until a checkpoint. Story segments end in strict
-`CHECKPOINT PASS`; their final segment ends in strict `PASS`.
-
-Every product-under-test Workspace is explicitly warmed with
-`server.run.workspace.reload` before its first conversational operation. The
-reload constructs the selected Agent without adding a user or assistant turn,
-so cold-start time stays visible as a dedicated setup step while TTFT and first
-audio assertions measure the ready runtime. Relay Tester Workspaces are not
-warmed: they are test drivers rather than latency targets, and retaining their
-original lifecycle avoids changing the judge's long-form semantic behavior.
-Reloads that are part of a scenario's persistence contract remain separate
-later steps and are not replaced by this initial warm-up.
-
-### RealTime roundtrip contract
-
-Every story/adventure implementation has an independent
-`<engine>.realtime.giztest.yaml`. The document synthesizes one short Chinese
-Opus fixture, pushes it through `peer_stream mode: realtime` at 20 ms pacing,
-and verifies a non-empty terminal assistant response after an explicit warm-up.
-Both engines declare ASR/TTS voice adapters. Their terminal checks require
-non-empty text, text EOS, audio EOS, and positive audio bytes; a second
-`completion: first_response` turn requires text within 2 seconds and audio
-within 3 seconds. Eino uses the single default Voice declared by its Workflow
-and bound by the testing RuntimeProfile.
-
-The relay-protocol Tester Workflows (`workflows/<raid>/test.yaml`, one per
-scenario and shared by its Flowcraft and Eino implementations) are generated
-from the previous Tool-protocol Testers and plans and share one Eino graph: `route-turn` (Starlark) → `build-prompt` → `judge-model` → `finalize`.
-
-- `route-turn` derives the turn index from its own History (`input.messages`):
-  the last assistant message is matched against the scripted request list, with
-  the assistant-message count as fallback. Scripted turns emit the exact
-  request; `intent` turns (Journey `river`/`shelter`) ask the model for one
-  grounded player utterance.
-- The final turn re-reads the whole visible transcript, runs the plan's
-  deterministic contracts (required / required_any / forbidden / rune window,
-  ported from the retired runner's deterministic checks), and builds one holistic judge
-  prompt from the scenario rules and per-checkpoint contracts.
-- `finalize` makes the output deterministic: scripted text passes through
-  unchanged, generated utterances are trimmed to one line, and the verdict is
-  reduced to exactly `PASS` or `FAIL`. Any deterministic failure forces `FAIL`
-  regardless of the model's opinion.
-
-### Long story and role-probe contract
-
-Each of the 18 ordinary story pairs runs 16 target responses, checkpoints at
-response 8, reloads the candidate before response 9, then verifies the current
-chapter and corrected durable state at response 16. Arabian Nights runs 64
-responses with checkpoints at 8, 16, 32, and 48, reloads before response 33,
-and ends at response 64. Checkpoints keep each audit inside the 50-message Eino
-History window; a missing round, deterministic failure, timeout, or non-strict
-verdict fails that segment.
-
-Every `flowcraft.roles.giztest.yaml` uses three isolated Workspaces so a prior
-speaker cannot influence the next probe. The narrator Workspace also proves
-that a fresh direct chapter-two request remains in chapter one until the
-completion conditions are satisfied. A natural direct request reaches the
-narrator or one named character, while `peer_stream mode: text` requires text
-EOS, audio EOS, positive `audio_bytes`, and direct, speaker-label-free role text. After each
-role's complete semantic response, a final
-`peer_stream.completion: first_response` step on that isolated Workspace
-requires the first non-empty assistant text within 2 seconds and the first
-non-empty assistant audio within 3 seconds. The runner closes that latency-only
-stream after both signals; it does not replace or weaken the preceding terminal
-semantic check. The report supports “expected role/alias backed by static
-mapping”; it does not expose the selected alias or prove voiceprint similarity.
-
-Giztest owns the transport evidence: `/terminal/text` must match `^\s*PASS\s*$`,
-`/completed_turns` and per-client counts must match the route, and the
-`/turns/candidate/{first_text_ms,text_runes}` `{min,max}` aggregates carry the
-plan's 6 s TTFT gate and the global rune window. Reports never contain relayed
-text, prompts, or Tester reasoning.
-
-### Reload and recall barriers
-
-Plans with `reload_before` split into two relay steps: the first ends on the
-candidate's response before the reload (`terminal_client: candidate`), its
-terminal text is captured into `reload_handoff`, `server.run.workspace.reload`
-restarts the candidate, and the second relay feeds that handoff to the Tester
-so its History stays continuous. `persisted_before_reload` facts become one
-`server.run.workspace.recall` step per fact that expects `/available: true` and
-non-empty `/hits` before the reload.
-
-### Known limits of the relay migration
-
-- Eino History is capped at 50 messages. Long stories therefore use bounded
-  checkpoint segments; Murder Mystery still crosses the window and its final
-  audit sees the latest 25 rounds only.
-- The recall barrier is a single RPC after the first relay segment; the retired
-  runner polled until `persistence_timeout`. A configurable retry on RPC steps is a
-  pending GizClaw request.
-- Murder Mystery's previously free-form investigation turns are now fixed
-  scripted sentences (the `REQUESTS` list inside
-  `workflows/murder-mystery/test.yaml`) so the route stays
-  deterministic and index-stable.
-- Realtime (Doubao) and AST translation scenarios are single-client audio runs:
-  they keep every keyword, rune, script, latency, and audio-present gate but no
-  longer carry the external LLM judge dimensions. Script checks (`han`,
-  `latin`, `japanese`, `korean`) are presence patterns (`\p{Han}` …) rather than
-  the retired runner's letter-ratio thresholds.
-- `h106/` targets are not part of this catalog and are not provisioned by
-  `APPLY=1 make test-e2e`; `RAID=all` skips the directory, and running it with
-  `RAID=h106` requires a deployment whose `testing` profile exposes those
-  Workflows in the `assistants` collection.
-
-## Running
+55 个 raid 均有 smoke/quality；`ast-translate` 和 `doubao-realtime` 是音频专用目标，没有 Tester 长回合协议，故无 soak，其余 53 个均有三档。Murder Mystery 只有 Flowcraft original/multi-role；Journey 分别运行 `flowcraft`、`eino-history`、`eino-memory-async`、`eino-memory-recall`。AST 按七个 workflow 拆分，`zh-en-auto` 同一文件保留两个方向，不把不同翻译方向当作等价实现；Doubao 使用 `conversation` 文件名。
 
 ```sh
-# 1. Point the runner at a deployment: the Peer access point and the value of
-#    the RegistrationToken it bootstraps with.
 export GIZCLAW_TEST_ENDPOINT=<host:port>
-export GIZCLAW_TEST_REGISTRATION_TOKEN=<testing-runtime token>
-
-# 2. Smoke: one raid, serial. APPLY=1 provisions the testing closure first
-#    (Admin authority; GIZCLAW_CONTEXT selects the context).
-APPLY=1 GIZCLAW_CONTEXT=e2e-server-volc-bj-01 \
-  GIZCLAW_TEST_ENDPOINT=edge-bj-01.e2e.gizclaw.com:9821 \
-  make test-e2e RAID=story-aesop PARALLEL=3
-
-# 3. Full catalog wave through the global worker pool.
-make test-e2e PARALLEL=8
+export GIZCLAW_TEST_REGISTRATION_TOKEN=<testing-token>
+make test-e2e TIER=smoke RAID=story-aesop
+make test-e2e TIER=quality RAID=all
+make test-e2e TIER=soak RAID=journey-guide
+make test-e2e TIER=all RAID=story-aesop
+make test-unit-resources
+make test-unit-voices
 ```
 
-`make test-e2e` validates the selected scenarios offline first, then writes a
-redacted JSON report under `tests/giztest/reports/` (ignored by git) unless
-`REPORT=<path>` is given. No endpoint or token is baked into a script or a
-scenario: every document declares them as Giztest input variables
-(`env: GIZCLAW_TEST_ENDPOINT`, `env: GIZCLAW_TEST_REGISTRATION_TOKEN`, the
-latter `secret: true` so reports redact it), so the same checkout drives dev,
-e2e, or a local stack from the environment alone. The `testing-runtime` token in
-`registration-tokens/testing.yaml` is a committed Dev/E2E-only value, not a
-production credential.
+默认 `TIER=all RAID=all PARALLEL=4 APPLY=0`。`TIER` 只接受 `smoke|quality|soak|all`，`RAID` 接受 raid 名或 `all`；选中 raid 时逐档选择 `<raid>.*.giztest.yaml`，通过 `gizclaw test run --parallel "$PARALLEL"` 并发运行文件。`all` 跳过不适用档，显式选择不存在的档会失败。H106 不进入 `make test-e2e`，按其设备环境单独执行 `gizclaw test run tests/giztest/h106`。`REPORT` 可指定 JSON 路径，默认写入 `reports/`。
 
-## Provenance
+`APPLY=1` 的原行为保持：使用 `GIZCLAW_CONTEXT` 应用全部 workflows、testing RuntimeProfile 与 testing token，再执行选中的测试。它需要 Admin 权限，普通运行只需 Peer 接入点与 token。
 
-The corpus and the relay Testers were produced once, mechanically, from the
-the retired runner's plans, suites, and Tool-protocol Testers; the generator was
-a migration aid and is not part of the repository. The generated files are now
-the source of truth: edit a `.giztest.yaml` or a Tester directly and re-run
-`make test-unit-resources`. Each route's contracts stay readable in
-`workflows/<raid>/README.md` and in the Tester's own `CONTRACTS` list.
+非 RealTime 往返的完整响应保留 6s 首字、90s 完整响应等原门槛；smoke 检查 text/audio EOS、非空音频、音频流闭合且无重叠、按设备听感检查 `/audio_pacing/underruns == 0` 且 `/audio_pacing/minimum_buffer_ms >= 0`（Giztest 的 500ms 预缓冲播放模型）。开始播放前的包间隔不代表设备听到卡顿；`max_interval_ms` 保留在 evidence 中用于诊断，不作为失败条件。独立 `completion: first_response` 探针要求首字 2s、首音 3s，主动结束流，因此不要求该探针 EOS。两分钟是速度目标，后期角色前置和完整语音可能超过；文件总 timeout 是运行预算，不能作为放宽单步门槛的依据。运行 CLI 必须支持 `/audio_integrity` 与 `/audio_pacing`，并且不低于 GizClaw v0.18.10：更早的 CLI 在 realtime 首响应探针里要等语音和尾静音同步发完才开始计时，且没有首个 BOS 前的音频暂存（GizClaw/gizclaw#1283），会报出与服务端无关的首字超时和音频边界违规。多角色语音要求服务端支持 `voice_adapter.speaker_voices`，文字不被 TTS 启动拖住要求服务端不低于 v0.18.10。
+
+RealTime 的 `realtime_roundtrip` 负责验证完整往返：events/text 非空、text/audio EOS、audio_bytes >= 1，并保留统一的 audio_integrity 与 underruns/minimum_buffer 检查，不设置首字、首音或 EOS 耗时上限。该步骤的 first_text_ms 从开始发送输入语音计时，包含约 4s 输入语音及尾静音，正常可达 6.5–7.3s，不能套用 6s 首字门槛。随后的 `realtime_roundtrip_first_response`（原测试的 `realtime_first_response`）独立负责延迟验收，所有实现均保留首字 2s、首音 3s 的 timeout 和 maximum 断言。
+
+不同实现通过文件级并发运行；需要的 speech 输入在各文件内独立生成。quality 保留 peer_stream 并行组和每个 suite 内的原始步骤顺序，将短 suite 向最后一轮对齐，使角色、路由、转场在同轮完成后立即进入 finally。较晚启动的 client 在首次注册前 reconnect，避免文件启动时建好的连接已经过期。finally 的原有历史输出、stop、Workspace/Peer 删除完整保留，失败时仍执行。
+
+不再对每个响应轮次发送全量 keepalive。独立 Workspace 准备阶段仍会让其它已注册 client 等待过久的位置保留 `*_setup_keepalive_*`（`server.run.status`）；Journey soak 在三个 90s recall barrier 之间保留一个 Tester 的 `*_recall_keepalive`。当前 smoke 1、quality 268、soak 4，共 273 个；每个都通过删除反证检查，删掉任一个会造成静态空闲预算超限。原有 3,735 个 keepalive 步骤全部移除，跨实现等待也随文件拆分消除。
+
+`test-unit-resources` 检查文件名/文档名、每档实现清单、raid.json 单实现登记、Voice/角色闭环和真实 routing-cases 脚本。按 variant 比较 `<raid>.flowcraft*.giztest.yaml` 与 `<raid>.eino*.giztest.yaml` 的完整 steps/finally（展开并行父步骤的断言），Journey 的三个 Eino 变体分别与 Flowcraft 比较。仅规范化 client/标识符、workflow_name 和 Workspace parameters；输入、expect、capture、timeout、collection、relay 计划保持一致。仅真实 TTS 能力差异沿用音频断言例外。
+
+空闲规则累计某 client 两次操作之间其它步骤的预算，包含 finally；显式 timeout 按原值计算，无显式 timeout 的控制操作按 30s 调度余量计算，output 为 0。并行组中每个参与 client、relay 中双方均视为持续有流量。间隔超过 180s、晚启动未重连、注册前保活、冗余保活都会失败。这是静态调度检查，不是网络时延上限或真实 E2E 验收；没有放宽或改动原有响应门槛。quality 不创建 Tester，不执行长 relay；预算沿用原值（story/adventure 30m，其余 10m）。
+
+Journey quality 另保留七回合 benchmark（四实现同输入同门槛）；soak 的四实现采用原门槛交集，并统一 recall barrier。eino-history 无持久 Memory 的差异可能导致 recall 失败，不作豁免。长剧情实际轮次以 relay 的 max_turns、completed_turns 和 Tester route 为准。
+
+首响应探针主动提前结束后，smoke 显式停止当前 run 并 reload 已选 Workspace，再开始下一探针，避免未读尾音污染下一轮音频完整性证据。`audio_integrity` 的流闭合、不重叠和 violations 门槛保持不变。
+
+quality 不重复 smoke 中逐项相同的 285 个首响应探针。其余原有文本、音频 EOS、首字/首音、第一人称、知识边界、转场、路由和安全断言均保留；不会仅因文本 EOS 提前进入下一轮。学习类 quality 用新建 Workspace 执行安全围栏，chat-assistant 用三轮事实建立/更正的确定性检查，完整长程记忆及裁判均在 soak。
+
+story-aesop / adventure-history 的 quality 在 finally 清理前读取各 client 最新一条 Workspace 历史，并输出类型和正文到运行日志，辅助定位文本围栏失败；报告 JSON 保留相应步骤与延迟。该观测不替代原 peer_stream 断言。
+
+story-aesop soak 每个文件只包含该实现与对应 Tester；长 relay 和裁判完成后立即 finally 清理，因此已移除原有为跨实现等待设置的注册前及清理前 reconnect。relay 和裁判断言不变。
+
+### Original Eino voice behavior
+
+Original story, adventure and learn Eino Workflows use their Workflow-scoped default Voice for the complete primary text output; multi-role Eino variants add character Voice switching. Both engines use ASR for paced RealTime audio input. Journey Eino history, asynchronous-memory and recall variants also retain ASR and the narrator default Voice. RuntimeProfiles bind these aliases to the same role Voice as Flowcraft.
+
+The smoke RealTime probes require complete text/audio output and separate 2-second text / 3-second audio first responses for TTS-capable implementations. Offline checks validate Eino Voice ownership, manifest declarations and resolution in both RuntimeProfiles alongside tier parity and multi-role Voice closure.

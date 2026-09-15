@@ -53,6 +53,54 @@
           }
         }
       }
+    },
+    "flowcraft-multi-role": {
+      "file": "flowcraft.multi-role.yaml",
+      "workflow_id": "flowcraft-murder-mystery-multi-role",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk"
+      ],
+      "memory": {
+        "layout_id": "adventure"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-murder-mystery-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-murder-mystery-mr.game-master": {
+            "role": "narrator",
+            "language": "zh-CN",
+            "description": "主持人 voice"
+          },
+          "flowcraft-murder-mystery-mr.housekeeper": {
+            "role": "housekeeper",
+            "language": "zh-CN",
+            "description": "管家 voice"
+          },
+          "flowcraft-murder-mystery-mr.chef": {
+            "role": "chef",
+            "language": "zh-CN",
+            "description": "厨师 voice"
+          },
+          "flowcraft-murder-mystery-mr.heir": {
+            "role": "heir",
+            "language": "zh-CN",
+            "description": "沈知秋 voice"
+          },
+          "flowcraft-murder-mystery-mr.lawyer": {
+            "role": "lawyer",
+            "language": "zh-CN",
+            "description": "律师 voice"
+          }
+        }
+      }
     }
   },
   "tester": {
@@ -100,13 +148,98 @@
       ]
     }
   },
+  "testers": {
+    "multi-role": {
+      "file": "test.multi-role.yaml",
+      "workflow_id": "murder-mystery-test-multi-role",
+      "driver": "eino",
+      "parameters": {
+        "models": {
+          "murder-mystery-test.model": {
+            "kind": "llm",
+            "role": "judge",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        }
+      },
+      "route": {
+        "responses": 26,
+        "checkpoints": [
+          "opening",
+          "inspect-balcony",
+          "inspect-window",
+          "interview-chef",
+          "inspect-kitchen",
+          "interview-housekeeper",
+          "inspect-study",
+          "establish-shoe-size",
+          "interview-heir",
+          "inspect-phonograph",
+          "irrelevant-garden-route",
+          "mistaken-outage-theory",
+          "correct-shoe-size",
+          "inspect-heir-room",
+          "inspect-fireplace",
+          "interview-lawyer",
+          "inspect-will",
+          "inspect-rear-corridor",
+          "inspect-thread",
+          "delayed-correction-recall",
+          "challenge-chef",
+          "revisit-phonograph",
+          "accuse-wrong-suspect",
+          "summarize-confirmed-clues",
+          "analyze-contradictions",
+          "conclude"
+        ]
+      },
+      "implementations": [
+        "flowcraft-multi-role"
+      ]
+    }
+  },
   "tests": [
     {
-      "file": "tests/giztest/murder-mystery/flowcraft.giztest.yaml",
-      "implementation": "flowcraft",
-      "topology": "relay",
-      "reload": true,
-      "timeout": "99m"
+      "file": "tests/giztest/smoke/murder-mystery.flowcraft.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "flowcraft"
+      ]
+    },
+    {
+      "file": "tests/giztest/smoke/murder-mystery.flowcraft.multi-role.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "flowcraft-multi-role"
+      ]
+    },
+    {
+      "file": "tests/giztest/quality/murder-mystery.flowcraft.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "flowcraft"
+      ]
+    },
+    {
+      "file": "tests/giztest/quality/murder-mystery.flowcraft.multi-role.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "flowcraft-multi-role"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/murder-mystery.flowcraft.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "flowcraft"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/murder-mystery.flowcraft.multi-role.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "flowcraft-multi-role"
+      ]
     }
   ]
 }

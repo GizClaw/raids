@@ -9,12 +9,6 @@ from typing import Any, Iterable, Mapping, Sequence
 
 
 ADVENTURE = "adventure-science"
-GIZTEST_FILES = (
-    "eino.giztest.yaml",
-    "flowcraft.giztest.yaml",
-    "eino.realtime.giztest.yaml",
-    "flowcraft.realtime.giztest.yaml",
-)
 GRADE_NUMERALS = "一二三四五六"
 
 
@@ -182,40 +176,24 @@ def render_giztests(
     route_size: int,
     recall_query: str,
     realtime_text: str,
+    opening: str,
 ) -> dict[str, str]:
-    rendered: dict[str, str] = {}
-    source = repo / "tests" / "giztest" / ADVENTURE
-    before_reload_turns = 2 * (route_size - 1)
-    per_client_turns = route_size - 1
-    for name in GIZTEST_FILES:
-        text = read_text(source / name).replace(ADVENTURE, raid)
-        if ".realtime." in name:
-            text = replace_once(
-                text,
-                "text: 请简短介绍当前故事，并告诉我现在可以做什么。",
-                f"text: {realtime_text}",
-                label=f"{name} synthesized text",
-            )
-        else:
-            text = replace_once(
-                text, "the 7-response", f"the {route_size}-response", label=f"{name} response count"
-            )
-            text = replace_once(
-                text, "    max_turns: 12", f"    max_turns: {before_reload_turns}", label=f"{name} relay turns"
-            )
-            text = replace_once(
-                text, "      equals: 12", f"      equals: {before_reload_turns}", label=f"{name} completed turns"
-            )
-            old_counts = "    /turns/candidate/count:\n      equals: 6\n    /turns/tester/count:\n      equals: 6"
-            new_counts = (
-                "    /turns/candidate/count:\n"
-                f"      equals: {per_client_turns}\n"
-                "    /turns/tester/count:\n"
-                f"      equals: {per_client_turns}"
-            )
-            text = replace_once(text, old_counts, new_counts, label=f"{name} per-client turns")
-            text = replace_once(text, "      query: 星火七号", f"      query: {recall_query}", label=f"{name} recall query")
-        rendered[name] = text
+    """Render all tiers from independent templates, preserving existing gates."""
+    values = {
+        "RAID": raid, "OPENING": opening, "REALTIME_TEXT": realtime_text,
+        "RECALL_QUERY": recall_query, "ROUTE_SIZE": str(route_size),
+        "RELAY_TURNS": str(2 * (route_size - 1)),
+        "CLIENT_TURNS": str(route_size - 1),
+    }
+    rendered = {}
+    for tier in ("smoke", "quality", "soak"):
+        for engine in ("flowcraft", "eino"):
+            text = read_text(repo / "scripts/learn/templates" / f"{tier}.{engine}.giztest.yaml")
+            for key, value in values.items():
+                text = text.replace(f"@@{key}@@", value)
+            if "@@" in text:
+                raise ValueError(f"unresolved {tier} template marker")
+            rendered[f"{tier}/{raid}.{engine}.giztest.yaml"] = text
     return rendered
 
 
@@ -233,6 +211,23 @@ def render_raid_manifest(
     manifest = json.loads(
         json.dumps(manifest, ensure_ascii=False).replace(ADVENTURE, raid).replace("adventure-guide", "tutor")
     )
+    manifest["implementations"] = {
+        engine: manifest["implementations"][engine] for engine in ("eino", "flowcraft")
+    }
+    # Learn packages have no multi-role variants or variant Testers.
+    manifest.pop("testers", None)
+    for implementation in manifest["implementations"].values():
+        # The original Eino/Flowcraft tutor owns only its default Voice.
+        voices = implementation["parameters"]["voices"]
+        implementation["parameters"]["voices"] = {
+            alias: value for alias, value in voices.items() if alias.endswith(".tutor")
+        }
+    manifest["tests"] = [
+        {"file": f"tests/giztest/{tier}/{raid}.{engine}.giztest.yaml", "tier": tier,
+         "implementations": [engine]}
+        for tier in ("smoke", "quality", "soak")
+        for engine in ("eino", "flowcraft")
+    ]
     manifest["category"] = "learn"
     manifest["title"] = dict(title)
     manifest["summary"] = dict(summary)

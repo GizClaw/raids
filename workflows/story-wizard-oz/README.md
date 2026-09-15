@@ -42,3 +42,10 @@ Flowcraft selects exactly one published node per external response. Chapter entr
 GIZCLAW=/absolute/path/to/gizclaw-v0.7.7 GIZCLAW_TEST_CLI=/absolute/path/to/gizclaw-v0.7.7 make test-unit-resources
 GIZCLAW=/absolute/path/to/gizclaw-v0.7.7 GIZCLAW_TEST_CLI=/absolute/path/to/gizclaw-v0.7.7 GIZCLAW_CONTEXT=e2e-server-volc-bj-01 GIZCLAW_TEST_ENDPOINT=edge-bj-01.e2e.gizclaw.com:9821 GIZCLAW_TEST_REGISTRATION_TOKEN=<testing-runtime-token> APPLY=1 RAID=story-wizard-oz PARALLEL=3 make test-e2e
 ```
+
+## Multi-role implementations
+
+Continuous multi-character narration is available separately; original implementations remain unchanged.
+
+- `eino.multi-role.yaml`: `eino-story-wizard-oz-multi-role`; Voice aliases: `eino-story-wizard-oz-mr.storyteller`, `eino-story-wizard-oz-mr.dorothy`, `eino-story-wizard-oz-mr.scarecrow`, `eino-story-wizard-oz-mr.tin-man`, `eino-story-wizard-oz-mr.lion`, `eino-story-wizard-oz-mr.glinda`.
+- `flowcraft.multi-role.yaml`: `flowcraft-story-wizard-oz-multi-role`; Voice aliases: `flowcraft-story-wizard-oz-mr.storyteller`, `flowcraft-story-wizard-oz-mr.dorothy`, `flowcraft-story-wizard-oz-mr.scarecrow`, `flowcraft-story-wizard-oz-mr.tin-man`, `flowcraft-story-wizard-oz-mr.lion`, `flowcraft-story-wizard-oz-mr.glinda`.

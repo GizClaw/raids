@@ -1,0 +1,318 @@
+# User Story:
+# As a Raids catalog maintainer,
+# I want equal opening, role and realtime responsiveness gates for every implementation,
+# So that text and audio respond promptly without overlap or playback stalls.
+version: gizclaw.test/v1alpha1
+name: story-twenty-thousand-leagues.smoke.flowcraft.multi-role
+clients:
+  flowcraft_multi_role:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+variables:
+  endpoint:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_ENDPOINT
+  registration_token:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_REGISTRATION_TOKEN
+    secret: true
+  input_audio:
+    direction: output
+    type: audio
+    max_bytes: 16777216
+    media_type: audio/ogg
+    codec: opus
+  flowcraft_multi_role_text_workspace:
+    direction: input
+    type: string
+    generate: token
+  flowcraft_multi_role_realtime_workspace:
+    direction: input
+    type: string
+    generate: token
+repeat: 1
+timeout: 12m
+steps:
+- id: flowcraft_multi_role_register
+  client: flowcraft_multi_role
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: synthesize_input_audio
+  client: flowcraft_multi_role
+  speech:
+    method: server.speech.synthesize
+    request:
+      voice_name: giztest-input.zh
+      text: 请简短介绍当前故事，并告诉我现在可以做什么。
+      accepted_content_types:
+      - audio/ogg
+    cache: run
+  save_as: input_audio
+- id: flowcraft_multi_role_create_text
+  client: flowcraft_multi_role
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${flowcraft_multi_role_text_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-story-twenty-thousand-leagues-multi-role
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: flowcraft_multi_role_select_text
+  client: flowcraft_multi_role
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${flowcraft_multi_role_text_workspace}"
+- id: flowcraft_multi_role_warmup_text
+  client: flowcraft_multi_role
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: flowcraft_multi_role_create_realtime
+  client: flowcraft_multi_role
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${flowcraft_multi_role_realtime_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-story-twenty-thousand-leagues-multi-role
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_REALTIME
+- timeout: 4m
+  id: flowcraft_multi_role_probe_narrator
+  client: flowcraft_multi_role
+  peer_stream:
+    mode: text
+    input: 请从第一章开始《海底两万里》。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      min_length: 1
+      not_contains:
+      - "【"
+      - "】"
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/events":
+      non_empty: true
+    "/text_eos_ms":
+      maximum: 180000
+    "/audio_eos_ms":
+      maximum: 180000
+    "/audio_integrity/streams":
+      equals: 1
+    "/audio_integrity/max_active":
+      equals: 1
+    "/audio_integrity/open":
+      equals: 0
+    "/audio_integrity/violations":
+      equals: 0
+    "/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/audio_pacing/underruns":
+      equals: 0
+- timeout: 15s
+  id: flowcraft_multi_role_probe_narrator_first_response
+  client: flowcraft_multi_role
+  peer_stream:
+    mode: text
+    input: 请由旁白承接当前故事，只推进一个可见线索。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+    "/text":
+      min_length: 1
+      not_contains:
+      - "【"
+      - "】"
+- id: flowcraft_multi_role_probe_narrator_stop_probe
+  client: flowcraft_multi_role
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: flowcraft_multi_role_probe_narrator_resume_workspace
+  client: flowcraft_multi_role
+  timeout: 2m
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+- timeout: 4m
+  id: flowcraft_multi_role_continuous_story
+  client: flowcraft_multi_role
+  peer_stream:
+    mode: text
+    input: 我选刚才第一个办法！
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      min_length: 1
+      not_contains:
+      - "【"
+      - "】"
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/events":
+      non_empty: true
+    "/text_eos_ms":
+      maximum: 180000
+    "/audio_eos_ms":
+      maximum: 180000
+    "/audio_integrity/streams":
+      equals: 1
+    "/audio_integrity/max_active":
+      equals: 1
+    "/audio_integrity/open":
+      equals: 0
+    "/audio_integrity/violations":
+      equals: 0
+    "/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/audio_pacing/underruns":
+      equals: 0
+- id: flowcraft_multi_role_select_realtime
+  client: flowcraft_multi_role
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${flowcraft_multi_role_realtime_workspace}"
+- id: flowcraft_multi_role_warmup_realtime
+  client: flowcraft_multi_role
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- timeout: 4m
+  id: flowcraft_multi_role_realtime_roundtrip
+  client: flowcraft_multi_role
+  peer_stream:
+    mode: realtime
+    input: "${input_audio}"
+    pacing: 20ms
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/text":
+      min_length: 1
+      not_contains:
+      - "【"
+      - "】"
+    "/text_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/audio_eos":
+      equals: true
+    "/audio_integrity/streams":
+      equals: 1
+    "/audio_integrity/max_active":
+      equals: 1
+    "/audio_integrity/open":
+      equals: 0
+    "/audio_integrity/violations":
+      equals: 0
+    "/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/audio_pacing/underruns":
+      equals: 0
+- timeout: 15s
+  id: flowcraft_multi_role_realtime_roundtrip_first_response
+  client: flowcraft_multi_role
+  peer_stream:
+    mode: realtime
+    input: "${input_audio}"
+    pacing: 20ms
+    require_text: true
+    require_audio: true
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+    "/text":
+      min_length: 1
+      not_contains:
+      - "【"
+      - "】"
+- id: flowcraft_multi_role_realtime_roundtrip_stop_probe
+  client: flowcraft_multi_role
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: flowcraft_multi_role_realtime_roundtrip_resume_workspace
+  client: flowcraft_multi_role
+  timeout: 2m
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+finally:
+# Ephemeral peer deletion retires its owned Workspaces, including partial setup.
+# Ephemeral peer deletion retires its owned Workspaces, including partial setup.
+- id: flowcraft_multi_role_stop_run
+  client: flowcraft_multi_role
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: flowcraft_multi_role_delete_peer
+  client: flowcraft_multi_role
+  rpc:
+    method: server.peer.delete
+    request: {}
+report:
+  redact:
+  - registration_token

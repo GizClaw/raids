@@ -224,10 +224,11 @@ research input. {card['edition_note']}
 
 Tester: `test.yaml` (`{raid}-test`, eino), shared by every implementation:
 
-- `tests/giztest/{raid}/eino.giztest.yaml` (relay, with reload, timeout 35m)
-- `tests/giztest/{raid}/flowcraft.giztest.yaml` (relay, with reload, timeout 35m)
-- `tests/giztest/{raid}/eino.realtime.giztest.yaml` (paced-audio RealTime roundtrip)
-- `tests/giztest/{raid}/flowcraft.realtime.giztest.yaml` (paced-audio RealTime roundtrip)
+- `tests/giztest/smoke/{raid}.<implementation>.giztest.yaml`: speed, latency and responsiveness.
+- `tests/giztest/quality/{raid}.<implementation>.giztest.yaml`: quality control and safety guardrails.
+- `tests/giztest/soak/{raid}.<implementation>.giztest.yaml`: long-turn Tester relay with reload.
+
+Run `make test-e2e TIER=smoke RAID={raid}`. Each tier has one file per implementation, run concurrently with `PARALLEL=4`; see [the test guide](../../tests/giztest/README.md) for budgets and failure reporting.
 
 The route has {len(route)} target responses and verifies the exact opening,
 hint-before-answer barrier, gentle wrong-guess handling, explicit reveal,
@@ -282,8 +283,8 @@ def generate(repo: Path, out: Path, raids: Sequence[str]) -> list[str]:
     shared.write_json(workflow_dir / "raid.json", manifest)
     shared.write_json(workflow_dir / "knowledge.json", card)
     shared.write_text(workflow_dir / "README.md", render_readme(RAID, manifest, card, route, len(flowcraft_prompt)))
-    for filename, text in shared.render_giztests(repo, RAID, len(route), "对韵歌", "我二年级，我们来猜谚语吧。").items():
-        shared.write_text(out / "tests" / "giztest" / RAID / filename, text)
+    for filename, text in shared.render_giztests(repo, RAID, len(route), "对韵歌", "我二年级，我们来猜谚语吧。", OPENING).items():
+        shared.write_text(out / "tests" / "giztest" / filename, text)
     return [
         f"{RAID}: {sum(len(card[key]) for key in CATEGORIES[:-1])} entries, "
         f"card chars {len(body)}, prompt chars {len(flowcraft_prompt)}"

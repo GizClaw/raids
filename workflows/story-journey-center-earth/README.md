@@ -40,3 +40,10 @@ Flowcraft selects exactly one published node per external response. Chapter entr
 GIZCLAW=/absolute/path/to/gizclaw-v0.7.7 GIZCLAW_TEST_CLI=/absolute/path/to/gizclaw-v0.7.7 make test-unit-resources
 GIZCLAW=/absolute/path/to/gizclaw-v0.7.7 GIZCLAW_TEST_CLI=/absolute/path/to/gizclaw-v0.7.7 GIZCLAW_CONTEXT=e2e-server-volc-bj-01 GIZCLAW_TEST_ENDPOINT=edge-bj-01.e2e.gizclaw.com:9821 GIZCLAW_TEST_REGISTRATION_TOKEN=<testing-runtime-token> APPLY=1 RAID=story-journey-center-earth PARALLEL=3 make test-e2e
 ```
+
+## Multi-role implementations
+
+Continuous multi-character narration is available separately; original implementations remain unchanged.
+
+- `eino.multi-role.yaml`: `eino-story-journey-center-earth-multi-role`; Voice aliases: `eino-story-journey-center-earth-mr.storyteller`, `eino-story-journey-center-earth-mr.axel`, `eino-story-journey-center-earth-mr.lidenbrock`, `eino-story-journey-center-earth-mr.hans`.
+- `flowcraft.multi-role.yaml`: `flowcraft-story-journey-center-earth-multi-role`; Voice aliases: `flowcraft-story-journey-center-earth-mr.storyteller`, `flowcraft-story-journey-center-earth-mr.axel`, `flowcraft-story-journey-center-earth-mr.lidenbrock`, `flowcraft-story-journey-center-earth-mr.hans`.

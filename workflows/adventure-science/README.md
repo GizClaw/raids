@@ -18,8 +18,8 @@ Install an implementation into a RuntimeProfile with `raids install adventure-sc
 
 Tester: `test.yaml` (`adventure-science-test`, eino), shared by every implementation; one Giztest scenario per implementation:
 
-- `tests/giztest/adventure-science/eino.giztest.yaml` (relay, with reload, timeout 35m)
-- `tests/giztest/adventure-science/flowcraft.giztest.yaml` (relay, with reload, timeout 35m)
+- `tests/giztest/soak/adventure-science.eino.giztest.yaml` (relay, with reload, timeout 35m)
+- `tests/giztest/soak/adventure-science.flowcraft.giztest.yaml` (relay, with reload, timeout 35m)
 
 The route has 7 target responses:
 
@@ -38,3 +38,10 @@ Run:
 ```sh
 make test-e2e RAID=adventure-science PARALLEL=2
 ```
+
+## Multi-role implementations
+
+Continuous multi-character narration is available separately; original implementations remain unchanged.
+
+- `eino.multi-role.yaml`: `eino-adventure-science-multi-role`; Voice aliases: `eino-adventure-science-mr.adventure-guide`, `eino-adventure-science-mr.experimenter`, `eino-adventure-science-mr.observer`, `eino-adventure-science-mr.safety-teacher`.
+- `flowcraft.multi-role.yaml`: `flowcraft-adventure-science-multi-role`; Voice aliases: `flowcraft-adventure-science-mr.adventure-guide`, `flowcraft-adventure-science-mr.experimenter`, `flowcraft-adventure-science-mr.observer`, `flowcraft-adventure-science-mr.safety-teacher`.

@@ -18,8 +18,8 @@ Install an implementation into a RuntimeProfile with `raids install adventure-sp
 
 Tester: `test.yaml` (`adventure-space-encyclopedia-test`, eino), shared by every implementation; one Giztest scenario per implementation:
 
-- `tests/giztest/adventure-space-encyclopedia/eino.giztest.yaml` (relay, with reload, timeout 35m)
-- `tests/giztest/adventure-space-encyclopedia/flowcraft.giztest.yaml` (relay, with reload, timeout 35m)
+- `tests/giztest/soak/adventure-space-encyclopedia.eino.giztest.yaml` (relay, with reload, timeout 35m)
+- `tests/giztest/soak/adventure-space-encyclopedia.flowcraft.giztest.yaml` (relay, with reload, timeout 35m)
 
 The route has 7 target responses:
 
@@ -38,3 +38,10 @@ Run:
 ```sh
 make test-e2e RAID=adventure-space-encyclopedia PARALLEL=2
 ```
+
+## Multi-role implementations
+
+Continuous multi-character narration is available separately; original implementations remain unchanged.
+
+- `eino.multi-role.yaml`: `eino-adventure-space-encyclopedia-multi-role`; Voice aliases: `eino-adventure-space-encyclopedia-mr.adventure-guide`, `eino-adventure-space-encyclopedia-mr.astronomer`, `eino-adventure-space-encyclopedia-mr.robot`, `eino-adventure-space-encyclopedia-mr.navigator`.
+- `flowcraft.multi-role.yaml`: `flowcraft-adventure-space-encyclopedia-multi-role`; Voice aliases: `flowcraft-adventure-space-encyclopedia-mr.adventure-guide`, `flowcraft-adventure-space-encyclopedia-mr.astronomer`, `flowcraft-adventure-space-encyclopedia-mr.robot`, `flowcraft-adventure-space-encyclopedia-mr.navigator`.

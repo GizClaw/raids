@@ -5,6 +5,7 @@ canonical scalar/default Voice and RuntimeProfile binding layout using stdlib.
 """
 import json
 import re
+import subprocess
 from pathlib import Path
 
 
@@ -25,11 +26,17 @@ def default_voice(path):
 
 def voice_bindings(path):
     text = path.read_text().split("    voices:\n", 1)[1]
-    # Stop at the next resource map; do not accept a Model/Workflow binding.
     text = re.split(r"^    \S", text, maxsplit=1, flags=re.M)[0]
-    pairs = re.findall(r"^      (\S+):\n        resource_id: ([^\n]+)$", text, re.M)
-    assert len(dict(pairs)) == len(pairs), f"{path}: duplicate Voice alias"
-    return {alias: scalar(resource_id) for alias, resource_id in pairs}
+    aliases = re.findall(r"^      ([^\s:]+):", text, re.M)
+    assert len(set(aliases)) == len(aliases), f"{path}: duplicate Voice alias"
+    # Profiles can share bindings through YAML anchors (Journey variants).
+    # Ruby/Psych is already used by the catalog closure checks and is offline.
+    result = subprocess.run(
+        ["ruby", "-r" + str(Path(__file__).resolve().with_name("yaml_compat.rb")), "-rjson", "-e",
+         "puts JSON.generate(YAML.load_file(ARGV[0]).fetch('spec').fetch('resources').fetch('voices'))",
+         str(path)], check=True, capture_output=True, text=True,
+    )
+    return {alias: binding["resource_id"] for alias, binding in json.loads(result.stdout).items()}
 
 
 def main():
@@ -54,7 +61,12 @@ def main():
         role = flow_alias.split(".", 1)[1]
         for impl in einos:
             path = manifest.parent / impl["file"]
-            alias = impl["workflow_id"] + "." + role
+            # Multi-role resource IDs retain the full suffix; aliases use -mr
+            # to fit the alias-length contract enforced by voice-bindings.rb.
+            namespace = impl["workflow_id"]
+            if impl["file"].endswith(".multi-role.yaml"):
+                namespace = namespace.removesuffix("-multi-role") + "-mr"
+            alias = namespace + "." + role
             assert default_voice(path) == alias, f"{path}: wrong Voice namespace/role"
             declared = impl["parameters"]["voices"]
             assert alias in declared, f"{manifest}: missing {alias}"

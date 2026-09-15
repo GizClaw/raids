@@ -168,10 +168,11 @@ research input. 统编版小学语文；修订版（根据2022年版课程标准
 
 Tester: `test.yaml` (`learn-chinese-words-test`, eino), shared by every implementation:
 
-- `tests/giztest/learn-chinese-words/eino.giztest.yaml` (relay, with reload, timeout 35m)
-- `tests/giztest/learn-chinese-words/flowcraft.giztest.yaml` (relay, with reload, timeout 35m)
-- `tests/giztest/learn-chinese-words/eino.realtime.giztest.yaml` (paced-audio RealTime roundtrip)
-- `tests/giztest/learn-chinese-words/flowcraft.realtime.giztest.yaml` (paced-audio RealTime roundtrip)
+- `tests/giztest/smoke/learn-chinese-words.<implementation>.giztest.yaml`: speed, latency and responsiveness.
+- `tests/giztest/quality/learn-chinese-words.<implementation>.giztest.yaml`: quality control and safety guardrails.
+- `tests/giztest/soak/learn-chinese-words.<implementation>.giztest.yaml`: long-turn Tester relay with reload.
+
+Run `make test-e2e TIER=smoke RAID=learn-chinese-words`. Each tier has one file per implementation, run concurrently with `PARALLEL=4`; see [the test guide](../../tests/giztest/README.md) for budgets and failure reporting.
 
 The route has 8 target responses and verifies the exact opening,
 hint-before-answer barrier, gentle wrong-guess handling, explicit reveal,

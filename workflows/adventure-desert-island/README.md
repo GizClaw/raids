@@ -18,8 +18,8 @@ Install an implementation into a RuntimeProfile with `raids install adventure-de
 
 Tester: `test.yaml` (`adventure-desert-island-test`, eino), shared by every implementation; one Giztest scenario per implementation:
 
-- `tests/giztest/adventure-desert-island/eino.giztest.yaml` (relay, with reload, timeout 35m)
-- `tests/giztest/adventure-desert-island/flowcraft.giztest.yaml` (relay, with reload, timeout 35m)
+- `tests/giztest/soak/adventure-desert-island.eino.giztest.yaml` (relay, with reload, timeout 35m)
+- `tests/giztest/soak/adventure-desert-island.flowcraft.giztest.yaml` (relay, with reload, timeout 35m)
 
 The route has 7 target responses:
 
@@ -38,3 +38,10 @@ Run:
 ```sh
 make test-e2e RAID=adventure-desert-island PARALLEL=2
 ```
+
+## Multi-role implementations
+
+Continuous multi-character narration is available separately; original implementations remain unchanged.
+
+- `eino.multi-role.yaml`: `eino-adventure-desert-island-multi-role`; Voice aliases: `eino-adventure-desert-island-mr.adventure-guide`, `eino-adventure-desert-island-mr.scout`, `eino-adventure-desert-island-mr.signal-officer`, `eino-adventure-desert-island-mr.safety-officer`.
+- `flowcraft.multi-role.yaml`: `flowcraft-adventure-desert-island-multi-role`; Voice aliases: `flowcraft-adventure-desert-island-mr.adventure-guide`, `flowcraft-adventure-desert-island-mr.scout`, `flowcraft-adventure-desert-island-mr.signal-officer`, `flowcraft-adventure-desert-island-mr.safety-officer`.

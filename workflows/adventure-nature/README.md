@@ -18,8 +18,8 @@ Install an implementation into a RuntimeProfile with `raids install adventure-na
 
 Tester: `test.yaml` (`adventure-nature-test`, eino), shared by every implementation; one Giztest scenario per implementation:
 
-- `tests/giztest/adventure-nature/eino.giztest.yaml` (relay, with reload, timeout 35m)
-- `tests/giztest/adventure-nature/flowcraft.giztest.yaml` (relay, with reload, timeout 35m)
+- `tests/giztest/soak/adventure-nature.eino.giztest.yaml` (relay, with reload, timeout 35m)
+- `tests/giztest/soak/adventure-nature.flowcraft.giztest.yaml` (relay, with reload, timeout 35m)
 
 The route has 7 target responses:
 
@@ -38,3 +38,10 @@ Run:
 ```sh
 make test-e2e RAID=adventure-nature PARALLEL=2
 ```
+
+## Multi-role implementations
+
+Continuous multi-character narration is available separately; original implementations remain unchanged.
+
+- `eino.multi-role.yaml`: `eino-adventure-nature-multi-role`; Voice aliases: `eino-adventure-nature-mr.adventure-guide`, `eino-adventure-nature-mr.ranger`, `eino-adventure-nature-mr.botanist`, `eino-adventure-nature-mr.tracker`.
+- `flowcraft.multi-role.yaml`: `flowcraft-adventure-nature-multi-role`; Voice aliases: `flowcraft-adventure-nature-mr.adventure-guide`, `flowcraft-adventure-nature-mr.ranger`, `flowcraft-adventure-nature-mr.botanist`, `flowcraft-adventure-nature-mr.tracker`.

@@ -79,10 +79,11 @@ Known gaps across the poetry card:
 
 Tester: `test.yaml` (`learn-chinese-poetry-grade1-test`, eino), shared by every implementation:
 
-- `tests/giztest/learn-chinese-poetry-grade1/eino.giztest.yaml` (relay, with reload, timeout 35m)
-- `tests/giztest/learn-chinese-poetry-grade1/flowcraft.giztest.yaml` (relay, with reload, timeout 35m)
-- `tests/giztest/learn-chinese-poetry-grade1/eino.realtime.giztest.yaml` (paced-audio RealTime roundtrip)
-- `tests/giztest/learn-chinese-poetry-grade1/flowcraft.realtime.giztest.yaml` (paced-audio RealTime roundtrip)
+- `tests/giztest/smoke/learn-chinese-poetry-grade1.<implementation>.giztest.yaml`: speed, latency and responsiveness.
+- `tests/giztest/quality/learn-chinese-poetry-grade1.<implementation>.giztest.yaml`: quality control and safety guardrails.
+- `tests/giztest/soak/learn-chinese-poetry-grade1.<implementation>.giztest.yaml`: long-turn Tester relay with reload.
+
+Run `make test-e2e TIER=smoke RAID=learn-chinese-poetry-grade1`. Each tier has one file per implementation, run concurrently with `PARALLEL=4`; see [the test guide](../../tests/giztest/README.md) for budgets and failure reporting.
 
 The route has 8 target responses; `recite-exact`, `background-label`, `unknown-boundary`, and `other-grade-poem` guard against hallucination and refusals:
 

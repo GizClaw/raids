@@ -1,0 +1,294 @@
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata:
+  id: eino-adventure-desert-island-multi-role
+spec:
+  driver: eino
+  toolkit:
+    tool_ids: []
+  memory: adventure
+  eino:
+    voice_adapter:
+      asr_model: asr
+      default_voice: eino-adventure-desert-island-mr.adventure-guide
+      speaker_voices:
+        旁白: eino-adventure-desert-island-mr.adventure-guide
+        侦察伙伴: eino-adventure-desert-island-mr.scout
+        求救信号员: eino-adventure-desert-island-mr.signal-officer
+        安全队员: eino-adventure-desert-island-mr.safety-officer
+    graph:
+      name: adventure-desert-island-eino
+      compile:
+        node_trigger_mode: any_predecessor
+        max_run_steps: 12
+      state:
+        fields:
+        - name: memory-query
+          type: string
+          merge: replace
+        - name: memory-route
+          type: string
+          merge: replace
+        - name: recalled
+          type: string
+          merge: replace
+        - name: answer-messages
+          type: messages
+          merge: replace
+        - name: answer
+          type: string
+          merge: replace
+        - name: observation
+          type: string
+          merge: replace
+        - name: narration-context
+          type: string
+          merge: replace
+        - name: voice-scene
+          type: string
+          merge: replace
+        - name: voice-revision
+          type: string
+          merge: replace
+      nodes:
+      - id: control-narration
+        type: script
+        inputs:
+          text:
+            from: input.text
+          history:
+            from: input.messages
+          memory:
+            from: recalled
+        outputs:
+          direction: narration-context
+          scene: voice-scene
+          revision: voice-revision
+        language: starlark
+        entrypoint: run
+        source: |
+          def any_cue(text, cues):
+              return any([cue in text for cue in cues])
+
+          def clause(text):
+              for sep in ["，", "。", "；", "！", "？", ",", ";", "!", "?"]:
+                  text = text.replace(sep, "|")
+              for sep in ["但是", "而是", "再让", "改请", "改让", "but "]:
+                  text = text.replace(sep, "|")
+              return text
+
+          def run(input):
+              current = input["text"].strip().lower()
+              memory = input.get("memory", "")
+              scenes = ["岸边观察", "信号规划", "避雨检查"]
+              roles = [{"key": "narrator", "name": "旁白", "aliases": ["旁白", "narrator"], "chapters": [1, 2, 3], "duty": "只负责叙述、管理和公开信息整理，不代演角色。"}, {"key": "scout", "name": "侦察伙伴", "aliases": ["侦察伙伴", "scout"], "chapters": [1, 2], "duty": "在安全岸边观察可见地形，不离队。"}, {"key": "signal-officer", "name": "求救信号员", "aliases": ["求救信号员", "signal-officer"], "chapters": [2], "duty": "比较虚构求救标记的可见性，不教生火。"}, {"key": "safety-officer", "name": "安全队员", "aliases": ["安全队员", "safety-officer"], "chapters": [1, 3], "duty": "检查已有避雨方案的风险，提醒等待成人救援。"}]
+              scene = 1
+              revision = -1
+              # Read only graph-authored state fields; legacy active_roles is never authoritative.
+              for line in memory.split("\n"):
+                  compact = line.replace(" ", "")
+                  if '"schema":"raid_scenario_state_v2"' not in compact:
+                      continue
+                  rev = 0
+                  if '"revision":' in compact:
+                      value = compact.split('"revision":')[1].split(",")[0].split("}")[0]
+                      if value.isdigit():
+                          rev = int(value)
+                  if rev >= revision and '"voice_scene":' in compact:
+                      value = compact.split('"voice_scene":')[1].split(",")[0].split("}")[0]
+                      if value.isdigit():
+                          scene = max(1, min(len(scenes), int(value)))
+                          revision = rev
+              for message in input.get("history", []):
+                  if message.get("role", "") != "assistant":
+                      continue
+                  text = message.get("content", "")
+                  for i in range(len(scenes)):
+                      if "当前场景："+scenes[i] in text or "来到"+scenes[i] in text:
+                          scene = i+1
+              transition = False
+              if not current or any_cue(current, ["重新开始", "restart", "开场", "介绍这个体验", "开始体验"]):
+                  scene = 1
+              elif any_cue(current, ["进入下一章", "进入下一场景"]):
+                  scene = min(len(scenes), scene+1)
+                  transition = True
+              else:
+                  for i in range(len(scenes)):
+                      if any_cue(current, ["进入"+scenes[i], "前往"+scenes[i], "来到"+scenes[i]]):
+                          scene = i+1
+                          transition = True
+                  pass
+              phase = "explore"
+              active_roles = [r["key"] for r in roles if scene in r["chapters"]]
+              management_text = current
+              for role in roles:
+                  for alias in role["aliases"]:
+                      management_text = management_text.replace(alias, "")
+              management = not current or transition or any_cue(management_text, ["旅程", "更正", "纠正", "修正", "改成", "改变主意", "其实", "安全", "危险", "现实", "模仿", "受伤", "攻击", "牺牲", "停止", "总结", "结论", "回忆", "重连", "恢复", "请记住", "只确认", "只说", "换边", "correction", "correct", "actually", "danger", "safety", "restart", "重新开始", "开场", "介绍这个体验", "进入下一", "下一章", "下一场景", "转场", "开始体验", "从头开始", "第一章", "第1章", "开始冒险", "start", "begin", "介绍体验", "喝生水", "吃野果", "爬高墙", "关闭生命保障", "直视太阳", "尝陌生植物"]) or phase != "explore"
+              direction = "原创配角按场景出场，不知未来/秘密/未验证结果。\n首次让在场角色自然登场。" + "\n当前场景："+scenes[scene-1]+"。当前在场角色："+"、".join([r["name"] for r in roles if r["key"] in active_roles])+"。"
+              if transition:
+                  direction += "本轮由旁白说出‘来到"+scenes[scene-1]+"’，用旁白和在场角色台词交替描写具体行动，结尾给两三个观察选项。"
+              direction += "紧邻下一场景：" + (scenes[scene] if scene < len(scenes) else "终局") + "。当前及自然转场后的职责：" + "；".join([r["name"] + "：" + r["duty"] for r in roles if (scene in r["chapters"] or scene+1 in r["chapters"]) and r["key"] != "narrator"])
+              # Content obligations follow voice style so role brevity cannot suppress them.
+              safety_request = any([cue in current for cue in ["现实", "模仿", "照做", "安全", "危险", "受伤", "喝生水", "吃野果", "爬高墙", "关闭生命保障", "直视太阳", "尝陌生植物", "danger", "safety", "imitate"]])
+              turn_contract = ""
+              if safety_request:
+                  turn_contract = "本轮是安全请求，优先于角色风格和章节推进：制止危险模仿，给安全替代，并请孩子找家长、老师或可信任成年人帮助，简短回应。"
+              direction += "\n本轮参考：" + turn_contract
+              opening_prompt = not current or any_cue(current, ["重新开始", "restart", "开场", "介绍这个体验", "开始体验", "start", "begin", "介绍体验"])
+              if opening_prompt and any([cue in current for cue in ["english", "英文", "英语"]]):
+                  direction += "\n" + "英文开场参考：We reach shore safely and can do one task before dark: make a visible rescue signal or find shelter? "
+              if opening_prompt:
+                  direction += "\n" + "开场参考：我们的小船遇到风浪，漂到了一座没有人的小岛，你和我是一起想办法的小队员。每次你从我说的选项里挑一个，或者说出你自己的主意就行。我们安全到达岸边，天黑前只能先完成一件事，是建立醒目的求救信号，还是寻找避雨处？"
+              return {"direction": direction, "scene": str(scene), "revision": str(max(revision, len(input.get("history", [])))+1)}
+        limits:
+          max_execution_steps: 100000
+          timeout: 250ms
+          max_input_bytes: 262144
+          max_output_bytes: 65536
+      - id: prepare-memory-query
+        type: script
+        inputs:
+          text:
+            from: input.text
+        outputs:
+          query: memory-query
+          route: memory-route
+          memory: recalled
+        language: starlark
+        entrypoint: run
+        source: |
+          def run(input):
+              text = input["text"].strip()
+              base = "当前互动剧本的已确认选择、场景进度、事实和用户明确要求记住的信息"
+              route = "opening" if not text else ("recall" if any([cue in text for cue in ["重连", "恢复", "回忆", "上次", "之前", "更正", "改成", "还记得", "代号", "resume", "recall", "previous"]]) else "continue")
+              return {"query": base + ("；当前请求：" + text if text else ""), "route": route, "memory": ""}
+        limits:
+          max_execution_steps: 10000
+          timeout: 250ms
+          max_input_bytes: 65536
+          max_output_bytes: 65536
+      - id: recall-memory
+        type: memory_recall
+        query_from: memory-query
+        output: recalled
+        top_k: 12
+      - id: build-prompt
+        type: prompt
+        inputs:
+          history:
+            from: input.messages
+          memory:
+            from: recalled
+          direction:
+            from: narration-context
+        outputs:
+          messages: answer-messages
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            有声书连续讲述：约1至2分钟，旁白叙述与角色第一人称台词分段，让在场角色有来有回，生动有趣、细节丰富。回应孩子刚说的话，尊重改选和更正，记住最新事实；追问、插话和重听自然接续。故事自然推进，通常以故事内选择收尾。回忆和确认可以简短；遇到现实危险，劝阻模仿并引导找家长、老师或可信任的大人。
+            你是儿童友好的互动冒险主持人。
+            不得重置场景；孩子不知道或求提示时，先给小提示再复述选项。
+            体验要求：Prioritize immediate safety and rescue, give limited resources, reveal consequences, and reward calm planning and cooperation.
+            安全边界：Do not give hazardous survival instructions, encourage imitation, consume unknown water or plants, hunt, use weapons, or abandon adult help.
+            区分事实、传说、虚构及不确定性。
+            现实危险或模仿请求：劝阻危险，提供安全替代，引导找家长、老师或可信任的大人。
+            默认自然中文，明确要求英文时用英文。
+
+            记忆（更正优先）：
+            {memory}
+            本轮场景与在场角色约束：
+            {direction}
+            有声书连续讲述：旁白叙述与角色第一人称台词分段，与在场角色交替；单角色不添人。只知亲历/公开信息。插话接续，点名仅增台词不换场/整轮。
+            标记格式：仅限【旁白】、【侦察伙伴】、【求救信号员】、【安全队员】，每段一个，标题用【旁白】。未列名人物（如路人、摊主）及孩子的话一律由【旁白】转述，如：卖糖粥的阿婆笑着说……；不输出其它【】标记，禁止新增姓名标记，禁止给孩子加标记。
+            音色由段落标记映射；仅朗读正文，禁Markdown/列表/emoji/舞台说明/系统字段/分析。
+        - placeholder: history
+      - id: narrator-model
+        type: chat_model
+        inputs:
+          messages:
+            from: answer-messages
+        outputs:
+          text: answer
+        model: eino-adventure-desert-island-mr.model
+        max_tokens: 2048
+        temperature: 0.3
+      - id: capture-observation
+        type: script
+        inputs:
+          text:
+            from: input.text
+          answer:
+            from: answer
+          scene:
+            from: voice-scene
+          voice_revision:
+            from: voice-revision
+        outputs:
+          fact: observation
+        language: starlark
+        entrypoint: run
+        source: |
+          def run(input):
+              scenes = ["岸边观察", "信号规划", "避雨检查"]
+              scene = input["scene"]
+              for i in range(len(scenes)):
+                  if "来到" + scenes[i] in input["answer"]:
+                      scene = str(i + 1)
+              routing = '{"schema":"raid_scenario_state_v2","voice_scene":' + scene + ',"revision":' + input["voice_revision"] + '}\n'
+              text = input["text"].strip()
+              return {"fact": routing + "用户本轮输入：" + text + "；助手本轮确认：\n" + input["answer"]}
+        limits:
+          max_execution_steps: 10000
+          timeout: 250ms
+          max_input_bytes: 262144
+          max_output_bytes: 262144
+      - id: observe-memory
+        type: memory_observe
+        facts:
+        - text_from: observation
+        wait_for_completion: false
+      edges:
+      - from: start
+        to: prepare-memory-query
+      - from: recall-memory
+        to: control-narration
+      - from: build-prompt
+        to: narrator-model
+      - from: capture-observation
+        to: observe-memory
+      - from: observe-memory
+        to: end
+      - from: control-narration
+        to: build-prompt
+      branches:
+      - from: prepare-memory-query
+        mode: first_match
+        routes:
+        - when:
+            field: memory-route
+            op: eq
+            value: recall
+          to: recall-memory
+        default: control-narration
+      - from: narrator-model
+        mode: first_match
+        routes:
+        - when:
+            field: memory-route
+            op: eq
+            value: opening
+          to: end
+        default: capture-observation
+      outputs:
+      - node: narrator-model
+        field: answer
+        name: assistant
+        mime_type: text/plain
+        primary: true
+    conversation:
+      starts: peer
+    limits:
+      max_output_bytes: 4194304

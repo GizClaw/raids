@@ -1,0 +1,199 @@
+# User Story:
+# As a Raids catalog maintainer,
+# I want equal opening, role and realtime responsiveness gates for every implementation,
+# So that text and audio respond promptly without overlap or playback stalls.
+version: gizclaw.test/v1alpha1
+name: ast-translate.smoke.zh-es
+clients:
+  zh_es_zh_to_es:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+variables:
+  endpoint:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_ENDPOINT
+  registration_token:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_REGISTRATION_TOKEN
+    secret: true
+  zh_es_zh_to_es_text_workspace:
+    direction: input
+    type: string
+    generate: token
+  zh_es_zh_to_es_audio:
+    direction: output
+    type: audio
+    max_bytes: 16777216
+    media_type: audio/ogg
+    codec: opus
+  zh_es_zh_to_es_realtime_workspace:
+    direction: input
+    type: string
+    generate: token
+repeat: 1
+timeout: 12m
+steps:
+- id: zh_es_zh_to_es_register
+  client: zh_es_zh_to_es
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: zh_es_zh_to_es_create_text
+  client: zh_es_zh_to_es
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${zh_es_zh_to_es_text_workspace}"
+      collection: translates
+      workflow_name: translate-zh-es
+      parameters:
+        asttranslate_workspace_parameters:
+          agent_type: ASTTRANSLATE_WORKSPACE_PARAMETERS_AGENT_TYPE_AST_TRANSLATE
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: zh_es_zh_to_es_select_text
+  client: zh_es_zh_to_es
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${zh_es_zh_to_es_text_workspace}"
+- id: zh_es_zh_to_es_warmup_text
+  client: zh_es_zh_to_es
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: zh_es_zh_to_es_create_realtime
+  client: zh_es_zh_to_es
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${zh_es_zh_to_es_realtime_workspace}"
+      collection: translates
+      workflow_name: translate-zh-es
+      parameters:
+        asttranslate_workspace_parameters:
+          agent_type: ASTTRANSLATE_WORKSPACE_PARAMETERS_AGENT_TYPE_AST_TRANSLATE
+          input: WORKSPACE_INPUT_MODE_REALTIME
+- id: synthesize_zh_es_zh_to_es_audio
+  client: zh_es_zh_to_es
+  speech:
+    method: server.speech.synthesize
+    request:
+      voice_name: giztest-input.zh
+      text: 我真的非常感谢你的热心帮助。
+      accepted_content_types:
+      - audio/ogg
+    cache: run
+  save_as: zh_es_zh_to_es_audio
+- id: zh_es_zh_to_es_turn_1_gratitude
+  client: zh_es_zh_to_es
+  timeout: 2m
+  peer_stream:
+    mode: push-to-talk
+    input: "${zh_es_zh_to_es_audio}"
+    pacing: 20ms
+    require_text: true
+    require_audio: true
+    idle_timeout: 90s
+  expect:
+    "/text":
+      pattern: "(?i)gracias|agrade\\s*z\\s*co|agradecimiento|agradecid[oa]|agradecer(te|le)?|aprecio|gratitud"
+      max_length: 200
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/events":
+      non_empty: true
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_integrity/streams":
+      minimum: 1
+    "/audio_integrity/max_active":
+      equals: 1
+    "/audio_integrity/open":
+      equals: 0
+    "/audio_integrity/violations":
+      equals: 0
+    "/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/audio_pacing/underruns":
+      equals: 0
+- id: zh_es_zh_to_es_select_realtime
+  client: zh_es_zh_to_es
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${zh_es_zh_to_es_realtime_workspace}"
+- id: zh_es_zh_to_es_warmup_realtime
+  client: zh_es_zh_to_es
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: zh_es_zh_to_es_realtime_roundtrip
+  client: zh_es_zh_to_es
+  timeout: 2m
+  peer_stream:
+    mode: realtime
+    input: "${zh_es_zh_to_es_audio}"
+    pacing: 20ms
+    require_text: true
+    require_audio: true
+    idle_timeout: 90s
+  expect:
+    "/text":
+      pattern: "(?i)gracias|agrade\\s*z\\s*co|agradecimiento|agradecid[oa]|agradecer(te|le)?|aprecio|gratitud"
+      max_length: 200
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/events":
+      non_empty: true
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_integrity/streams":
+      minimum: 1
+    "/audio_integrity/max_active":
+      equals: 1
+    "/audio_integrity/open":
+      equals: 0
+    "/audio_integrity/violations":
+      equals: 0
+    "/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/audio_pacing/underruns":
+      equals: 0
+finally:
+- id: zh_es_zh_to_es_stop_run
+  client: zh_es_zh_to_es
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: zh_es_zh_to_es_delete_text
+  client: zh_es_zh_to_es
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${zh_es_zh_to_es_text_workspace}"
+- id: zh_es_zh_to_es_delete_realtime
+  client: zh_es_zh_to_es
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${zh_es_zh_to_es_realtime_workspace}"
+- id: zh_es_zh_to_es_delete_peer
+  client: zh_es_zh_to_es
+  rpc:
+    method: server.peer.delete
+    request: {}
+report:
+  redact:
+  - registration_token

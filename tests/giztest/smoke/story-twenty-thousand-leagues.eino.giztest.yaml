@@ -1,0 +1,422 @@
+# User Story:
+# As a Raids catalog maintainer,
+# I want equal opening, role and realtime responsiveness gates for every implementation,
+# So that text and audio respond promptly without overlap or playback stalls.
+version: gizclaw.test/v1alpha1
+name: story-twenty-thousand-leagues.smoke.eino
+clients:
+  eino:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+variables:
+  endpoint:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_ENDPOINT
+  registration_token:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_REGISTRATION_TOKEN
+    secret: true
+  eino_text_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_realtime_workspace:
+    direction: input
+    type: string
+    generate: token
+  input_audio:
+    direction: output
+    type: audio
+    max_bytes: 16777216
+    media_type: audio/ogg
+    codec: opus
+repeat: 1
+timeout: 12m
+steps:
+- id: eino_register
+  client: eino
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: eino_create_text
+  client: eino
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_text_workspace}"
+      collection: raidtest-targets
+      workflow_name: eino-story-twenty-thousand-leagues
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_select_text
+  client: eino
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${eino_text_workspace}"
+- id: eino_warmup_text
+  client: eino
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: eino_create_realtime
+  client: eino
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_realtime_workspace}"
+      collection: raidtest-targets
+      workflow_name: eino-story-twenty-thousand-leagues
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_REALTIME
+- timeout: 2m
+  id: eino_probe_narrator
+  client: eino
+  peer_stream:
+    mode: text
+    input: 请从第一章开始《海底两万里》，写出本地化章节标题并承接指定开场。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      contains_all:
+      - 第 1 章
+      - 发光巨影
+      - 尼摩
+      - 阿龙纳斯
+      - 进入下一章
+      min_length: 4
+      max_length: 360
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/events":
+      non_empty: true
+    "/text_eos_ms":
+      maximum: 90000
+    "/audio_eos_ms":
+      maximum: 90000
+    "/audio_integrity/streams":
+      minimum: 1
+    "/audio_integrity/max_active":
+      equals: 1
+    "/audio_integrity/open":
+      equals: 0
+    "/audio_integrity/violations":
+      equals: 0
+    "/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/audio_pacing/underruns":
+      equals: 0
+- timeout: 15s
+  id: eino_probe_narrator_first_response
+  client: eino
+  peer_stream:
+    mode: text
+    input: 请由旁白承接当前故事，只推进一个可见线索。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: eino_probe_narrator_stop_probe
+  client: eino
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: eino_probe_narrator_resume_workspace
+  client: eino
+  timeout: 2m
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+- timeout: 2m
+  id: eino_probe_nemo
+  client: eino
+  peer_stream:
+    mode: text
+    input: 请让尼摩亲自回应，只说这个角色知道的事。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      not_contains:
+      - 尼摩说
+      - 尼摩：
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/events":
+      non_empty: true
+    "/text_eos_ms":
+      maximum: 90000
+    "/audio_eos_ms":
+      maximum: 90000
+    "/audio_integrity/streams":
+      minimum: 1
+    "/audio_integrity/max_active":
+      equals: 1
+    "/audio_integrity/open":
+      equals: 0
+    "/audio_integrity/violations":
+      equals: 0
+    "/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/audio_pacing/underruns":
+      equals: 0
+- timeout: 15s
+  id: eino_probe_nemo_first_response
+  client: eino
+  peer_stream:
+    mode: text
+    input: 请让尼摩亲自回应，只说这个角色知道的事。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: eino_probe_nemo_stop_probe
+  client: eino
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: eino_probe_nemo_resume_workspace
+  client: eino
+  timeout: 2m
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+- timeout: 2m
+  id: eino_probe_aronnax
+  client: eino
+  peer_stream:
+    mode: text
+    input: 请让阿龙纳斯亲自回应，只说这个角色知道的事。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      not_contains:
+      - 阿龙纳斯说
+      - 阿龙纳斯：
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/events":
+      non_empty: true
+    "/text_eos_ms":
+      maximum: 90000
+    "/audio_eos_ms":
+      maximum: 90000
+    "/audio_integrity/streams":
+      minimum: 1
+    "/audio_integrity/max_active":
+      equals: 1
+    "/audio_integrity/open":
+      equals: 0
+    "/audio_integrity/violations":
+      equals: 0
+    "/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/audio_pacing/underruns":
+      equals: 0
+- timeout: 15s
+  id: eino_probe_aronnax_first_response
+  client: eino
+  peer_stream:
+    mode: text
+    input: 请让阿龙纳斯亲自回应，只说这个角色知道的事。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: eino_probe_aronnax_stop_probe
+  client: eino
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: eino_probe_aronnax_resume_workspace
+  client: eino
+  timeout: 2m
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+- id: eino_select_realtime
+  client: eino
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${eino_realtime_workspace}"
+- id: eino_warmup_realtime
+  client: eino
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: synthesize_input_audio
+  client: eino
+  speech:
+    method: server.speech.synthesize
+    request:
+      voice_name: giztest-input.zh
+      text: 请简短介绍当前故事，并告诉我现在可以做什么。
+      accepted_content_types:
+      - audio/ogg
+    cache: run
+  save_as: input_audio
+- timeout: 2m
+  id: eino_realtime_roundtrip
+  client: eino
+  peer_stream:
+    mode: realtime
+    input: "${input_audio}"
+    pacing: 20ms
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/text":
+      non_empty: true
+    "/text_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/audio_eos":
+      equals: true
+    "/audio_integrity/streams":
+      minimum: 1
+    "/audio_integrity/max_active":
+      equals: 1
+    "/audio_integrity/open":
+      equals: 0
+    "/audio_integrity/violations":
+      equals: 0
+    "/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/audio_pacing/underruns":
+      equals: 0
+- timeout: 15s
+  id: eino_realtime_roundtrip_first_response
+  client: eino
+  peer_stream:
+    mode: realtime
+    input: "${input_audio}"
+    pacing: 20ms
+    require_text: true
+    require_audio: true
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: eino_realtime_roundtrip_stop_probe
+  client: eino
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: eino_realtime_roundtrip_resume_workspace
+  client: eino
+  timeout: 2m
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+finally:
+- id: eino_stop_run
+  client: eino
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: eino_delete_text
+  client: eino
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${eino_text_workspace}"
+- id: eino_delete_realtime
+  client: eino
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${eino_realtime_workspace}"
+- id: eino_delete_peer
+  client: eino
+  rpc:
+    method: server.peer.delete
+    request: {}
+report:
+  redact:
+  - registration_token

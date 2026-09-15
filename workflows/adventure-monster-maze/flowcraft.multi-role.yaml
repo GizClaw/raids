@@ -1,0 +1,235 @@
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata:
+  id: flowcraft-adventure-monster-maze-multi-role
+spec:
+  driver: flowcraft
+  toolkit:
+    tool_ids: []
+  flowcraft:
+    graph:
+      name: adventure-monster-maze
+      entry: prepare-recall-query
+      edges:
+      - from: prepare-recall-query
+        to: recall-progress
+      - from: recall-progress
+        to: route-phase
+      - from: control-narration
+        to: narrate-story
+      - from: narrate-story
+        to: reduce-state
+      - from: reduce-state
+        to: observe-progress
+      - from: observe-progress
+        to: __end__
+      - from: route-phase
+        to: control-narration
+      nodes:
+      - id: control-narration
+        type: script
+        config:
+          source: |
+            const current = String(board.getVar("input") || "").trim().toLowerCase();
+            const memory = String(board.getVar("scenario_memory") || "");
+            let state = Object.assign({schema:"raid_scenario_state_v2", revision:0}, board.getVar("scenario_state") || {});
+            for (const line of memory.split("\n")) {
+              const start = line.indexOf('{"schema":');
+              if (start < 0) continue;
+              try { const old = JSON.parse(line.slice(start));
+                if (old.schema === "raid_scenario_state_v2" && Number(old.revision || 0) > Number(state.revision || 0)) state = Object.assign({},state,old);
+              } catch (_) {}
+            }
+            const roleTable = [{"key": "narrator", "name": "旁白", "aliases": ["旁白", "narrator"], "chapters": [1, 2, 3, 4], "duty": "只负责叙述、管理和公开信息整理，不代演角色。"}, {"key": "little-monster", "name": "小怪兽", "aliases": ["小怪兽", "little-monster"], "chapters": [4], "duty": "在玩家解锁相遇后提出一起帮忙的方法，不恐吓。"}, {"key": "gatekeeper", "name": "守门怪兽", "aliases": ["守门怪兽", "gatekeeper"], "chapters": [1, 2], "duty": "指向已经可见的按钮与路线，不替玩家按按钮。"}, {"key": "riddle-spirit", "name": "谜题精灵", "aliases": ["谜题精灵", "riddle-spirit"], "chapters": [3], "duty": "比较圆形三角形方形锁孔，给渐进提示，不替玩家解锁。"}];
+            const scenes = ["月亮机关", "路线校准", "锁孔谜题", "怪兽合作"];
+            const any = (s, cues) => cues.some(c => s.includes(c));
+            if (!state.voice_scene && state.route) for (let i=0;i<scenes.length;i++) if(String(state.route).includes(scenes[i])) state.voice_scene=i+1;
+            let scene = Number(state.voice_scene || 1);
+            scene = Number.isFinite(scene) ? Math.max(1, Math.min(scenes.length, Math.floor(scene))) : 1;
+            const history = typeof board.channel === "function" ? (board.channel(board.MAIN_CHANNEL) || []) : [];
+            { // Delivered scene arrivals supersede recalled state.
+              for (const m of history) {
+                if (m.role !== "assistant") continue;
+                const text = m.content || (m.parts || []).filter(p => p.type === "text").map(p => p.text || "").join("");
+                for (let i=0;i<scenes.length;i++) if (text.includes("当前场景："+scenes[i]) || text.includes("来到"+scenes[i])) scene=i+1;
+              }
+            }
+            let transition = false;
+            if (!current || any(current, ["重新开始", "restart", "开场", "介绍这个体验", "开始体验"])) scene=1;
+            else if (any(current,["进入下一章","进入下一场景"])) {scene=Math.min(scenes.length,scene+1); transition=true;}
+            else {
+              for (let i=0;i<scenes.length;i++) if (any(current,["进入"+scenes[i],"前往"+scenes[i],"来到"+scenes[i]])) {scene=i+1;transition=true;}
+              if (any(current,["按下月亮", "打开月亮机关"])) {scene=2;transition=true;}
+              if (any(current,["走进右边门", "查看锁孔"])) {scene=3;transition=true;}
+              if (any(current,["解开锁后遇到小怪兽"])) {scene=4;transition=true;}
+            }
+            let phase = "explore";
+            if (!current || any(current, ["开始迷宫", "进入迷宫", "怪兽迷宫"])) phase = "opening";
+            else if (any(current, ["更正", "只确认", "有效路线", "正确路线", "正确颜色", "只说有效", "回忆", "重连", "隔了几轮", "只说"])) phase = "correction";
+            else if (any(current, ["总结", "路线图", "结合线索", "出口", "回顾", "用一句话说出"])) phase = "conclusion";
+            else if (any(current, ["我猜", "可能", "一定", "危险", "捷径", "牺牲", "尚不能", "不要替我"])) phase = "challenge";
+            const stageRoute = String(board.getVar("scenario_route") || state.route || "");
+            for (let i=0;i<scenes.length;i++) if(stageRoute.includes(scenes[i])) scene=Math.max(scene,i+1);
+            state.voice_scene=scene;
+            state.active_roles=roleTable.filter(r=>r.chapters.includes(scene)).map(r=>r.key);
+            let managementText=current;
+            for (const role of roleTable) for (const alias of role.aliases) managementText=managementText.split(alias).join("");
+            const management = !current || transition || any(managementText,["旅程", "更正", "纠正", "修正", "改成", "改变主意", "其实", "安全", "危险", "现实", "模仿", "受伤", "攻击", "牺牲", "停止", "总结", "结论", "回忆", "重连", "恢复", "请记住", "只确认", "只说", "换边", "correction", "correct", "actually", "danger", "safety", "restart", "重新开始", "开场", "介绍这个体验", "进入下一", "下一章", "下一场景", "转场", "开始体验", "从头开始", "第一章", "第1章", "开始冒险", "start", "begin", "介绍体验", "喝生水", "吃野果", "爬高墙", "关闭生命保障", "直视太阳", "尝陌生植物"]) || phase !== "explore";
+            state.chapter_choice_made=!!current && !management;
+            delete state.selected_speaker;
+            state.revision=Math.max(0,Number(state.revision || 0))+1;
+            board.setVar("scenario_state",state);
+            board.setVar("scenario_state_text",JSON.stringify(state));
+            board.setVar("story_bible", "原创配角按场景出场，不知未来/秘密/未验证结果。\n首次让在场角色自然登场。");
+            board.setVar("narration_context", "当前场景："+scenes[scene-1]+"。当前在场角色："+roleTable.filter(r=>state.active_roles.includes(r.key)).map(r=>r.name).join("、")+"。"+(transition ? "本轮由旁白说出‘来到"+scenes[scene-1]+"’，用旁白和在场角色台词交替描写具体行动，结尾给两三个观察选项。" : "") );
+
+
+            board.setVar("story_bible", board.getVar("story_bible") + "\n" + ["场景1“月亮机关”：守门怪兽：指向已经可见的按钮与路线，不替玩家按按钮。","场景2“路线校准”：守门怪兽：指向已经可见的按钮与路线，不替玩家按按钮。","场景3“锁孔谜题”：谜题精灵：比较圆形三角形方形锁孔，给渐进提示，不替玩家解锁。","场景4“怪兽合作”：小怪兽：在玩家解锁相遇后提出一起帮忙的方法，不恐吓。"].slice(scene - 1, Math.min(scene + 1, scenes.length)).join("\n"));
+      - id: prepare-recall-query
+        type: script
+        config:
+          source: |
+            const current = String(board.getVar("input") || "").trim();
+            board.setVar("scenario_recall_query", current || "raid_scenario_state_v2");
+      - id: recall-progress
+        type: memory_recall
+        config:
+          query:
+            text_from: scenario_recall_query
+            lanes:
+            - case_state
+            kinds:
+            - state
+            - note
+            - event
+          output: scenario_memory
+          render:
+            header: 'Confirmed scenario history:'
+            item_prefix: "- "
+            max_items: 12
+          top_k: 12
+      - id: route-phase
+        type: script
+        config:
+          source: |
+            const current = String(board.getVar("input") || "").trim();
+            const memory = String(board.getVar("scenario_memory") || "");
+            const liveState = board.getVar("scenario_state") || {schema: "raid_scenario_state_v2", revision: 0};
+            let prior = Object.assign({}, liveState);
+            let priorRevision = Math.max(0, Number(prior.revision || 0));
+            for (const line of memory.split("\n")) {
+              const start = line.indexOf('{"schema":"raid_scenario_state_v2"');
+              if (start < 0) continue;
+              try {
+                const candidate = JSON.parse(line.slice(start));
+                if (!candidate || candidate.schema !== "raid_scenario_state_v2") continue;
+                const candidateRevision = Math.max(0, Number(candidate.revision || 0));
+                if (candidateRevision > priorRevision) {
+                  prior = Object.assign({}, prior, candidate);
+                  priorRevision = candidateRevision;
+                }
+              } catch (_) {
+                // Recall may also contain natural-language notes; only Graph-authored JSON state is authoritative.
+              }
+            }
+            const isSpeechRequest = text => ["说说","说话","发言","回应","回答","talk","speak","answer"].some(c => text.includes(c));
+            let combined = memory + "\n" + (isSpeechRequest(current) ? "" : current);
+            const messages = board.channel(board.MAIN_CHANNEL) || [];
+            for (const message of messages) {
+              if (message && typeof message.content === "string" && !isSpeechRequest(message.content)) combined += "\n" + message.content;
+              const parts = message && Array.isArray(message.parts) ? message.parts : [];
+              const text = parts.map((part) => part && part.type === "text" && typeof part.text === "string" ? part.text : "").join("");
+              if (text && !isSpeechRequest(text)) combined += "\n" + text;
+            }
+            const containsAnyText = (text, values) => values.some((value) => text.includes(value));
+            let phase = "explore";
+            if (!current || containsAnyText(current, ["开始迷宫", "进入迷宫", "怪兽迷宫"])) phase = "opening";
+            else if (containsAnyText(current, ["更正", "只确认", "有效路线", "正确路线", "正确颜色", "只说有效", "回忆", "重连", "隔了几轮", "只说"])) phase = "correction";
+            else if (containsAnyText(current, ["总结", "路线图", "结合线索", "出口", "回顾", "用一句话说出"])) phase = "conclusion";
+            else if (containsAnyText(current, ["我猜", "可能", "一定", "危险", "捷径", "牺牲", "尚不能", "不要替我"])) phase = "challenge";
+            let route = "";
+            if (containsAnyText(combined, ["解开锁后遇到", "遇到一只打喷嚏", "怪兽成为帮手", "第四区", "怪兽合作"])) route = "第四区‘怪兽合作’";
+            else if (containsAnyText(combined, ["锁孔谜题", "锁孔", "圆形", "三角形", "方形", "小提示"])) route = "第三区‘锁孔谜题’";
+            else if (containsAnyText(combined, ["蘑菇花园", "右边", "右侧", "向右", "左边", "路线", "地图"])) route = "第二区‘路线校准’";
+            else route = "第一区‘月亮机关’";
+            board.setVar("scenario_phase", phase);
+            board.setVar("scenario_route", route);
+            board.setVar("scenario_state", prior);
+            board.setVar("scenario_state_text", JSON.stringify(prior));
+            board.setVar("scenario_common_prompt", "儿童怪兽迷宫：保持已走路线、门、图案和物品连续一致，给可解线索与渐进提示。怪兽是友善帮手或非暴力障碍，不恐吓孩子。" + (phase === "opening" ? "开场参考：欢迎来到怪兽迷宫，你是聪明的迷宫探险家，这里的怪兽都很友好，只是爱出谜题。每一关你都可以说想按哪个按钮、往哪边走，想不出来就说“给我一个提示”。迷宫门上有月亮、星星和太阳三个按钮，墙上的影子只指向没有光的图案，你会按哪个？" : ""));
+      - id: reduce-state
+        type: script
+        config:
+          source: |
+            const input = String(board.getVar("input") || "").trim();
+            const phase = String(board.getVar("scenario_phase") || "explore");
+            const prior = board.getVar("scenario_state") || {schema: "raid_scenario_state_v2", revision: 0};
+            const next = Object.assign({}, prior);
+            let changed = false;
+            function set(name, value) {
+              if (value && next[name] !== value) { next[name] = value; changed = true; }
+            }
+            next.phase = phase;
+            next.route = String(board.getVar("scenario_route") || "");
+            if (input.includes("蘑菇花园") && (input.includes("右边") || input.includes("右侧") || input.includes("向右"))) set("garden_route", "右边通往蘑菇花园");
+            if (input.includes("蓝色")) set("marker_color", "蓝色");
+            if (changed) next.revision = Math.max(0, Number(prior.revision || 0)) + 1;
+            if (phase === "correction") {
+              delete next.last_input;
+              next.last_correction = JSON.stringify({garden_route: next.garden_route || "", marker_color: next.marker_color || ""});
+            } else {
+              next.last_input = input.slice(0, 160);
+            }
+            const scenes = ["月亮机关", "路线校准", "锁孔谜题", "怪兽合作"];
+            const roleTable = [{"key": "narrator", "name": "旁白", "aliases": ["旁白", "narrator"], "chapters": [1, 2, 3, 4], "duty": "只负责叙述、管理和公开信息整理，不代演角色。"}, {"key": "little-monster", "name": "小怪兽", "aliases": ["小怪兽", "little-monster"], "chapters": [4], "duty": "在玩家解锁相遇后提出一起帮忙的方法，不恐吓。"}, {"key": "gatekeeper", "name": "守门怪兽", "aliases": ["守门怪兽", "gatekeeper"], "chapters": [1, 2], "duty": "指向已经可见的按钮与路线，不替玩家按按钮。"}, {"key": "riddle-spirit", "name": "谜题精灵", "aliases": ["谜题精灵", "riddle-spirit"], "chapters": [3], "duty": "比较圆形三角形方形锁孔，给渐进提示，不替玩家解锁。"}];
+            next.last_answer = String(board.getVar("tmp_answer") || "").slice(0, 12000);
+            for (let i = 0; i < scenes.length; i++) {
+              if (next.last_answer.includes("来到" + scenes[i])) next.voice_scene = i + 1;
+            }
+            next.active_roles = roleTable.filter(r => r.chapters.includes(next.voice_scene || 1)).map(r => r.key);
+            board.setVar("scenario_state", next);
+            board.setVar("scenario_state_fact", JSON.stringify(next));
+      - id: observe-progress
+        type: memory_observe
+        config:
+          observations:
+          - facts:
+            - text_from: scenario_state_fact
+              attributes:
+                lane: case_state
+                kind: state
+          wait_for_completion: false
+      - id: narrate-story
+        type: llm
+        publish: true
+        config:
+          model: flowcraft-adventure-monster-maze-mr.model
+          max_tokens: 2048
+          output_key: tmp_answer
+          system_prompt: |-
+            仅当 scenario_phase 为 opening 时遵守：
+            ${board.scenario_common_prompt}
+            本轮Graph路径：${board.scenario_route}。
+            身份和玩法参考：「欢迎来到怪兽迷宫，你是聪明的迷宫探险家，这里的怪兽都很友好，只是爱出谜题。每一关你都可以说想按哪个按钮、往哪边走，想不出来就说“给我一个提示”。」自然展开。本轮只建立安全的迷宫入口、可选道路和玩家自主选择，不替玩家迈出第一步。
+            可核对的长期进度：${board.scenario_memory}
+            Graph状态：${board.scenario_state_text}
+            ${board.story_bible}
+            ${board.narration_context}
+
+            有声书连续讲述：约1至2分钟，旁白叙述与角色第一人称台词分段，让在场角色有来有回，生动有趣、细节丰富。回应孩子刚说的话，尊重改选和更正，记住最新事实；追问、插话和重听自然接续。故事自然推进，通常以故事内选择收尾。回忆和确认可以简短；遇到现实危险，劝阻模仿并引导找家长、老师或可信任的大人。
+            有声书连续讲述：旁白叙述与角色第一人称台词分段，与在场角色交替；单角色不添人。只知亲历/公开信息。插话接续，点名仅增台词不换场/整轮。
+            标记格式：仅限【旁白】、【小怪兽】、【守门怪兽】、【谜题精灵】，每段一个，标题用【旁白】。未列名人物（如路人、摊主）及孩子的话一律由【旁白】转述，如：卖糖粥的阿婆笑着说……；不输出其它【】标记，禁止新增姓名标记，禁止给孩子加标记。
+            音色由段落标记映射；仅朗读正文，禁Markdown/列表/emoji/舞台说明/系统字段/分析。
+          track_steps: true
+    max_iterations: 10
+    conversation:
+      starts: agent
+    voice_adapter:
+      asr_model: asr
+      default_voice: flowcraft-adventure-monster-maze-mr.adventure-guide
+      speaker_voices:
+        旁白: flowcraft-adventure-monster-maze-mr.adventure-guide
+        小怪兽: flowcraft-adventure-monster-maze-mr.little-monster
+        守门怪兽: flowcraft-adventure-monster-maze-mr.gatekeeper
+        谜题精灵: flowcraft-adventure-monster-maze-mr.riddle-spirit
+  memory: adventure

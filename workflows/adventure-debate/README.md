@@ -18,8 +18,8 @@ Install an implementation into a RuntimeProfile with `raids install adventure-de
 
 Tester: `test.yaml` (`adventure-debate-test`, eino), shared by every implementation; one Giztest scenario per implementation:
 
-- `tests/giztest/adventure-debate/eino.giztest.yaml` (relay, with reload, timeout 35m)
-- `tests/giztest/adventure-debate/flowcraft.giztest.yaml` (relay, with reload, timeout 35m)
+- `tests/giztest/soak/adventure-debate.eino.giztest.yaml` (relay, with reload, timeout 35m)
+- `tests/giztest/soak/adventure-debate.flowcraft.giztest.yaml` (relay, with reload, timeout 35m)
 
 The route has 7 target responses:
 
@@ -38,3 +38,10 @@ Run:
 ```sh
 make test-e2e RAID=adventure-debate PARALLEL=2
 ```
+
+## Multi-role implementations
+
+Continuous multi-character narration is available separately; original implementations remain unchanged.
+
+- `eino.multi-role.yaml`: `eino-adventure-debate-multi-role`; Voice aliases: `eino-adventure-debate-mr.adventure-guide`, `eino-adventure-debate-mr.proponent`, `eino-adventure-debate-mr.opponent`, `eino-adventure-debate-mr.fact-checker`.
+- `flowcraft.multi-role.yaml`: `flowcraft-adventure-debate-multi-role`; Voice aliases: `flowcraft-adventure-debate-mr.adventure-guide`, `flowcraft-adventure-debate-mr.proponent`, `flowcraft-adventure-debate-mr.opponent`, `flowcraft-adventure-debate-mr.fact-checker`.

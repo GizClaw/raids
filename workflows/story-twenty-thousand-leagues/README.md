@@ -40,3 +40,10 @@ Flowcraft selects exactly one published node per external response. Chapter entr
 GIZCLAW=/absolute/path/to/gizclaw-v0.7.7 GIZCLAW_TEST_CLI=/absolute/path/to/gizclaw-v0.7.7 make test-unit-resources
 GIZCLAW=/absolute/path/to/gizclaw-v0.7.7 GIZCLAW_TEST_CLI=/absolute/path/to/gizclaw-v0.7.7 GIZCLAW_CONTEXT=e2e-server-volc-bj-01 GIZCLAW_TEST_ENDPOINT=edge-bj-01.e2e.gizclaw.com:9821 GIZCLAW_TEST_REGISTRATION_TOKEN=<testing-runtime-token> APPLY=1 RAID=story-twenty-thousand-leagues PARALLEL=3 make test-e2e
 ```
+
+## Multi-role implementations
+
+Continuous multi-character narration is available separately; original implementations remain unchanged.
+
+- `eino.multi-role.yaml`: `eino-story-twenty-thousand-leagues-multi-role`; Voice aliases: `eino-story-twenty-thousand-leagues-mr.storyteller`, `eino-story-twenty-thousand-leagues-mr.nemo`, `eino-story-twenty-thousand-leagues-mr.aronnax`, `eino-story-twenty-thousand-leagues-mr.conseil`, `eino-story-twenty-thousand-leagues-mr.ned-land`.
+- `flowcraft.multi-role.yaml`: `flowcraft-story-twenty-thousand-leagues-multi-role`; Voice aliases: `flowcraft-story-twenty-thousand-leagues-mr.storyteller`, `flowcraft-story-twenty-thousand-leagues-mr.nemo`, `flowcraft-story-twenty-thousand-leagues-mr.aronnax`, `flowcraft-story-twenty-thousand-leagues-mr.conseil`, `flowcraft-story-twenty-thousand-leagues-mr.ned-land`.
