@@ -302,7 +302,11 @@ assert.equal(vars.scenario_state.voice_scene, 2);
 with tempfile.NamedTemporaryFile(mode='w', suffix='.json') as payload:
     json.dump(real_cases, payload)
     payload.flush()
-    env = dict(os.environ, RAIDS_MULTI_ROLE_CASES=payload.name, GOPROXY='off', GOSUMDB='off', GOTOOLCHAIN='local')
-    env.setdefault('GOMODCACHE', '/Volumes/H002-R02T-APFS/Caches/go/pkg/mod')
+    env = dict(os.environ, RAIDS_MULTI_ROLE_CASES=payload.name)
+    env.setdefault('GOTOOLCHAIN', 'local')
+    # Use the pinned offline module cache when it is present; CI downloads modules.
+    offline_cache = '/Volumes/H002-R02T-APFS/Caches/go/pkg/mod'
+    if 'GOMODCACHE' not in env and os.path.isdir(offline_cache):
+        env.update(GOMODCACHE=offline_cache, GOPROXY='off', GOSUMDB='off')
     subprocess.run(['go', '-C', 'scripts/test/starlark', 'test', '-run', '^TestMultiRoleTranscript$', '-count=1'], env=env, check=True)
 print('validated real Starlark e2e13 transcripts, 30 recall finalizers, checkpoints and lenient full-relay judgments')
