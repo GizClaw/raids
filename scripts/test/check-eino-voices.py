@@ -32,7 +32,7 @@ def voice_bindings(path):
     # Profiles can share bindings through YAML anchors (Journey variants).
     # Ruby/Psych is already used by the catalog closure checks and is offline.
     result = subprocess.run(
-        ["ruby", "-ryaml", "-rjson", "-e",
+        ["ruby", "-r" + str(Path(__file__).resolve().with_name("yaml_compat.rb")), "-rjson", "-e",
          "puts JSON.generate(YAML.load_file(ARGV[0]).fetch('spec').fetch('resources').fetch('voices'))",
          str(path)], check=True, capture_output=True, text=True,
     )

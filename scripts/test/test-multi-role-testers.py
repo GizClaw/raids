@@ -12,7 +12,7 @@ import subprocess
 
 def documents(paths):
     return json.loads(subprocess.check_output(
-        ['ruby', '-ryaml', '-rjson', '-e',
+        ['ruby', '-r' + str(Path(__file__).resolve().with_name('yaml_compat.rb')), '-rjson', '-e',
          'puts JSON.generate(ARGV.map { |p| YAML.load_file(p) })', *map(str, paths)], text=True))
 
 

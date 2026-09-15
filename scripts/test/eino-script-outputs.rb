@@ -1,4 +1,4 @@
-require 'yaml'
+require_relative 'yaml_compat'
 
 # A small lexical check, not a script evaluator. Inspect return {...} literals
 # in every language, ignoring comments/string contents and nested value keys.

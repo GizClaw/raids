@@ -1,5 +1,5 @@
 # Parse YAML structurally; emit sources and per-raid fixtures for the offline runner.
-require 'yaml'
+require_relative 'yaml_compat'
 require 'json'
 suites = []
 Dir['workflows/*'].select { |p| File.directory?(p) }.sort.each do |package|

@@ -1,5 +1,5 @@
 # Offline workflow -> manifest -> RuntimeProfile -> Voice closure for both variants.
-require 'yaml'
+require_relative 'yaml_compat'
 require 'json'
 require_relative 'giztest-layout'
 require_relative 'testing-voices'

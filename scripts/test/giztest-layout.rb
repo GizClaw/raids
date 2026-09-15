@@ -1,5 +1,5 @@
 # Shared structural view of tiered Giztests. Preserve per-client order and every assertion.
-require 'yaml'
+require_relative 'yaml_compat'
 require 'json'
 module GiztestLayout
   TIERS = %w[smoke quality soak].freeze

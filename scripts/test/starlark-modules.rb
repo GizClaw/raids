@@ -1,4 +1,4 @@
-require 'yaml'
+require_relative 'yaml_compat'
 require 'json'
 # Walk all workflow documents, including nested graphs and every Tester variant.
 scripts = []

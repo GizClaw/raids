@@ -1,6 +1,6 @@
 # Testing uses Volcengine TTS 2.0 for concurrency; inspect every resolved alias,
 # including YAML anchors and resources not referenced by a workflow manifest.
-require 'yaml'
+require_relative 'yaml_compat'
 
 def check_testing_voices(profile)
   voices = profile.fetch('resources').fetch('voices')
