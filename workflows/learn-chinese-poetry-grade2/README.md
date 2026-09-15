@@ -80,11 +80,11 @@ Known gaps across the poetry card:
 
 Tester: `test.yaml` (`learn-chinese-poetry-grade2-test`, eino), shared by every implementation:
 
-- `tests/giztest/smoke/learn-chinese-poetry-grade2.giztest.yaml`: speed, latency and responsiveness.
-- `tests/giztest/quality/learn-chinese-poetry-grade2.giztest.yaml`: quality control and safety guardrails.
-- `tests/giztest/soak/learn-chinese-poetry-grade2.giztest.yaml`: long-turn Tester relay with reload.
+- `tests/giztest/smoke/learn-chinese-poetry-grade2.<implementation>.giztest.yaml`: speed, latency and responsiveness.
+- `tests/giztest/quality/learn-chinese-poetry-grade2.<implementation>.giztest.yaml`: quality control and safety guardrails.
+- `tests/giztest/soak/learn-chinese-poetry-grade2.<implementation>.giztest.yaml`: long-turn Tester relay with reload.
 
-Run `make test-e2e TIER=smoke RAID=learn-chinese-poetry-grade2`. Each tier file covers all implementations; see [the test guide](../../tests/giztest/README.md) for budgets and failure reporting.
+Run `make test-e2e TIER=smoke RAID=learn-chinese-poetry-grade2`. Each tier has one file per implementation, run concurrently with `PARALLEL=4`; see [the test guide](../../tests/giztest/README.md) for budgets and failure reporting.
 
 The route has 8 target responses; `recite-exact`, `background-label`, `unknown-boundary`, and `other-grade-poem` guard against hallucination and refusals:
 

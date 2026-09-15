@@ -18,8 +18,8 @@ Install an implementation into a RuntimeProfile with `raids install adventure-sp
 
 Tester: `test.yaml` (`adventure-space-rescue-test`, eino), shared by every implementation; one Giztest scenario per implementation:
 
-- `tests/giztest/adventure-space-rescue/eino.giztest.yaml` (relay, with reload, timeout 55m)
-- `tests/giztest/adventure-space-rescue/flowcraft.giztest.yaml` (relay, with reload, timeout 55m)
+- `tests/giztest/soak/adventure-space-rescue.eino.giztest.yaml` (relay, with reload, timeout 55m)
+- `tests/giztest/soak/adventure-space-rescue.flowcraft.giztest.yaml` (relay, with reload, timeout 55m)
 
 The route has 13 target responses:
 

@@ -1,0 +1,212 @@
+# User Story:
+# As a Raids catalog maintainer,
+# I want every available story-tom-sawyer implementation to complete the same bounded Tester relay,
+# So that chapter, correction, reload, role, and continuity behavior remain reproducible.
+version: gizclaw.test/v1alpha1
+name: story-tom-sawyer.soak.eino.multi-role
+clients:
+  eino_multi_role:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  eino_multi_role_tester:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+variables:
+  endpoint:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_ENDPOINT
+  registration_token:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_REGISTRATION_TOKEN
+    secret: true
+  multi_role_test_brief:
+    direction: input
+    type: string
+    value: |-
+      BEGIN flowcraft-story-tom-sawyer-multi-role long-form-story
+      普通讲述回合目标约 500 字，大约 1-2 分钟；不要少于 200 字，不要超过 900 字，旁白与当前在场角色连续交替，结尾给具体选择；下发文字不得残留【或】。安全、仅确认、更正或回忆回合遵守原限定要求，可短于200字。角色点名只调整本段台词比例。
+      连续有声书验收：只回答故事选择，不请求进入下一章；检查普通回复只有一个故事内结尾问题、没有流程口令，并在接力中自动推进章节或场景。
+  eino_multi_role_candidate_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_multi_role_tester_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_multi_role_verdict:
+    direction: output
+    type: string
+repeat: 1
+timeout: 180m
+steps:
+- id: eino_multi_role_register_candidate
+  client: eino_multi_role
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: eino_multi_role_register_tester
+  client: eino_multi_role_tester
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: eino_multi_role_create_candidate_workspace
+  client: eino_multi_role
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_multi_role_candidate_workspace}"
+      collection: raidtest-targets
+      workflow_name: eino-story-tom-sawyer-multi-role
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_multi_role_create_tester_workspace
+  client: eino_multi_role_tester
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_multi_role_tester_workspace}"
+      collection: raidtest-testers
+      workflow_name: story-tom-sawyer-test-multi-role
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_multi_role_select_candidate_workspace
+  client: eino_multi_role
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${eino_multi_role_candidate_workspace}"
+- id: eino_multi_role_warmup_candidate_workspace
+  client: eino_multi_role
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: eino_multi_role_select_tester_workspace
+  client: eino_multi_role_tester
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${eino_multi_role_tester_workspace}"
+- id: eino_multi_role_relay_responses_1_8
+  timeout: 32m
+  workspace_relay:
+    first_client: eino_multi_role_tester
+    second_client: eino_multi_role
+    input: "${multi_role_test_brief}"
+    media: text
+    idle_timeout: 90s
+    max_turns: 17
+    terminal_client: eino_multi_role_tester
+  expect:
+    "/terminal/client":
+      equals: eino_multi_role_tester
+    "/terminal/text":
+      pattern: "^\\s*CHECKPOINT PASS\\s*$"
+    "/completed_turns":
+      equals: 17
+    "/turns/eino_multi_role/count":
+      equals: 8
+    "/turns/eino_multi_role_tester/count":
+      equals: 9
+    "/turns/eino_multi_role/first_text_ms/max":
+      maximum: 6000
+    "/turns/eino_multi_role/text_runes/min":
+      minimum: 4
+    "/turns/eino_multi_role/text_runes/max":
+      maximum: 900
+- id: eino_multi_role_recall_barrier
+  client: eino_multi_role
+  rpc:
+    method: server.run.workspace.recall
+    request:
+      query: 月光七码
+  timeout: 60s
+  expect:
+    "/available":
+      equals: true
+    "/hits":
+      non_empty: true
+- id: eino_multi_role_reload_candidate_workspace
+  client: eino_multi_role
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+- id: eino_multi_role_relay_responses_9_16
+  timeout: 32m
+  workspace_relay:
+    first_client: eino_multi_role_tester
+    second_client: eino_multi_role
+    input: CONTINUE 8
+    media: text
+    idle_timeout: 90s
+    max_turns: 17
+    terminal_client: eino_multi_role_tester
+  capture:
+    eino_multi_role_verdict: "/terminal/text"
+  expect:
+    "/terminal/client":
+      equals: eino_multi_role_tester
+    "/terminal/text":
+      pattern: "^\\s*PASS\\s*$"
+    "/completed_turns":
+      equals: 17
+    "/turns/eino_multi_role/count":
+      equals: 8
+    "/turns/eino_multi_role_tester/count":
+      equals: 9
+    "/turns/eino_multi_role/first_text_ms/max":
+      maximum: 6000
+    "/turns/eino_multi_role/text_runes/min":
+      minimum: 4
+    "/turns/eino_multi_role/text_runes/max":
+      maximum: 900
+- id: eino_multi_role_emit_verdict
+  output:
+    variable: eino_multi_role_verdict
+finally:
+- id: eino_multi_role_stop_candidate_run
+  client: eino_multi_role
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: eino_multi_role_stop_tester_run
+  client: eino_multi_role_tester
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: eino_multi_role_delete_candidate_workspace
+  client: eino_multi_role
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${eino_multi_role_candidate_workspace}"
+- id: eino_multi_role_delete_tester_workspace
+  client: eino_multi_role_tester
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${eino_multi_role_tester_workspace}"
+- id: eino_multi_role_delete_candidate_peer
+  client: eino_multi_role
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: eino_multi_role_delete_tester_peer
+  client: eino_multi_role_tester
+  rpc:
+    method: server.peer.delete
+    request: {}
+report:
+  redact:
+  - registration_token

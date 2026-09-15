@@ -18,8 +18,8 @@ Install an implementation into a RuntimeProfile with `raids install adventure-tr
 
 Tester: `test.yaml` (`adventure-treasure-test`, eino), shared by every implementation; one Giztest scenario per implementation:
 
-- `tests/giztest/adventure-treasure/eino.giztest.yaml` (relay, with reload, timeout 35m)
-- `tests/giztest/adventure-treasure/flowcraft.giztest.yaml` (relay, with reload, timeout 35m)
+- `tests/giztest/soak/adventure-treasure.eino.giztest.yaml` (relay, with reload, timeout 35m)
+- `tests/giztest/soak/adventure-treasure.flowcraft.giztest.yaml` (relay, with reload, timeout 35m)
 
 The route has 7 target responses:
 

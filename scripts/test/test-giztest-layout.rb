@@ -1,4 +1,5 @@
 require 'minitest/autorun'
+require 'tmpdir'
 require_relative 'giztest-layout'
 
 class GiztestCapabilityTest < Minitest::Test
@@ -18,30 +19,83 @@ class GiztestCapabilityTest < Minitest::Test
     capture_io { assert_raises(SystemExit, &block) }
   end
 
-  def test_keepalive_covers_original_clients_until_cleanup
-    original = 'flowcraft__roles'
-    multi = 'flowcraft_multi_role__routing'
-    rpc = lambda { |client, method| {'id' => "#{client}_#{method}", 'client' => client,
-                                    'rpc' => {'method' => "server.#{method}"}} }
-    heartbeat = lambda { |client| rpc.call(client, 'run.status') }
-    response = {'id' => 'multi_response', 'client' => multi, 'peer_stream' => {}}
-    doc = {'clients' => {original => {}, multi => {}}, 'steps' => [
-      rpc.call(original, 'register'), rpc.call(multi, 'register'),
-      heartbeat.call(multi), response],
-      'finally' => [rpc.call(original, 'run.workspace.history'), rpc.call(original, 'run.stop'),
-                    rpc.call(original, 'workspace.delete')]}
-    rejected { GiztestLayout.check_keepalive_schedule(doc, 'fixture') }
-    doc['steps'].insert(-2, heartbeat.call(original))
-    GiztestLayout.check_keepalive_schedule(doc, 'fixture')
-    # A heartbeat from the previous response group does not cover the next one.
-    doc['steps'].concat([heartbeat.call(multi), response.merge('id' => 'next_response')])
-    rejected { GiztestLayout.check_keepalive_schedule(doc, 'fixture') }
-    # Once the original has no remaining use, it no longer needs heartbeats.
-    doc['finally'] = []
-    GiztestLayout.check_keepalive_schedule(doc, 'fixture')
-    # Future-phase clients must not receive status calls before registration.
-    doc['clients']['eino_multi_role__routing'] = {}
-    GiztestLayout.check_keepalive_schedule(doc, 'fixture')
+  def rpc(client, method = 'register')
+    {'id' => "#{client}_#{method}", 'client' => client,
+     'rpc' => {'method' => "server.#{method}"}}
+  end
+
+  def response(client, timeout = '2m')
+    {'id' => "#{client}_response", 'client' => client, 'timeout' => timeout, 'peer_stream' => {}}
+  end
+
+  def test_idle_gap_includes_finally_and_sums_independent_operations
+    doc = {'steps' => [rpc('a'), rpc('b'), response('b'), response('b')],
+           'finally' => [rpc('a', 'run.stop')]}
+    rejected { GiztestLayout.check_idle_gaps(doc, 'fixture') }
+    doc['steps'].delete_at(3)
+    GiztestLayout.check_idle_gaps(doc, 'fixture')
+  end
+
+  def test_idle_boundary_and_reconnect_do_not_hide_existing_gap
+    doc = {'steps' => [rpc('a'), response('b', '3m'), rpc('a', 'run.stop')]}
+    GiztestLayout.check_idle_gaps(doc, 'fixture')
+    doc['steps'][1]['timeout'] = '181s'
+    rejected { GiztestLayout.check_idle_gaps(doc, 'fixture') }
+    doc['steps'][2] = {'id' => 'a_reconnect', 'client' => 'a', 'reconnect' => {}}
+    rejected { GiztestLayout.check_idle_gaps(doc, 'fixture') }
+  end
+
+  def test_parallel_and_relay_count_all_participating_clients
+    doc = {'steps' => [rpc('a'), rpc('b'),
+      {'id' => 'parallel', 'timeout' => '4m', 'parallel' => [response('a'), response('b')]},
+      {'id' => 'relay', 'timeout' => '40m', 'workspace_relay' => {'first_client' => 'a', 'second_client' => 'b'}}],
+      'finally' => [rpc('a', 'run.stop'), rpc('b', 'run.stop')]}
+    GiztestLayout.check_idle_gaps(doc, 'fixture')
+    doc['steps'][2]['parallel'].pop
+    rejected { GiztestLayout.check_idle_gaps(doc, 'fixture') }
+  end
+
+  def test_late_suite_reconnects_before_first_registration
+    doc = {'steps' => [rpc('a'), response('a', '4m'), rpc('b')]}
+    rejected { GiztestLayout.check_idle_gaps(doc, 'fixture') }
+    doc['steps'].insert(2, {'id' => 'b_reconnect', 'client' => 'b', 'reconnect' => {}})
+    GiztestLayout.check_idle_gaps(doc, 'fixture')
+  end
+
+  def test_keepalive_must_be_registered_and_necessary
+    status = rpc('a', 'run.status').merge('id' => 'a_setup_keepalive')
+    doc = {'steps' => [rpc('a'), rpc('b'), response('b'), status, response('b')],
+           'finally' => [rpc('a', 'run.stop')]}
+    GiztestLayout.check_idle_gaps(doc, 'fixture')
+    doc['steps'].delete_at(4)
+    rejected { GiztestLayout.check_idle_gaps(doc, 'fixture') }
+    doc['steps'] = [status]
+    rejected { GiztestLayout.check_idle_gaps(doc, 'fixture') }
+  end
+
+  def test_cross_file_parity_rejects_input_gate_capture_and_cleanup_drift
+    Dir.mktmpdir do |dir|
+      left = File.join(dir, 'flowcraft.yaml'); right = File.join(dir, 'eino.yaml')
+      source = {'variables' => {}, 'steps' => [audio_step.merge('id' => 'flowcraft_response', 'client' => 'flowcraft')],
+                'finally' => [rpc('flowcraft', 'run.stop')]}
+      File.write(left, YAML.dump(source))
+      baseline = JSON.parse(JSON.generate(source).gsub('flowcraft', 'eino'))
+      compare = lambda do |doc|
+        File.write(right, YAML.dump(doc))
+        GiztestLayout.compare_files(left, right, 'flowcraft', 'eino', {'flowcraft' => true, 'eino' => true})
+      end
+      compare.call(baseline)
+      mutations = [
+        ->(d) { d['steps'][0]['peer_stream']['input'] = 'different input' },
+        ->(d) { d['steps'][0]['expect']['/first_text_ms']['maximum'] = 7000 },
+        ->(d) { d['steps'][0]['capture'] = {'answer' => '/text'} },
+        ->(d) { d['finally'] = [] }
+      ]
+      mutations.each do |mutate|
+        changed = Marshal.load(Marshal.dump(baseline)); mutate.call(changed)
+        rejected { compare.call(changed) }
+      end
+    end
   end
 
   def test_workspace_must_exist_before_selection

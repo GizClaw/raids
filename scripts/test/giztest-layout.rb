@@ -1,4 +1,4 @@
-# Shared structural view of tiered Giztests. Preserve ordering and every assertion.
+# Shared structural view of tiered Giztests. Preserve per-client order and every assertion.
 require 'yaml'
 require 'json'
 module GiztestLayout
@@ -48,23 +48,83 @@ module GiztestLayout
       end
     end
   end
-  # Split Workspace clients register by phase, but earlier phases can still own
-  # finally work. Keep every registered client with a remaining use on the same
-  # response-group heartbeat schedule, regardless of implementation variant.
-  def self.check_keepalive_schedule(doc, file)
-    return unless doc.fetch('clients').keys.any? { |c| c.include?('__') }
-    registered = []
-    active = []
-    cleanup = steps(doc, 'finally').map { |s| s['client'] }.compact
-    doc.fetch('steps').each_with_index do |step, index|
+  # Static scheduling budget: explicit step timeouts win; unary operations
+  # without a declared bound reserve 30s. This checks scheduling, not network
+  # liveness: streaming operations are traffic for all their participating peers.
+  IDLE_LIMIT = 180
+  def self.duration(value)
+    value.to_s.scan(/([0-9.]+)(ms|s|m|h)/).sum do |number, unit|
+      number.to_f * {'ms' => 0.001, 's' => 1, 'm' => 60, 'h' => 3600}.fetch(unit)
+    end
+  end
+  def self.participants(step)
+    return step['parallel'].flat_map { |child| participants(child) }.uniq if step['parallel']
+    relay = step['workspace_relay']
+    return relay.values_at('first_client', 'second_client') if relay
+    [step['client']].compact
+  end
+  def self.budget(step)
+    return duration(step['timeout']) if step['timeout']
+    return 0 if step['output']
+    return duration(step['peer_stream']['idle_timeout'] || '90s') if step['peer_stream']
+    30
+  end
+  def self.idle_gap_errors(doc)
+    idle = {}; registered = []; elapsed = 0; errors = []
+    (doc.fetch('steps') + doc.fetch('finally', [])).each do |step|
+      active = participants(step)
       registered << step['client'] if step.dig('rpc', 'method') == 'server.register'
-      active << step['client'] if step.dig('rpc', 'method') == 'server.run.status'
-      next unless step['parallel'] || step['peer_stream']
-      future = steps({'steps' => doc['steps'][index..-1]}).map { |s| s['client'] }.compact + cleanup
-      required = registered.uniq & future.uniq
-      missing = required - active.uniq
-      check(missing.empty?, "#{file}: #{step['id']} clients need a keepalive until their last use (including finally): #{missing.join(', ')}")
-      active = []
+      if step['id'].include?('keepalive') && !registered.include?(step['client'])
+        errors << "#{step['id']} status before registration"
+      end
+      active.each do |client|
+        if idle.key?(client)
+          errors << "#{step['id']} #{client} idle gap #{idle[client]}s exceeds #{IDLE_LIMIT}s" if idle[client] > IDLE_LIMIT
+        elsif elapsed > IDLE_LIMIT && !step['reconnect']
+          errors << "#{step['id']} #{client} first use after #{elapsed}s needs reconnect before registration"
+        end
+        idle[client] = 0
+      end
+      idle.each_key { |client| idle[client] += budget(step) unless active.include?(client) }
+      elapsed += budget(step)
+      idle.delete(step['client']) if step.dig('rpc', 'method') == 'server.peer.delete'
+    end
+    errors
+  end
+  def self.check_idle_gaps(doc, file)
+    errors = idle_gap_errors(doc)
+    check(errors.empty?, "#{file}: #{errors.first}")
+    doc['steps'].each_with_index do |step, index|
+      next unless step['id'].include?('keepalive')
+      shortened = doc.merge('steps' => doc['steps'].each_with_index.reject { |_, n| n == index }.map(&:first))
+      check(!idle_gap_errors(shortened).empty?, "#{file}: #{step['id']} unnecessary keepalive")
+    end
+  end
+  def self.inventory(raid)
+    return {'conversation' => 'doubao'} if raid == 'doubao-realtime'
+    path = "workflows/#{raid}/raid.json"
+    if File.exist?(path)
+      JSON.parse(File.read(path)).fetch('implementations').to_h do |key, impl|
+        [File.basename(impl.fetch('file'), '.yaml'), key.tr('-', '_')]
+      end
+    else
+      Dir["workflows/#{raid}/*.yaml"].to_h { |f| [File.basename(f, '.yaml'), File.basename(f, '.yaml').tr('-', '_')] }
+    end
+  end
+  def self.compare_files(left_file, right_file, baseline, impl, capabilities)
+    left_doc, right_doc = [left_file, right_file].map { |f| YAML.load_file(f) }
+    vars = [[left_doc, baseline], [right_doc, impl]].map do |doc, name|
+      normalize(doc.fetch('variables'), name)
+    end
+    check(vars[0] == vars[1], "#{left_file}/#{right_file}: variable definitions differ")
+    %w[steps finally].each do |section|
+      left = sequence(left_doc, baseline, section)
+      right = sequence(right_doc, impl, section)
+      if capabilities.fetch(baseline) != capabilities.fetch(impl)
+        left, right = [left, right].map { |seq| without_audio(seq) }
+      end
+      index = (0...[left.size, right.size].max).find { |n| left[n] != right[n] }
+      check(index.nil?, "#{left_file}/#{right_file}: #{section} mismatch at #{index}: #{left[index].inspect if index} != #{right[index].inspect if index}")
     end
   end
   def self.without_audio(sequence)
@@ -130,7 +190,7 @@ module GiztestLayout
         s.fetch('rpc').fetch('request').delete('workflow_name')
         s.fetch('rpc').fetch('request').delete('parameters')
       end
-      s['client'] = implementation if s.key?('speech') # shared input fixture, executed once
+      s['client'] = implementation if s.key?('speech') # input fixture, independently generated in each file
       # finally uses both prefix and suffix naming in existing tier documents.
       s['id'] = s.fetch('id').sub(/\A(register|stop|delete)_#{Regexp.escape(implementation)}(?=_|$)/, '\\1_candidate')
       normalize(s, implementation)
@@ -142,17 +202,37 @@ module GiztestLayout
     end
   end
   def self.validate
+    workflow_aliases = YAML.load_file('runtime-profiles/testing.yaml').dig('spec', 'workflows', 'collections').values.reduce({}, :merge)
     raids = (Dir['workflows/*/raid.json'].map { |f| File.basename(File.dirname(f)) } + AUDIO_ONLY).sort
     TIERS.each do |tier|
-      expected = tier == 'soak' ? raids - AUDIO_ONLY : raids
+      tier_raids = tier == 'soak' ? raids - AUDIO_ONLY : raids
+      expected = tier_raids.flat_map { |raid| inventory(raid).keys.map { |impl| "#{raid}.#{impl}" } }.sort
       files = Dir["tests/giztest/#{tier}/*.giztest.yaml"].sort
       check(files.map { |f| File.basename(f, '.giztest.yaml') } == expected, "#{tier}: raid inventory mismatch")
       files.each do |file|
         doc = YAML.load_file(file)
         check(File.readlines(file).first(4).map { |s| s.split[0,2].join(' ') } == ['# User', '# As', '# I', '# So'], "#{file}: missing User Story")
         check_workspace_order(doc, file)
-        check_keepalive_schedule(doc, file)
-        capabilities = tts_capabilities(File.basename(file, '.giztest.yaml'))
+        check_idle_gaps(doc, file)
+        raid, suffix = File.basename(file, '.giztest.yaml').split('.', 2)
+        declared_implementation = inventory(raid).fetch(suffix)
+        check(doc['name'] == "#{raid}.#{tier}.#{suffix}", "#{file}: document name mismatch")
+        capabilities = tts_capabilities(raid)
+        target_id = YAML.load_file("workflows/#{raid}/#{suffix}.yaml").dig('metadata', 'id')
+        tester_path = "workflows/#{raid}/test#{suffix.end_with?('.multi-role') ? '.multi-role' : ''}.yaml"
+        tester_id = File.exist?(tester_path) ? YAML.load_file(tester_path).dig('metadata', 'id') : nil
+        creates = steps(doc).select { |step| step.dig('rpc', 'method') == 'server.workspace.create' }
+        creates.each do |step|
+          expected_workflow = step['client'].end_with?('_tester') ? tester_id : target_id
+          workflow_name = step.dig('rpc', 'request', 'workflow_name')
+          resolved_workflow = workflow_aliases.fetch(workflow_name, {}).fetch('resource_id', workflow_name)
+          check(expected_workflow && resolved_workflow == expected_workflow,
+                "#{file}: #{step['id']} targets a foreign Workflow")
+        end
+        if raid == 'murder-mystery'
+          check(inventory(raid).keys.sort == %w[flowcraft flowcraft.multi-role] && !JSON.generate(doc).include?('eino-murder-mystery'),
+                "#{file}: murder-mystery must be Flowcraft only")
+        end
         steps(doc).each do |step|
           implementation = step.fetch('client', '').split('__').first
           check_audio(step, capabilities[implementation], file) if capabilities.key?(implementation)
@@ -178,12 +258,11 @@ module GiztestLayout
                 roundtrip_expect['/text'] = {'non_empty'=>true, 'not_contains'=>['【','】','进入下一章','要不要继续','想继续听就说','这一章的选择完成啦','等你说要不要','是否继续听'], 'min_length'=>200, 'max_length'=>900, 'pattern'=>'[？?]\\s*$'}
                 roundtrip_expect['/audio_integrity/streams'] = {'equals'=>1}
               end
-              if step['client'].include?('multi_role') && File.basename(file) == 'murder-mystery.giztest.yaml'
+              if step['client'].include?('multi_role') && raid == 'murder-mystery'
                 roundtrip_expect['/text']['not_contains'] = ['【', '】']
               end
               check(expect == roundtrip_expect, "#{file}: #{step['id']} must check complete realtime output without timing gates")
               first = steps(doc).find { |s| s['id'] == "#{step['id']}_first_response" }
-              raid = File.basename(file, '.giztest.yaml')
               if raid.match?(/\A(?:story|adventure|learn)-/)
                 check(first && first.dig('peer_stream', 'completion') == 'first_response' &&
                       first.dig('peer_stream', 'first_text_timeout') == '2s' &&
@@ -198,60 +277,33 @@ module GiztestLayout
             check(expect.dig('/audio_pacing/underruns', 'equals') == 0 && expect.dig('/audio_pacing/minimum_buffer_ms', 'minimum') == 0, "#{file}: missing device playback buffer gates")
           end
         elsif tier == 'quality'
-          check(doc['timeout'] == (File.basename(file).match?(/\A(?:story|adventure)-/) ? '30m' : '10m'), "#{file}: quality budget must be 10m")
+          check(doc['timeout'] == (File.basename(file).match?(/\A(?:story|adventure)-/) ? '30m' : '10m'), "#{file}: quality budget must retain 30m for story/adventure, 10m otherwise")
           check(!steps(doc).any? { |s| s['workspace_relay'] }, "#{file}: long dialogue relay belongs in soak")
           check(!steps(doc).any? { |s| s.dig('peer_stream', 'completion') == 'first_response' }, "#{file}: first-response latency probes belong in smoke")
           check(!doc.fetch('clients').keys.any? { |c| c.end_with?('_tester') }, "#{file}: idle Tester client in quality")
-          logical = doc['clients'].keys.map { |c| c.split('__').first }.uniq
-          if logical.group_by { |c| c.include?('multi_role') }.values.any? { |v| v.size > 1 } && logical.all? { |c| c.match?(/\A(?:flowcraft|eino)/) }
-            check(!doc.fetch('steps').any? { |s| s['peer_stream'] }, "#{file}: equivalent quality responses must run in parallel")
-            doc.fetch('steps').select { |s| s['parallel'] }.each do |group|
-              group['parallel'].group_by { |s| s['client'].split('__', 2).last }.each_value do |children|
-                variants = children.map { |s| s['client'].include?('multi_role') }.uniq
-                expected = logical.select { |c| variants.include?(c.include?('multi_role')) }
-                check(children.map { |s| s['client'].split('__').first }.sort == expected.sort, "#{file}: each active Workspace group must exercise every implementation")
-              end
-            end
-          end
         end
         clients = doc.fetch('clients').keys
-        implementations = clients.grep(/\A(?:flowcraft|eino)(?:_|$)/).reject { |c| c.end_with?('_tester') }.map { |c| c.split('__').first }.uniq
-        raid = File.basename(file, '.giztest.yaml')
-        manifest_path = "workflows/#{raid}/raid.json"
-        if File.exist?(manifest_path)
-          manifest = JSON.parse(File.read(manifest_path))
-          declared = manifest.fetch('implementations').keys.map { |i| i.tr('-', '_') }.sort
-          check(implementations.sort == declared, "#{file}: missing or unexpected implementation clients")
-        end
-        implementations.group_by { |i| i.include?('multi_role') }.each_value do |variant|
-          baseline = variant.first
-          variant.drop(1).each do |impl|
-            vars = [baseline, impl].map do |i|
-              normalize(doc.fetch('variables').select { |k, _| k.start_with?(i + '_') && k.include?('_multi_role_') == i.include?('multi_role') }, i)
-            end
-            check(vars[0] == vars[1], "#{file}: #{baseline}/#{impl} variable definitions differ")
-          end
-        end
+        check(clients.all? { |c| c == declared_implementation || c.start_with?(declared_implementation + '__') || c == declared_implementation + '_tester' ||
+          (AUDIO_ONLY.include?(raid) && c.start_with?(declared_implementation + '_')) || (raid == 'ast-translate' && tier == 'quality' && c == 'ast') }, "#{file}: foreign implementation client")
         %w[steps finally].each do |section|
-          if implementations.size > 1
-            steps(doc, section).each do |step|
-              next if step.key?('speech') # one common fixture operation
-              owners = implementations.select { |impl| owns?(step, impl) }
-              check(owners.size == 1, "#{file}: #{section}/#{step['id']} has ambiguous or missing implementation ownership")
-            end
-          end
-          implementations.combination(2).each do |baseline, impl|
-            next if baseline.include?('multi_role') != impl.include?('multi_role')
-            left, right = [baseline, impl].map { |i| sequence(doc, i, section) }
-            if capabilities.fetch(baseline) != capabilities.fetch(impl)
-              left, right = [left, right].map { |seq| without_audio(seq) }
-            end
-            index = (0...[left.size, right.size].max).find { |n| left[n] != right[n] }
-            check(index.nil?, "#{file}: #{section} #{baseline}/#{impl} mismatch at #{index}: #{left[index].inspect if index} != #{right[index].inspect if index}")
+          steps(doc, section).each do |step|
+            check(AUDIO_ONLY.include?(raid) || step['speech'] || owns?(step, declared_implementation),
+                  "#{file}: #{section}/#{step['id']} has no implementation owner")
+            check(!step['id'].include?('keepalive') || step.dig('rpc', 'method') == 'server.run.status', "#{file}: invalid setup keepalive")
           end
         end
-        if file.end_with?('/murder-mystery.giztest.yaml')
-          check(implementations.sort == %w[flowcraft flowcraft_multi_role] && !JSON.generate(doc).include?('eino-murder-mystery'), "#{file}: murder-mystery must be Flowcraft only")
+      end
+      tier_raids.each do |raid|
+        variants = inventory(raid)
+        capabilities = tts_capabilities(raid)
+        next if capabilities.empty?
+        variants.each do |suffix, impl|
+          next unless suffix.start_with?('eino')
+          peer = suffix.sub(/\Aeino/, 'flowcraft')
+          peer = 'flowcraft' if raid == 'journey-guide'
+          next unless variants.key?(peer)
+          compare_files("tests/giztest/#{tier}/#{raid}.#{peer}.giztest.yaml",
+                        "tests/giztest/#{tier}/#{raid}.#{suffix}.giztest.yaml", variants[peer], impl, capabilities)
         end
       end
       puts "validated #{tier}: #{files.size} files and implementation parity"
@@ -259,11 +311,11 @@ module GiztestLayout
     realtime_count = 0
     Dir['workflows/*/raid.json'].each do |file|
       m = JSON.parse(File.read(file)); raid = m.fetch('id')
-      expected = TIERS.map { |t| "tests/giztest/#{t}/#{raid}.giztest.yaml" }
+      expected = TIERS.flat_map { |t| inventory(raid).keys.map { |impl| "tests/giztest/#{t}/#{raid}.#{impl}.giztest.yaml" } }
       check(m.fetch('tests').map { |t| t.fetch('file') }.sort == expected.sort, "#{file}: tier registration mismatch")
       if raid.match?(/\A(?:story|adventure|learn)-/)
-        smoke = YAML.load_file("tests/giztest/smoke/#{raid}.giztest.yaml")
         %w[flowcraft eino].each do |engine|
+          smoke = YAML.load_file("tests/giztest/smoke/#{raid}.#{engine}.giztest.yaml")
           realtime_count += 1
           impl = m.fetch('implementations').fetch(engine)
           check(impl.fetch('input').include?('realtime'), "#{file}: #{engine} lacks realtime capability")
@@ -280,7 +332,8 @@ module GiztestLayout
         check(eino.dig('voice_adapter','asr_model') == 'asr', "#{file}: missing Eino realtime ASR binding")
       end
       m.fetch('tests').each do |t|
-        check(t['tier'] == t['file'].split('/')[2] && t['implementations'].sort == m.fetch('implementations').keys.sort, "#{file}: implementation registration mismatch")
+        check(t['tier'] == t['file'].split('/')[2] && t['implementations'].size == 1 && m.fetch('implementations').key?(t['implementations'].first) &&
+          t['file'] == "tests/giztest/#{t['tier']}/#{raid}.#{File.basename(m['implementations'][t['implementations'].first]['file'], '.yaml')}.giztest.yaml", "#{file}: implementation registration mismatch")
       end
     end
     check(realtime_count == 100, "expected 100 original story/adventure/learn RealTime clients, found #{realtime_count}")

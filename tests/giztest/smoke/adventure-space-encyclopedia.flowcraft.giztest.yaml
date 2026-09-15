@@ -1,0 +1,281 @@
+# User Story:
+# As a Raids catalog maintainer,
+# I want equal opening, role and realtime responsiveness gates for every implementation,
+# So that text and audio respond promptly without overlap or playback stalls.
+version: gizclaw.test/v1alpha1
+name: adventure-space-encyclopedia.smoke.flowcraft
+clients:
+  flowcraft:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+variables:
+  endpoint:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_ENDPOINT
+  registration_token:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_REGISTRATION_TOKEN
+    secret: true
+  flowcraft_text_workspace:
+    direction: input
+    type: string
+    generate: token
+  flowcraft_realtime_workspace:
+    direction: input
+    type: string
+    generate: token
+  input_audio:
+    direction: output
+    type: audio
+    max_bytes: 16777216
+    media_type: audio/ogg
+    codec: opus
+repeat: 1
+timeout: 12m
+steps:
+- id: flowcraft_register
+  client: flowcraft
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: flowcraft_create_text
+  client: flowcraft
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${flowcraft_text_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-adventure-space-encyclopedia
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: flowcraft_select_text
+  client: flowcraft
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${flowcraft_text_workspace}"
+- id: flowcraft_warmup_text
+  client: flowcraft
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: flowcraft_create_realtime
+  client: flowcraft
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${flowcraft_realtime_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-adventure-space-encyclopedia
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_REALTIME
+- timeout: 2m
+  id: flowcraft_probe_narrator
+  client: flowcraft
+  peer_stream:
+    mode: text
+    input: 请介绍这个体验，并从指定中文开场开始。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/first_audio_ms":
+      maximum: 90000
+    "/text":
+      not_contains:
+      - "###"
+      - "```"
+      - "- "
+      - "* "
+      - 旁白说
+      - 旁白：
+      contains_all:
+      - 欢迎来到宇宙百科研究站，你是新来的小研究员，我会陪你一起解开太阳系的谜题。每个任务你都可以选先分析哪条线索，卡住了就说“给我一个提示”。
+      - 宇宙百科收到第一个任务，找出太阳系里一天比一年还长的行星，你想先分析自转还是公转？
+      min_length: 15
+      max_length: 240
+      non_empty: true
+    "/events":
+      non_empty: true
+    "/text_eos_ms":
+      maximum: 90000
+    "/audio_eos_ms":
+      maximum: 90000
+    "/audio_integrity/streams":
+      minimum: 1
+    "/audio_integrity/max_active":
+      equals: 1
+    "/audio_integrity/open":
+      equals: 0
+    "/audio_integrity/violations":
+      equals: 0
+    "/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/audio_pacing/underruns":
+      equals: 0
+- timeout: 15s
+  id: flowcraft_probe_narrator_first_response
+  client: flowcraft
+  peer_stream:
+    mode: text
+    input: 开始体验。
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: flowcraft_probe_narrator_stop_probe
+  client: flowcraft
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: flowcraft_probe_narrator_resume_workspace
+  client: flowcraft
+  timeout: 2m
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+- id: flowcraft_select_realtime
+  client: flowcraft
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${flowcraft_realtime_workspace}"
+- id: flowcraft_warmup_realtime
+  client: flowcraft
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: synthesize_input_audio
+  client: flowcraft
+  speech:
+    method: server.speech.synthesize
+    request:
+      voice_name: giztest-input.zh
+      text: 请简短介绍当前故事，并告诉我现在可以做什么。
+      accepted_content_types:
+      - audio/ogg
+    cache: run
+  save_as: input_audio
+- timeout: 2m
+  id: flowcraft_realtime_roundtrip
+  client: flowcraft
+  peer_stream:
+    mode: realtime
+    input: "${input_audio}"
+    pacing: 20ms
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/events":
+      non_empty: true
+    "/text":
+      non_empty: true
+    "/text_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/audio_eos":
+      equals: true
+    "/audio_integrity/streams":
+      minimum: 1
+    "/audio_integrity/max_active":
+      equals: 1
+    "/audio_integrity/open":
+      equals: 0
+    "/audio_integrity/violations":
+      equals: 0
+    "/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/audio_pacing/underruns":
+      equals: 0
+- timeout: 15s
+  id: flowcraft_realtime_roundtrip_first_response
+  client: flowcraft
+  peer_stream:
+    mode: realtime
+    input: "${input_audio}"
+    pacing: 20ms
+    require_text: true
+    require_audio: true
+    completion: first_response
+    first_text_timeout: 2s
+    first_audio_timeout: 3s
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 2000
+    "/first_audio_ms":
+      maximum: 3000
+- id: flowcraft_realtime_roundtrip_stop_probe
+  client: flowcraft
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: flowcraft_realtime_roundtrip_resume_workspace
+  client: flowcraft
+  timeout: 2m
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+finally:
+- id: flowcraft_stop_run
+  client: flowcraft
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: flowcraft_delete_text
+  client: flowcraft
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${flowcraft_text_workspace}"
+- id: flowcraft_delete_realtime
+  client: flowcraft
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${flowcraft_realtime_workspace}"
+- id: flowcraft_delete_peer
+  client: flowcraft
+  rpc:
+    method: server.peer.delete
+    request: {}
+report:
+  redact:
+  - registration_token

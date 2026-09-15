@@ -18,8 +18,8 @@ Install an implementation into a RuntimeProfile with `raids install adventure-mo
 
 Tester: `test.yaml` (`adventure-monster-maze-test`, eino), shared by every implementation; one Giztest scenario per implementation:
 
-- `tests/giztest/adventure-monster-maze/eino.giztest.yaml` (relay, with reload, timeout 55m)
-- `tests/giztest/adventure-monster-maze/flowcraft.giztest.yaml` (relay, with reload, timeout 55m)
+- `tests/giztest/soak/adventure-monster-maze.eino.giztest.yaml` (relay, with reload, timeout 55m)
+- `tests/giztest/soak/adventure-monster-maze.flowcraft.giztest.yaml` (relay, with reload, timeout 55m)
 
 The route has 13 target responses:
 

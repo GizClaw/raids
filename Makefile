@@ -4,7 +4,7 @@ GIZCLAW ?= gizclaw
 GIZCLAW_TEST_CLI ?= $(GIZCLAW)
 TIER ?= all
 RAID ?= all
-PARALLEL ?= 1
+PARALLEL ?= 4
 APPLY ?= 0
 
 export GIZCLAW GIZCLAW_TEST_CLI

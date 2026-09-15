@@ -97,7 +97,7 @@ for package in workflows/story-*; do
 			exit 1
 		}
 		client="$(printf %s "$engine" | tr .- __)"
-		test_file="tests/giztest/quality/$raid.giztest.yaml"
+		test_file="tests/giztest/quality/$raid.$engine.giztest.yaml"
 		test -f "$test_file" || {
 			printf 'missing story transition Giztest: %s\n' "$test_file" >&2
 			exit 1

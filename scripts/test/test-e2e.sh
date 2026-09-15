@@ -27,7 +27,7 @@ root="$(repo_root)"
 : "${GIZCLAW_TEST_CLI:=$GIZCLAW}"
 : "${RAID:=all}"
 : "${TIER:=all}"
-: "${PARALLEL:=1}"
+: "${PARALLEL:=4}"
 : "${APPLY:=0}"
 : "${REPORT:=}"
 
@@ -45,10 +45,13 @@ for tier in $tiers; do
  if test "$RAID" = all; then
   set -- "$@" "tests/giztest/$tier"
  else
-  file="tests/giztest/$tier/$RAID.giztest.yaml"
-  if test -f "$file"; then
+  found=0
+  for file in "tests/giztest/$tier/$RAID".*.giztest.yaml; do
+   test -f "$file" || continue
    set -- "$@" "$file"
-  elif test "$TIER" != all; then
+   found=1
+  done
+  if test "$found" = 0 && test "$TIER" != all; then
    printf 'no %s tests for RAID=%s\n' "$tier" "$RAID" >&2; exit 1
   fi
  fi

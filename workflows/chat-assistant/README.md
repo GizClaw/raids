@@ -15,7 +15,7 @@ Install an implementation into a RuntimeProfile with `raids install chat-assista
 
 Tester: `test.yaml` (`chat-assistant-test`, eino), shared by every implementation; one Giztest scenario per implementation:
 
-- `tests/giztest/chat-assistant/flowcraft.giztest.yaml` (relay, with reload, timeout 52m)
+- `tests/giztest/soak/chat-assistant.flowcraft.giztest.yaml` (relay, with reload, timeout 52m)
 
 The route has 12 target responses:
 

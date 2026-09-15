@@ -1,0 +1,189 @@
+# User Story:
+# As a Raids catalog maintainer,
+# I want equal opening, role and roundtrip responsiveness gates for every implementation,
+# So that text and audio respond promptly without overlap or playback stalls.
+version: gizclaw.test/v1alpha1
+name: journey-guide.smoke.flowcraft
+clients:
+  flowcraft:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+variables:
+  endpoint:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_ENDPOINT
+  registration_token:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_REGISTRATION_TOKEN
+    secret: true
+  flowcraft_text_workspace:
+    direction: input
+    type: string
+    generate: token
+  flowcraft_roundtrip_workspace:
+    direction: input
+    type: string
+    generate: token
+repeat: 1
+timeout: 12m
+steps:
+- id: flowcraft_register
+  client: flowcraft
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: flowcraft_create_text
+  client: flowcraft
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${flowcraft_text_workspace}"
+      collection: story-teller
+      workflow_name: journey
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: flowcraft_select_text
+  client: flowcraft
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${flowcraft_text_workspace}"
+- id: flowcraft_warmup_text
+  client: flowcraft
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: flowcraft_create_roundtrip
+  client: flowcraft
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${flowcraft_roundtrip_workspace}"
+      collection: story-teller
+      workflow_name: journey
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- timeout: 2m
+  id: flowcraft_turn_1_origin
+  client: flowcraft
+  peer_stream:
+    mode: text
+    input: 我从花果山出发，带着一枚青铜铃。承接我的行动，不要替我选择路线。
+    require_text: true
+    require_audio: true
+    idle_timeout: 90s
+  expect:
+    "/text":
+      contains_all:
+      - 花果山
+      - 青铜铃
+      min_length: 80
+      max_length: 520
+      non_empty: true
+    "/first_text_ms":
+      maximum: 6000
+    "/text_eos_ms":
+      maximum: 90000
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_integrity/streams":
+      minimum: 1
+    "/audio_integrity/max_active":
+      equals: 1
+    "/audio_integrity/open":
+      equals: 0
+    "/audio_integrity/violations":
+      equals: 0
+    "/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/audio_pacing/underruns":
+      equals: 0
+- id: flowcraft_select_roundtrip
+  client: flowcraft
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${flowcraft_roundtrip_workspace}"
+- id: flowcraft_warmup_roundtrip
+  client: flowcraft
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- timeout: 2m
+  id: flowcraft_roundtrip
+  peer_stream:
+    mode: text
+    input: 我从花果山出发，带着一枚青铜铃。简短承接我的行动，不要替我选择路线。
+    require_audio: true
+    require_text: true
+    idle_timeout: 90s
+  client: flowcraft
+  expect:
+    "/events":
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/text":
+      non_empty: true
+    "/audio_integrity/streams":
+      minimum: 1
+    "/audio_integrity/max_active":
+      equals: 1
+    "/audio_integrity/open":
+      equals: 0
+    "/audio_integrity/violations":
+      equals: 0
+    "/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/audio_pacing/underruns":
+      equals: 0
+finally:
+- id: flowcraft_stop_run
+  client: flowcraft
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: flowcraft_delete_text
+  client: flowcraft
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${flowcraft_text_workspace}"
+- id: flowcraft_delete_roundtrip
+  client: flowcraft
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${flowcraft_roundtrip_workspace}"
+- id: flowcraft_delete_peer
+  client: flowcraft
+  rpc:
+    method: server.peer.delete
+    request: {}
+report:
+  redact:
+  - registration_token

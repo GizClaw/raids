@@ -1,0 +1,640 @@
+# User Story:
+# As a Raids quality maintainer,
+# I want identical quality contracts for every implementation of story-alice,
+# So that safety, correction, recall, routing and language regressions fail at the original gates.
+version: gizclaw.test/v1alpha1
+name: story-alice.quality.eino
+clients:
+  eino__transitions: &1
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+  eino__roles: *1
+variables:
+  endpoint:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_ENDPOINT
+  registration_token:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_REGISTRATION_TOKEN
+    secret: true
+  eino_transitions_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_roles_narrator_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_roles_alice_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_roles_white_rabbit_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_roles_cheshire_cat_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_roles_queen_of_hearts_workspace:
+    direction: input
+    type: string
+    generate: token
+repeat: 1
+timeout: 30m
+steps:
+- id: eino__transitions_register
+  client: eino__transitions
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: eino_transitions_stop_create_workspace
+  client: eino__transitions
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: eino_transitions_create_workspace
+  client: eino__transitions
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_transitions_workspace}"
+      collection: raidtest-targets
+      workflow_name: eino-story-alice
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_transitions_select_workspace
+  client: eino__transitions
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${eino_transitions_workspace}"
+- id: eino_transitions_warmup_workspace
+  client: eino__transitions
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- timeout: 2m
+  id: eino_transitions_opening_with_guidance
+  client: eino__transitions
+  peer_stream:
+    mode: text
+    input: 请从第一章开始《爱丽丝梦游仙境》。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      contains_all:
+      - 第 1 章
+      - 迟到的怀表
+      - 爱丽丝
+      - 白兔
+      - 进入下一章
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+- timeout: 2m
+  id: eino_transitions_natural_consequence
+  client: eino__transitions
+  peer_stream:
+    mode: text
+    input: 请继续当前场景，推进一个直接结果。
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      not_contains:
+      - 第 2 章
+      - 缩小之门
+      min_length: 4
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+- id: eino__roles_reconnect_before_register
+  client: eino__roles
+  reconnect: {}
+- id: eino__roles_register
+  client: eino__roles
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: eino_roles_stop_create_narrator_workspace
+  client: eino__roles
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: eino_roles_create_narrator_workspace
+  client: eino__roles
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_roles_narrator_workspace}"
+      collection: raidtest-targets
+      workflow_name: eino-story-alice
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_roles_select_narrator_workspace
+  client: eino__roles
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${eino_roles_narrator_workspace}"
+- id: eino__transitions_setup_keepalive_1
+  client: eino__transitions
+  rpc:
+    method: server.run.status
+    request: {}
+- id: eino_roles_warmup_narrator_workspace
+  client: eino__roles
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: eino__transitions_setup_keepalive_3
+  client: eino__transitions
+  rpc:
+    method: server.run.status
+    request: {}
+- id: eino_roles_stop_create_alice_workspace
+  client: eino__roles
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: eino_roles_create_alice_workspace
+  client: eino__roles
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_roles_alice_workspace}"
+      collection: raidtest-targets
+      workflow_name: eino-story-alice
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_roles_select_alice_workspace
+  client: eino__roles
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${eino_roles_alice_workspace}"
+- id: eino__transitions_setup_keepalive_5
+  client: eino__transitions
+  rpc:
+    method: server.run.status
+    request: {}
+- id: eino_roles_warmup_alice_workspace
+  client: eino__roles
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: eino__transitions_setup_keepalive_7
+  client: eino__transitions
+  rpc:
+    method: server.run.status
+    request: {}
+- id: eino_roles_stop_create_white_rabbit_workspace
+  client: eino__roles
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: eino_roles_create_white_rabbit_workspace
+  client: eino__roles
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_roles_white_rabbit_workspace}"
+      collection: raidtest-targets
+      workflow_name: eino-story-alice
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_roles_select_white_rabbit_workspace
+  client: eino__roles
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${eino_roles_white_rabbit_workspace}"
+- id: eino__transitions_setup_keepalive_9
+  client: eino__transitions
+  rpc:
+    method: server.run.status
+    request: {}
+- id: eino_roles_warmup_white_rabbit_workspace
+  client: eino__roles
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: eino__transitions_setup_keepalive_11
+  client: eino__transitions
+  rpc:
+    method: server.run.status
+    request: {}
+- id: eino_roles_stop_create_cheshire_cat_workspace
+  client: eino__roles
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: eino_roles_create_cheshire_cat_workspace
+  client: eino__roles
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_roles_cheshire_cat_workspace}"
+      collection: raidtest-targets
+      workflow_name: eino-story-alice
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_roles_select_cheshire_cat_workspace
+  client: eino__roles
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${eino_roles_cheshire_cat_workspace}"
+- id: eino__transitions_setup_keepalive_13
+  client: eino__transitions
+  rpc:
+    method: server.run.status
+    request: {}
+- id: eino_roles_warmup_cheshire_cat_workspace
+  client: eino__roles
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: eino__transitions_setup_keepalive_15
+  client: eino__transitions
+  rpc:
+    method: server.run.status
+    request: {}
+- id: eino_roles_stop_create_queen_of_hearts_workspace
+  client: eino__roles
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: eino_roles_create_queen_of_hearts_workspace
+  client: eino__roles
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_roles_queen_of_hearts_workspace}"
+      collection: raidtest-targets
+      workflow_name: eino-story-alice
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_roles_select_queen_of_hearts_workspace
+  client: eino__roles
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${eino_roles_queen_of_hearts_workspace}"
+- id: eino__transitions_setup_keepalive_17
+  client: eino__transitions
+  rpc:
+    method: server.run.status
+    request: {}
+- id: eino_roles_warmup_queen_of_hearts_workspace
+  client: eino__roles
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: suite_responses_3
+  parallel:
+  - id: eino_transitions_character_perspective
+    client: eino__transitions
+    peer_stream:
+      mode: text
+      input: 请让爱丽丝亲自回应当前结果，说出不同的立场。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: eino_roles_probe_narrator
+    client: eino__roles
+    peer_stream:
+      mode: text
+      input: 请由旁白承接当前故事，只推进一个可见线索。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  timeout: 2m
+  expect:
+    "/eino_transitions_character_perspective/text":
+      not_contains:
+      - 第 2 章
+      - 缩小之门
+      min_length: 4
+    "/eino_transitions_character_perspective/text_eos":
+      equals: true
+    "/eino_transitions_character_perspective/audio_eos":
+      equals: true
+    "/eino_transitions_character_perspective/audio_bytes":
+      minimum: 1
+    "/eino_transitions_character_perspective/first_text_ms":
+      maximum: 6000
+    "/eino_roles_probe_narrator/text":
+      not_contains:
+      - 旁白说
+      - 旁白：
+    "/eino_roles_probe_narrator/text_eos":
+      equals: true
+    "/eino_roles_probe_narrator/audio_eos":
+      equals: true
+    "/eino_roles_probe_narrator/audio_bytes":
+      minimum: 1
+    "/eino_roles_probe_narrator/first_text_ms":
+      maximum: 6000
+    "/eino_roles_probe_narrator/first_audio_ms":
+      maximum: 90000
+- id: suite_responses_4
+  parallel:
+  - id: eino_transitions_reject_negated_choice
+    client: eino__transitions
+    peer_stream:
+      mode: text
+      input: 我先不选择，请让爱丽丝说明为什么还不能进入第二章；只说明仍停留的当前章节。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: eino_roles_alice_chapter_setup_1
+    client: eino__roles
+    peer_stream:
+      mode: text
+      input: 请从第一章开始《爱丽丝梦游仙境》。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  timeout: 2m
+  expect:
+    "/eino_transitions_reject_negated_choice/text":
+      contains_any:
+      - 迟到的怀表
+      - 第一章
+      - 第 1 章
+      not_contains:
+      - 第 2 章
+      - 缩小之门
+    "/eino_transitions_reject_negated_choice/text_eos":
+      equals: true
+    "/eino_transitions_reject_negated_choice/audio_eos":
+      equals: true
+    "/eino_transitions_reject_negated_choice/audio_bytes":
+      minimum: 1
+    "/eino_transitions_reject_negated_choice/first_text_ms":
+      maximum: 6000
+    "/eino_roles_alice_chapter_setup_1/text_eos":
+      equals: true
+    "/eino_roles_alice_chapter_setup_1/audio_eos":
+      equals: true
+    "/eino_roles_alice_chapter_setup_1/audio_bytes":
+      minimum: 1
+    "/eino_roles_alice_chapter_setup_1/first_text_ms":
+      maximum: 6000
+    "/eino_roles_alice_chapter_setup_1/first_audio_ms":
+      maximum: 90000
+    "/eino_roles_alice_chapter_setup_1/text":
+      contains: 迟到的怀表
+- id: suite_responses_5
+  parallel:
+  - id: eino_transitions_choice_prompts_next_chapter
+    client: eino__transitions
+    peer_stream:
+      mode: text
+      input: 检查怀表
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: eino_roles_probe_alice
+    client: eino__roles
+    peer_stream:
+      mode: text
+      input: 请让爱丽丝亲自回应，只说这个角色知道的事。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  timeout: 2m
+  expect:
+    "/eino_transitions_choice_prompts_next_chapter/text":
+      contains: 下一章
+      not_contains:
+      - 第 2 章
+      - 缩小之门
+    "/eino_transitions_choice_prompts_next_chapter/text_eos":
+      equals: true
+    "/eino_transitions_choice_prompts_next_chapter/audio_eos":
+      equals: true
+    "/eino_transitions_choice_prompts_next_chapter/audio_bytes":
+      minimum: 1
+    "/eino_transitions_choice_prompts_next_chapter/first_text_ms":
+      maximum: 6000
+    "/eino_roles_probe_alice/text":
+      not_contains:
+      - 爱丽丝说
+      - 爱丽丝：
+    "/eino_roles_probe_alice/text_eos":
+      equals: true
+    "/eino_roles_probe_alice/audio_eos":
+      equals: true
+    "/eino_roles_probe_alice/audio_bytes":
+      minimum: 1
+    "/eino_roles_probe_alice/first_text_ms":
+      maximum: 6000
+    "/eino_roles_probe_alice/first_audio_ms":
+      maximum: 90000
+- id: suite_responses_6
+  parallel:
+  - id: eino_transitions_enter_next_chapter_with_story
+    client: eino__transitions
+    peer_stream:
+      mode: text
+      input: 进入下一章。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: eino_roles_white-rabbit_chapter_setup_1
+    client: eino__roles
+    peer_stream:
+      mode: text
+      input: 请从第一章开始《爱丽丝梦游仙境》。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  timeout: 2m
+  expect:
+    "/eino_transitions_enter_next_chapter_with_story/text":
+      contains_all:
+      - 第 2 章
+      - 缩小之门
+      not_contains:
+      - 第 1 章
+      pattern: 第 2 章[：:]\s*缩小之门[\s\S]{20,}[。！？]
+    "/eino_transitions_enter_next_chapter_with_story/text_eos":
+      equals: true
+    "/eino_transitions_enter_next_chapter_with_story/audio_eos":
+      equals: true
+    "/eino_transitions_enter_next_chapter_with_story/audio_bytes":
+      minimum: 1
+    "/eino_transitions_enter_next_chapter_with_story/first_text_ms":
+      maximum: 6000
+    "/eino_roles_white-rabbit_chapter_setup_1/text_eos":
+      equals: true
+    "/eino_roles_white-rabbit_chapter_setup_1/audio_eos":
+      equals: true
+    "/eino_roles_white-rabbit_chapter_setup_1/audio_bytes":
+      minimum: 1
+    "/eino_roles_white-rabbit_chapter_setup_1/first_text_ms":
+      maximum: 6000
+    "/eino_roles_white-rabbit_chapter_setup_1/first_audio_ms":
+      maximum: 90000
+    "/eino_roles_white-rabbit_chapter_setup_1/text":
+      contains: 迟到的怀表
+- id: suite_responses_7
+  parallel:
+  - id: eino_transitions_continue_current_chapter
+    client: eino__transitions
+    peer_stream:
+      mode: text
+      input: 请继续第二章当前场景，推进一个直接结果，不要重复章节标题。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  - id: eino_roles_probe_white-rabbit
+    client: eino__roles
+    peer_stream:
+      mode: text
+      input: 请让白兔亲自回应，只说这个角色知道的事。
+      idle_timeout: 90s
+      require_text: true
+      require_audio: true
+  timeout: 2m
+  expect:
+    "/eino_transitions_continue_current_chapter/text":
+      not_contains:
+      - 第 2 章
+      - 缩小之门
+      - 转场条件
+      min_length: 4
+    "/eino_transitions_continue_current_chapter/text_eos":
+      equals: true
+    "/eino_transitions_continue_current_chapter/audio_eos":
+      equals: true
+    "/eino_transitions_continue_current_chapter/audio_bytes":
+      minimum: 1
+    "/eino_transitions_continue_current_chapter/first_text_ms":
+      maximum: 6000
+    "/eino_roles_probe_white-rabbit/text":
+      not_contains:
+      - 白兔说
+      - 白兔：
+    "/eino_roles_probe_white-rabbit/text_eos":
+      equals: true
+    "/eino_roles_probe_white-rabbit/audio_eos":
+      equals: true
+    "/eino_roles_probe_white-rabbit/audio_bytes":
+      minimum: 1
+    "/eino_roles_probe_white-rabbit/first_text_ms":
+      maximum: 6000
+    "/eino_roles_probe_white-rabbit/first_audio_ms":
+      maximum: 90000
+finally:
+- id: eino__transitions_stop
+  client: eino__transitions
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: eino__roles_stop
+  client: eino__roles
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: eino_transitions_delete_workspace
+  client: eino__transitions
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${eino_transitions_workspace}"
+- id: eino_roles_delete_narrator_workspace
+  client: eino__roles
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${eino_roles_narrator_workspace}"
+- id: eino_roles_delete_alice_workspace
+  client: eino__roles
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${eino_roles_alice_workspace}"
+- id: eino_roles_delete_white_rabbit_workspace
+  client: eino__roles
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${eino_roles_white_rabbit_workspace}"
+- id: eino_roles_delete_cheshire_cat_workspace
+  client: eino__roles
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${eino_roles_cheshire_cat_workspace}"
+- id: eino_roles_delete_queen_of_hearts_workspace
+  client: eino__roles
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${eino_roles_queen_of_hearts_workspace}"
+- id: eino__transitions_delete
+  client: eino__transitions
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: eino__roles_delete
+  client: eino__roles
+  rpc:
+    method: server.peer.delete
+    request: {}
+report:
+  redact:
+  - registration_token

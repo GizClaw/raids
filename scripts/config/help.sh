@@ -22,7 +22,7 @@ printf '%s\n' \
   '  GIZCLAW_TEST_CLI       CLI providing `gizclaw test` (default: $GIZCLAW)' \
   '  TIER=all               smoke|quality|soak|all for test-e2e' \
   '  RAID=all               raid name or all; example: TIER=smoke RAID=story-aesop' \
-  '  PARALLEL=1             concurrent Giztest tasks for test-e2e' \
+  '  PARALLEL=4             concurrent Giztest tasks for test-e2e' \
   '  APPLY=0                APPLY=1 applies the testing closure before test-e2e (needs Admin context)' \
   '  GIZCLAW_CONTEXT        Admin context used when APPLY=1' \
   '  REPORT                 Giztest JSON report path (default: tests/giztest/reports/<timestamp>.json)'

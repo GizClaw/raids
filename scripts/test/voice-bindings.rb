@@ -58,7 +58,7 @@ Dir['workflows/*/raid.json'].sort.each do |file|
       source = File.read(workflow)
       check(source.include?('200至900') && source.include?('不输出其它【】标记'), "#{workflow}: missing narration contract")
       adapter.fetch('speaker_voices').each_key { |speaker| check(source.include?("【#{speaker}】"), "#{workflow}: missing marker #{speaker}") }
-      probe = GiztestLayout.probes("tests/giztest/smoke/#{raid}.giztest.yaml", name.tr('-', '_')).find { |s| s['id'] == 'continuous_story' }
+      probe = GiztestLayout.probes("tests/giztest/smoke/#{raid}.#{File.basename(impl.fetch('file'), '.yaml')}.giztest.yaml", name.tr('-', '_')).find { |s| s['id'] == 'continuous_story' }
       check(probe && probe.dig('expect','/text','min_length') == 200 && probe.dig('expect','/text','max_length') == 900, "#{workflow}: missing length gates")
       check((['【','】','进入下一章','要不要继续','想继续听就说'] - probe.dig('expect','/text','not_contains')).empty? && probe.dig('expect','/audio_integrity/streams','equals') == 1 && probe.dig('expect','/audio_pacing/underruns','equals') == 0, "#{workflow}: missing playback/marker gates")
     end

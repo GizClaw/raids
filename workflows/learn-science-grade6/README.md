@@ -112,11 +112,11 @@ Metadata: edition_note: 平台标题：义务教育教科书·科学六年级下
 
 Tester: `test.yaml` (`learn-science-grade6-test`, eino), shared by every implementation:
 
-- `tests/giztest/smoke/learn-science-grade6.giztest.yaml`: speed, latency and responsiveness.
-- `tests/giztest/quality/learn-science-grade6.giztest.yaml`: quality control and safety guardrails.
-- `tests/giztest/soak/learn-science-grade6.giztest.yaml`: long-turn Tester relay with reload.
+- `tests/giztest/smoke/learn-science-grade6.<implementation>.giztest.yaml`: speed, latency and responsiveness.
+- `tests/giztest/quality/learn-science-grade6.<implementation>.giztest.yaml`: quality control and safety guardrails.
+- `tests/giztest/soak/learn-science-grade6.<implementation>.giztest.yaml`: long-turn Tester relay with reload.
 
-Run `make test-e2e TIER=smoke RAID=learn-science-grade6`. Each tier file covers all implementations; see [the test guide](../../tests/giztest/README.md) for budgets and failure reporting.
+Run `make test-e2e TIER=smoke RAID=learn-science-grade6`. Each tier has one file per implementation, run concurrently with `PARALLEL=4`; see [the test guide](../../tests/giztest/README.md) for budgets and failure reporting.
 
 The route has 8 target responses and verifies safe prediction-first
 experiments, observation-based explanation, gentle misconception correction,

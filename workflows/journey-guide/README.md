@@ -22,11 +22,11 @@ profiles already provide this binding.
 
 Tester: `test.yaml` (`journey-guide-test`, eino), shared by every implementation; one Giztest scenario per implementation:
 
-- `tests/giztest/journey-guide/eino-history.giztest.yaml` (relay, with reload, timeout 45m)
-- `tests/giztest/journey-guide/eino-memory-async.giztest.yaml` (relay, with reload, timeout 45m)
-- `tests/giztest/journey-guide/eino-memory-recall.giztest.yaml` (relay, with reload, timeout 45m)
-- `tests/giztest/journey-guide/flowcraft.benchmark-6s.giztest.yaml` (single client, timeout 18m)
-- `tests/giztest/journey-guide/flowcraft.giztest.yaml` (relay, with reload, timeout 79m)
+- `tests/giztest/soak/journey-guide.eino-history.giztest.yaml` (relay, with reload, timeout 45m)
+- `tests/giztest/soak/journey-guide.eino-memory-async.giztest.yaml` (relay, with reload, timeout 45m)
+- `tests/giztest/soak/journey-guide.eino-memory-recall.giztest.yaml` (relay, with reload, timeout 45m)
+- `tests/giztest/soak/journey-guide.flowcraft.benchmark-6s.giztest.yaml` (single client, timeout 18m)
+- `tests/giztest/soak/journey-guide.flowcraft.giztest.yaml` (relay, with reload, timeout 79m)
 
 The route has 20 target responses:
 

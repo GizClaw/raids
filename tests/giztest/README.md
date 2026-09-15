@@ -1,14 +1,14 @@
 # Giztest 测试
 
-测试布局为 `tests/giztest/{smoke,quality,soak}/<raid>.giztest.yaml`，同一文件覆盖该 raid 的所有实现，共 163 个三档文件。另保留 `h106/` 的 2 个外部设备测试，合计 165 个 `.giztest.yaml`；`reports/` 仅存运行产物，不计入用例。
+测试布局为 `tests/giztest/{smoke,quality,soak}/<raid>.<implementation>.giztest.yaml`，每个文件只运行一个实现，共 517 个三档文件。implementation 与 workflow 文件名一致，例如 `flowcraft`、`eino`、`flowcraft.multi-role`、`eino.multi-role`。文档名为 `<raid>.<tier>.<implementation>`。另保留 `h106/` 的 2 个外部设备测试，合计 519 个 `.giztest.yaml`；`reports/` 仅存运行产物，不计入用例。
 
 | 档位 | 文件数 | 定义 |
 | --- | ---: | --- |
-| smoke | 55 | 速度、延迟、响应度：开场、角色探针、RealTime，完整音频与独立首响应 |
-| quality | 55 | 质量控制与安全围栏：剧情、转场、更正、语言、角色边界；只保留确定性断言 |
-| soak | 53 | Tester 与被测 workflow 长回合对跑，检查记忆、重载及长程一致性 |
+| smoke | 175 | 速度、延迟、响应度：开场、角色探针、RealTime，完整音频与独立首响应 |
+| quality | 175 | 质量控制与安全围栏：剧情、转场、更正、语言、角色边界；只保留确定性断言 |
+| soak | 167 | Tester 与被测 workflow 长回合对跑，检查记忆、重载及长程一致性 |
 
-55 个 raid 均有 smoke/quality；`ast-translate` 和 `doubao-realtime` 是音频专用目标，没有 Tester 长回合协议，故无 soak，其余 53 个均有三档。Murder Mystery 只有 Flowcraft；Journey 在同一文件覆盖 Flowcraft 与三个 Eino 变体；AST 单文件覆盖八个翻译方向，不把不同方向当作等价实现。
+55 个 raid 均有 smoke/quality；`ast-translate` 和 `doubao-realtime` 是音频专用目标，没有 Tester 长回合协议，故无 soak，其余 53 个均有三档。Murder Mystery 只有 Flowcraft original/multi-role；Journey 分别运行 `flowcraft`、`eino-history`、`eino-memory-async`、`eino-memory-recall`。AST 按七个 workflow 拆分，`zh-en-auto` 同一文件保留两个方向，不把不同翻译方向当作等价实现；Doubao 使用 `conversation` 文件名。
 
 ```sh
 export GIZCLAW_TEST_ENDPOINT=<host:port>
@@ -21,7 +21,7 @@ make test-unit-resources
 make test-unit-voices
 ```
 
-默认 `TIER=all RAID=all PARALLEL=1 APPLY=0`。`TIER` 只接受 `smoke|quality|soak|all`，`RAID` 接受 raid 名或 `all`；选中 raid 时逐档选择 `<raid>.giztest.yaml`。`all` 跳过不适用档，显式选择不存在的档会失败。H106 不进入 `make test-e2e`，按其设备环境单独执行 `gizclaw test run tests/giztest/h106`。`REPORT` 可指定 JSON 路径，默认写入 `reports/`。
+默认 `TIER=all RAID=all PARALLEL=4 APPLY=0`。`TIER` 只接受 `smoke|quality|soak|all`，`RAID` 接受 raid 名或 `all`；选中 raid 时逐档选择 `<raid>.*.giztest.yaml`，通过 `gizclaw test run --parallel "$PARALLEL"` 并发运行文件。`all` 跳过不适用档，显式选择不存在的档会失败。H106 不进入 `make test-e2e`，按其设备环境单独执行 `gizclaw test run tests/giztest/h106`。`REPORT` 可指定 JSON 路径，默认写入 `reports/`。
 
 `APPLY=1` 的原行为保持：使用 `GIZCLAW_CONTEXT` 应用全部 workflows、testing RuntimeProfile 与 testing token，再执行选中的测试。它需要 Admin 权限，普通运行只需 Peer 接入点与 token。
 
@@ -29,9 +29,13 @@ make test-unit-voices
 
 RealTime 的 `realtime_roundtrip` 负责验证完整往返：events/text 非空、text/audio EOS、audio_bytes >= 1，并保留统一的 audio_integrity 与 underruns/minimum_buffer 检查，不设置首字、首音或 EOS 耗时上限。该步骤的 first_text_ms 从开始发送输入语音计时，包含约 4s 输入语音及尾静音，正常可达 6.5–7.3s，不能套用 6s 首字门槛。随后的 `realtime_roundtrip_first_response`（原测试的 `realtime_first_response`）独立负责延迟验收，所有实现均保留首字 2s、首音 3s 的 timeout 和 maximum 断言。
 
-smoke 的响应步骤按实现并行，共用一次合成的输入音频。quality 将转场、角色、路由等独立 Workspace 组并行推进（client 名为 `<implementation>__<group>`），每组内部仍按原顺序等待完整回合；同组各实现的输入和门槛一致。每个响应轮次前查询全部 client 的 `server.run.status`，避免短组完成后空闲断连，最后立即 finally stop/delete。文件预算为 10 分钟，不创建 Tester client。重复 contracts 已由 soak 完整覆盖；Wizard 英文重启/重连专用 relay 连同独有断言迁入 soak。任一步失败会停止后续步骤，未运行不能算通过；finally 单独报告，未创建 Workspace 的清理错误不得混称为空闲断连。
+不同实现通过文件级并发运行；需要的 speech 输入在各文件内独立生成。quality 保留 peer_stream 并行组和每个 suite 内的原始步骤顺序，将短 suite 向最后一轮对齐，使角色、路由、转场在同轮完成后立即进入 finally。较晚启动的 client 在首次注册前 reconnect，避免文件启动时建好的连接已经过期。finally 的原有历史输出、stop、Workspace/Peer 删除完整保留，失败时仍执行。
 
-`test-unit-resources` 检查三档实际文件、raid.json 登记、Voice/角色闭环、真实 routing-cases 脚本与 schema，并比较同文件各实现的完整 steps/finally 序列（还原并行父步骤上的断言）；并检查 smoke 播放缓冲门槛、quality 无 relay/Tester、10 分钟预算、独立 Workspace 组的双引擎并行，以及每轮全部 client 的保活检查。仅规范化 client/标识符、workflow_name 和 Workspace parameters；共同输入、expect、capture、timeout、collection、relay 计划必须一致。路由注释不算运行断言，内部 state/history/memory 的路由检查继续使用 `routing-cases.json`。
+不再对每个响应轮次发送全量 keepalive。独立 Workspace 准备阶段仍会让其它已注册 client 等待过久的位置保留 `*_setup_keepalive_*`（`server.run.status`）；Journey soak 在三个 90s recall barrier 之间保留一个 Tester 的 `*_recall_keepalive`。当前 smoke 1、quality 268、soak 4，共 273 个；每个都通过删除反证检查，删掉任一个会造成静态空闲预算超限。原有 3,735 个 keepalive 步骤全部移除，跨实现等待也随文件拆分消除。
+
+`test-unit-resources` 检查文件名/文档名、每档实现清单、raid.json 单实现登记、Voice/角色闭环和真实 routing-cases 脚本。按 variant 比较 `<raid>.flowcraft*.giztest.yaml` 与 `<raid>.eino*.giztest.yaml` 的完整 steps/finally（展开并行父步骤的断言），Journey 的三个 Eino 变体分别与 Flowcraft 比较。仅规范化 client/标识符、workflow_name 和 Workspace parameters；输入、expect、capture、timeout、collection、relay 计划保持一致。仅真实 TTS 能力差异沿用音频断言例外。
+
+空闲规则累计某 client 两次操作之间其它步骤的预算，包含 finally；显式 timeout 按原值计算，无显式 timeout 的控制操作按 30s 调度余量计算，output 为 0。并行组中每个参与 client、relay 中双方均视为持续有流量。间隔超过 180s、晚启动未重连、注册前保活、冗余保活都会失败。这是静态调度检查，不是网络时延上限或真实 E2E 验收；没有放宽或改动原有响应门槛。quality 不创建 Tester，不执行长 relay；预算沿用原值（story/adventure 30m，其余 10m）。
 
 Journey quality 另保留七回合 benchmark（四实现同输入同门槛）；soak 的四实现采用原门槛交集，并统一 recall barrier。eino-history 无持久 Memory 的差异可能导致 recall 失败，不作豁免。长剧情实际轮次以 relay 的 max_turns、completed_turns 和 Tester route 为准。
 
@@ -41,7 +45,7 @@ quality 不重复 smoke 中逐项相同的 285 个首响应探针。其余原有
 
 story-aesop / adventure-history 的 quality 在 finally 清理前读取各 client 最新一条 Workspace 历史，并输出类型和正文到运行日志，辅助定位文本围栏失败；报告 JSON 保留相应步骤与延迟。该观测不替代原 peer_stream 断言。
 
-story-aesop soak 仍按实现顺序执行长 relay；每个 client 首次注册前重连，全部 verdict 完成后在正常步骤中重连四个 client，再进入 finally，以免前一引擎耗时超过空闲窗口后阻断下一引擎或清理。reconnect 不放在 finally（当前 CLI schema 不支持），relay 和裁判断言不变。
+story-aesop soak 每个文件只包含该实现与对应 Tester；长 relay 和裁判完成后立即 finally 清理，因此已移除原有为跨实现等待设置的注册前及清理前 reconnect。relay 和裁判断言不变。
 
 ### Original Eino voice behavior
 

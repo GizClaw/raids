@@ -1,0 +1,207 @@
+# User Story:
+# As a Raids catalog maintainer,
+# I want equal opening, role and realtime responsiveness gates for every implementation,
+# So that text and audio respond promptly without overlap or playback stalls.
+version: gizclaw.test/v1alpha1
+name: ast-translate.smoke.zh-ja
+clients:
+  zh_ja_zh_to_ja:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+variables:
+  endpoint:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_ENDPOINT
+  registration_token:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_REGISTRATION_TOKEN
+    secret: true
+  zh_ja_zh_to_ja_text_workspace:
+    direction: input
+    type: string
+    generate: token
+  zh_ja_zh_to_ja_audio:
+    direction: output
+    type: audio
+    max_bytes: 16777216
+    media_type: audio/ogg
+    codec: opus
+  zh_ja_zh_to_ja_realtime_workspace:
+    direction: input
+    type: string
+    generate: token
+repeat: 1
+timeout: 12m
+steps:
+- id: zh_ja_zh_to_ja_register
+  client: zh_ja_zh_to_ja
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: zh_ja_zh_to_ja_create_text
+  client: zh_ja_zh_to_ja
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${zh_ja_zh_to_ja_text_workspace}"
+      collection: translates
+      workflow_name: translate-zh-ja
+      parameters:
+        asttranslate_workspace_parameters:
+          agent_type: ASTTRANSLATE_WORKSPACE_PARAMETERS_AGENT_TYPE_AST_TRANSLATE
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: zh_ja_zh_to_ja_select_text
+  client: zh_ja_zh_to_ja
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${zh_ja_zh_to_ja_text_workspace}"
+- id: zh_ja_zh_to_ja_warmup_text
+  client: zh_ja_zh_to_ja
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: zh_ja_zh_to_ja_create_realtime
+  client: zh_ja_zh_to_ja
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${zh_ja_zh_to_ja_realtime_workspace}"
+      collection: translates
+      workflow_name: translate-zh-ja
+      parameters:
+        asttranslate_workspace_parameters:
+          agent_type: ASTTRANSLATE_WORKSPACE_PARAMETERS_AGENT_TYPE_AST_TRANSLATE
+          input: WORKSPACE_INPUT_MODE_REALTIME
+- id: synthesize_zh_ja_zh_to_ja_audio
+  client: zh_ja_zh_to_ja
+  speech:
+    method: server.speech.synthesize
+    request:
+      voice_name: giztest-input.zh
+      text: 我真的非常感谢你的热心帮助。
+      accepted_content_types:
+      - audio/ogg
+    cache: run
+  save_as: zh_ja_zh_to_ja_audio
+- id: zh_ja_zh_to_ja_turn_1_gratitude
+  client: zh_ja_zh_to_ja
+  timeout: 2m
+  peer_stream:
+    mode: push-to-talk
+    input: "${zh_ja_zh_to_ja_audio}"
+    pacing: 20ms
+    require_text: true
+    require_audio: true
+    idle_timeout: 90s
+  expect:
+    "/text":
+      contains_any:
+      - ありがとう
+      - 感謝
+      - お礼
+      pattern: "[\\p{Hiragana}\\p{Katakana}]"
+      max_length: 200
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/events":
+      non_empty: true
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_integrity/streams":
+      minimum: 1
+    "/audio_integrity/max_active":
+      equals: 1
+    "/audio_integrity/open":
+      equals: 0
+    "/audio_integrity/violations":
+      equals: 0
+    "/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/audio_pacing/underruns":
+      equals: 0
+- id: zh_ja_zh_to_ja_select_realtime
+  client: zh_ja_zh_to_ja
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${zh_ja_zh_to_ja_realtime_workspace}"
+- id: zh_ja_zh_to_ja_warmup_realtime
+  client: zh_ja_zh_to_ja
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: zh_ja_zh_to_ja_realtime_roundtrip
+  client: zh_ja_zh_to_ja
+  timeout: 2m
+  peer_stream:
+    mode: realtime
+    input: "${zh_ja_zh_to_ja_audio}"
+    pacing: 20ms
+    require_text: true
+    require_audio: true
+    idle_timeout: 90s
+  expect:
+    "/text":
+      contains_any:
+      - ありがとう
+      - 感謝
+      - お礼
+      pattern: "[\\p{Hiragana}\\p{Katakana}]"
+      max_length: 200
+      non_empty: true
+    "/audio_bytes":
+      minimum: 1
+    "/events":
+      non_empty: true
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_integrity/streams":
+      minimum: 1
+    "/audio_integrity/max_active":
+      equals: 1
+    "/audio_integrity/open":
+      equals: 0
+    "/audio_integrity/violations":
+      equals: 0
+    "/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/audio_pacing/underruns":
+      equals: 0
+finally:
+- id: zh_ja_zh_to_ja_stop_run
+  client: zh_ja_zh_to_ja
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: zh_ja_zh_to_ja_delete_text
+  client: zh_ja_zh_to_ja
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${zh_ja_zh_to_ja_text_workspace}"
+- id: zh_ja_zh_to_ja_delete_realtime
+  client: zh_ja_zh_to_ja
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${zh_ja_zh_to_ja_realtime_workspace}"
+- id: zh_ja_zh_to_ja_delete_peer
+  client: zh_ja_zh_to_ja
+  rpc:
+    method: server.peer.delete
+    request: {}
+report:
+  redact:
+  - registration_token

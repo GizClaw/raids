@@ -25,7 +25,7 @@ paths = sorted(Path('workflows').glob('*/test.multi-role.yaml'))
 assert len(paths) == 31
 for path, doc, original, soak in zip(paths, documents(paths),
         documents([p.with_name('test.yaml') for p in paths]),
-        documents([Path('tests/giztest/soak') / (p.parent.name + '.giztest.yaml') for p in paths])):
+        [{'steps': [step for doc in documents(sorted(Path('tests/giztest/soak').glob(p.parent.name + '.*.giztest.yaml'))) for step in doc['steps']]} for p in paths]):
     raid = path.parent.name
     ns = {}
     exec(script(doc).replace('.codepoints()', ''), ns)

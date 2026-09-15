@@ -103,11 +103,11 @@ Contents sources: [1](https://r1-ndr.ykt.cbern.com.cn/edu_product/esp/assets/67a
 
 Tester: `test.yaml` (`learn-science-grade3-test`, eino), shared by every implementation:
 
-- `tests/giztest/smoke/learn-science-grade3.giztest.yaml`: speed, latency and responsiveness.
-- `tests/giztest/quality/learn-science-grade3.giztest.yaml`: quality control and safety guardrails.
-- `tests/giztest/soak/learn-science-grade3.giztest.yaml`: long-turn Tester relay with reload.
+- `tests/giztest/smoke/learn-science-grade3.<implementation>.giztest.yaml`: speed, latency and responsiveness.
+- `tests/giztest/quality/learn-science-grade3.<implementation>.giztest.yaml`: quality control and safety guardrails.
+- `tests/giztest/soak/learn-science-grade3.<implementation>.giztest.yaml`: long-turn Tester relay with reload.
 
-Run `make test-e2e TIER=smoke RAID=learn-science-grade3`. Each tier file covers all implementations; see [the test guide](../../tests/giztest/README.md) for budgets and failure reporting.
+Run `make test-e2e TIER=smoke RAID=learn-science-grade3`. Each tier has one file per implementation, run concurrently with `PARALLEL=4`; see [the test guide](../../tests/giztest/README.md) for budgets and failure reporting.
 
 The route has 8 target responses and verifies safe prediction-first
 experiments, observation-based explanation, gentle misconception correction,

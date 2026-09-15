@@ -17,7 +17,7 @@ Install an implementation into a RuntimeProfile with `raids install murder-myste
 
 Tester: `test.yaml` (`murder-mystery-test`, eino), shared by every implementation; one Giztest scenario per implementation:
 
-- `tests/giztest/murder-mystery/flowcraft.giztest.yaml` (relay, with reload, timeout 99m)
+- `tests/giztest/soak/murder-mystery.flowcraft.giztest.yaml` (relay, with reload, timeout 99m)
 
 The route has 26 target responses:
 

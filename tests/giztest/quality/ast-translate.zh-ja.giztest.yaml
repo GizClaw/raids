@@ -1,0 +1,446 @@
+# User Story:
+# As a Raids quality maintainer,
+# I want identical quality contracts for every implementation of ast-translate,
+# So that safety, correction, recall, routing and language regressions fail at the original gates.
+version: gizclaw.test/v1alpha1
+name: ast-translate.quality.zh-ja
+clients:
+  ast:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+variables:
+  endpoint:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_ENDPOINT
+  registration_token:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_REGISTRATION_TOKEN
+    secret: true
+  ast_case7_workspace_name:
+    direction: input
+    type: string
+    generate: token
+  ast_case7_audio_1:
+    direction: output
+    type: audio
+    max_bytes: 16777216
+    media_type: audio/ogg
+    codec: opus
+  ast_case7_audio_2:
+    direction: output
+    type: audio
+    max_bytes: 16777216
+    media_type: audio/ogg
+    codec: opus
+  ast_case7_audio_3:
+    direction: output
+    type: audio
+    max_bytes: 16777216
+    media_type: audio/ogg
+    codec: opus
+  ast_case7_audio_4:
+    direction: output
+    type: audio
+    max_bytes: 16777216
+    media_type: audio/ogg
+    codec: opus
+  ast_case7_audio_5:
+    direction: output
+    type: audio
+    max_bytes: 16777216
+    media_type: audio/ogg
+    codec: opus
+  ast_case7_audio_6:
+    direction: output
+    type: audio
+    max_bytes: 16777216
+    media_type: audio/ogg
+    codec: opus
+  ast_case7_audio_7:
+    direction: output
+    type: audio
+    max_bytes: 16777216
+    media_type: audio/ogg
+    codec: opus
+  ast_case7_audio_8:
+    direction: output
+    type: audio
+    max_bytes: 16777216
+    media_type: audio/ogg
+    codec: opus
+  ast_case7_audio_9:
+    direction: output
+    type: audio
+    max_bytes: 16777216
+    media_type: audio/ogg
+    codec: opus
+  ast_case7_audio_10:
+    direction: output
+    type: audio
+    max_bytes: 16777216
+    media_type: audio/ogg
+    codec: opus
+repeat: 1
+timeout: 10m
+steps:
+- id: register_ast
+  client: ast
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: ast_case7_stop_create_workspace
+  client: ast
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: ast_case7_create_workspace
+  client: ast
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${ast_case7_workspace_name}"
+      collection: translates
+      workflow_name: translate-zh-ja
+      parameters:
+        asttranslate_workspace_parameters:
+          agent_type: ASTTRANSLATE_WORKSPACE_PARAMETERS_AGENT_TYPE_AST_TRANSLATE
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: ast_case7_select_workspace
+  client: ast
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${ast_case7_workspace_name}"
+- id: ast_case7_warmup_workspace
+  client: ast
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- id: ast_case7_synthesize_1_gratitude
+  client: ast
+  speech:
+    method: server.speech.synthesize
+    request:
+      voice_name: giztest-input.zh
+      text: 我真的非常感谢你的热心帮助。
+      accepted_content_types:
+      - audio/ogg
+    cache: run
+  save_as: ast_case7_audio_1
+- id: ast_case7_turn_1_gratitude
+  client: ast
+  timeout: 2m
+  peer_stream:
+    mode: push-to-talk
+    input: "${ast_case7_audio_1}"
+    pacing: 20ms
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      contains_any:
+      - ありがとう
+      - 感謝
+      - お礼
+      pattern: "[\\p{Hiragana}\\p{Katakana}]"
+      max_length: 200
+    "/audio_bytes":
+      minimum: 1
+- id: ast_case7_synthesize_2_good-day
+  client: ast
+  speech:
+    method: server.speech.synthesize
+    request:
+      voice_name: giztest-input.zh
+      text: 祝你今天度过愉快美好的一天。
+      accepted_content_types:
+      - audio/ogg
+    cache: run
+  save_as: ast_case7_audio_2
+- id: ast_case7_turn_2_good-day
+  client: ast
+  timeout: 2m
+  peer_stream:
+    mode: push-to-talk
+    input: "${ast_case7_audio_2}"
+    pacing: 20ms
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      contains_any:
+      - 良い一日
+      - 素晴らしい一日
+      - 良い日
+      - すてき
+      - 素敵
+      - 楽しい一日
+      pattern: "[\\p{Hiragana}\\p{Katakana}]"
+      max_length: 200
+    "/audio_bytes":
+      minimum: 1
+- id: ast_case7_synthesize_3_farewell
+  client: ast
+  speech:
+    method: server.speech.synthesize
+    request:
+      voice_name: giztest-input.zh
+      text: 期待下次和你再次见面。
+      accepted_content_types:
+      - audio/ogg
+    cache: run
+  save_as: ast_case7_audio_3
+- id: ast_case7_turn_3_farewell
+  client: ast
+  timeout: 2m
+  peer_stream:
+    mode: push-to-talk
+    input: "${ast_case7_audio_3}"
+    pacing: 20ms
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      contains_any:
+      - また
+      - 再会
+      - 次回
+      - 会える
+      pattern: "[\\p{Hiragana}\\p{Katakana}]"
+      max_length: 200
+    "/audio_bytes":
+      minimum: 1
+- id: ast_case7_synthesize_4_apology
+  client: ast
+  speech:
+    method: server.speech.synthesize
+    request:
+      voice_name: giztest-input.zh
+      text: 给你带来不便我真的很抱歉。
+      accepted_content_types:
+      - audio/ogg
+    cache: run
+  save_as: ast_case7_audio_4
+- id: ast_case7_turn_4_apology
+  client: ast
+  timeout: 2m
+  peer_stream:
+    mode: push-to-talk
+    input: "${ast_case7_audio_4}"
+    pacing: 20ms
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      contains_any:
+      - すみません
+      - ごめん
+      - 申し訳
+      pattern: "[\\p{Hiragana}\\p{Katakana}]"
+      max_length: 200
+    "/audio_bytes":
+      minimum: 1
+- id: ast_case7_synthesize_5_agreement
+  client: ast
+  speech:
+    method: server.speech.synthesize
+    request:
+      voice_name: giztest-input.zh
+      text: 我完全同意这个计划。
+      accepted_content_types:
+      - audio/ogg
+    cache: run
+  save_as: ast_case7_audio_5
+- id: ast_case7_turn_5_agreement
+  client: ast
+  timeout: 2m
+  peer_stream:
+    mode: push-to-talk
+    input: "${ast_case7_audio_5}"
+    pacing: 20ms
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      contains_any:
+      - 賛成
+      - 同意
+      pattern: "[\\p{Hiragana}\\p{Katakana}]"
+      max_length: 200
+    "/audio_bytes":
+      minimum: 1
+- id: ast_case7_synthesize_6_ready
+  client: ast
+  speech:
+    method: server.speech.synthesize
+    request:
+      voice_name: giztest-input.zh
+      text: 请告诉我你是否已经准备好出发。
+      accepted_content_types:
+      - audio/ogg
+    cache: run
+  save_as: ast_case7_audio_6
+- id: ast_case7_turn_6_ready
+  client: ast
+  timeout: 2m
+  peer_stream:
+    mode: push-to-talk
+    input: "${ast_case7_audio_6}"
+    pacing: 20ms
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      contains_any:
+      - 準備
+      pattern: "[\\p{Hiragana}\\p{Katakana}]"
+      max_length: 200
+    "/audio_bytes":
+      minimum: 1
+- id: ast_case7_synthesize_7_help
+  client: ast
+  speech:
+    method: server.speech.synthesize
+    request:
+      voice_name: giztest-input.zh
+      text: 你可以帮我搬一下这个箱子吗。
+      accepted_content_types:
+      - audio/ogg
+    cache: run
+  save_as: ast_case7_audio_7
+- id: ast_case7_turn_7_help
+  client: ast
+  timeout: 2m
+  peer_stream:
+    mode: push-to-talk
+    input: "${ast_case7_audio_7}"
+    pacing: 20ms
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      contains_any:
+      - 手伝
+      - 助け
+      - 箱を運ん
+      - 箱を持って
+      pattern: "[\\p{Hiragana}\\p{Katakana}]"
+      max_length: 200
+    "/audio_bytes":
+      minimum: 1
+- id: ast_case7_synthesize_8_welcome
+  client: ast
+  speech:
+    method: server.speech.synthesize
+    request:
+      voice_name: giztest-input.zh
+      text: 欢迎你来到我们的城市。
+      accepted_content_types:
+      - audio/ogg
+    cache: run
+  save_as: ast_case7_audio_8
+- id: ast_case7_turn_8_welcome
+  client: ast
+  timeout: 2m
+  peer_stream:
+    mode: push-to-talk
+    input: "${ast_case7_audio_8}"
+    pacing: 20ms
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      contains_any:
+      - ようこそ
+      - 歓迎
+      - お越し
+      pattern: "[\\p{Hiragana}\\p{Katakana}]"
+      max_length: 200
+    "/audio_bytes":
+      minimum: 1
+- id: ast_case7_synthesize_9_congratulations
+  client: ast
+  speech:
+    method: server.speech.synthesize
+    request:
+      voice_name: giztest-input.zh
+      text: 衷心祝贺你取得成功。
+      accepted_content_types:
+      - audio/ogg
+    cache: run
+  save_as: ast_case7_audio_9
+- id: ast_case7_turn_9_congratulations
+  client: ast
+  timeout: 2m
+  peer_stream:
+    mode: push-to-talk
+    input: "${ast_case7_audio_9}"
+    pacing: 20ms
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      contains_any:
+      - おめでとう
+      - 祝
+      pattern: "[\\p{Hiragana}\\p{Katakana}]"
+      max_length: 200
+    "/audio_bytes":
+      minimum: 1
+- id: ast_case7_synthesize_10_good-night
+  client: ast
+  speech:
+    method: server.speech.synthesize
+    request:
+      voice_name: giztest-input.zh
+      text: 祝你今晚休息好并做个好梦。
+      accepted_content_types:
+      - audio/ogg
+    cache: run
+  save_as: ast_case7_audio_10
+- id: ast_case7_turn_10_good-night
+  client: ast
+  timeout: 2m
+  peer_stream:
+    mode: push-to-talk
+    input: "${ast_case7_audio_10}"
+    pacing: 20ms
+    require_text: true
+    require_audio: true
+  expect:
+    "/text":
+      contains_any:
+      - おやすみ
+      - お休み
+      - 良い夢
+      - いい夢
+      - ゆっくり休
+      pattern: "[\\p{Hiragana}\\p{Katakana}]"
+      max_length: 200
+    "/audio_bytes":
+      minimum: 1
+finally:
+- id: stop_ast
+  client: ast
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: ast_case7_delete_workspace
+  client: ast
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${ast_case7_workspace_name}"
+- id: delete_ast
+  client: ast
+  rpc:
+    method: server.peer.delete
+    request: {}
+report:
+  redact:
+  - registration_token

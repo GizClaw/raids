@@ -187,12 +187,13 @@ def render_giztests(
     }
     rendered = {}
     for tier in ("smoke", "quality", "soak"):
-        text = read_text(repo / "scripts/learn/templates" / f"{tier}.giztest.yaml")
-        for key, value in values.items():
-            text = text.replace(f"@@{key}@@", value)
-        if "@@" in text:
-            raise ValueError(f"unresolved {tier} template marker")
-        rendered[f"{tier}/{raid}.giztest.yaml"] = text
+        for engine in ("flowcraft", "eino"):
+            text = read_text(repo / "scripts/learn/templates" / f"{tier}.{engine}.giztest.yaml")
+            for key, value in values.items():
+                text = text.replace(f"@@{key}@@", value)
+            if "@@" in text:
+                raise ValueError(f"unresolved {tier} template marker")
+            rendered[f"{tier}/{raid}.{engine}.giztest.yaml"] = text
     return rendered
 
 
@@ -222,9 +223,10 @@ def render_raid_manifest(
             alias: value for alias, value in voices.items() if alias.endswith(".tutor")
         }
     manifest["tests"] = [
-        {"file": f"tests/giztest/{tier}/{raid}.giztest.yaml", "tier": tier,
-         "implementations": ["eino", "flowcraft"]}
+        {"file": f"tests/giztest/{tier}/{raid}.{engine}.giztest.yaml", "tier": tier,
+         "implementations": [engine]}
         for tier in ("smoke", "quality", "soak")
+        for engine in ("eino", "flowcraft")
     ]
     manifest["category"] = "learn"
     manifest["title"] = dict(title)

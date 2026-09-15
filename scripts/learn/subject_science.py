@@ -302,11 +302,11 @@ and 四至六年级上册 use 修订版 based on the 2022 curriculum standard. �
 
 Tester: `test.yaml` (`{raid}-test`, eino), shared by every implementation:
 
-- `tests/giztest/smoke/{raid}.giztest.yaml`: speed, latency and responsiveness.
-- `tests/giztest/quality/{raid}.giztest.yaml`: quality control and safety guardrails.
-- `tests/giztest/soak/{raid}.giztest.yaml`: long-turn Tester relay with reload.
+- `tests/giztest/smoke/{raid}.<implementation>.giztest.yaml`: speed, latency and responsiveness.
+- `tests/giztest/quality/{raid}.<implementation>.giztest.yaml`: quality control and safety guardrails.
+- `tests/giztest/soak/{raid}.<implementation>.giztest.yaml`: long-turn Tester relay with reload.
 
-Run `make test-e2e TIER=smoke RAID={raid}`. Each tier file covers all implementations; see [the test guide](../../tests/giztest/README.md) for budgets and failure reporting.
+Run `make test-e2e TIER=smoke RAID={raid}`. Each tier has one file per implementation, run concurrently with `PARALLEL=4`; see [the test guide](../../tests/giztest/README.md) for budgets and failure reporting.
 
 The route has {len(route)} target responses and verifies safe prediction-first
 experiments, observation-based explanation, gentle misconception correction,
