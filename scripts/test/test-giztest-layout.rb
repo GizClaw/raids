@@ -28,6 +28,30 @@ class GiztestCapabilityTest < Minitest::Test
     {'id' => "#{client}_response", 'client' => client, 'timeout' => timeout, 'peer_stream' => {}}
   end
 
+  def test_split_references_include_finally_parallel_captures_and_relays
+    doc = {'clients' => {'a' => {}}, 'variables' => {'answer' => {'direction' => 'output'}},
+           'steps' => [{'id' => 'batch', 'parallel' => [response('a')], 'capture' => {'answer' => '/a_response/text'}}],
+           'finally' => [{'id' => 'emit', 'output' => {'variable' => 'answer'}}]}
+    GiztestLayout.check_local_references(doc, 'fixture')
+    bad = Marshal.load(Marshal.dump(doc)); bad['steps'][0].delete('capture')
+    rejected { GiztestLayout.check_local_references(bad, 'fixture') }
+    bad = Marshal.load(Marshal.dump(doc)); bad['finally'] << rpc('missing')
+    rejected { GiztestLayout.check_local_references(bad, 'fixture') }
+    bad = Marshal.load(Marshal.dump(doc)); bad['finally'][0]['output']['variable'] = 'foreign'
+    rejected { GiztestLayout.check_local_references(bad, 'fixture') }
+    bad = Marshal.load(Marshal.dump(doc)); bad['steps'][0]['parallel'][0]['peer_stream']['input'] = '${foreign}'
+    rejected { GiztestLayout.check_local_references(bad, 'fixture') }
+    bad = Marshal.load(Marshal.dump(doc)); bad['finally'] << {'id' => 'relay', 'workspace_relay' => {'first_client' => 'a', 'second_client' => 'missing'}}
+    rejected { GiztestLayout.check_local_references(bad, 'fixture') }
+  end
+
+  def test_speech_requires_registration_on_its_own_client
+    speech = {'id' => 'synthesize', 'client' => 'a', 'speech' => {}}
+    GiztestLayout.check_speech_order({'steps' => [rpc('a'), speech]}, 'fixture')
+    rejected { GiztestLayout.check_speech_order({'steps' => [speech, rpc('a')]}, 'fixture') }
+    rejected { GiztestLayout.check_speech_order({'steps' => [rpc('b'), speech]}, 'fixture') }
+  end
+
   def test_idle_gap_includes_finally_and_sums_independent_operations
     doc = {'steps' => [rpc('a'), rpc('b'), response('b'), response('b')],
            'finally' => [rpc('a', 'run.stop')]}

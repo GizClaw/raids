@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Offline contract regression; Ruby parses YAML, Python exercises portable scripts.
 
-Only codepoints() is adapted to Python's native Unicode iteration. Admin validate
-remains responsible for validating the actual Starlark resource.
+Only codepoints() is adapted to Python's native Unicode iteration. This is a
+behavioral stand-in, not a Starlark compiler. starlark-modules.rb and the Go
+module checker validate every script with the real GizClaw Starlark runtime.
 """
 import json
 from pathlib import Path

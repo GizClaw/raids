@@ -40,6 +40,12 @@ variables:
 repeat: 1
 timeout: 12m
 steps:
+- id: eino_multi_role_register
+  client: eino_multi_role
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
 - id: synthesize_input_audio
   client: eino_multi_role
   speech:
@@ -51,12 +57,6 @@ steps:
       - audio/ogg
     cache: run
   save_as: input_audio
-- id: eino_multi_role_register
-  client: eino_multi_role
-  rpc:
-    method: server.register
-    request:
-      token: "${registration_token}"
 - id: eino_multi_role_create_text
   client: eino_multi_role
   rpc:

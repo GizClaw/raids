@@ -36,6 +36,12 @@ variables:
 repeat: 1
 timeout: 12m
 steps:
+- id: flowcraft_multi_role_register
+  client: flowcraft_multi_role
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
 - id: synthesize_input_audio
   client: flowcraft_multi_role
   speech:
@@ -47,12 +53,6 @@ steps:
       - audio/ogg
     cache: run
   save_as: input_audio
-- id: flowcraft_multi_role_register
-  client: flowcraft_multi_role
-  rpc:
-    method: server.register
-    request:
-      token: "${registration_token}"
 - id: flowcraft_multi_role_create_text
   client: flowcraft_multi_role
   rpc:

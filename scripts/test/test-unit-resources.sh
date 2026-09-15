@@ -65,6 +65,7 @@ test -d tests/giztest || {
 }
 
 require_command ruby
+ruby scripts/test/starlark-modules.rb | scripts/test/test-starlark-routing.sh --modules
 python3 scripts/test/test-multi-role-testers.py
 ruby scripts/test/original-workflows.rb
 ruby scripts/test/test-eino-script-outputs.rb

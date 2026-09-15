@@ -48,6 +48,49 @@ module GiztestLayout
       end
     end
   end
+  # References must resolve within this split file; declarations alone do not
+  # produce output values. Include parallel children and finally captures.
+  def self.check_local_references(doc, file)
+    clients = doc.fetch('clients').keys
+    variables = doc.fetch('variables', {})
+    all = %w[steps finally].flat_map { |section| steps(doc, section) }
+    produced = all.flat_map { |step| step.fetch('capture', {}).keys + [step['save_as']].compact }
+    walk = lambda do |value|
+      case value
+      when Hash
+        value.each_value { |child| walk.call(child) }
+      when Array
+        value.each { |child| walk.call(child) }
+      when String
+        value.scan(/\$\{([^}]+)\}/).flatten.each do |name|
+          check(variables.key?(name), "#{file}: undeclared variable #{name}")
+          check(variables[name]['direction'] != 'output' || produced.include?(name),
+                "#{file}: output variable #{name} has no capture/save_as")
+        end
+      end
+    end
+    walk.call(doc)
+    all.each do |step|
+      participants(step).each do |client|
+        check(clients.include?(client), "#{file}: #{step['id']} undeclared client #{client}")
+      end
+      names = step.fetch('capture', {}).keys + [step['save_as'], step.dig('output', 'variable')].compact
+      names.each { |name| check(variables.key?(name), "#{file}: #{step['id']} undeclared variable #{name}") }
+      output = step.dig('output', 'variable')
+      check(!output || variables[output]['direction'] != 'output' || produced.include?(output),
+            "#{file}: #{step['id']} output #{output} has no capture/save_as")
+    end
+  end
+  def self.check_speech_order(doc, file)
+    registered = []
+    %w[steps finally].each do |section|
+      steps(doc, section).each do |step|
+        registered << step['client'] if step.dig('rpc', 'method') == 'server.register'
+        check(!step['speech'] || registered.include?(step['client']),
+              "#{file}: #{step['id']} speech before client registration")
+      end
+    end
+  end
   # Static scheduling budget: explicit step timeouts win; unary operations
   # without a declared bound reserve 30s. This checks scheduling, not network
   # liveness: streaming operations are traffic for all their participating peers.
@@ -212,6 +255,8 @@ module GiztestLayout
       files.each do |file|
         doc = YAML.load_file(file)
         check(File.readlines(file).first(4).map { |s| s.split[0,2].join(' ') } == ['# User', '# As', '# I', '# So'], "#{file}: missing User Story")
+        check_local_references(doc, file)
+        check_speech_order(doc, file)
         check_workspace_order(doc, file)
         check_idle_gaps(doc, file)
         raid, suffix = File.basename(file, '.giztest.yaml').split('.', 2)

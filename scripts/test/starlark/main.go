@@ -41,6 +41,10 @@ func value(v any) starlark.Value {
 	panic(fmt.Sprintf("unsupported %T", v))
 }
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "--modules" {
+		checkModules()
+		return
+	}
 	var data struct {
 		Source string
 		Cases  []struct {

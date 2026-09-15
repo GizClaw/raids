@@ -316,7 +316,7 @@ steps:
     client: flowcraft_multi_role__transitions
     peer_stream:
       mode: text
-      input: 我选择刚才的第一个办法，请讲出角色行动的后果。
+      input: 我先不选择，不要替我执行刚才的第一个办法；只确认选择尚未作出，不推进故事。
       idle_timeout: 90s
       require_text: true
       require_audio: true
@@ -331,10 +331,11 @@ steps:
   timeout: 4m
   expect:
     "/flowcraft_multi_role_transitions_reject_negated_choice/text":
-      contains_all:
-      - 第 1 章
-      - 种子的选择
       not_contains:
+      - 第 2 章
+      - 第2章
+      - 第二章
+      - 等待与分歧
       - "【"
       - "】"
       - 进入下一章
@@ -344,9 +345,13 @@ steps:
       - 等你说要不要
       - 是否继续听
       contains_any:
-      - 种子的选择
-      - 第一章
-      - 第 1 章
+      - 尚未选择
+      - 还没选择
+      - 尚未作出
+      - 还没作出
+      - 暂不选择
+      - 先不选择
+      - 没有选择
       min_length: 1
       max_length: 600
     "/flowcraft_multi_role_transitions_reject_negated_choice/text_eos":
