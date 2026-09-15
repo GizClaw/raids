@@ -37,10 +37,14 @@ module GiztestLayout
     local_names = steps(doc).map do |step|
       [step['client'], step.dig('rpc', 'request', 'name')] if step.dig('rpc', 'method') == 'server.workspace.create'
     end.compact
-    steps(doc).each do |step|
+    %w[steps finally].flat_map { |section| steps(doc, section) }.each do |step|
       method = step.dig('rpc', 'method')
       if method == 'server.workspace.create'
         created << [step['client'], step.dig('rpc', 'request', 'name')]
+      elsif method == 'server.workspace.delete'
+        key = [step['client'], step.dig('rpc', 'request', 'name')]
+        check(created.include?(key), "#{file}: #{step['id']} deletes a Workspace without creation in this file")
+        created.delete(key)
       elsif method == 'server.run.workspace.set'
         key = [step['client'], step.dig('rpc', 'request', 'workspace_name')]
         check(!local_names.include?(key) || created.include?(key),

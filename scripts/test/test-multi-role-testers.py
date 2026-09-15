@@ -44,6 +44,28 @@ for path, doc, original, soak in zip(paths, documents(paths),
         for phrase in ('进入下一章', '要不要继续', '想继续听就说', '这一章的选择完成啦'):
             assert any(f.startswith('forbidden:') for f in ns['deterministic_failures'](ordinary_index, phrase))
         assert any(f.startswith('story_choice:') for f in ns['deterministic_failures'](ordinary_index, '故事停在这里。'))
+        good_choices = [
+            '你支持大家原地一起等种子长大，还是支持大家一边分头找食物一边等种子发芽，你怎么选？',
+            '大家原地等种子长大，还是分头找食物？你想怎么选？',
+            '大家可以原地等，或分头找食物。你想怎么选？',
+            'Will you wait here or search for food? Which will you choose?',
+        ]
+        for reply in good_choices:
+            assert not any(f.startswith('story_choice:') for f in ns['deterministic_failures'](ordinary_index, reply)), (raid, reply)
+        for reply in ('你现在需要我继续推进故事，还是再核对一次内容的分类呢？',
+                      '大家原地等还是分头找食物。', '种子发芽了。天亮了吗？',
+                      '原地等还是分头找食物？？？'):
+            assert any(f.startswith('story_choice:') for f in ns['deterministic_failures'](ordinary_index, reply)), (raid, reply)
+        if raid == 'adventure-history':
+            for reply in ('星火七号', '星火七号。'):
+                result = ns['run']({'text': reply, 'messages': [{'role': 'assistant', 'content': ns['REQUESTS'][-1]}, {'role': 'user', 'content': reply}]})
+                assert result['route'] == 'judge' and result['det'] == '', result
+            result = ns['run']({'text': '错误代号', 'messages': [{'role': 'assistant', 'content': ns['REQUESTS'][-1]}, {'role': 'user', 'content': '错误代号'}]})
+            assert 'required:星火七号' in result['det'], result
+            messages = []
+            for request in ns['REQUESTS']:
+                messages.extend([{'role': 'assistant', 'content': request}, {'role': 'user', 'content': '星火七号。'}])
+            assert 'progression:no automatic scene arrival' in ns['run']({'text': '星火七号。', 'messages': messages})['det']
     for request, current, previous in zip(ns['REQUESTS'], ns['CHECKS'], old['CHECKS']):
         if '只确认' in request:
             assert current['min_runes'] == previous['min_runes'], (raid, request)
@@ -121,6 +143,8 @@ def strings(value):
         yield value
 
 for path, doc in zip(workflow_paths, documents(workflow_paths)):
+    assert '以？（英文?）结束' not in path.read_text(), path
+    assert '中文回复以恰好一个全角问号？结束' in path.read_text(), path
     assert '回复最后一句必须逐字是：这一章' not in path.read_text(), path
     assert '只有用户明确要求进入紧邻的下一章' not in path.read_text(), path
     current_prompts = [s for s in strings(doc) if '篇幅执行规则：' in s]

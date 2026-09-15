@@ -131,6 +131,18 @@ class GiztestCapabilityTest < Minitest::Test
     rejected { GiztestLayout.check_workspace_order({'steps' => [select, create]}, 'fixture') }
   end
 
+  def test_workspace_delete_requires_matching_local_creation
+    create = {'id' => 'create', 'client' => 'a', 'rpc' => {
+      'method' => 'server.workspace.create', 'request' => {'name' => '${workspace}'}}}
+    delete = {'id' => 'delete', 'client' => 'a', 'rpc' => {
+      'method' => 'server.workspace.delete', 'request' => {'name' => '${workspace}'}}}
+    GiztestLayout.check_workspace_order({'steps' => [create], 'finally' => [delete]}, 'fixture')
+    rejected { GiztestLayout.check_workspace_order({'steps' => [], 'finally' => [delete]}, 'fixture') }
+    rejected { GiztestLayout.check_workspace_order({'steps' => [delete, create]}, 'fixture') }
+    rejected { GiztestLayout.check_workspace_order({'steps' => [create], 'finally' => [delete.merge('client' => 'b')]}, 'fixture') }
+    rejected { GiztestLayout.check_workspace_order({'steps' => [create], 'finally' => [delete, delete]}, 'fixture') }
+  end
+
   def test_variant_ownership_does_not_overlap
     %w[flowcraft eino].each do |engine|
       multi = "#{engine}_multi_role"

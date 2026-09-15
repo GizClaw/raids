@@ -97,6 +97,23 @@ steps:
       not_contains:
       - 旁白说
       - 旁白：
+- id: flowcraft__roles_read_last_history
+  client: flowcraft__roles
+  timeout: 5s
+  rpc:
+    method: server.run.workspace.history
+    request:
+      limit: 1
+      order: PEER_RUN_HISTORY_LIST_REQUEST_ORDER_DESC
+  capture:
+    flowcraft__roles_last_history_text: "/items/0/text"
+    flowcraft__roles_last_history_type: "/items/0/type"
+- id: flowcraft__roles_last_history_type_emit
+  output:
+    variable: flowcraft__roles_last_history_type
+- id: flowcraft__roles_last_history_text_emit
+  output:
+    variable: flowcraft__roles_last_history_text
 - id: flowcraft_roles_stop_create_market_guide_workspace
   client: flowcraft__roles
   rpc:
@@ -129,23 +146,6 @@ steps:
     request: {}
   timeout: 2m
 finally:
-- id: flowcraft__roles_read_last_history
-  client: flowcraft__roles
-  timeout: 5s
-  rpc:
-    method: server.run.workspace.history
-    request:
-      limit: 1
-      order: PEER_RUN_HISTORY_LIST_REQUEST_ORDER_DESC
-  capture:
-    flowcraft__roles_last_history_text: "/items/0/text"
-    flowcraft__roles_last_history_type: "/items/0/type"
-- id: flowcraft__roles_last_history_type_emit
-  output:
-    variable: flowcraft__roles_last_history_type
-- id: flowcraft__roles_last_history_text_emit
-  output:
-    variable: flowcraft__roles_last_history_text
 - id: flowcraft__roles_stop
   client: flowcraft__roles
   rpc:
