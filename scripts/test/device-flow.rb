@@ -94,12 +94,9 @@ module DeviceFlow
       # preview later chapters, so only a chapter 2 heading means it skipped the opening.
       opening = multi_role ? question(markers.merge('not_contains' => ['【', '】'] + NEXT_CHAPTER_HEADING)) : question('contains_all' => ['第 1 章', first])
       turns << turn('start', client, '开始', opening, timeout)
-      # Two answers close the chapter even when the story spends one more beat on
-      # it, so "继续" alone must then open chapter 2 with its heading and scene.
+      # Answering the chapter question closes the chapter, so the child's next 继续
+      # must open chapter 2 itself with its heading and scene.
       turns << turn('chapter_choice', client, '我选第一个', question(markers), timeout)
-      # Which of the two answers carries the closing hint is the engine's call; the
-      # wording itself is an offline contract, so only the transition is asserted.
-      turns << turn('chapter_choice_again', client, '我选第一个', question(markers), timeout)
       turns << turn('continue', client, '继续', question(markers.merge(multi_role ? {} : {'contains_all' => ['第 2 章', second]})), timeout)
       # Re-entry says where the story stopped and carries on; by then the story may
       # be one or two chapters in, so what matters is that it is past chapter 1 and
