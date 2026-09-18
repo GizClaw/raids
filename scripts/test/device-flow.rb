@@ -22,6 +22,8 @@ module DeviceFlow
   DIR = 'tests/giztest/device'
   # The reply ends with a question, optionally followed by closing quotes.
   ENDS_WITH_QUESTION = '[？?][”"’」』）)]*\s*$'
+  # A chapter heading, not a cast preview such as "精卫在第2章加入".
+  NEXT_CHAPTER_HEADING = ['第 2 章：', '第 2 章:', '第 2 章《', '第2章：', '第2章:', '第2章《'].freeze
   JOURNEY_OPENING = %w[石猴 仙石 石卵 石头里 石头中].freeze
   # Route-only facts of the Journey soak Tester; they must never reach a child.
   JOURNEY_TEST_FACTS = %w[明月 清禾 青铜铃].freeze
@@ -87,9 +89,9 @@ module DeviceFlow
     turns = []
     if story
       first, second = chapters(raid)
-      # Original stories speak the heading; multi-role narration may weave it in and
-      # preview later chapters, but always names the first chapter.
-      opening = multi_role ? question(markers.merge('contains' => first)) : question('contains_all' => ['第 1 章', first])
+      # Original stories speak the heading; multi-role narration weaves it in and may
+      # preview later chapters, so only a chapter 2 heading means it skipped the opening.
+      opening = multi_role ? question(markers.merge('not_contains' => ['【', '】'] + NEXT_CHAPTER_HEADING)) : question('contains_all' => ['第 1 章', first])
       turns << turn('start', client, '开始', opening, timeout)
       # Closing a chapter says how to go on, not just the consequence.
       turns << turn('chapter_choice', client, '我选第一个', question(multi_role ? markers : {'contains' => '继续'}), timeout)
@@ -98,7 +100,7 @@ module DeviceFlow
       # Re-entry resumes where the story stopped instead of replaying the opening.
       resume = question('not_contains' => (multi_role ? ['【', '】'] : []) + ['第 1 章', '你可以直接说出你的选择'])
       resume['contains'] = second unless multi_role
-      restart = multi_role ? question(markers.merge('contains' => first)) : question('contains_all' => ['第 1 章', first])
+      restart = multi_role ? question(markers.merge('not_contains' => ['【', '】'] + NEXT_CHAPTER_HEADING)) : question('contains_all' => ['第 1 章', first])
     elsif journey
       turns << turn('start', client, '开始', question('contains_any' => JOURNEY_OPENING, 'not_contains' => JOURNEY_TEST_FACTS + %w[紧箍 取经路上]), timeout)
       turns << turn('chapter_choice', client, '我选第一个', question('not_contains' => JOURNEY_TEST_FACTS), timeout)
