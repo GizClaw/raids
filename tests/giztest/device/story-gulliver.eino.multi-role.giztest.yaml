@@ -82,11 +82,10 @@ steps:
     "/text":
       min_length: 20
       pattern: '[？?][”"’」』）)]*\s*$'
-      not_contains:
+      not_contains: &1
       - "【"
       - "】"
-      - 第 2 章
-      - 第2章
+      contains: 微小之城
 - timeout: 5m
   id: eino_multi_role_device_chapter_choice
   client: eino_multi_role
@@ -104,9 +103,7 @@ steps:
     "/text":
       min_length: 20
       pattern: '[？?][”"’」』）)]*\s*$'
-      not_contains: &1
-      - "【"
-      - "】"
+      not_contains: *1
 - timeout: 5m
   id: eino_multi_role_device_continue
   client: eino_multi_role
@@ -175,11 +172,8 @@ steps:
     "/text":
       min_length: 20
       pattern: '[？?][”"’」』）)]*\s*$'
-      not_contains:
-      - "【"
-      - "】"
-      - 第 2 章
-      - 第2章
+      not_contains: *1
+      contains: 微小之城
 finally:
 - id: eino_multi_role_device_read_last_history
   client: eino_multi_role

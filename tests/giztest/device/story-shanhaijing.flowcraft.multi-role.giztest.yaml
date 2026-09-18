@@ -82,11 +82,10 @@ steps:
     "/text":
       min_length: 20
       pattern: '[？?][”"’」』）)]*\s*$'
-      not_contains:
+      not_contains: &1
       - "【"
       - "】"
-      - 第 2 章
-      - 第2章
+      contains: 图卷初开
 - timeout: 5m
   id: flowcraft_multi_role_device_chapter_choice
   client: flowcraft_multi_role
@@ -104,9 +103,7 @@ steps:
     "/text":
       min_length: 20
       pattern: '[？?][”"’」』）)]*\s*$'
-      not_contains: &1
-      - "【"
-      - "】"
+      not_contains: *1
 - timeout: 5m
   id: flowcraft_multi_role_device_continue
   client: flowcraft_multi_role
@@ -175,11 +172,8 @@ steps:
     "/text":
       min_length: 20
       pattern: '[？?][”"’」』）)]*\s*$'
-      not_contains:
-      - "【"
-      - "】"
-      - 第 2 章
-      - 第2章
+      not_contains: *1
+      contains: 图卷初开
 finally:
 - id: flowcraft_multi_role_device_read_last_history
   client: flowcraft_multi_role

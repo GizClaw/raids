@@ -39,6 +39,16 @@ module DeviceFlow
     end.sort_by(&:first)
   end
 
+  # The testing RuntimeProfile decides which collection and alias reach a Workflow.
+  def target(workflow)
+    collections = YAML.load_file('runtime-profiles/testing.yaml').dig('spec', 'workflows', 'collections')
+    ordered = collections.sort_by { |name, _| name == 'raidtest-targets' ? 0 : 1 }
+    ordered.each do |name, aliases|
+      aliases.each { |key, binding| return [name, key] if binding['resource_id'] == workflow }
+    end
+    raise "#{workflow}: not bound in runtime-profiles/testing.yaml"
+  end
+
   def chapters(raid)
     source = File.read("workflows/#{raid}/eino.yaml")
     titles = source[/四章依次是：([^\n]*)/, 1].to_s.scan(/第\d章《([^》]+)》/).flatten
@@ -78,8 +88,8 @@ module DeviceFlow
     if story
       first, second = chapters(raid)
       # Original stories speak the heading; multi-role narration may weave it in and
-      # preview later chapters, but never opens on the chapter 2 heading.
-      opening = multi_role ? question(markers.merge('not_contains' => ['【', '】', '第 2 章', '第2章'])) : question('contains_all' => ['第 1 章', first])
+      # preview later chapters, but always names the first chapter.
+      opening = multi_role ? question(markers.merge('contains' => first)) : question('contains_all' => ['第 1 章', first])
       turns << turn('start', client, '开始', opening, timeout)
       # Closing a chapter says how to go on, not just the consequence.
       turns << turn('chapter_choice', client, '我选第一个', question(multi_role ? markers : {'contains' => '继续'}), timeout)
@@ -88,7 +98,7 @@ module DeviceFlow
       # Re-entry resumes where the story stopped instead of replaying the opening.
       resume = question('not_contains' => (multi_role ? ['【', '】'] : []) + ['第 1 章', '你可以直接说出你的选择'])
       resume['contains'] = second unless multi_role
-      restart = multi_role ? question(markers.merge('not_contains' => ['【', '】', '第 2 章', '第2章'])) : question('contains_all' => ['第 1 章', first])
+      restart = multi_role ? question(markers.merge('contains' => first)) : question('contains_all' => ['第 1 章', first])
     elsif journey
       turns << turn('start', client, '开始', question('contains_any' => JOURNEY_OPENING, 'not_contains' => JOURNEY_TEST_FACTS + %w[紧箍 取经路上]), timeout)
       turns << turn('chapter_choice', client, '我选第一个', question('not_contains' => JOURNEY_TEST_FACTS), timeout)
@@ -102,11 +112,11 @@ module DeviceFlow
       resume = question(markers)
       restart = question(markers)
     end
-    workflow = YAML.load_file("workflows/#{raid}/#{suffix}.yaml").dig('metadata', 'id')
+    collection, workflow = target(YAML.load_file("workflows/#{raid}/#{suffix}.yaml").dig('metadata', 'id'))
     steps = [
       {'id' => "#{client}_device_register", 'client' => client, 'rpc' => {'method' => 'server.register', 'request' => {'token' => '${registration_token}'}}},
       {'id' => "#{client}_device_create_workspace", 'client' => client, 'rpc' => {'method' => 'server.workspace.create', 'request' => {
-        'name' => '${workspace}', 'collection' => 'raidtest-targets', 'workflow_name' => workflow, 'parameters' => parameters}}},
+        'name' => '${workspace}', 'collection' => collection, 'workflow_name' => workflow, 'parameters' => parameters}}},
       {'id' => "#{client}_device_select_workspace", 'client' => client, 'rpc' => {'method' => 'server.run.workspace.set', 'request' => {'workspace_name' => '${workspace}'}}},
       {'id' => "#{client}_device_warmup_workspace", 'client' => client, 'timeout' => '2m', 'rpc' => {'method' => 'server.run.workspace.reload', 'request' => {}}},
       *turns,
