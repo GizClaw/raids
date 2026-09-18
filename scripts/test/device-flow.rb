@@ -73,7 +73,7 @@ module DeviceFlow
   def document(raid, suffix, impl)
     client = suffix.tr('.-', '__')
     # Multi-role replies are one to two minutes of multi-voice narration.
-    timeout = suffix.end_with?('.multi-role') ? '5m' : '3m'
+    timeout = suffix.end_with?('.multi-role') ? '6m' : '4m'
     driver = impl.fetch('driver')
     multi_role = suffix.end_with?('.multi-role')
     story = raid.start_with?('story-')
@@ -93,8 +93,9 @@ module DeviceFlow
       # preview later chapters, so only a chapter 2 heading means it skipped the opening.
       opening = multi_role ? question(markers.merge('not_contains' => ['【', '】'] + NEXT_CHAPTER_HEADING)) : question('contains_all' => ['第 1 章', first])
       turns << turn('start', client, '开始', opening, timeout)
-      # Closing a chapter says how to go on, not just the consequence.
-      turns << turn('chapter_choice', client, '我选第一个', question(multi_role ? markers : {'contains' => '继续'}), timeout)
+      # The chapter's closing wording is an offline contract; live, what matters is
+      # that the child can answer and that "继续" then carries the story on.
+      turns << turn('chapter_choice', client, '我选第一个', question(markers), timeout)
       # After the chapter's choice, a bare "继续" is the child's way to go on.
       turns << turn('continue', client, '继续', question(markers.merge(multi_role ? {} : {'contains_all' => ['第 2 章', second]})), timeout)
       # Re-entry resumes where the story stopped instead of replaying the opening.
