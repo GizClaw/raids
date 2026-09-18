@@ -40,6 +40,9 @@ spec:
         - name: chapter-direction
           type: string
           merge: replace
+        - name: chapter-route
+          type: string
+          merge: replace
       nodes:
       - id: prepare-memory-query
         type: script
@@ -81,6 +84,7 @@ spec:
             from: input.messages
         outputs:
           direction: chapter-direction
+          route: chapter-route
         language: starlark
         entrypoint: run
         source: |
@@ -125,10 +129,10 @@ spec:
               # whether or not the narrator remembered to speak the closing hint.
               ready = hinted or spoken_since >= 1
               if compact in start_words:
-                  return {"direction": "孩子说“开始”：忽略之前讲过的所有章节和选择，本轮从第 1 章《" + chapters[0] + "》的开场重新讲起。"}
+                  return {"route": "continue", "direction": "孩子说“开始”：忽略之前讲过的所有章节和选择，本轮从第 1 章《" + chapters[0] + "》的开场重新讲起。"}
               if compact in continue_words and ready and chapter < len(chapters):
-                  return {"direction": "孩子同意继续，本章已经收尾：本轮第一行只写一次“第 " + str(chapter + 1) + " 章：" + chapters[chapter] + "”，紧接着讲这一章的开场，并用一个问题说出两三个具体选项。"}
-              return {"direction": "本轮仍在第 " + str(chapter) + " 章《" + chapters[chapter - 1] + "》，不要输出章节标题行。"}
+                  return {"route": "open", "direction": "孩子同意继续，本章已经收尾：本轮第一行只写一次“第 " + str(chapter + 1) + " 章：" + chapters[chapter] + "”，紧接着讲这一章的开场，并用一个问题说出两三个具体选项。"}
+              return {"route": "continue", "direction": "本轮仍在第 " + str(chapter) + " 章《" + chapters[chapter - 1] + "》，不要输出章节标题行。"}
         limits:
           max_execution_steps: 100000
           timeout: 250ms
@@ -172,6 +176,22 @@ spec:
         - placeholder: history
         - role: system
           template: 本轮章节指令（在全部对话之后给出，必须遵守）：{direction}
+      - id: open-chapter-prompt
+        type: prompt
+        inputs:
+          direction:
+            from: chapter-direction
+        outputs:
+          messages: answer-messages
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            你负责这个长篇互动故事的中文讲述。本轮只做一件事：开启新的一章。
+            第一行只写一次章节标题，格式是“第 N 章：标题”，其中“第”与数字、数字与“章”之间各有一个空格。
+            标题之后直接讲这一章的开场：先用一两句话交代新场景在哪里、谁在场、发生了什么，再用一个问题说出孩子可以选的两三个具体选项，问题写在同一句里，不要另列 A、B、C。
+            只输出适合朗读的中文正文，6 个句子、320 个 Unicode 字符以内，不输出 Markdown、列表、emoji、舞台说明或系统字段。
+            本轮指令：{direction}
       - id: narrator-model
         type: chat_model
         inputs:
@@ -217,8 +237,8 @@ spec:
         to: observe-memory
       - from: observe-memory
         to: end
-      - from: control-chapter
-        to: build-prompt
+      - from: open-chapter-prompt
+        to: narrator-model
       branches:
       - from: prepare-memory-query
         mode: first_match
@@ -238,6 +258,15 @@ spec:
             value: opening
           to: end
         default: capture-observation
+      - from: control-chapter
+        mode: first_match
+        routes:
+        - when:
+            field: chapter-route
+            op: eq
+            value: open
+          to: open-chapter-prompt
+        default: build-prompt
       outputs:
       - node: narrator-model
         field: answer
