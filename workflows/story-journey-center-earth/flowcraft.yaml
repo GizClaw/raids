@@ -88,6 +88,24 @@ spec:
             const resumeRequested = ["继续上次", "接着上次", "continuewhere", "leftoff"].some((cue) => deviceText.includes(cue));
             if (startRequested) state = Object.assign({}, defaults, {revision: Number(state.revision || 0)});
             const chapters = ["岩层入口", "地下水路", "晶洞风暴", "地表回声"];
+            // Board variables do not survive a turn, so the delivered chapter heading and the
+            // chapter-end hint are read back from this conversation's own replies.
+            const channelHistory = typeof board.channel === "function" ? (board.channel(board.MAIN_CHANNEL) || []) : [];
+            const assistantTexts = channelHistory.filter((m) => m && (m.role === "assistant" || m.role === "model")).map((m) => String(m.content || ""));
+            let deliveredChapter = 0;
+            let deliveredAt = -1;
+            for (let position = 0; position < assistantTexts.length; position += 1) {
+              for (let index = 0; index < chapters.length; index += 1) {
+                if (assistantTexts[position].includes("第 " + (index + 1) + " 章：" + chapters[index])) { deliveredChapter = index + 1; deliveredAt = position; }
+              }
+            }
+            // The hint counts for the chapter it was spoken in, even with turns after it.
+            const hintedInHistory = assistantTexts.slice(deliveredAt + 1).some((text) => text.includes("这一章的选择完成啦"));
+            if (!startRequested && deliveredChapter > Number(state.chapter || 1)) {
+              state.chapter = deliveredChapter;
+              state.chapter_title = chapters[deliveredChapter - 1];
+              state.location = chapters[deliveredChapter - 1];
+            }
             const enteringFirst = startRequested || Number(state.revision || 0) === 0 && (current.includes("第一章") || current.includes("第 1 章"));
             let transitionTarget = 0;
             if (current.includes("第二章") || current.includes("第2章") || current.includes("第 2 章")) transitionTarget = 2;
@@ -95,7 +113,7 @@ spec:
             if (current.includes("第四章") || current.includes("第4章") || current.includes("第 4 章")) transitionTarget = 4;
             const asksNextChapter = current.includes("下一章");
             // After the chapter-end hint, a plain agreement is how a child asks to go on.
-            const agreesToContinue = state.next_chapter_hinted === true && ["继续", "继续吧", "继续听", "好", "好的", "好呀", "要", "要的", "可以", "嗯", "行", "continue", "yes", "ok", "okay"].includes(deviceText);
+            const agreesToContinue = (state.next_chapter_hinted === true || hintedInHistory) && ["继续", "继续吧", "继续听", "好", "好的", "好呀", "要", "要的", "可以", "嗯", "行", "continue", "yes", "ok", "okay"].includes(deviceText);
             if (transitionTarget === 0 && (asksNextChapter || agreesToContinue) && Number(state.chapter || 1) < 4) transitionTarget = Number(state.chapter || 1) + 1;
             const transitionIntent = ["进入", "继续", "切换", "开始", "go to", "continue", "start"].some((cue) => current.toLowerCase().includes(cue)) || asksNextChapter || agreesToContinue;
             const transitionDenied = /(不要|别|不能|暂不|不想).{0,6}(进入|继续|切换|开始)/.test(current) || /(不进入|不继续|不切换|不开始)/.test(current) || /(do not|don't|cannot|can't|not ready to).{0,12}(enter|continue|switch|start|go to)/.test(current.toLowerCase()) || /(不要|别|不能|暂不|不想|先不|不去|不听).{0,6}下一章/.test(current);
@@ -116,7 +134,7 @@ spec:
             const choiceMadeNow = !choiceDenied && (hasPositiveChoice || naturalShortChoice);
             const currentChapter = Number(state.chapter || 1);
             const priorProgressBeats = Array.isArray(state.chapter_progress_beats) ? state.chapter_progress_beats : [];
-            const completionReady = (state.chapter_choice_made === true || choiceMadeNow) && priorProgressBeats.length >= 2 && !completionDenied;
+            const completionReady = hintedInHistory || ((state.chapter_choice_made === true || choiceMadeNow) && priorProgressBeats.length >= 2 && !completionDenied);
             let transition = false;
             if (requested === currentChapter + 1 && completionReady) {
               state.chapter = requested;
