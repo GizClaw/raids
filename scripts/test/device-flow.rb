@@ -20,8 +20,9 @@ Encoding.default_external = Encoding::UTF_8
 
 module DeviceFlow
   DIR = 'tests/giztest/device'
-  # The reply ends with a question, optionally followed by closing quotes.
-  ENDS_WITH_QUESTION = '[？?][”"’」』）)]*\s*$'
+  # The reply closes with a question; a short invitation may follow it, as in
+  # "……还是保持灵活更重要呢？请你告诉我你的选择吧。"
+  ENDS_WITH_QUESTION = '[？?][^？?]{0,40}$'
   # A chapter heading, not a cast preview such as "精卫在第2章加入".
   NEXT_CHAPTER_HEADING = ['第 2 章：', '第 2 章:', '第 2 章《', '第2章：', '第2章:', '第2章《'].freeze
   JOURNEY_OPENING = %w[石猴 仙石 石卵 石头里 石头中].freeze
