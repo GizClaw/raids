@@ -65,6 +65,9 @@ test -d tests/giztest || {
 }
 
 require_command ruby
+# admin validate does not apply the Server's RuntimeProfile alias syntax check.
+ruby scripts/test/test-runtime-profile-aliases.rb
+ruby scripts/test/runtime-profile-aliases.rb
 ruby scripts/test/starlark-modules.rb | scripts/test/test-starlark-routing.sh --modules
 python3 scripts/test/test-multi-role-testers.py
 ruby scripts/test/test-eino-script-outputs.rb
