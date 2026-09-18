@@ -42,6 +42,15 @@ Generic Admin `metadata.name` is unsupported. RuntimeProfile map keys remain
 Peer-facing aliases scoped by that profile; each binding points to an Admin
 Resource ID and does not create an alternate Admin selector.
 
+Every RuntimeProfile alias — Workflow collection names, Workflow, Model, Voice
+and memory binding keys, and `app_config` keys — is 1-63 bytes of
+dot-separated lowercase kebab-case segments, for example
+`learn.chinese-poetry-grade1-eino` or `story.animal-kingdom`. Underscores and
+uppercase letters are rejected. GizClaw v0.18.15 enforces this when a Server
+normalizes the profile, which `gizclaw admin validate` does not do, so
+`make test-unit-resources` checks it offline and also rejects a Workflow alias
+bound in more than one collection.
+
 Admin IDs are opaque and kind-qualified. They contain at most 1,024 Unicode
 characters, preserve internal characters exactly, and cannot have surrounding
 whitespace or be the standalone URI dot segments `.` and `..`.
@@ -325,7 +334,7 @@ merged by [GizClaw #590](https://github.com/GizClaw/gizclaw/pull/590).
 ## Static resource validation
 
 Raids uses the released GizClaw binary as the only authority for declarative
-Resource format validation. With GizClaw v0.18.9 or later on `PATH`, validate
+Resource format validation. With GizClaw v0.18.15 or later on `PATH`, validate
 every applyable catalog Resource with:
 
 ```sh
@@ -334,7 +343,8 @@ make test-unit-resources
 
 Use `GIZCLAW=/path/to/gizclaw make test-unit-resources` to select an explicit
 binary. The target validates each YAML file under the applyable Resource
-directories independently, and then validates the
+directories independently, checks every RuntimeProfile alias against the
+Server's alias syntax, and then validates the
 declarative Giztest corpus with `gizclaw test validate`. It does not read
 `runtime-profile.example.yaml`. It is offline: it does not use a GizClaw context, contact Server, or mutate
 resources.
