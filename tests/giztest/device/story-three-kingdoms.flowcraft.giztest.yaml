@@ -31,7 +31,7 @@ variables:
     direction: output
     type: string
 repeat: 1
-timeout: 30m
+timeout: 35m
 steps:
 - id: flowcraft_device_register
   client: flowcraft
@@ -103,6 +103,24 @@ steps:
       min_length: 20
       pattern: "[？?][^？?]{0,40}$"
 - timeout: 4m
+  id: flowcraft_device_chapter_choice_again
+  client: flowcraft
+  peer_stream:
+    mode: text
+    input: 我选第一个
+    idle_timeout: 120s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/text":
+      min_length: 20
+      pattern: "[？?][^？?]{0,40}$"
+      contains: 继续
+- timeout: 4m
   id: flowcraft_device_continue
   client: flowcraft
   peer_stream:
@@ -119,23 +137,9 @@ steps:
     "/text":
       min_length: 20
       pattern: "[？?][^？?]{0,40}$"
-- timeout: 4m
-  id: flowcraft_device_next_chapter
-  client: flowcraft
-  peer_stream:
-    mode: text
-    input: 进入下一章
-    idle_timeout: 120s
-    require_text: true
-    require_audio: true
-  expect:
-    "/text_eos":
-      equals: true
-    "/audio_eos":
-      equals: true
-    "/text":
-      min_length: 20
-      pattern: "[？?][^？?]{0,40}$"
+      contains_all:
+      - 第 2 章
+      - 百姓与追击
 - id: flowcraft_device_leave
   client: flowcraft
   rpc:

@@ -89,19 +89,16 @@ module DeviceFlow
     }
     turns = []
     if story
-      first = chapters(raid).first
+      first, second = chapters(raid)
       # Original stories speak the heading; multi-role narration weaves it in and may
       # preview later chapters, so only a chapter 2 heading means it skipped the opening.
       opening = multi_role ? question(markers.merge('not_contains' => ['【', '】'] + NEXT_CHAPTER_HEADING)) : question('contains_all' => ['第 1 章', first])
       turns << turn('start', client, '开始', opening, timeout)
-      # The chapter's closing wording is an offline contract; live, what matters is
-      # that the child can answer and that neither turn leaves them in silence.
+      # Two answers close the chapter even when the story spends one more beat on
+      # it, so "继续" alone must then open chapter 2 with its heading and scene.
       turns << turn('chapter_choice', client, '我选第一个', question(markers), timeout)
-      # "继续" and "进入下一章" both carry the story on; whether the heading lands on
-      # the first or the second of them is the story's call, so the resume turn
-      # below is what proves the story actually reached chapter 2.
-      turns << turn('continue', client, '继续', question(markers), timeout)
-      turns << turn('next_chapter', client, '进入下一章', question(markers), timeout) unless multi_role
+      turns << turn('chapter_choice_again', client, '我选第一个', question(multi_role ? markers : {'contains' => '继续'}), timeout)
+      turns << turn('continue', client, '继续', question(markers.merge(multi_role ? {} : {'contains_all' => ['第 2 章', second]})), timeout)
       # Re-entry says where the story stopped and carries on; by then the story may
       # be one or two chapters in, so what matters is that it is past chapter 1 and
       # does not replay the opening.
@@ -146,7 +143,7 @@ module DeviceFlow
         'last_history_text' => {'direction' => 'output', 'type' => 'string'}
       },
       'repeat' => 1,
-      'timeout' => '30m',
+      'timeout' => multi_role ? '50m' : '35m',
       'steps' => steps,
       'finally' => [
         # Print the last reply so a failed assertion shows what the child heard.
