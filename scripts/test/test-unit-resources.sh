@@ -128,4 +128,8 @@ for package in workflows/story-*; do
 done
 printf 'validated %s story transition Giztests\n' "$transition_count"
 
+# The H106 device entry contract (开始 / 继续 / 继续上次的内容) is generated for
+# every story, adventure and Journey implementation; stale files fail here.
+ruby scripts/test/device-flow.rb --check
+
 "$GIZCLAW_TEST_CLI" test validate -f tests/giztest

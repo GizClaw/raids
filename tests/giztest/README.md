@@ -1,12 +1,15 @@
 # Giztest 测试
 
-测试布局为 `tests/giztest/{smoke,quality,soak}/<raid>.<implementation>.giztest.yaml`，每个文件只运行一个实现，共 517 个三档文件。implementation 与 workflow 文件名一致，例如 `flowcraft`、`eino`、`flowcraft.multi-role`、`eino.multi-role`。文档名为 `<raid>.<tier>.<implementation>`。另保留 `h106/` 的 2 个外部设备测试，合计 519 个 `.giztest.yaml`；`reports/` 仅存运行产物，不计入用例。
+测试布局为 `tests/giztest/{smoke,quality,soak}/<raid>.<implementation>.giztest.yaml`，每个文件只运行一个实现，共 517 个三档文件。implementation 与 workflow 文件名一致，例如 `flowcraft`、`eino`、`flowcraft.multi-role`、`eino.multi-role`。文档名为 `<raid>.<tier>.<implementation>`。另有 `device/` 的 124 个设备流程测试和 `h106/` 的 2 个外部设备测试，合计 643 个 `.giztest.yaml`；`reports/` 仅存运行产物，不计入用例。
 
 | 档位 | 文件数 | 定义 |
 | --- | ---: | --- |
 | smoke | 175 | 速度、延迟、响应度：开场、角色探针、RealTime，完整音频与独立首响应 |
 | quality | 175 | 质量控制与安全围栏：剧情、转场、更正、语言、角色边界；只保留确定性断言 |
 | soak | 167 | Tester 与被测 workflow 长回合对跑，检查记忆、重载及长程一致性 |
+| device | 124 | H106 进入流程：`开始` → `我选第一个` → `继续` → 退出重进 → `继续上次的内容` → `开始`，每轮必须以问孩子的问题结尾 |
+
+`device/` 覆盖 19 个 story、11 个 adventure 的四个实现和 Journey 的四个实现。H106 在孩子确认进入时只提交一次 `开始` 或 `继续上次的内容`，之后只有孩子按键说话才有输入，所以每轮回复都必须以问题结尾，文字匹配 `[？?][”"’」』）)]*\s*$`，并要求 text/audio EOS。原版 story 另外要求：两次 `开始` 都输出 `第 1 章` 与第一章标题，章节结束轮提到 `继续`，`继续` 后输出 `第 2 章` 与第二章标题，重进后的 `继续上次的内容` 含第二章标题且不含 `第 1 章` 或玩法说明；multi-role 不得残留 `【】`；Journey 的 `开始` 必须从石猴开场且不出现 Tester 路线里的 `明月`、`清禾`、`青铜铃`。文件由 `ruby scripts/test/device-flow.rb` 生成，`make test-unit-resources` 用 `--check` 校验文件未过期、目标 workflow 含对应契约；不登记在 `raid.json`，用 `make test-e2e TIER=device` 运行。
 
 55 个 raid 均有 smoke/quality；`ast-translate` 和 `doubao-realtime` 是音频专用目标，没有 Tester 长回合协议，故无 soak，其余 53 个均有三档。Murder Mystery 只有 Flowcraft original/multi-role；Journey 分别运行 `flowcraft`、`eino-history`、`eino-memory-async`、`eino-memory-recall`。AST 按七个 workflow 拆分，`zh-en-auto` 同一文件保留两个方向，不把不同翻译方向当作等价实现；Doubao 使用 `conversation` 文件名。
 

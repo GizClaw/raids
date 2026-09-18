@@ -57,7 +57,7 @@ spec:
               }
             }
             let transition = false;
-            if (!current || any(current, ["重新开始", "restart", "开场", "介绍这个体验", "开始体验"])) scene=1;
+            if (!current || ["开始", "开始吧", "从头开始", "重新开始", "start", "start over", "restart"].includes(current.toLowerCase().replace(/[。！!]/g, "")) || any(current, ["重新开始", "restart", "开场", "介绍这个体验", "开始体验"])) scene=1;
             else if (any(current,["进入下一章","进入下一场景"])) {scene=Math.min(scenes.length,scene+1); transition=true;}
             else {
               for (let i=0;i<scenes.length;i++) if (any(current,["进入"+scenes[i],"前往"+scenes[i],"来到"+scenes[i]])) {scene=i+1;transition=true;}
@@ -79,7 +79,7 @@ spec:
 
 
             // Keep the fixed opening out of ordinary-turn requests.
-            const openingPrompt = !current || any(current, ["重新开始", "restart", "开场", "介绍这个体验", "开始体验", "start", "begin", "介绍体验"]);
+            const openingPrompt = !current || ["开始", "开始吧", "从头开始", "重新开始", "start", "start over", "restart"].includes(current.toLowerCase().replace(/[。！!]/g, "")) || any(current, ["重新开始", "restart", "开场", "介绍这个体验", "开始体验", "start", "begin", "介绍体验"]);
             board.setVar("english_opening_instruction", openingPrompt && /english|英文|英语/i.test(current) ? "英文开场参考：Glowing plankton appear outside the base as power drops. Record the ecosystem or inspect equipment first?" : "");
             board.setVar("opening_instruction", openingPrompt ? "开场参考：欢迎来到海底科学基地，你是基地里的小队员，我是基地助手，我们一起照顾海洋和基地。每次你从两件事里选先做哪一件，也可以问我看到的是什么。海底基地的观察窗外出现大片发光浮游生物，能源也在下降，我们先记录生态还是检查设备？" : "");
 
@@ -173,13 +173,14 @@ spec:
             安全边界：Keep pressure and equipment failures non-graphic, distinguish fiction from diving safety, and never advise unsupervised underwater activity.
             区分事实、传说、虚构及不确定性。
             现实危险或模仿请求：劝阻危险，提供安全替代，引导找家长、老师或可信任的大人。
+            孩子只能在你说完后按键回答：每条回复的最后一句都必须是问孩子的问题，安全提醒回合也要在提醒之后把话头交回孩子，只有用户明确限定句数、字数或字段时才可以短答；并在问题里说出两三个具体选项，绝不能以陈述句或角色台词结尾。结尾不能平铺直叙地讲完就停：最后要先用一句话交代现在的处境，再用一个有画面感的问题把选择交给孩子。只有整个故事或整场冒险真的讲完、后面没有内容时才可以不再提问，但必须有一段像样的收尾话（孩子说“开始”“重新开始”是要重来，不是结束，这时必须重新开场，绝不能说收尾话）：先用一两句温暖的结束语收住（例如“我们的故事就讲到这里啦”），再把这一路最难忘的地方点一句，最后告诉孩子可以说“开始”重新听一遍，或者换一个故事；绝不能没有交代就停住。孩子说“继续上次的内容”时，不重播开场，先用一句话说出上次进行到哪里，再接着冒险并以问题收尾；没有可承接的内容时按开场处理。
             可核对的长期进度：${board.scenario_memory}
             承接已确认进度，不推翻/重播。
             默认自然中文，明确要求英文时用英文。
             ${board.story_bible}
             ${board.narration_context}
 
-            有声书连续讲述：约1至2分钟，旁白叙述与角色第一人称台词分段，让在场角色有来有回，生动有趣、细节丰富。回应孩子刚说的话，尊重改选和更正，记住最新事实；追问、插话和重听自然接续。故事自然推进，通常以故事内选择收尾。回忆和确认可以简短；遇到现实危险，劝阻模仿并引导找家长、老师或可信任的大人。
+            有声书连续讲述：约1至2分钟，旁白叙述与角色第一人称台词分段，让在场角色有来有回，生动有趣、细节丰富。回应孩子刚说的话，尊重改选和更正，记住最新事实；追问、插话和重听自然接续。故事自然推进，最后一句必须是向孩子提出的故事内问题，不能以旁白或角色台词结尾。回忆和确认可以简短；遇到现实危险，劝阻模仿并引导找家长、老师或可信任的大人。
             有声书连续讲述：旁白叙述与角色第一人称台词分段，与在场角色交替；单角色不添人。只知亲历/公开信息。插话接续，点名仅增台词不换场/整轮。
             标记格式：仅限【旁白】、【海洋生物学家】、【基地工程师】、【潜航员】，每段一个，标题用【旁白】。未列名人物（如路人、摊主）及孩子的话一律由【旁白】转述，如：卖糖粥的阿婆笑着说……；不输出其它【】标记，禁止新增姓名标记，禁止给孩子加标记。
             音色由段落标记映射；仅朗读正文，禁Markdown/列表/emoji/舞台说明/系统字段/分析。

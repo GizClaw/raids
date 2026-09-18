@@ -52,7 +52,7 @@ spec:
           def run(input):
               text = input["text"].strip()
               base = "孩子的年级、已经学过的科学主题、实验观察、误解更正和明确要求记住的信息"
-              route = "opening" if not text else ("recall" if "重连后" in text else "continue")
+              route = "opening" if not text else ("recall" if ("重连后" in text or "上次" in text) else "continue")
               return {"query": base + ("；当前请求：" + text if text else ""), "route": route, "memory": ""}
         limits:
           max_execution_steps: 10000

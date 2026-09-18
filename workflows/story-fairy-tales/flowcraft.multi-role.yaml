@@ -34,7 +34,7 @@ spec:
         config:
           source: |
             const current = String(board.getVar("input") || "").trim().toLowerCase();
-            const cues = ["重连", "恢复", "回忆", "还记得", "代号", "更正", "改成", "reconnect", "recall", "correct"];
+            const cues = ["重连", "恢复", "回忆", "还记得", "代号", "更正", "改成", "上次", "reconnect", "recall", "correct", "continue where", "left off"];
             board.setVar("scenario_memory", "");
             board.setVar("needs_memory_recall", current !== "" && cues.some((cue) => current.includes(cue)));
       - id: prepare-recall-query
@@ -75,6 +75,11 @@ spec:
                 if (candidate.schema === "story_contract_v1" && Number(candidate.revision || 0) >= Number(state.revision || 0)) state = Object.assign({}, defaults, candidate);
               } catch (_) {}
             }
+            // The H106 device submits "开始" / "继续上次的内容" once when the child enters.
+            const deviceText = current.toLowerCase().replace(/[。！!，,.\s]/g, "");
+            const startRequested = ["开始", "开始吧", "从头开始", "重新开始", "start", "startover", "restart"].includes(deviceText);
+            const resumeRequested = ["继续上次", "接着上次", "continuewhere", "leftoff"].some((cue) => deviceText.includes(cue));
+            if (startRequested) state = Object.assign({}, defaults, {revision: Number(state.revision || 0)});
             state.chapter = Math.max(1, Math.min(4, Math.floor(Number(state.chapter) || 1)));
             const chapters = ["善意之门", "森林约定", "月光考验", "温暖归途"];
             // A delivered heading records an automatic transition; user mentions do not.
@@ -88,7 +93,7 @@ spec:
                 state.chapter_choice_made = false;
               }
             }
-            const enteringFirst = Number(state.revision || 0) === 0 && (current.includes("第一章") || current.includes("第 1 章") || /(?:start|begin|restart).{0,20}(?:chapter\s*1|first chapter)/i.test(current));
+            const enteringFirst = startRequested || Number(state.revision || 0) === 0 && (current.includes("第一章") || current.includes("第 1 章") || /(?:start|begin|restart).{0,20}(?:chapter\s*1|first chapter)/i.test(current));
             let transitionTarget = 0;
             if (current.includes("第二章") || current.includes("第2章") || current.includes("第 2 章")) transitionTarget = 2;
             if (current.includes("第三章") || current.includes("第3章") || current.includes("第 3 章")) transitionTarget = 3;
@@ -153,7 +158,7 @@ spec:
             const beatsAfterTurn = priorProgressBeats.slice();
             if (countProgress && !beatsAfterTurn.includes("consequence")) beatsAfterTurn.push("consequence");
             if (countProgress && !beatsAfterTurn.includes("perspective")) beatsAfterTurn.push("perspective");
-            const nextChapterInstruction = "让故事随孩子的选择自然推进，通常以故事内选择收尾。";
+            const nextChapterInstruction = (resumeRequested && !enteringFirst ? "孩子要继续上次的内容：不重播开场或玩法说明；先用一句旁白说出上次讲到哪里，再接着讲新的变化。" : "") + "让故事随孩子的选择自然推进；每次回复的最后一句都必须是向孩子提出的故事内问题，说出两三个具体选项，不能以旁白或角色的陈述结尾；结尾不能平铺直叙地讲完就停：最后要先用一句话交代现在的处境，再用一个有画面感的问题把选择交给孩子。只有整个故事或整场冒险真的讲完、后面没有内容时才可以不再提问，但必须有一段像样的收尾话（孩子说“开始”“重新开始”是要重来，不是结束，这时必须重新开场，绝不能说收尾话）：先用一两句温暖的结束语收住（例如“我们的故事就讲到这里啦”），再把这一路最难忘的地方点一句，最后告诉孩子可以说“开始”重新听一遍，或者换一个故事；绝不能没有交代就停住。选项直接写进这句问题里，问题后面不再另列A、B、C等选项。";
             board.setVar("announce_chapter", announce);
             board.setVar("transition_blocked", transitionBlocked);
             board.setVar("safety_request", current.includes("现实中模仿") || current.includes("现实模仿"));
@@ -175,7 +180,7 @@ spec:
             // A fresh narrator request is an opening even without the literal word "start".
             const promptHistory = typeof board.channel === "function" ? (board.channel(board.MAIN_CHANNEL) || []) : null;
             const firstNarration = state.chapter === 1 && !administrativeTurn && !safetyManagement && !choiceMadeNow && !memory.trim() && (promptHistory ? !promptHistory.some(m => m.role === "assistant" || m.role === "model") : Number(state.revision || 0) === 1);
-            board.setVar("opening_instruction", (enteringFirst || !current || requestedOpening || firstNarration) ? "第一章开场优先：标题后保留背景/玩法，连续讲述，原问题移至末尾：我们走进一片会发光的童话森林，你是女主角的好朋友，她的小伙伴也和我们一起冒险。第二章会遇到说明约定的仙女和森林长者，遇见后也能随时插话。你可以直接说出你的选择，也可以说“请让女主角说说”或“请让伙伴说说”，让这一段多一些他们的台词；你可以随时和角色说话、作决定。森林里有一扇只在善意出现时才会打开的门，你想先对它轻轻打个招呼、分享一样自己的东西，还是先帮旁边迷路的小刺猬？" : "");
+            board.setVar("opening_instruction", (startRequested ? "孩子说“开始”：从第一章开头重新讲起，忽略之前讲过的所有章节、内容和选择，只讲第一章开场并以开场问题结尾。" : "") + ((enteringFirst || !current || requestedOpening || firstNarration) ? "第一章开场优先：标题后保留背景/玩法，连续讲述，原问题移至末尾：我们走进一片会发光的童话森林，你是女主角的好朋友，她的小伙伴也和我们一起冒险。第二章会遇到说明约定的仙女和森林长者，遇见后也能随时插话。你可以直接说出你的选择，也可以说“请让女主角说说”或“请让伙伴说说”，让这一段多一些他们的台词；你可以随时和角色说话、作决定。森林里有一扇只在善意出现时才会打开的门，你想先对它轻轻打个招呼、分享一样自己的东西，还是先帮旁边迷路的小刺猬？" : ""));
 
             // Only the selected role needs private style details; narration compares present roles.
             const roleViews = ["当前角色资料：narrator 旁白，第1至4章只述可见事实、不代演角色；heroine 女主角，仅第1、2、3、4章可出场，我想帮助森林里的朋友；活泼勇敢，第1章帮助迷路的小刺猬，；companion 伙伴，仅第1、2、3、4章可出场，我想陪朋友一起找到路；天真短句，第1章观察发光的门，\n本故事四章及人物相遇是本仓库原创改编安排，不等同原典情节或真实历史；所有角色只知亲历或已公开信息，不知别人的私密想法和未来结果；每章比较至少两种立场，不要求全员轮流发言。", "当前角色资料：narrator 旁白，第1至4章只述可见事实、不代演角色；heroine 女主角，仅第1、2、3、4章可出场，我想帮助森林里的朋友；活泼勇敢，第2章遵守森林约定，；companion 伙伴，仅第1、2、3、4章可出场，我想陪朋友一起找到路；天真短句，第2章记录路标，；fairy 仙女，仅第2、3、4章可出场，我想让善意成为行动；温柔稳重，第2章说明森林约定，；elder 森林长者，仅第2、4章可出场，我想照看大家共同的家；和蔼耐心，第2章在森林入口讲清借物归还的约定，\n本故事四章及人物相遇是本仓库原创改编安排，不等同原典情节或真实历史；所有角色只知亲历或已公开信息，不知别人的私密想法和未来结果；每章比较至少两种立场，不要求全员轮流发言。", "当前角色资料：narrator 旁白，第1至4章只述可见事实、不代演角色；heroine 女主角，仅第1、2、3、4章可出场，我想帮助森林里的朋友；活泼勇敢，第3章面对月光考验，；companion 伙伴，仅第1、2、3、4章可出场，我想陪朋友一起找到路；天真短句，第3章提醒停下求助，；fairy 仙女，仅第2、3、4章可出场，我想让善意成为行动；温柔稳重，第3章点亮安全路标而不替孩子选择，\n本故事四章及人物相遇是本仓库原创改编安排，不等同原典情节或真实历史；所有角色只知亲历或已公开信息，不知别人的私密想法和未来结果；每章比较至少两种立场，不要求全员轮流发言。", "当前角色资料：narrator 旁白，第1至4章只述可见事实、不代演角色；heroine 女主角，仅第1、2、3、4章可出场，我想帮助森林里的朋友；活泼勇敢，第4章送伙伴回家。；companion 伙伴，仅第1、2、3、4章可出场，我想陪朋友一起找到路；天真短句，第4章归还借来的物品。；fairy 仙女，仅第2、3、4章可出场，我想让善意成为行动；温柔稳重，第4章见证承诺兑现。；elder 森林长者，仅第2、4章可出场，我想照看大家共同的家；和蔼耐心，第4章在归途接回物品，\n本故事四章及人物相遇是本仓库原创改编安排，不等同原典情节或真实历史；所有角色只知亲历或已公开信息，不知别人的私密想法和未来结果；每章比较至少两种立场，不要求全员轮流发言。"];
@@ -238,7 +243,7 @@ spec:
             若用户只要求回忆或确认旅程代号，只回答当前代号；存在更正时绝不输出旧值。
             ${board.next_chapter_instruction}
 
-            有声书连续讲述：约1至2分钟，旁白叙述与角色第一人称台词分段，让在场角色有来有回，生动有趣、细节丰富。回应孩子刚说的话，尊重改选和更正，记住最新事实；追问、插话和重听自然接续。故事自然推进，通常以故事内选择收尾。回忆和确认可以简短；遇到现实危险，劝阻模仿并引导找家长、老师或可信任的大人。
+            有声书连续讲述：约1至2分钟，旁白叙述与角色第一人称台词分段，让在场角色有来有回，生动有趣、细节丰富。回应孩子刚说的话，尊重改选和更正，记住最新事实；追问、插话和重听自然接续。故事自然推进，每次回复的最后一句都必须是向孩子提出的故事内问题，说出两三个具体选项，不能以旁白或角色的陈述结尾；结尾不能平铺直叙地讲完就停：最后要先用一句话交代现在的处境，再用一个有画面感的问题把选择交给孩子。只有整个故事或整场冒险真的讲完、后面没有内容时才可以不再提问，但必须有一段像样的收尾话（孩子说“开始”“重新开始”是要重来，不是结束，这时必须重新开场，绝不能说收尾话）：先用一两句温暖的结束语收住（例如“我们的故事就讲到这里啦”），再把这一路最难忘的地方点一句，最后告诉孩子可以说“开始”重新听一遍，或者换一个故事；绝不能没有交代就停住。选项直接写进这句问题里，问题后面不再另列A、B、C等选项。回忆和确认可以简短；遇到现实危险，劝阻模仿并引导找家长、老师或可信任的大人。
             有声书连续讲述：旁白叙述与角色第一人称台词分段，与在场角色交替；单角色不添人。只知亲历/公开信息。插话接续，点名仅增台词不换场/整轮。
             标记格式：仅限【旁白】、【女主角】、【伙伴】、【仙女】、【森林长者】，每段一个，标题用【旁白】。未列名人物（如路人、摊主）及孩子的话一律由【旁白】转述，如：卖糖粥的阿婆笑着说……；不输出其它【】标记，禁止新增姓名标记，禁止给孩子加标记。
             音色由段落标记映射；仅朗读正文，禁Markdown/列表/emoji/舞台说明/系统字段/分析。

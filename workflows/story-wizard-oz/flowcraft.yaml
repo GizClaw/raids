@@ -44,7 +44,7 @@ spec:
         config:
           source: |
             const current = String(board.getVar("input") || "").trim().toLowerCase();
-            const cues = ["重连", "恢复", "回忆", "还记得", "代号", "更正", "改成", "reconnect", "recall", "correct"];
+            const cues = ["重连", "恢复", "回忆", "还记得", "代号", "更正", "改成", "上次", "reconnect", "recall", "correct", "continue where", "left off"];
             board.setVar("scenario_memory", "");
             board.setVar("needs_memory_recall", current !== "" && cues.some((cue) => current.includes(cue)));
       - id: prepare-recall-query
@@ -82,6 +82,11 @@ spec:
                 if (candidate.schema === "story_contract_v1" && Number(candidate.revision || 0) >= Number(state.revision || 0)) state = Object.assign({}, defaults, candidate);
               } catch (_) {}
             }
+            // The H106 device submits "开始" / "继续上次的内容" once when the child enters.
+            const deviceText = current.toLowerCase().replace(/[。！!，,.\s]/g, "");
+            const startRequested = ["开始", "开始吧", "从头开始", "重新开始", "start", "startover", "restart"].includes(deviceText);
+            const resumeRequested = ["继续上次", "接着上次", "continuewhere", "leftoff"].some((cue) => deviceText.includes(cue));
+            if (startRequested) state = Object.assign({}, defaults, {revision: Number(state.revision || 0)});
             const chapters = ["黄砖岔路", "勇气考验", "智慧迷城", "伙伴归途"];
             const lowerInput = current.toLowerCase();
             const englishLanguageDenied = ["don't use english", "do not use english", "not in english", "without english", "don't continue in english", "do not continue in english", "not continue in english", "don't introduce", "do not introduce", "not introduce", "never introduce", "stop using english", "continue in chinese", "use chinese"].some((cue) => lowerInput.includes(cue)) || ["不要用英文", "别用英文", "不用英文", "不要用英语介绍", "别用英语介绍", "用中文", "用汉语"].some((cue) => current.includes(cue));
@@ -95,14 +100,36 @@ spec:
               state = Object.assign({}, defaults);
               state.revision = restartRevision;
             }
-            const enteringFirst = englishRestart || (Number(state.revision || 0) === 0 && (current.includes("第一章") || current.includes("第 1 章")));
+            // Board variables do not survive a turn, so the delivered chapter heading and the
+            // chapter-end hint are read back from this conversation's own replies.
+            const channelHistory = typeof board.channel === "function" ? (board.channel(board.MAIN_CHANNEL) || []) : [];
+            const assistantTexts = channelHistory.filter((m) => m && (m.role === "assistant" || m.role === "model")).map((m) => String(m.content || ""));
+            let deliveredChapter = 0;
+            let deliveredAt = -1;
+            for (let position = 0; position < assistantTexts.length; position += 1) {
+              for (let index = 0; index < chapters.length; index += 1) {
+                if (assistantTexts[position].includes("第 " + (index + 1) + " 章：" + chapters[index])) { deliveredChapter = index + 1; deliveredAt = position; }
+              }
+            }
+            // The hint counts for the chapter it was spoken in, even with turns after it, and
+            // the narrator may paraphrase it; two beats in the chapter also count as ready.
+            const chapterReplies = assistantTexts.slice(deliveredAt + 1);
+            const hintedInHistory = chapterReplies.some((text) => text.includes("这一章的选择完成啦") || text.includes("下一章")) || chapterReplies.length >= 1;
+            if (!startRequested && deliveredChapter > Number(state.chapter || 1)) {
+              state.chapter = deliveredChapter;
+              state.chapter_title = chapters[deliveredChapter - 1];
+              state.location = chapters[deliveredChapter - 1];
+            }
+            const enteringFirst = startRequested || englishRestart || (Number(state.revision || 0) === 0 && (current.includes("第一章") || current.includes("第 1 章")));
             let transitionTarget = 0;
             if (current.includes("第二章") || current.includes("第2章") || current.includes("第 2 章")) transitionTarget = 2;
             if (current.includes("第三章") || current.includes("第3章") || current.includes("第 3 章")) transitionTarget = 3;
             if (current.includes("第四章") || current.includes("第4章") || current.includes("第 4 章")) transitionTarget = 4;
             const asksNextChapter = current.includes("下一章");
-            if (transitionTarget === 0 && asksNextChapter && Number(state.chapter || 1) < 4) transitionTarget = Number(state.chapter || 1) + 1;
-            const transitionIntent = ["进入", "继续", "切换", "开始", "go to", "continue", "start"].some((cue) => current.toLowerCase().includes(cue)) || asksNextChapter;
+            // After the chapter-end hint, a plain agreement is how a child asks to go on.
+            const agreesToContinue = (state.next_chapter_hinted === true || hintedInHistory) && ["继续", "继续吧", "继续听", "好", "好的", "好呀", "要", "要的", "可以", "嗯", "行", "continue", "yes", "ok", "okay"].includes(deviceText);
+            if (transitionTarget === 0 && (asksNextChapter || agreesToContinue) && Number(state.chapter || 1) < 4) transitionTarget = Number(state.chapter || 1) + 1;
+            const transitionIntent = ["进入", "继续", "切换", "开始", "go to", "continue", "start"].some((cue) => current.toLowerCase().includes(cue)) || asksNextChapter || agreesToContinue;
             const transitionDenied = /(不要|别|不能|暂不|不想).{0,6}(进入|继续|切换|开始)/.test(current) || /(不进入|不继续|不切换|不开始)/.test(current) || /(do not|don't|cannot|can't|not ready to).{0,12}(enter|continue|switch|start|go to)/.test(current.toLowerCase()) || /(不要|别|不能|暂不|不想|先不|不去|不听).{0,6}下一章/.test(current);
             const requested = transitionIntent && !transitionDenied ? transitionTarget : 0;
             const lower = current.toLowerCase();
@@ -121,7 +148,7 @@ spec:
             const choiceMadeNow = !choiceDenied && (hasPositiveChoice || naturalShortChoice);
             const currentChapter = Number(state.chapter || 1);
             const priorProgressBeats = Array.isArray(state.chapter_progress_beats) ? state.chapter_progress_beats : [];
-            const completionReady = (state.chapter_choice_made === true || choiceMadeNow) && priorProgressBeats.length >= 2 && !completionDenied;
+            const completionReady = hintedInHistory || ((state.chapter_choice_made === true || choiceMadeNow) && priorProgressBeats.length >= 2 && !completionDenied);
             let transition = false;
             if (requested === currentChapter + 1 && completionReady) {
               state.chapter = requested;
@@ -160,18 +187,21 @@ spec:
             const countProgress = !transition && !transitionBlocked && !enteringFirst && current !== "" && !administrativeTurn && !safetyOnly && (requested === 0 || requested === currentChapter);
             const beatsAfterTurn = priorProgressBeats.slice();
             if (countProgress && (speaker === "narrator" || requestsOutcome) && !beatsAfterTurn.includes("consequence")) beatsAfterTurn.push("consequence");
-            if (countProgress && (speaker !== "narrator" || requestsPerspective) && !beatsAfterTurn.includes("perspective")) beatsAfterTurn.push("perspective");
-            const nextChapterHint = countProgress && speaker === "narrator" && !current.includes("现实中模仿") && !current.includes("现实模仿") && !englishRestart && !englishContinue && Number(state.chapter || 1) < 4 && state.chapter_choice_made === true && beatsAfterTurn.length >= 2 && state.next_chapter_hinted !== true;
+            if (countProgress && (speaker !== "narrator" || requestsPerspective || choiceMadeNow) && !beatsAfterTurn.includes("perspective")) beatsAfterTurn.push("perspective");
+            const nextChapterHint = countProgress && speaker === "narrator" && !resumeRequested && !current.includes("现实中模仿") && !current.includes("现实模仿") && !englishRestart && !englishContinue && Number(state.chapter || 1) < 4 && state.chapter_choice_made === true && beatsAfterTurn.length >= 2 && state.next_chapter_hinted !== true;
             if (nextChapterHint) state.next_chapter_hinted = true;
-            const nextChapterInstruction = nextChapterHint ? "本轮必须完成：孩子刚刚做出了本章的选择。先用旁白讲出这个选择带来的直接结果，不要用任何角色的第一人称，不再提问，回复最后一句必须逐字是“这一章的选择完成啦，想继续听就说‘进入下一章’。”" : "";
+            const storyEndHint = countProgress && speaker === "narrator" && !resumeRequested && !current.includes("现实中模仿") && !current.includes("现实模仿") && Number(state.chapter || 1) === 4 && state.chapter_choice_made === true && beatsAfterTurn.length >= 2 && state.story_end_hinted !== true;
+            if (storyEndHint) state.story_end_hinted = true;
+            const nextChapterInstruction = nextChapterHint ? "本轮必须完成：孩子刚刚做出了本章的选择。先用旁白讲出这个选择带来的直接结果和两名角色对它的不同反应，不要用任何角色的第一人称，再用一句话总结这一章，不追加别的问题，回复最后一句必须逐字是“这一章的选择完成啦！想听下一章就说‘继续’或‘进入下一章’，要继续听吗？”" : (storyEndHint ? "本轮必须完成：孩子做出了最后一章的选择。先用旁白讲出这个选择带来的结局，再用一句话总结整个故事，回复最后一句必须逐字是“整个故事讲完啦！想从头再听一遍就说‘开始’，你最喜欢故事里的谁呢？”" : "");
             board.setVar("selected_speaker", speaker);
             board.setVar("announce_chapter", announce);
             board.setVar("transition_blocked", transitionBlocked);
             board.setVar("safety_request", current.includes("现实中模仿") || current.includes("现实模仿"));
             board.setVar("count_progress_response", countProgress);
             board.setVar("next_chapter_instruction", nextChapterInstruction);
+            board.setVar("resume_instruction", startRequested ? "孩子说“开始”：从第一章开头重新讲起，忽略之前讲过的所有章节、内容和选择；第一行写第 1 章的标题，然后完整说出首次进入第一章的开场，以开场问题结尾。" : resumeRequested && !announce ? "孩子要继续上次的内容：不写章节标题行，不重播开场或玩法说明；第一句先说现在在第几章、章节名和上次发生了什么，再接着讲一个新变化，最后用问题说出两三个具体选项。" : "");
             board.setVar("response_requests_outcome", requestsOutcome);
-            board.setVar("response_requests_perspective", requestsPerspective);
+            board.setVar("response_requests_perspective", requestsPerspective || (choiceMadeNow && !transition));
             board.setVar("english_restart", englishRestart);
             board.setVar("english_continue", englishContinue);
             board.setVar("story_state", state);
@@ -192,10 +222,12 @@ spec:
             若 english_restart 和 english_continue 均为 false，才遵循以下规则：本轮是旁白路径，只陈述玩家可见的场景、直接后果或转场，不替角色知道秘密，并直接叙述，不得添加“旁白说”“旁白：”等说话人标签，也不得用任何角色的第一人称说话；孩子只说出一个角色名或选项时，把它当作孩子的选择来叙述结果。
             本轮安全请求：${board.safety_request}。若该值为 true，回复中必须明确包含“不要模仿”和“找家长、老师或可信任成年人帮助”，并承接玩家所选安全替代带来的一个直接结果。
             本轮转场阻塞：${board.transition_blocked}。若 english_restart 和 english_continue 均为 false 且该值为 true，用“第 N 章：标题”格式写出当前章节及标题，再用孩子听得懂的话说明这一章还差孩子自己的选择或还没看到选择的结果，所以暂时还不能去下一章，最后用一个问题说出本章问题的具体选项；不得说“节拍”“转场条件”“悬念”等内部用语，也不要把“先听某个角色说说”当作选项，并且绝不输出用户请求的下一章标题。
-            若 english_restart 和 english_continue 均为 false 且 announce_chapter 为 true，第一行只写一次“第 N 章：标题”，其中“第”与数字、数字与“章”之间各有一个空格，标题后必须在同一条回复里紧接着讲这一章的开场：先用一两句话交代新场景在哪里、谁在场、发生了什么，再用一个问题说出孩子可以选的两三个具体选项；绝不能只输出章节标题就结束。若 announce_chapter 和 transition_blocked 均为 false，则不得输出章节标题。
+            本轮章节公告：${board.announce_chapter}。若 english_restart 和 english_continue 均为 false 且该值为 true，第一行只写一次“第 N 章：标题”，其中“第”与数字、数字与“章”之间各有一个空格，标题后必须在同一条回复里紧接着讲这一章的开场：先用一两句话交代新场景在哪里、谁在场、发生了什么，再用一个问题说出孩子可以选的两三个具体选项；绝不能只输出章节标题就结束。若本轮章节公告和本轮转场阻塞均为 false，则不得输出章节标题。
             若 english_restart 和 english_continue 均为 false 且首次进入第一章，章节标题后必须依次完整说出这段开场，先交代背景，再说明玩法，最后提出开场问题：你和多萝西一起被龙卷风吹到了奥兹国，稻草人也加入了你们，大家要沿着黄砖路去找能帮忙的巫师。你可以直接说出你的选择，也可以说“请让多萝西说说”或“请让稻草人说说”，听他们自己讲；这一章的选择做完后，说“进入下一章”就能继续听下去。黄砖路分成了三条，一条需要勇气，一条需要智慧，一条需要互相帮助，你会先走哪条？（玩法说明里“说‘进入下一章’就能继续听下去”这一句不得省略）
                         若 english_restart 和 english_continue 均为 false 且用户只要求回忆或确认旅程代号，只回答当前代号；存在更正时绝不输出旧值。
             ${board.next_chapter_instruction}
+            ${board.resume_instruction}
+            回复最后一句必须是问孩子的问题：说出两三个具体选项，或问孩子要不要继续；安全请求回合也要在提醒之后把话头交回孩子。结尾不能平铺直叙地讲完就停：最后要先用一句话交代现在的处境，再用一个有画面感的问题把选择交给孩子。只有整个故事或整场冒险真的讲完、后面没有内容时才可以不再提问，但必须有一段像样的收尾话（孩子说“开始”“重新开始”是要重来，不是结束，这时必须重新开场，绝不能说收尾话）：先用一两句温暖的结束语收住（例如“我们的故事就讲到这里啦”），再把这一路最难忘的地方点一句，最后告诉孩子可以说“开始”重新听一遍，或者换一个故事；绝不能没有交代就停住。选项直接写进这句问题里，问题后面不再另列A、B、C等选项。
             若 english_restart 和 english_continue 均为 false，普通回合输出2至4个完整中文句子、30至220个Unicode字符，首次开场和进入新章的回合可以写到6个句子、320个Unicode字符以内；任何分支都不输出Markdown、列表、emoji、舞台说明、系统字段或重复问题。
           track_steps: true
       - id: speak-dorothy
@@ -210,7 +242,7 @@ spec:
             当前权威状态：${board.story_state_text}
             本轮英文继续：${board.english_continue}。若该值为 true，只输出2至4个英文句子，第一句必须以“Dorothy says:”开头，并承接当前章节的一个新后果；不得重启、重复英文开场或输出章节标题。
             若 english_continue 为 false，本轮只能由多萝西说话，直接以角色口吻说台词，不得添加“多萝西说”“多萝西：”等说话人标签；只说该角色亲历或已公开的信息，不替旁白或另一角色发言。
-            若 english_continue 为 false，本轮不得输出章节标题。承接玩家当前选择，推进一个直接后果或线索，最多一个问题。
+            若 english_continue 为 false，本轮不得输出章节标题。承接玩家当前选择，推进一个直接后果或线索，最多一个问题；最后一句必须是这个角色问孩子的问题，说出两三个具体选项。
             若 english_continue 为 false，输出2至4个完整中文句子、30至220个Unicode字符；任何分支都不输出Markdown、列表、emoji、舞台说明或系统字段。
           track_steps: true
       - id: speak-scarecrow
@@ -225,7 +257,7 @@ spec:
             当前权威状态：${board.story_state_text}
             本轮英文继续：${board.english_continue}。若该值为 true，只输出2至4个英文句子，第一句必须以“Scarecrow says:”开头，并承接当前章节的一个新后果；不得重启、重复英文开场或输出章节标题。
             若 english_continue 为 false，本轮只能由稻草人说话，直接以角色口吻说台词，不得添加“稻草人说”“稻草人：”等说话人标签；只说该角色亲历或已公开的信息，不替旁白或另一角色发言。
-            若 english_continue 为 false，本轮不得输出章节标题。承接玩家当前选择，推进一个直接后果或线索，最多一个问题。
+            若 english_continue 为 false，本轮不得输出章节标题。承接玩家当前选择，推进一个直接后果或线索，最多一个问题；最后一句必须是这个角色问孩子的问题，说出两三个具体选项。
             若 english_continue 为 false，输出2至4个完整中文句子、30至220个Unicode字符；任何分支都不输出Markdown、列表、emoji、舞台说明或系统字段。
           track_steps: true
       - id: persist-story

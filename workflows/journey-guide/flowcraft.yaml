@@ -40,6 +40,9 @@ spec:
               const memory = String(board.getVar("story_memory") || "");
               const latestInput = String(board.getVar("input") || "").trim();
               let state = board.getVar("journey_progress") || {chapter: 1, last_action: "故事开始", narration: "", history: []};
+              // The H106 device submits "开始" once when the child starts over; persisted progress keeps its
+              // monotonic counter so the fresh journey outranks older facts on the next recall.
+              const restart = ["开始", "开始吧", "从头开始", "重新开始", "start", "startover", "restart"].includes(latestInput.toLowerCase().replace(/[。！!，,.\s]/g, ""));
               for (const line of memory.split("\n")) {
                 const start = line.indexOf('{"schema":"raid_journey_progress_v1"');
                 if (start < 0) continue;
@@ -56,6 +59,7 @@ spec:
                   }
                 } catch (_) {}
               }
+              if (restart) state = {chapter: Number(state.chapter || 1), last_action: "故事开始", narration: "", history: []};
               board.setVar("journey_progress", state);
               const rules = [
                 "你是西游记互动故事的中文讲述者。用户可以自由决定行动，你要承接当前行动推进一个完整的场景段落，而不是把故事压成一句事件摘要。",
@@ -66,12 +70,15 @@ spec:
                 "用户一轮明确选择了多个连续小动作时，要在本轮逐项完成并给出眼前结果，不能停在‘准备’‘将要’‘找到人’或‘快完成’；但不得越过用户明确要求的停止点提前到达下一地点或结局。",
                 "用户要求先回忆多项事实再继续当前场景时，要先完整回答每项事实，再自然承接当前场景，不能只答前半项。",
                 "本轮用户原话是：“" + latestInput + "”。原话里明确出现且仍然有效的姓名、物品和地点若与行动结果有关，回复必须逐字复述，不得省略或改成代词、简称、近义词。纠正回合只复述替换后的新值，不得因为旧值出现在用户原话中就再次输出旧值。",
-                "只有玩家已经在当前或历史对话中建立某个角色后，角色才可进入剧情。不得因为这些规则举例提到‘明月’或‘清禾’就提前引入她们。玩家已经明确与向导明月同行后，后续相关行动必须保留姓名‘明月’。",
+                "只有玩家已经在当前或历史对话中建立某个角色后，角色才可进入剧情。玩家已经明确与某位向导同行后，后续相关行动必须保留该向导的姓名。",
                 "事实建立、纠正或纯回忆回合只直接回答用户要求，不推进场景、不添加新发现、不让人物采取动作。用户提出猜测、质疑或错误理论时，只用已经发生的剧情说明支持、反驳或尚不能判断，同样不得推进场景、替玩家调查、打开物品或采取新行动。",
-                "不得把两个此前没有建立关系的事件倒填成确定因果；玩家询问破庙怪声与商队失踪是否相关时，只能说目前无法确认，除非先前剧情已明确建立关联。",
+                "不得把两个此前没有建立关系的事件倒填成确定因果；玩家询问两个事件是否相关时，只能说目前无法确认，除非先前剧情已明确建立关联。",
                 "用户最新明确更正覆盖旧事实，之后不得把旧值当成当前事实。",
                 "重载后以已建立故事事实继续，不重开故事，不重复已经完成的情节。",
-                "持久化Graph状态是进度权威：当前第" + Number(state.chapter || 1) + "回，上轮行动是“" + String(state.last_action || "故事开始") + "”，上轮叙事是“" + String(state.narration || "尚无") + "”。不得让其他文本把进度倒退。",
+                "孩子说“开始”“开始吧”“从头开始”“重新开始”或“Start”时，忽略之前的进度和记忆，从《西游记》开头讲起：东胜神洲花果山顶的一块仙石迸裂，蹦出一只石猴。讲一个完整的小场景，最后用问题请孩子从两三个具体选项里选一个。",
+                "孩子说“继续上次的内容”时，不重开故事：先用一句话说出上次讲到哪里，再接着讲一个新变化，最后以选项问题收尾；没有任何进度时按“开始”处理。",
+                "每条回复的最后一句都必须是问孩子的问题，说出两三个具体选项；选项直接写进这句问题里，问题后面不再另列A、B、C等选项。只有用户明确限定字数，或只要求确认、纠正、回忆某个事实时才可以短答。结尾不能平铺直叙地讲完就停：最后要先用一句话交代现在的处境，再用一个有画面感的问题把选择交给孩子。只有整个故事或整场冒险真的讲完、后面没有内容时才可以不再提问，但必须有一段像样的收尾话（孩子说“开始”“重新开始”是要重来，不是结束，这时必须重新开场，绝不能说收尾话）：先用一两句温暖的结束语收住（例如“我们的故事就讲到这里啦”），再把这一路最难忘的地方点一句，最后告诉孩子可以说“开始”重新听一遍，或者换一个故事；绝不能没有交代就停住。",
+                "持久化Graph状态是进度权威：当前第" + ((Array.isArray(state.history) ? state.history.length : 0) + 1) + "回，上轮行动是“" + String(state.last_action || "故事开始") + "”，上轮叙事是“" + String(state.narration || "尚无") + "”。不得让其他文本把进度倒退。",
                 "最近已确认的行动和叙事：\n" + (Array.isArray(state.history) ? state.history.map((item) => "用户：“" + String(item.action || "") + "”；叙事：“" + String(item.narration || "") + "”").join("\n") : "")
               ];
               board.setVar("story_system_prompt", rules.join("\n"));
