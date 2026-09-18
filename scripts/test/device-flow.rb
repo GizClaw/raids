@@ -89,7 +89,7 @@ module DeviceFlow
     }
     turns = []
     if story
-      first, second = chapters(raid)
+      first = chapters(raid).first
       # Original stories speak the heading; multi-role narration weaves it in and may
       # preview later chapters, so only a chapter 2 heading means it skipped the opening.
       opening = multi_role ? question(markers.merge('not_contains' => ['【', '】'] + NEXT_CHAPTER_HEADING)) : question('contains_all' => ['第 1 章', first])
@@ -102,9 +102,10 @@ module DeviceFlow
       # below is what proves the story actually reached chapter 2.
       turns << turn('continue', client, '继续', question(markers), timeout)
       turns << turn('next_chapter', client, '进入下一章', question(markers), timeout) unless multi_role
-      # Re-entry resumes where the story stopped instead of replaying the opening.
+      # Re-entry says where the story stopped and carries on; by then the story may
+      # be one or two chapters in, so what matters is that it is past chapter 1 and
+      # does not replay the opening.
       resume = question('not_contains' => (multi_role ? ['【', '】'] : []) + ['第 1 章', '你可以直接说出你的选择'])
-      resume['contains'] = second unless multi_role
       restart = multi_role ? question(markers.merge('not_contains' => ['【', '】'] + NEXT_CHAPTER_HEADING)) : question('contains_all' => ['第 1 章', first])
     elsif journey
       turns << turn('start', client, '开始', question('contains_any' => JOURNEY_OPENING, 'not_contains' => JOURNEY_TEST_FACTS + %w[紧箍 取经路上]), timeout)
