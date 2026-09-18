@@ -55,7 +55,7 @@ spec:
               }
             }
             let transition = false;
-            if (!current || any(current, ["重新开始", "restart", "开场", "介绍这个体验", "开始体验"])) scene=1;
+            if (!current || ["开始", "开始吧", "从头开始", "重新开始", "start", "start over", "restart"].includes(current.toLowerCase().replace(/[。！!]/g, "")) || any(current, ["重新开始", "restart", "开场", "介绍这个体验", "开始体验"])) scene=1;
             else if (any(current,["进入下一章","进入下一场景"])) {scene=Math.min(scenes.length,scene+1); transition=true;}
             else {
               for (let i=0;i<scenes.length;i++) if (any(current,["进入"+scenes[i],"前往"+scenes[i],"来到"+scenes[i]])) {scene=i+1;transition=true;}
@@ -63,7 +63,7 @@ spec:
               if (any(current,["等待安全窗口", "准备会合"])) {scene=3;transition=true;}
             }
             let phase = "explore";
-            if (!current || any(current, ["开始太空", "开始救援", "宇宙救援", "空间站"])) phase = "opening";
+            if (!current || ["开始", "开始吧", "从头开始", "重新开始", "start", "start over", "restart"].includes(current.toLowerCase().replace(/[。！!]/g, "")) || any(current, ["开始太空", "开始救援", "宇宙救援", "空间站"])) phase = "opening";
             else if (any(current, ["更正", "只确认", "有效坐标", "正确坐标", "有效能量", "只说有效", "回忆", "重连", "隔了几轮", "只说"])) phase = "correction";
             else if (any(current, ["总结", "救援状态", "任务状态", "回顾", "用一句话说出"])) phase = "conclusion";
             else if (any(current, ["牺牲", "攻击", "直接炸", "危险", "拒绝", "窗口", "角色分工"])) phase = "challenge";
@@ -141,7 +141,7 @@ spec:
             actions.push(current);
             const containsAnyText = (text, values) => values.some((value) => text.includes(value));
             let phase = "explore";
-            if (!current || containsAnyText(current, ["开始太空", "开始救援", "宇宙救援", "空间站"])) phase = "opening";
+            if (!current || ["开始", "开始吧", "从头开始", "重新开始", "start", "start over", "restart"].includes(current.toLowerCase().replace(/[。！!]/g, "")) || containsAnyText(current, ["开始太空", "开始救援", "宇宙救援", "空间站"])) phase = "opening";
             else if (containsAnyText(current, ["更正", "只确认", "有效坐标", "正确坐标", "有效能量", "只说有效", "回忆", "重连", "隔了几轮", "只说"])) phase = "correction";
             else if (containsAnyText(current, ["总结", "救援状态", "任务状态", "回顾", "用一句话说出"])) phase = "conclusion";
             else if (containsAnyText(current, ["牺牲", "攻击", "直接炸", "危险", "拒绝", "窗口", "角色分工"])) phase = "challenge";
@@ -214,12 +214,13 @@ spec:
             ${board.scenario_common_prompt}
             本轮Graph路径：${board.scenario_route}。
             身份和玩法参考：「你是宇宙救援队的小队员，我是飞船助手，我们要一起帮助遇到麻烦的飞船。每一步你都可以从两个办法里选一个，也可以说出你自己的主意。」自然展开。本轮只建立科研飞船故障、通信和轨道两个可选行动，不提前完成通信或修复。展开当前场景与角色对话，结尾给故事选择。
+            孩子只能在你说完后按键回答：除安全提醒、只确认或回忆事实、用户限定句数字数或字段的回合外，每条回复的最后一句都必须是问孩子的问题，例如接下来想先调查什么、想先试哪个办法，绝不能以陈述句或角色台词结尾。孩子说“继续上次的内容”时，不重播开场，先用一句话说出上次进行到哪里，再接着冒险并以问题收尾；没有可承接的内容时按开场处理。
             可核对的长期进度：${board.scenario_memory}
             Graph状态：${board.scenario_state_text}
             ${board.story_bible}
             ${board.narration_context}
 
-            有声书连续讲述：约1至2分钟，旁白叙述与角色第一人称台词分段，让在场角色有来有回，生动有趣、细节丰富。回应孩子刚说的话，尊重改选和更正，记住最新事实；追问、插话和重听自然接续。故事自然推进，通常以故事内选择收尾。回忆和确认可以简短；遇到现实危险，劝阻模仿并引导找家长、老师或可信任的大人。
+            有声书连续讲述：约1至2分钟，旁白叙述与角色第一人称台词分段，让在场角色有来有回，生动有趣、细节丰富。回应孩子刚说的话，尊重改选和更正，记住最新事实；追问、插话和重听自然接续。故事自然推进，最后一句必须是向孩子提出的故事内问题，不能以旁白或角色台词结尾。回忆和确认可以简短；遇到现实危险，劝阻模仿并引导找家长、老师或可信任的大人。
             有声书连续讲述：旁白叙述与角色第一人称台词分段，与在场角色交替；单角色不添人。只知亲历/公开信息。插话接续，点名仅增台词不换场/整轮。
             标记格式：仅限【旁白】、【救援队长】、【工程师】、【领航员】、【医护员】，每段一个，标题用【旁白】。未列名人物（如路人、摊主）及孩子的话一律由【旁白】转述，如：卖糖粥的阿婆笑着说……；不输出其它【】标记，禁止新增姓名标记，禁止给孩子加标记。
             音色由段落标记映射；仅朗读正文，禁Markdown/列表/emoji/舞台说明/系统字段/分析。

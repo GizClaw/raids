@@ -12,8 +12,9 @@ set -eu
 #   GIZCLAW_TEST_ENDPOINT=<host:port> GIZCLAW_TEST_REGISTRATION_TOKEN=<token> \
 #   make test-e2e TIER=smoke RAID=story-aesop
 #
-# TIER=smoke|quality|soak|all and RAID=<raid>|all select tier files.
-# Audio-only raids have no soak file; TIER=all selects their available tiers.
+# TIER=smoke|quality|soak|device|all and RAID=<raid>|all select tier files.
+# Audio-only raids have no soak file and only story, adventure and Journey raids
+# have device files; TIER=all selects their available tiers.
 #
 # APPLY=1 applies the complete testing closure (every raid package, the testing
 # RuntimeProfile, and the testing token) with GIZCLAW_CONTEXT before running.
@@ -35,8 +36,8 @@ require_command "$GIZCLAW_TEST_CLI"
 cd "$root"
 
 case "$TIER" in
- all) tiers='smoke quality soak' ;;
- smoke|quality|soak) tiers="$TIER" ;;
+ all) tiers='smoke quality soak device' ;;
+ smoke|quality|soak|device) tiers="$TIER" ;;
  *) printf 'unknown TIER: %s\n' "$TIER" >&2; exit 1 ;;
 esac
 case "$RAID" in ''|*[!a-z0-9-]*) printf 'invalid RAID: %s\n' "$RAID" >&2; exit 1 ;; esac

@@ -34,7 +34,7 @@ spec:
         config:
           source: |
             const current = String(board.getVar("input") || "").trim().toLowerCase();
-            const cues = ["重连", "恢复", "回忆", "还记得", "代号", "更正", "改成", "reconnect", "recall", "correct"];
+            const cues = ["重连", "恢复", "回忆", "还记得", "代号", "更正", "改成", "上次", "reconnect", "recall", "correct", "continue where", "left off"];
             board.setVar("scenario_memory", "");
             board.setVar("needs_memory_recall", current !== "" && cues.some((cue) => current.includes(cue)));
       - id: prepare-recall-query
@@ -75,6 +75,11 @@ spec:
                 if (candidate.schema === "story_contract_v1" && Number(candidate.revision || 0) >= Number(state.revision || 0)) state = Object.assign({}, defaults, candidate);
               } catch (_) {}
             }
+            // The H106 device submits "开始" / "继续上次的内容" once when the child enters.
+            const deviceText = current.toLowerCase().replace(/[。！!，,.\s]/g, "");
+            const startRequested = ["开始", "开始吧", "从头开始", "重新开始", "start", "startover", "restart"].includes(deviceText);
+            const resumeRequested = ["继续上次", "接着上次", "continuewhere", "leftoff"].some((cue) => deviceText.includes(cue));
+            if (startRequested) state = Object.assign({}, defaults, {revision: Number(state.revision || 0)});
             state.chapter = Math.max(1, Math.min(4, Math.floor(Number(state.chapter) || 1)));
             const chapters = ["变浅的河流", "迁徙线索", "栖息地协作", "生态新约"];
             // A delivered heading records an automatic transition; user mentions do not.
@@ -88,7 +93,7 @@ spec:
                 state.chapter_choice_made = false;
               }
             }
-            const enteringFirst = Number(state.revision || 0) === 0 && (current.includes("第一章") || current.includes("第 1 章") || /(?:start|begin|restart).{0,20}(?:chapter\s*1|first chapter)/i.test(current));
+            const enteringFirst = startRequested || Number(state.revision || 0) === 0 && (current.includes("第一章") || current.includes("第 1 章") || /(?:start|begin|restart).{0,20}(?:chapter\s*1|first chapter)/i.test(current));
             let transitionTarget = 0;
             if (current.includes("第二章") || current.includes("第2章") || current.includes("第 2 章")) transitionTarget = 2;
             if (current.includes("第三章") || current.includes("第3章") || current.includes("第 3 章")) transitionTarget = 3;
@@ -153,7 +158,7 @@ spec:
             const beatsAfterTurn = priorProgressBeats.slice();
             if (countProgress && !beatsAfterTurn.includes("consequence")) beatsAfterTurn.push("consequence");
             if (countProgress && !beatsAfterTurn.includes("perspective")) beatsAfterTurn.push("perspective");
-            const nextChapterInstruction = "让故事随孩子的选择自然推进，通常以故事内选择收尾。";
+            const nextChapterInstruction = (resumeRequested && !enteringFirst ? "孩子要继续上次的内容：不重播开场或玩法说明；先用一句旁白说出上次讲到哪里，再接着讲新的变化。" : "") + "让故事随孩子的选择自然推进；每次回复的最后一句都必须是向孩子提出的故事内问题，说出两三个具体选项，不能以旁白或角色的陈述结尾；选项直接写进这句问题里，问题后面不再另列A、B、C等选项。";
             board.setVar("announce_chapter", announce);
             board.setVar("transition_blocked", transitionBlocked);
             board.setVar("safety_request", current.includes("现实中模仿") || current.includes("现实模仿"));
@@ -175,7 +180,7 @@ spec:
             // A fresh narrator request is an opening even without the literal word "start".
             const promptHistory = typeof board.channel === "function" ? (board.channel(board.MAIN_CHANNEL) || []) : null;
             const firstNarration = state.chapter === 1 && !administrativeTurn && !safetyManagement && !choiceMadeNow && !memory.trim() && (promptHistory ? !promptHistory.some(m => m.role === "assistant" || m.role === "model") : Number(state.revision || 0) === 1);
-            board.setVar("opening_instruction", (enteringFirst || !current || requestedOpening || firstNarration) ? "第一章开场优先：标题后保留背景/玩法，连续讲述，原问题移至末尾：我们来到动物王国，你是一名小小生态观察员，和勇敢的探险者、懂动物的动物向导一起出发。第二章会遇到指认浅滩的大象和观察鸟群的猫头鹰，遇见后也能随时插话。你可以直接说出你的选择，也可以说“请让探险者说说”或“请让动物向导说说”，让这一段多一些他们的台词；你可以随时和角色说话、作决定。动物王国的河流突然变浅了，你想先跟踪大象的脚印，还是观察鸟群飞往哪里？" : "");
+            board.setVar("opening_instruction", (startRequested ? "孩子说“开始”：从第一章开头重新讲起，忽略之前讲过的所有章节、内容和选择，只讲第一章开场并以开场问题结尾。" : "") + ((enteringFirst || !current || requestedOpening || firstNarration) ? "第一章开场优先：标题后保留背景/玩法，连续讲述，原问题移至末尾：我们来到动物王国，你是一名小小生态观察员，和勇敢的探险者、懂动物的动物向导一起出发。第二章会遇到指认浅滩的大象和观察鸟群的猫头鹰，遇见后也能随时插话。你可以直接说出你的选择，也可以说“请让探险者说说”或“请让动物向导说说”，让这一段多一些他们的台词；你可以随时和角色说话、作决定。动物王国的河流突然变浅了，你想先跟踪大象的脚印，还是观察鸟群飞往哪里？" : ""));
 
             // Only the selected role needs private style details; narration compares present roles.
             const roleViews = ["当前角色资料：narrator 旁白，第1至4章只述可见事实、不代演角色；explorer 探险者，仅第1、2、3、4章可出场，我想找到河流变浅的原因；活泼认真，第1章记录水位，；animal-guide 动物向导，仅第1、2、3、4章可出场，我想保护栖息地；清晰理性，第1章提醒保持距离，\n本故事四章及人物相遇是本仓库原创改编安排，不等同原典情节或真实历史；动物说话是拟人表达。所有角色只知亲历或已公开信息，不知别人的私密想法和未来结果；每章比较至少两种立场，不要求全员轮流发言。", "当前角色资料：narrator 旁白，第1至4章只述可见事实、不代演角色；explorer 探险者，仅第1、2、3、4章可出场，我想找到河流变浅的原因；活泼认真，第2章比对足迹，；animal-guide 动物向导，仅第1、2、3、4章可出场，我想保护栖息地；清晰理性，第2章解释迁徙证据，；elephant 大象，仅第2、3、4章可出场，我想带象群找到饮水处；憨厚稳重，第2章指出亲自走过的浅滩，；owl 猫头鹰，仅第2、3、4章可出场，我想保留安静的栖息树；和蔼缓慢，第2章报告夜里看见的鸟群方向，\n本故事四章及人物相遇是本仓库原创改编安排，不等同原典情节或真实历史；动物说话是拟人表达。所有角色只知亲历或已公开信息，不知别人的私密想法和未来结果；每章比较至少两种立场，不要求全员轮流发言。", "当前角色资料：narrator 旁白，第1至4章只述可见事实、不代演角色；explorer 探险者，仅第1、2、3、4章可出场，我想找到河流变浅的原因；活泼认真，第3章记录协作结果，；animal-guide 动物向导，仅第1、2、3、4章可出场，我想保护栖息地；清晰理性，第3章划出安静通道，；elephant 大象，仅第2、3、4章可出场，我想带象群找到饮水处；憨厚稳重，第3章挪开倒枝保留通道，；owl 猫头鹰，仅第2、3、4章可出场，我想保留安静的栖息树；和蔼缓慢，第3章建议不打扰巢穴，\n本故事四章及人物相遇是本仓库原创改编安排，不等同原典情节或真实历史；动物说话是拟人表达。所有角色只知亲历或已公开信息，不知别人的私密想法和未来结果；每章比较至少两种立场，不要求全员轮流发言。", "当前角色资料：narrator 旁白，第1至4章只述可见事实、不代演角色；explorer 探险者，仅第1、2、3、4章可出场，我想找到河流变浅的原因；活泼认真，第4章约定继续观察。；animal-guide 动物向导，仅第1、2、3、4章可出场，我想保护栖息地；清晰理性，第4章核对生态约定。；elephant 大象，仅第2、3、4章可出场，我想带象群找到饮水处；憨厚稳重，第4章承诺轮流饮水。；owl 猫头鹰，仅第2、3、4章可出场，我想保留安静的栖息树；和蔼缓慢，第4章约定夜间观察边界。\n本故事四章及人物相遇是本仓库原创改编安排，不等同原典情节或真实历史；动物说话是拟人表达。所有角色只知亲历或已公开信息，不知别人的私密想法和未来结果；每章比较至少两种立场，不要求全员轮流发言。"];
@@ -238,7 +243,7 @@ spec:
             若用户只要求回忆或确认旅程代号，只回答当前代号；存在更正时绝不输出旧值。
             ${board.next_chapter_instruction}
 
-            有声书连续讲述：约1至2分钟，旁白叙述与角色第一人称台词分段，让在场角色有来有回，生动有趣、细节丰富。回应孩子刚说的话，尊重改选和更正，记住最新事实；追问、插话和重听自然接续。故事自然推进，通常以故事内选择收尾。回忆和确认可以简短；遇到现实危险，劝阻模仿并引导找家长、老师或可信任的大人。
+            有声书连续讲述：约1至2分钟，旁白叙述与角色第一人称台词分段，让在场角色有来有回，生动有趣、细节丰富。回应孩子刚说的话，尊重改选和更正，记住最新事实；追问、插话和重听自然接续。故事自然推进，每次回复的最后一句都必须是向孩子提出的故事内问题，说出两三个具体选项，不能以旁白或角色的陈述结尾；选项直接写进这句问题里，问题后面不再另列A、B、C等选项。回忆和确认可以简短；遇到现实危险，劝阻模仿并引导找家长、老师或可信任的大人。
             有声书连续讲述：旁白叙述与角色第一人称台词分段，与在场角色交替；单角色不添人。只知亲历/公开信息。插话接续，点名仅增台词不换场/整轮。
             标记格式：仅限【旁白】、【探险者】、【动物向导】、【大象】、【猫头鹰】，每段一个，标题用【旁白】。未列名人物（如路人、摊主）及孩子的话一律由【旁白】转述，如：卖糖粥的阿婆笑着说……；不输出其它【】标记，禁止新增姓名标记，禁止给孩子加标记。
             音色由段落标记映射；仅朗读正文，禁Markdown/列表/emoji/舞台说明/系统字段/分析。

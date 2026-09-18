@@ -60,7 +60,7 @@ spec:
         source: |
           def run(input):
               text = input["text"].strip()
-              cues = ["重连", "恢复", "回忆", "还记得", "代号", "更正", "改成"]
+              cues = ["重连", "恢复", "回忆", "还记得", "代号", "更正", "改成", "上次", "continue where", "left off"]
               recall = False
               for cue in cues:
                   if cue in text:
@@ -102,6 +102,21 @@ spec:
               history = input.get("history", [])
               # Recall may contain the legacy structured state; never trust active_roles.
               memory = input.get("memory", "")
+              # The H106 device submits "开始" / "继续上次的内容" once when the child enters;
+              # chapter tracking restarts at the latest "开始".
+              start_words = ["开始", "开始吧", "从头开始", "重新开始", "start", "startover", "restart"]
+              def device_text(text):
+                  for mark in ["。", "！", "!", "，", ",", ".", " ", "\n"]:
+                      text = text.replace(mark, "")
+                  return text.lower()
+              start_requested = device_text(current) in start_words
+              resume_requested = any([cue in device_text(current) for cue in ["继续上次", "接着上次", "continuewhere", "leftoff"]])
+              last_start = -1
+              for index, message in enumerate(history):
+                  if message["role"] == "user" and device_text(message["content"]) in start_words:
+                      last_start = index
+              if start_requested or last_start >= 0:
+                  memory = ""
               for line in memory.split("\n"):
                   compact = line.replace(" ", "")
                   if '"schema":"story_contract_v1"' in compact and '"chapter":' in compact:
@@ -109,7 +124,7 @@ spec:
                       if raw in ["1", "2", "3", "4"]:
                           chapter = int(raw)
               context = [memory]
-              context.extend([m["content"] for m in history if m["role"] == "assistant"])
+              context.extend([m["content"] for index, m in enumerate(history) if m["role"] == "assistant" and index > last_start and not start_requested])
               for content in context:
                   for line in content.split("\n"):
                       line = line.strip().replace("【旁白】", "")
@@ -121,7 +136,7 @@ spec:
               for mark in ["。", "！", "!", ",", ".", "，"]:
                   option = option.replace(mark, "")
               option_only = any([option in aliases for _, aliases in roles])
-              opening = not current or (not any([m["role"] == "assistant" for m in history]) and (contains_any(current, ["第一章", "第 1 章"]) or (contains_any(current, ["start", "begin", "restart"]) and contains_any(current, ["chapter 1", "first chapter"]))))
+              opening = not current or start_requested or (not any([m["role"] == "assistant" for m in history]) and (contains_any(current, ["第一章", "第 1 章"]) or (contains_any(current, ["start", "begin", "restart"]) and contains_any(current, ["chapter 1", "first chapter"]))))
               management = contains_any(current, ["旅程", "旅程代号", "更正", "改成", "纠正", "修正", "作废", "重连", "回忆", "事实", "传说", "原创设定", "总结", "说明当前章节", "不要推进", "不推进章节", "只确认", "correct", "correction", "reconnect", "recall", "现实中模仿", "现实模仿"])
               target = 0
               for number, chinese in [(2, "二"), (3, "三"), (4, "四")]:
@@ -151,6 +166,10 @@ spec:
               last_positive = max([current.rfind(cue) for cue in choice_positive])
               last_denial = max([current.rfind(cue) for cue in choice_denial])
               choice_completed = (option_only or last_positive >= 0) and not (last_denial >= 0 and last_denial > last_positive) and not opening and not management and not transition
+              if resume_requested and not opening and not safety_request:
+                  turn_contract = "孩子要继续上次的内容：不重播开场或玩法说明；先用一句旁白说出上次讲到哪里，再接着讲新的变化。"
+              if start_requested:
+                  turn_contract = "孩子说“开始”：从第一章开头重新讲起，忽略之前讲过的所有章节、内容和选择，只讲第一章开场并以开场问题结尾。"
               if not safety_request and choice_completed:
                   turn_contract = "承接已选后果，目标达成同一回复自然进入紧邻下一章并开场。"
               chapter_rules = ["第1章《唯一的花》：进入=首次开场；目标=解决《唯一的花》张力；节拍=具体后果+两角色不同回应；转场=选择关闭悬念，随结果自动续邻章；后续参考=第 2 章：迁徙星群，自然衔接新章。","第2章《迁徙星群》：进入=第1章选择达成转场；目标=解决《迁徙星群》张力；节拍=具体后果+两角色不同回应；转场=选择关闭悬念，随结果自动续邻章；后续参考=第 3 章：狐狸的约定，自然衔接新章。","第3章《狐狸的约定》：进入=第2章选择达成转场；目标=解决《狐狸的约定》张力；节拍=具体后果+两角色不同回应；转场=选择关闭悬念，随结果自动续邻章；后续参考=第 4 章：回望责任，自然衔接新章。","第4章《回望责任》：进入=第3章选择达成转场；目标=解决《回望责任》张力；节拍=具体后果+两角色不同回应；终局=确认持久选择，留未兑现责任线索；保持第4章，不建第5章。"]
@@ -185,7 +204,7 @@ spec:
             你负责《小王子》的长期互动故事。前提：以原创星球旅程讨论陪伴、责任、想象与珍惜。
             玩家是同行者，当前选择和明确更正优先于旧 History/Memory。
             转场时自然交代新地点、角色和事件，可用旁白章节标题帮助衔接。
-            有声书连续讲述：约1至2分钟，旁白叙述与角色第一人称台词分段，让在场角色有来有回，生动有趣、细节丰富。回应孩子刚说的话，尊重改选和更正，记住最新事实；追问、插话和重听自然接续。故事自然推进，通常以故事内选择收尾。回忆和确认可以简短；遇到现实危险，劝阻模仿并引导找家长、老师或可信任的大人。
+            有声书连续讲述：约1至2分钟，旁白叙述与角色第一人称台词分段，让在场角色有来有回，生动有趣、细节丰富。回应孩子刚说的话，尊重改选和更正，记住最新事实；追问、插话和重听自然接续。故事自然推进，每次回复的最后一句都必须是向孩子提出的故事内问题，说出两三个具体选项，不能以旁白或角色的陈述结尾；选项直接写进这句问题里，问题后面不再另列A、B、C等选项。回忆和确认可以简短；遇到现实危险，劝阻模仿并引导找家长、老师或可信任的大人。
             不重置/重播开头、上一轮或总结，不仅问“你想怎么做”。
             代号仅用用户最新值，更正覆盖旧值，不预告或杜撰。
             区分事实/传说/原创，不复制完整出版译文；儿童危险非血腥。现实危险模仿须制止，并建议找家长、老师或可信任成年人帮助。
