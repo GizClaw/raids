@@ -119,6 +119,23 @@ steps:
     "/text":
       min_length: 20
       pattern: "[？?][^？?]{0,40}$"
+- timeout: 4m
+  id: flowcraft_device_next_chapter
+  client: flowcraft
+  peer_stream:
+    mode: text
+    input: 进入下一章
+    idle_timeout: 120s
+    require_text: true
+    require_audio: true
+  expect:
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/text":
+      min_length: 20
+      pattern: "[？?][^？?]{0,40}$"
       contains_all:
       - 第 2 章
       - 地下水路

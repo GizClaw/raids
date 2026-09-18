@@ -95,10 +95,12 @@ module DeviceFlow
       opening = multi_role ? question(markers.merge('not_contains' => ['【', '】'] + NEXT_CHAPTER_HEADING)) : question('contains_all' => ['第 1 章', first])
       turns << turn('start', client, '开始', opening, timeout)
       # The chapter's closing wording is an offline contract; live, what matters is
-      # that the child can answer and that "继续" then carries the story on.
+      # that the child can answer and that neither turn leaves them in silence.
       turns << turn('chapter_choice', client, '我选第一个', question(markers), timeout)
-      # After the chapter's choice, a bare "继续" is the child's way to go on.
-      turns << turn('continue', client, '继续', question(markers.merge(multi_role ? {} : {'contains_all' => ['第 2 章', second]})), timeout)
+      # A bare "继续" carries the story on, either into the next chapter or with
+      # the current one; the explicit phrase must reach chapter 2.
+      turns << turn('continue', client, '继续', question(markers), timeout)
+      turns << turn('next_chapter', client, '进入下一章', question(markers.merge(multi_role ? {} : {'contains_all' => ['第 2 章', second]})), timeout) unless multi_role
       # Re-entry resumes where the story stopped instead of replaying the opening.
       resume = question('not_contains' => (multi_role ? ['【', '】'] : []) + ['第 1 章', '你可以直接说出你的选择'])
       resume['contains'] = second unless multi_role
