@@ -33,7 +33,7 @@ def response(ns, i):
 
 
 paths = sorted(p for p in Path('workflows').glob('*/test.multi-role.yaml') if p.parent.name != 'murder-mystery')
-assert len(paths) == 30
+assert len(paths) == 31
 for path, doc in zip(paths, documents(paths)):
     ns = {}
     exec(script(doc).replace('.codepoints()', ''), ns)
@@ -133,11 +133,11 @@ for path, doc in zip(all_testers, documents(all_testers)):
     exec(next(n['source'] for n in doc['spec']['eino']['graph']['nodes'] if n['id'] == 'finalize'), final_ns)
     for verdict in ['PASS', 'FAIL']:
         assert final_ns['run']({'route':'final','message':'','det':'','model_text':verdict})['answer'] == verdict
-print('validated 30 natural-child Testers, full relays/reloads, immediate failures, lenient content and recall precedence')
+print('validated 31 natural-child Testers, full relays/reloads, immediate failures, lenient content and recall precedence')
 
 workflow_paths = sorted(p for p in Path('workflows').glob('*/*.multi-role.yaml')
-                        if p.name != 'test.multi-role.yaml' and p.parent.name.startswith(('story-', 'adventure-')))
-assert len(workflow_paths) == 60
+                        if p.name != 'test.multi-role.yaml' and p.parent.name.startswith(('story-', 'adventure-', 'figure-')))
+assert len(workflow_paths) == 62
 for path, workflow in zip(workflow_paths, documents(workflow_paths)):
     text = path.read_text()
     for required in ('约1至2分钟', '有声书连续讲述', '标记格式', '音色由段落标记映射', '尊重改选和更正'):
@@ -151,14 +151,14 @@ for path, workflow in zip(workflow_paths, documents(workflow_paths)):
         assert all(cue in rule for cue in ('未列名人物', '由【旁白】转述', '禁止新增姓名标记', '禁止给孩子加标记')), path
     assert '篇幅执行规则' not in text
     assert '回合规则表' not in text and '总结/检查点｜' not in text
-print('validated 60 simplified continuous narration contracts')
+print('validated 62 simplified continuous narration contracts')
 
 # Exercise post-response persistence as well as pre-response routing. An automatic
 # arrival must survive recall before another user turn supplies a chapter command.
 import re
 persistence_cases = []
 for path, doc in zip(workflow_paths, documents(workflow_paths)):
-    story = path.parent.name.startswith('story-')
+    story = path.parent.name.startswith(('story-', 'figure-'))
     if path.name.startswith('flowcraft'):
         nodes = doc['spec']['flowcraft']['graph']['nodes']
         control = next(n['config']['source'] for n in nodes
@@ -195,7 +195,7 @@ for (const c of JSON.parse(require('fs').readFileSync(0, 'utf8'))) {
   assert(saved.active_roles.length > 0, c.raid);
 }
 '''], input=json.dumps(persistence_cases), text=True, check=True)
-print('validated 60 multi-role post-response observations and automatic arrival persistence')
+print('validated 62 multi-role post-response observations and automatic arrival persistence')
 
 # Execute unmodified YAML in go.starlark.net, including retained Tester history.
 # The candidate alone is reloaded in e2e13; its last naming answer is the next
@@ -309,4 +309,4 @@ with tempfile.NamedTemporaryFile(mode='w', suffix='.json') as payload:
     if 'GOMODCACHE' not in env and os.path.isdir(offline_cache):
         env.update(GOMODCACHE=offline_cache, GOPROXY='off', GOSUMDB='off')
     subprocess.run(['go', '-C', 'scripts/test/starlark', 'test', '-run', '^TestMultiRoleTranscript$', '-count=1'], env=env, check=True)
-print('validated real Starlark e2e13 transcripts, 30 recall finalizers, checkpoints and lenient full-relay judgments')
+print('validated real Starlark e2e13 transcripts, 31 recall finalizers, checkpoints and lenient full-relay judgments')

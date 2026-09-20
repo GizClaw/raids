@@ -49,7 +49,7 @@ Dir['workflows/*/raid.json'].sort.each do |file|
       check(ids.uniq.size == ids.size, "#{workflow}: duplicate multi-role Voice resources")
       aliases.each { |a| check(p.dig('resources','voices',a) == p.dig('resources','voices',a.sub(original_id+'-mr', original_id)), "#{workflow}: changed Voice binding #{a}") }
     end
-    if raid.match?(/\A(?:story|adventure)-/)
+    if raid.match?(/\A(?:story|adventure|figure)-/)
       speaker_maps[engine] = adapter.fetch('speaker_voices')
       check(adapter.fetch('speaker_voices').fetch('旁白') == adapter.fetch('default_voice'), "#{workflow}: narrator mismatch")
       nodes = spec.fetch('graph').fetch('nodes')

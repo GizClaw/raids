@@ -33,7 +33,7 @@ module DeviceFlow
 
   def raids
     Dir['workflows/*/raid.json'].map { |f| File.basename(File.dirname(f)) }
-                                .select { |r| r.match?(/\A(?:story|adventure)-/) || r == 'journey-guide' }.sort
+                                .select { |r| r.match?(/\A(?:story|adventure|figure)-/) || r == 'journey-guide' }.sort
   end
 
   def implementations(raid)
@@ -77,7 +77,7 @@ module DeviceFlow
     timeout = suffix.end_with?('.multi-role') ? '6m' : '4m'
     driver = impl.fetch('driver')
     multi_role = suffix.end_with?('.multi-role')
-    story = raid.start_with?('story-')
+    story = raid.match?(/\A(?:story|figure)-/)
     journey = raid == 'journey-guide'
     markers = multi_role ? {'not_contains' => ['【', '】']} : {}
     parameters = {
@@ -189,6 +189,7 @@ module DeviceFlow
     raids.flat_map do |raid|
       implementations(raid).map do |suffix, _|
         kind = raid == 'journey-guide' ? raid : raid.split('-').first
+        kind = 'story' if kind == 'figure'
         kind += '.multi-role' if kind == 'story' && suffix.end_with?('.multi-role')
         source = File.read("workflows/#{raid}/#{suffix}.yaml")
         missing = CONTRACTS.fetch(kind).reject { |markers| markers.any? { |marker| source.include?(marker) } }.map(&:first)

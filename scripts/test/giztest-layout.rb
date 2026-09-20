@@ -401,7 +401,7 @@ module GiztestLayout
               }
               capability = capabilities[step.fetch('client').split('__').first]
               roundtrip_expect.delete_if { |key, _| key.match?(AUDIO_PATH) } if capability == false
-              if step['client'].include?('multi_role') && File.basename(file).match?(/\A(?:story|adventure)-/)
+              if step['client'].include?('multi_role') && File.basename(file).match?(/\A(?:story|adventure|figure)-/)
                 roundtrip_expect['/text'] = {'min_length'=>1, 'not_contains'=>['【','】']}
                 roundtrip_expect['/audio_integrity/streams'] = {'equals'=>1}
               end
@@ -410,7 +410,7 @@ module GiztestLayout
               end
               check(expect == roundtrip_expect, "#{file}: #{step['id']} must check complete realtime output without timing gates")
               first = steps(doc).find { |s| s['id'] == "#{step['id']}_first_response" }
-              if raid.match?(/\A(?:story|adventure|learn)-/)
+              if raid.match?(/\A(?:story|adventure|figure|learn)-/)
                 check(first && first.dig('peer_stream', 'completion') == 'first_response' &&
                       first.dig('peer_stream', 'first_text_timeout') == '2s' &&
                       first.dig('expect', '/first_text_ms') == {'maximum' => 2000} &&
@@ -425,8 +425,8 @@ module GiztestLayout
           end
         elsif tier == 'quality'
           check_multi_role_review(doc, file) if suffix.end_with?('.multi-role')
-          check_child_quality(doc, file) if suffix.end_with?('.multi-role') && raid.match?(/\A(?:story|adventure)-/)
-          check(doc['timeout'] == (File.basename(file).match?(/\A(?:story|adventure)-/) ? '30m' : '10m'), "#{file}: quality budget must retain 30m for story/adventure, 10m otherwise")
+          check_child_quality(doc, file) if suffix.end_with?('.multi-role') && raid.match?(/\A(?:story|adventure|figure)-/)
+          check(doc['timeout'] == (File.basename(file).match?(/\A(?:story|adventure|figure)-/) ? '30m' : '10m'), "#{file}: quality budget must retain 30m for story/adventure, 10m otherwise")
           check(!steps(doc).any? { |s| s['workspace_relay'] }, "#{file}: long dialogue relay belongs in soak")
           check(!steps(doc).any? { |s| s.dig('peer_stream', 'completion') == 'first_response' }, "#{file}: first-response latency probes belong in smoke")
           check(suffix.end_with?('.multi-role') || !doc.fetch('clients').keys.any? { |c| c.end_with?('_tester') }, "#{file}: idle Tester client in quality")
@@ -462,7 +462,7 @@ module GiztestLayout
       m = JSON.parse(File.read(file)); raid = m.fetch('id')
       expected = TIERS.flat_map { |t| inventory(raid).keys.map { |impl| "tests/giztest/#{t}/#{raid}.#{impl}.giztest.yaml" } }
       check(m.fetch('tests').map { |t| t.fetch('file') }.sort == expected.sort, "#{file}: tier registration mismatch")
-      if raid.match?(/\A(?:story|adventure|learn)-/)
+      if raid.match?(/\A(?:story|adventure|figure|learn)-/)
         %w[flowcraft eino].each do |engine|
           smoke = YAML.load_file("tests/giztest/smoke/#{raid}.#{engine}.giztest.yaml")
           realtime_count += 1
@@ -485,9 +485,9 @@ module GiztestLayout
           t['file'] == "tests/giztest/#{t['tier']}/#{raid}.#{File.basename(m['implementations'][t['implementations'].first]['file'], '.yaml')}.giztest.yaml", "#{file}: implementation registration mismatch")
       end
     end
-    check(realtime_count == 100, "expected 100 original story/adventure/learn RealTime clients, found #{realtime_count}")
+    check(realtime_count == 102, "expected 102 original story/adventure/figure/learn RealTime clients, found #{realtime_count}")
     puts "validated #{realtime_count} original RealTime clients with ASR and audio response gates"
-    Dir['workflows/{story,adventure}-*/{flowcraft,eino}.multi-role.yaml'].each do |file|
+    Dir['workflows/{story,adventure,figure}-*/{flowcraft,eino}.multi-role.yaml'].each do |file|
       source = File.read(file)
       check(source.include?('旁白叙述与角色第一人称台词分段'), "#{file}: missing continuous dialogue contract")
       check(!source.include?('每轮只由一人发声'), "#{file}: obsolete single-speaker contract")

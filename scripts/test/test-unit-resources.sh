@@ -91,7 +91,7 @@ ruby scripts/test/routing-sources.rb | node scripts/test/test-routing.js
 # implementation has a live contract that checks the guided opening, the
 # "进入下一章" prompt, and story text after the chapter 2 heading.
 transition_count=0
-for package in workflows/story-*; do
+for package in workflows/story-* workflows/figure-*; do
 	test -d "$package" || continue
 	raid="${package#workflows/}"
 	for engine in eino flowcraft eino.multi-role flowcraft.multi-role; do
