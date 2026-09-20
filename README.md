@@ -374,7 +374,7 @@ contains a populated value.
 
 The target also checks the manifest → speaker mapping → both RuntimeProfiles →
 Voice resource chain, distinct role Voices and matching bindings across engines.
-For 30 continuous-narration raids it verifies a single narration LLM, configured
+For 31 continuous-narration raids it verifies a single narration LLM, configured
 Chinese markers, 300–600-character story probes, clean text, complete serial
 audio and zero underruns. First-response gates remain unchanged. Quality keeps
 safety, transitions, choice endings and correction/recovery contracts; soak
@@ -384,7 +384,7 @@ their original bounds. Quality budgets are 30 minutes for these longer stories.
 Each raid supplies a version-1 `routing-cases.json`. The gate executes actual
 Flowcraft JavaScript and Eino Starlark against state and content-control
 assertions. Single-speaker naming/order assertions have been removed from the
-30 story/adventure fixtures; murder mystery retains its existing tests. Ruby,
+31 story/adventure/figure fixtures; murder mystery retains its existing tests. Ruby,
 Node.js and a local Go toolchain with cached Starlark dependencies are required;
 Go module downloads are disabled. Offline validation cannot establish real
 provider voice switching, timing, interruption or audible continuity.
@@ -416,7 +416,7 @@ voice aliases the manifest lists.
 
 ## Declarative live tests
 
-Live tests use `tests/giztest/{smoke,quality,soak}/<raid>.<implementation>.giztest.yaml`, one implementation per file, named after its Workflow file. There are **517 tier files**: **175 smoke**, **175 quality**, and **167 soak**. The **124 device** files and the two external H106 files remain separate, for **643 `.giztest.yaml` files** total; generated reports are excluded. Selected files run concurrently with `gizclaw test run --parallel N`.
+Live tests use `tests/giztest/{smoke,quality,soak}/<raid>.<implementation>.giztest.yaml`, one implementation per file, named after its Workflow file. There are **529 tier files**: **179 smoke**, **179 quality**, and **171 soak**. The **128 device** files and the two external H106 files remain separate, for **659 `.giztest.yaml` files** total; generated reports are excluded. Selected files run concurrently with `gizclaw test run --parallel N`.
 
 - **smoke** measures speed, latency and responsiveness, including complete audio and independent first-response probes.
 - **quality** enforces deterministic quality and safety guardrails, including transitions, corrections, language and role boundaries. Independent suite responses run in parallel and finish together within the existing file budget; long Tester relays live in soak.
