@@ -179,7 +179,12 @@ spec:
                   compact = line.replace(" ", "")
                   if '"schema":"story_contract_v1"' in compact and '"chapter_choice_made":true' in compact:
                       choice_made_before = True
-              free_talk = not start_requested and (finale_spoken or (chapter == 4 and (choice_completed or choice_made_before)))
+              # Free conversation starts only after the closing line has actually been
+              # delivered, never on the same turn that completes the chapter-four choice.
+              story_end_hint = not finale_spoken and chapter == 4 and (choice_completed or choice_made_before)
+              free_talk = not start_requested and finale_spoken
+              if story_end_hint and not safety_request:
+                  turn_contract = "本轮是第四章的收尾：讲完这个选择带来的结局，再用一句话收住整段人生，回复最后一句必须逐字是“我这一生就讲到这里啦！接下来你可以随便问我任何事，想从头再听一遍就说“开始”，你最想先问我什么呢？”"
               if free_talk and not safety_request:
                   turn_contract = "自由对话：我的一生已经讲完，这个故事不再有章节。绝不输出章节标题，也不再提“下一章”。孩子问什么就以李白本人的身份用“我”回答什么——我的诗、我见过的人、我后悔的事，孩子自己的心事也可以聊。我只知道自己那个年代的事，问到后世或现代的东西就照实说不知道，再把话题带回我的时代；后人传下来的说法要讲明是传说。写2至4句话，最后一句仍要问孩子一个问题，顺着他刚说的话问；孩子说“开始”就从第 1 章重新讲起。"
               chapter_rules = ["第1章《少年出蜀》：进入=首次开场；目标=解决《少年出蜀》张力；节拍=具体后果+两角色不同回应；转场=选择关闭悬念，随结果自动续邻章；后续参考=第 2 章：长安三年，自然衔接新章。","第2章《长安三年》：进入=第1章选择达成转场；目标=解决《长安三年》张力；节拍=具体后果+两角色不同回应；转场=选择关闭悬念，随结果自动续邻章；后续参考=第 3 章：相逢与流放，自然衔接新章。","第3章《相逢与流放》：进入=第2章选择达成转场；目标=解决《相逢与流放》张力；节拍=具体后果+两角色不同回应；转场=选择关闭悬念，随结果自动续邻章；后续参考=第 4 章：明月归途，自然衔接新章。","第4章《明月归途》：进入=第3章选择达成转场；目标=解决《明月归途》张力；节拍=具体后果+两角色不同回应；终局=确认持久选择，留未兑现责任线索；保持第4章，不建第5章。"]
