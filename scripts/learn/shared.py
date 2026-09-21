@@ -98,7 +98,7 @@ def render_flowcraft(repo: Path, raid: str, system_prompt: str) -> str:
         text,
         "system_prompt: |-\n",
         "\n          track_steps: true",
-        indent(system_prompt, 12),
+        indent("${board.safety_fence}\n\n" + system_prompt, 12),
     )
     if "adventure" in text.replace("memory_observe", ""):
         raise ValueError("Flowcraft learn rendering left an adventure reference")
@@ -120,7 +120,9 @@ def render_eino(repo: Path, raid: str, system_prompt: str, memory_description: s
         text,
         "        - role: system\n          template: |-\n",
         "\n        - placeholder: history",
-        indent(system_prompt, 12),
+        # The adventure-science skeleton supplies the safety_fence input.
+        # Add the placeholder here because replacing the template discards it.
+        indent("{safety_fence}\n\n" + system_prompt, 12),
     )
     if "adventure" in text.replace("memory_observe", ""):
         raise ValueError("Eino learn rendering left an adventure reference")
@@ -260,4 +262,12 @@ def implementation_table(raid: str) -> str:
     return f"""| File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |
 | --- | --- | --- | --- | --- | --- |
 | `eino.yaml` | `eino-{raid}` | eino | learner | `eino-{raid}.model` | `eino-{raid}.tutor` |
-| `flowcraft.yaml` | `flowcraft-{raid}` | flowcraft | learner | `flowcraft-{raid}.model` | `flowcraft-{raid}.tutor` |"""
+| `flowcraft.yaml` | `flowcraft-{raid}` | flowcraft | learner | `flowcraft-{raid}.model` | `flowcraft-{raid}.tutor` |
+
+The tutor's system prompt starts with the Workspace safety fence, followed by a
+blank line and the learning rules and knowledge card. Flowcraft references
+`${{board.safety_fence}}`; Eino binds `input.safety_fence` and renders
+`{{safety_fence}}` with `f_string`. With `off`, only two leading newlines remain.
+Tester and memory nodes do not receive this variable. See the
+[Workspace safety fence contract](../../README.md#workspace-safety-fence),
+including the required GizClaw version support."""

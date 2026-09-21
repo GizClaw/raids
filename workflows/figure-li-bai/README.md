@@ -6,6 +6,16 @@ First raid of the `figure` category: the model plays the historical person in th
 child through that person's own life, one chapter per stage. It reuses the chaptered `story-*` contract, so the
 same chapter, reload, device-entry and Voice checks apply.
 
+## Workspace safety fence
+
+Every player-facing system prompt starts with the Workspace fence, then a
+blank line and the scenario instructions: Flowcraft uses `${board.safety_fence}`;
+Eino binds `input.safety_fence` and renders `{safety_fence}` with `f_string`.
+This covers all narrator/character paths, prompt branches, and available variants.
+At `off`, only two leading newlines remain. Internal routing/memory nodes and
+Tester Workflows do not receive the variable. See the root
+[contract and GizClaw compatibility requirement](../../README.md#workspace-safety-fence).
+
 ## Story contract
 
 - Premise: 由李白本人带孩子走完自己的一生，在他的选择、失意和坚持里理解一个人怎样长大，并分清史实、传说和改编。

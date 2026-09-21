@@ -11,6 +11,14 @@ Explore verified primary Chinese textbook stories through classical texts, fable
 | `eino.yaml` | `eino-learn-chinese-stories` | eino | learner | `eino-learn-chinese-stories.model` | `eino-learn-chinese-stories.tutor` |
 | `flowcraft.yaml` | `flowcraft-learn-chinese-stories` | flowcraft | learner | `flowcraft-learn-chinese-stories.model` | `flowcraft-learn-chinese-stories.tutor` |
 
+The tutor's system prompt starts with the Workspace safety fence, followed by a
+blank line and the learning rules and knowledge card. Flowcraft references
+`${board.safety_fence}`; Eino binds `input.safety_fence` and renders
+`{safety_fence}` with `f_string`. With `off`, only two leading newlines remain.
+Tester and memory nodes do not receive this variable. See the
+[Workspace safety fence contract](../../README.md#workspace-safety-fence),
+including the required GizClaw version support.
+
 Install an implementation into a RuntimeProfile with `raids install learn-chinese-stories --impl <engine> --profile <file> --collection <name> --set model.<alias>=<model id> --set voice.<alias>=<voice id>`; the slots above are the parameters the installer asks for.
 
 ## Knowledge card

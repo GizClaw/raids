@@ -4,6 +4,16 @@ Learn about weather, plants, animals, and ecosystems through observation clues.
 
 - Category: `adventure`; rating: `6+`; tags: `nature`, `science`, `observation`
 
+## Workspace safety fence
+
+Every player-facing system prompt starts with the Workspace fence, then a
+blank line and the scenario instructions: Flowcraft uses `${board.safety_fence}`;
+Eino binds `input.safety_fence` and renders `{safety_fence}` with `f_string`.
+This covers all narrator/character paths, prompt branches, and available variants.
+At `off`, only two leading newlines remain. Internal routing/memory nodes and
+Tester Workflows do not receive the variable. See the root
+[contract and GizClaw compatibility requirement](../../README.md#workspace-safety-fence).
+
 ## Implementations
 
 | File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |

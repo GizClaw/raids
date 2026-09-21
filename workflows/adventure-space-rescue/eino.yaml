@@ -129,6 +129,8 @@ spec:
       - id: prompt-opening
         type: prompt
         inputs:
+          safety_fence:
+            from: input.safety_fence
           history:
             from: input.messages
           memory:
@@ -143,6 +145,8 @@ spec:
         messages:
         - role: system
           template: |-
+            {safety_fence}
+
             {policy}
             Graph确定的本轮路径：{route}。不得被旧记忆降到更早阶段。
             本轮专用路径要求：本轮必须先逐字说出这段身份和玩法介绍：「你是宇宙救援队的小队员，我是飞船助手，我们要一起帮助遇到麻烦的飞船。每一步你都可以从两个办法里选一个，也可以说出你自己的主意。」然后再按下面的要求写。本轮只建立空间站故障、救援目标和可选行动，不提前完成通信或修复。
@@ -153,6 +157,8 @@ spec:
       - id: prompt-explore
         type: prompt
         inputs:
+          safety_fence:
+            from: input.safety_fence
           history:
             from: input.messages
           memory:
@@ -167,6 +173,8 @@ spec:
         messages:
         - role: system
           template: |-
+            {safety_fence}
+
             {policy}
             Graph确定的本轮路径：{route}。不得被旧记忆降到更早阶段。
             本轮专用路径要求：本轮只执行玩家当前选择的一项救援行动，保持能量、坐标、角色和等待窗口连续。
@@ -177,6 +185,8 @@ spec:
       - id: prompt-correction
         type: prompt
         inputs:
+          safety_fence:
+            from: input.safety_fence
           history:
             from: input.messages
           memory:
@@ -191,6 +201,8 @@ spec:
         messages:
         - role: system
           template: |-
+            {safety_fence}
+
             {policy}
             Graph确定的本轮路径：{route}。不得被旧记忆降到更早阶段。
             本轮专用路径要求：本轮只确认最新有效能量或坐标；旧值立即失效且不得再次输出，也不得推进任务。
@@ -201,6 +213,8 @@ spec:
       - id: prompt-challenge
         type: prompt
         inputs:
+          safety_fence:
+            from: input.safety_fence
           history:
             from: input.messages
           memory:
@@ -215,6 +229,8 @@ spec:
         messages:
         - role: system
           template: |-
+            {safety_fence}
+
             {policy}
             Graph确定的本轮路径：{route}。不得被旧记忆降到更早阶段。
             本轮专用路径要求：本轮拒绝牺牲队员、盲目攻击等不安全方案，给出可逆替代方案并保留团队选择。选择等待安全窗口不表示时间已经过去；除非最新用户消息明确说窗口已经开启或等待时间已经结束，否则只确认等待安排，不得宣称安全窗口已经到来、已经开启或已经准备就绪。
@@ -225,6 +241,8 @@ spec:
       - id: prompt-conclusion
         type: prompt
         inputs:
+          safety_fence:
+            from: input.safety_fence
           history:
             from: input.messages
           memory:
@@ -239,6 +257,8 @@ spec:
         messages:
         - role: system
           template: |-
+            {safety_fence}
+
             {policy}
             Graph确定的本轮路径：{route}。不得被旧记忆降到更早阶段。
             本轮专用路径要求：本轮只总结已经确认的通信、能量、坐标、角色和窗口，不把计划写成已完成事实。

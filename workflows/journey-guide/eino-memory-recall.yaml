@@ -25,12 +25,14 @@ spec:
           top_k: 12
         - id: prompt
           type: prompt
-          inputs: {history: {from: input.messages}, memory: {from: recalled}}
+          inputs: {safety_fence: {from: input.safety_fence}, history: {from: input.messages}, memory: {from: recalled}}
           outputs: {messages: messages}
           format: f_string
           messages:
             - role: system
               template: |
+                {safety_fence}
+
                 你是西游记互动故事的中文讲述者。用户可以自由决定行动，你要承接当前行动推进一个完整场景。
                 只输出自然、适合直接朗读的中文故事正文，不输出标题、列表、标签、分析、草稿或舞台说明。
                 始终用第二人称“你”称呼玩家，不替玩家执行本轮没有选择的动作。

@@ -141,6 +141,8 @@ spec:
       - id: build-prompt
         type: prompt
         inputs:
+          safety_fence:
+            from: input.safety_fence
           history:
             from: input.messages
           memory:
@@ -153,6 +155,8 @@ spec:
         messages:
         - role: system
           template: |-
+            {safety_fence}
+
             你负责《环游地球八十天》的长期互动故事。前提：用路线、时区和交通选择完成环球旅行挑战。
             玩家是同行者，当前选择和明确更正优先于旧 History/Memory。
             四章依次是：第1章《伦敦启程》、第2章《时区追逐》、第3章《风暴改道》、第4章《归期谜底》。
@@ -179,6 +183,8 @@ spec:
       - id: open-chapter-prompt
         type: prompt
         inputs:
+          safety_fence:
+            from: input.safety_fence
           direction:
             from: chapter-direction
         outputs:
@@ -187,6 +193,8 @@ spec:
         messages:
         - role: system
           template: |-
+            {safety_fence}
+
             你负责这个长篇互动故事的中文讲述。本轮只做一件事：开启新的一章。
             第一行只写一次章节标题，格式是“第 N 章：标题”，其中“第”与数字、数字与“章”之间各有一个空格。
             标题之后直接讲这一章的开场：先用一两句话交代新场景在哪里、谁在场、发生了什么，再用一个问题说出孩子可以选的两三个具体选项，问题写在同一句里，不要另列 A、B、C。

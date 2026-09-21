@@ -11,6 +11,14 @@ Explore every classical poem in China's grade 2 primary Chinese textbooks — au
 | `eino.yaml` | `eino-learn-chinese-poetry-grade2` | eino | learner | `eino-learn-chinese-poetry-grade2.model` | `eino-learn-chinese-poetry-grade2.tutor` |
 | `flowcraft.yaml` | `flowcraft-learn-chinese-poetry-grade2` | flowcraft | learner | `flowcraft-learn-chinese-poetry-grade2.model` | `flowcraft-learn-chinese-poetry-grade2.tutor` |
 
+The tutor's system prompt starts with the Workspace safety fence, followed by a
+blank line and the learning rules and knowledge card. Flowcraft references
+`${board.safety_fence}`; Eino binds `input.safety_fence` and renders
+`{safety_fence}` with `f_string`. With `off`, only two leading newlines remain.
+Tester and memory nodes do not receive this variable. See the
+[Workspace safety fence contract](../../README.md#workspace-safety-fence),
+including the required GizClaw version support.
+
 Install an implementation into a RuntimeProfile with `raids install learn-chinese-poetry-grade2 --impl <engine> --profile <file> --collection <name> --set model.<alias>=<model id> --set voice.<alias>=<voice id>`; the slots above are the parameters the installer asks for.
 
 ## Knowledge card

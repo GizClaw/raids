@@ -70,6 +70,84 @@ aliases needed by that catalog.
 publishes the matching `RegistrationToken/default-runtime`; its stable public
 client value is `28c4e4e9-a05f-5a7e-815e-9cf9afb6878f`.
 
+### Workspace safety fence
+
+Every player-facing Flowcraft and Eino implementation places the Workspace
+`safety_fence_level` prompt first in the system message, then a blank line and
+the scenario instructions. The Workspace chooses `off`, `general`, or `child`;
+the RuntimeProfile owns the complete text in
+`spec.safety_fences.{general,child}.prompt`. `child` does not inherit `general`.
+Raids does not choose a level or supply fallback fence text.
+
+```yaml
+# Flowcraft LLM config
+system_prompt: |-
+  ${board.safety_fence}
+
+  Original scenario instructions.
+```
+
+```yaml
+# Eino prompt node; retain all existing inputs alongside safety_fence
+inputs:
+  safety_fence: {from: input.safety_fence}
+  history: {from: input.messages}
+format: f_string
+messages:
+  - role: system
+    template: |-
+      {safety_fence}
+
+      Original scenario instructions.
+  - placeholder: history
+```
+
+Eino input keys become template variable names; no extra State field is
+needed. All current player prompts use `f_string`: `{safety_fence}` is the
+variable, while `{{` and `}}` escape literal braces. Neither this formatter
+nor Flowcraft's variable resolver trims the prompt. At `off`, the prefix
+becomes exactly two newlines, with no label, punctuation, or unresolved
+variable. These are valid system-message whitespace. We retain the existing
+formats rather than change every template to remove that whitespace. Future
+`go_template` prompts can use `{{if .safety_fence}}{{.safety_fence}}`, a blank
+line, then `{{end}}` immediately before the original text; `jinja2` can use
+`{% if safety_fence %}{{ safety_fence }}`, a blank line, then `{% endif %}`.
+These conditional forms omit the separator at `off`.
+
+Only player replies receive the variable, including drafts forwarded through
+published scripts, every narrator/character, and each alternative response
+prompt. Player-visible conclusions are replies too. Internal JSON classifiers,
+routing, memory extraction, and summaries do not receive it. Tester Workflows
+play the user and do not receive the fence. Existing scenario safety rules
+remain part of the scenario even at `off`.
+
+`make test-unit-resources` runs `scripts/test/safety-fences.rb` and its fixture
+tests before schema validation. Discovery includes every Workflow YAML under
+each raid, excluding Tester/Giztest files. `ast-translate` and the realtime
+drivers are listed as unfenced (see below); any other driver fails until its
+coverage is reviewed.
+The check follows directly published Flowcraft LLMs, drafts read by published
+scripts, and Eino prompt outputs consumed by published text ChatModels. Every
+such prompt must start with its bound fence and a blank line. A graph without
+a recognized player reply path fails and needs an explicit coverage review
+when adding a new graph shape.
+
+**Runtime dependency:** Eino's reserved `input.safety_fence` binding requires
+the GizClaw Workspace safety fence change. CI is currently pinned to
+**v0.18.12**, which rejects it with `binding source "input.safety_fence" is not
+declared`. Until GizClaw releases that support and CI's pinned artifact and
+checksum are upgraded, `make test-unit-resources` fails on the Eino catalog.
+Local offline validation can use `GIZCLAW=/absolute/path/to/gizclaw` built from
+the fence-enabled source. The CI pin and validation remain intact.
+
+This contract covers every raid with Flowcraft/Eino implementations.
+`ast-translate` has no system prompt entry, so GizClaw provides no fence to it.
+`doubao-realtime` is player-facing but **not yet fenced**: GizClaw expects a
+`${safety_fence}` placeholder in realtime `instructions`, while manifest loading
+expands every `${NAME}` as an environment variable with no escape, so
+`gizclaw admin validate/apply` rejects or rewrites it. It stays unfenced until
+GizClaw resolves that conflict.
+
 ### Runtime alias ownership
 
 RuntimeProfile Model and Voice aliases are opaque flat keys. Dots make

@@ -11,6 +11,14 @@ Explore grade 5 People's Education Press primary math through Math Corner topics
 | `eino.yaml` | `eino-learn-math-grade5` | eino | learner | `eino-learn-math-grade5.model` | `eino-learn-math-grade5.tutor` |
 | `flowcraft.yaml` | `flowcraft-learn-math-grade5` | flowcraft | learner | `flowcraft-learn-math-grade5.model` | `flowcraft-learn-math-grade5.tutor` |
 
+The tutor's system prompt starts with the Workspace safety fence, followed by a
+blank line and the learning rules and knowledge card. Flowcraft references
+`${board.safety_fence}`; Eino binds `input.safety_fence` and renders
+`{safety_fence}` with `f_string`. With `off`, only two leading newlines remain.
+Tester and memory nodes do not receive this variable. See the
+[Workspace safety fence contract](../../README.md#workspace-safety-fence),
+including the required GizClaw version support.
+
 Install an implementation into a RuntimeProfile with `raids install learn-math-grade5 --impl <engine> --profile <file> --collection <name> --set model.<alias>=<model id> --set voice.<alias>=<voice id>`; the slots above are the parameters the installer asks for.
 
 ## Knowledge card
