@@ -2,6 +2,15 @@
 
 - Category: `assistant`; rating: `all`; tags: `assistant`, `memory`, `scheduling`
 
+## Workspace safety fence
+
+Every player-facing LLM system prompt starts with `${board.safety_fence}`,
+then a blank line and the scenario instructions. This includes drafts forwarded
+by published scripts and all available character/host paths.
+At `off`, only two leading newlines remain. Internal routing/memory nodes and
+Tester Workflows do not receive the variable. See the root
+[contract and GizClaw compatibility requirement](../../README.md#workspace-safety-fence).
+
 ## Implementations
 
 | File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |

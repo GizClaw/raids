@@ -2,6 +2,16 @@
 
 Learn perspective-taking through worlds with different scales and social rules.
 
+## Workspace safety fence
+
+Every player-facing system prompt starts with the Workspace fence, then a
+blank line and the scenario instructions: Flowcraft uses `${board.safety_fence}`;
+Eino binds `input.safety_fence` and renders `{safety_fence}` with `f_string`.
+This covers all narrator/character paths, prompt branches, and available variants.
+At `off`, only two leading newlines remain. Internal routing/memory nodes and
+Tester Workflows do not receive the variable. See the root
+[contract and GizClaw compatibility requirement](../../README.md#workspace-safety-fence).
+
 ## Story contract
 
 - Premise: 从不同尺度和社会规则中学习换位思考。
@@ -37,8 +47,8 @@ Flowcraft selects exactly one published node per external response. Chapter entr
 - Final live evidence must come from the e2e deployment through `edge-bj-01.e2e.gizclaw.com:9821`; dev evidence is diagnostic only.
 
 ```sh
-GIZCLAW=/absolute/path/to/gizclaw-v0.7.7 GIZCLAW_TEST_CLI=/absolute/path/to/gizclaw-v0.7.7 make test-unit-resources
-GIZCLAW=/absolute/path/to/gizclaw-v0.7.7 GIZCLAW_TEST_CLI=/absolute/path/to/gizclaw-v0.7.7 GIZCLAW_CONTEXT=e2e-server-volc-bj-01 GIZCLAW_TEST_ENDPOINT=edge-bj-01.e2e.gizclaw.com:9821 GIZCLAW_TEST_REGISTRATION_TOKEN=<testing-runtime-token> APPLY=1 RAID=story-gulliver PARALLEL=3 make test-e2e
+GIZCLAW=/absolute/path/to/gizclaw-with-safety-fence GIZCLAW_TEST_CLI=/absolute/path/to/gizclaw-with-safety-fence make test-unit-resources
+GIZCLAW=/absolute/path/to/gizclaw-with-safety-fence GIZCLAW_TEST_CLI=/absolute/path/to/gizclaw-with-safety-fence GIZCLAW_CONTEXT=e2e-server-volc-bj-01 GIZCLAW_TEST_ENDPOINT=edge-bj-01.e2e.gizclaw.com:9821 GIZCLAW_TEST_REGISTRATION_TOKEN=<testing-runtime-token> APPLY=1 RAID=story-gulliver PARALLEL=3 make test-e2e
 ```
 
 ## Multi-role implementations

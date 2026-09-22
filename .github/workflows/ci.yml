@@ -21,17 +21,17 @@ jobs:
           go-version-file: scripts/test/starlark/go.mod
           cache-dependency-path: scripts/test/starlark/go.sum
 
-      - name: Download GizClaw v0.18.15
+      - name: Download GizClaw v0.20.2
         env:
-          GIZCLAW_ASSET: gizclaw_0.18.15_amd64.deb
-          GIZCLAW_SHA256: 6604e966441b0e1c65c22173457f44a5f0b13711d359d11a80b811784efd73ba
+          GIZCLAW_ASSET: gizclaw_0.20.2_amd64.deb
+          GIZCLAW_SHA256: 7944b9a8a1344a5512e6d2babac31a2fa04361b5c8eeb7902b0c2f96ab264820
         run: |
           set -euo pipefail
           package="$RUNNER_TEMP/$GIZCLAW_ASSET"
-          root="$RUNNER_TEMP/gizclaw-v0.18.15"
+          root="$RUNNER_TEMP/gizclaw-v0.20.2"
           curl --fail --location --retry 3 \
             --output "$package" \
-            "https://github.com/GizClaw/gizclaw/releases/download/v0.18.15/$GIZCLAW_ASSET"
+            "https://github.com/GizClaw/gizclaw/releases/download/v0.20.2/$GIZCLAW_ASSET"
           printf '%s  %s\n' "$GIZCLAW_SHA256" "$package" | sha256sum --check --status
           dpkg-deb --extract "$package" "$root"
           printf 'GIZCLAW=%s\n' "$root/usr/bin/gizclaw" >> "$GITHUB_ENV"

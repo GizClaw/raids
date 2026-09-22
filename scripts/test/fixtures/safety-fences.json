@@ -1,0 +1,30 @@
+{
+  "flowcraft": {
+    "spec": {
+      "driver": "flowcraft",
+      "flowcraft": {
+        "graph": {
+          "nodes": [
+            {"id": "answer", "type": "llm", "publish": true, "config": {"system_prompt": "${board.safety_fence}\n\nSpeak to the player."}},
+            {"id": "classify", "type": "llm", "publish": false, "config": {"json_mode": true, "system_prompt": "Return JSON only."}}
+          ]
+        }
+      }
+    }
+  },
+  "eino": {
+    "spec": {
+      "driver": "eino",
+      "eino": {
+        "graph": {
+          "nodes": [
+            {"id": "prompt", "type": "prompt", "format": "f_string", "inputs": {"safety_fence": {"from": "input.safety_fence"}, "history": {"from": "input.messages"}}, "outputs": {"messages": "answer-messages"}, "messages": [{"role": "system", "template": "{safety_fence}\n\nSpeak to the player."}, {"placeholder": "history"}]},
+            {"id": "answer", "type": "chat_model", "inputs": {"messages": {"from": "answer-messages"}}, "outputs": {"text": "answer"}},
+            {"id": "extract-memory", "type": "prompt", "format": "f_string", "outputs": {"messages": "memory-messages"}, "messages": [{"role": "system", "template": "Extract memory as JSON."}]}
+          ],
+          "outputs": [{"node": "answer", "field": "answer", "name": "assistant", "mime_type": "text/plain", "primary": true}]
+        }
+      }
+    }
+  }
+}

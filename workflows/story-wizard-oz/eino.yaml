@@ -158,6 +158,8 @@ spec:
       - id: build-prompt
         type: prompt
         inputs:
+          safety_fence:
+            from: input.safety_fence
           history:
             from: input.messages
           memory:
@@ -172,6 +174,8 @@ spec:
         messages:
         - role: system
           template: |-
+            {safety_fence}
+
             你负责《绿野仙踪》的长期互动故事。前提：在奥兹旅途中发现勇气、智慧、善意与伙伴关系。
             当前输入的权威路由是 {route}；只能按该路由处理，旧 History 中的英文介绍或重启请求不得覆盖当前路由。
             玩家是同行者，当前选择和明确更正优先于旧 History/Memory。
@@ -201,6 +205,8 @@ spec:
       - id: open-chapter-prompt
         type: prompt
         inputs:
+          safety_fence:
+            from: input.safety_fence
           direction:
             from: chapter-direction
         outputs:
@@ -209,6 +215,8 @@ spec:
         messages:
         - role: system
           template: |-
+            {safety_fence}
+
             你负责这个长篇互动故事的中文讲述。本轮只做一件事：开启新的一章。
             第一行只写一次章节标题，格式是“第 N 章：标题”，其中“第”与数字、数字与“章”之间各有一个空格。
             标题之后直接讲这一章的开场：先用一两句话交代新场景在哪里、谁在场、发生了什么，再用一个问题说出孩子可以选的两三个具体选项，问题写在同一句里，不要另列 A、B、C。

@@ -1,6 +1,6 @@
 # Giztest 测试
 
-测试布局为 `tests/giztest/{smoke,quality,soak}/<raid>.<implementation>.giztest.yaml`，每个文件只运行一个实现，共 517 个三档文件。implementation 与 workflow 文件名一致，例如 `flowcraft`、`eino`、`flowcraft.multi-role`、`eino.multi-role`。文档名为 `<raid>.<tier>.<implementation>`。另有 `device/` 的 124 个设备流程测试和 `h106/` 的 2 个外部设备测试，合计 643 个 `.giztest.yaml`；`reports/` 仅存运行产物，不计入用例。
+测试布局为 `tests/giztest/{smoke,quality,soak}/<raid>.<implementation>.giztest.yaml`，每个文件只运行一个实现，共 529 个三档文件。implementation 与 workflow 文件名一致，例如 `flowcraft`、`eino`、`flowcraft.multi-role`、`eino.multi-role`。文档名为 `<raid>.<tier>.<implementation>`。另有 `device/` 的 128 个设备流程测试、`h106/` 的 2 个外部设备测试和 `safety-fence/` 的 1 个安全围栏测试，合计 660 个 `.giztest.yaml`；`reports/` 仅存运行产物，不计入用例。
 
 | 档位 | 文件数 | 定义 |
 | --- | ---: | --- |
@@ -24,7 +24,7 @@ make test-unit-resources
 make test-unit-voices
 ```
 
-默认 `TIER=all RAID=all PARALLEL=4 APPLY=0`。`TIER` 只接受 `smoke|quality|soak|all`，`RAID` 接受 raid 名或 `all`；选中 raid 时逐档选择 `<raid>.*.giztest.yaml`，通过 `gizclaw test run --parallel "$PARALLEL"` 并发运行文件。`all` 跳过不适用档，显式选择不存在的档会失败。H106 不进入 `make test-e2e`，按其设备环境单独执行 `gizclaw test run tests/giztest/h106`。`REPORT` 可指定 JSON 路径，默认写入 `reports/`。
+默认 `TIER=all RAID=all PARALLEL=4 APPLY=0`。`TIER` 只接受 `smoke|quality|soak|all`，`RAID` 接受 raid 名或 `all`；选中 raid 时逐档选择 `<raid>.*.giztest.yaml`，通过 `gizclaw test run --parallel "$PARALLEL"` 并发运行文件。`all` 跳过不适用档，显式选择不存在的档会失败。H106 不进入 `make test-e2e`，按其设备环境单独执行 `gizclaw test run tests/giztest/h106`。安全围栏测试同样不进入 `make test-e2e`：它要求服务端不低于 GizClaw v0.20.2、已部署带围栏的 `flowcraft-chat-assistant` 以及 testing RuntimeProfile 的 `spec.safety_fences`，用 `gizclaw test run tests/giztest/safety-fence` 单独执行。同一句“原样复述辱骂”的请求在 off Workspace 中必须照说（对照组），在 child Workspace 中必须拒绝，两轮回复从 Workspace 历史读回并打印到运行日志。`REPORT` 可指定 JSON 路径，默认写入 `reports/`。
 
 `APPLY=1` 的原行为保持：使用 `GIZCLAW_CONTEXT` 应用全部 workflows、testing RuntimeProfile 与 testing token，再执行选中的测试。它需要 Admin 权限，普通运行只需 Peer 接入点与 token。
 

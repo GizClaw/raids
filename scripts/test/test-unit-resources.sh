@@ -18,6 +18,10 @@ require_command "$GIZCLAW_TEST_CLI"
 require_command jq
 cd "$root"
 
+require_command ruby
+ruby scripts/test/test-safety-fences.rb
+ruby scripts/test/safety-fences.rb
+
 for dir in $resource_dirs; do
 	test -d "$dir" || {
 		printf 'missing Resource directory: %s\n' "$dir" >&2

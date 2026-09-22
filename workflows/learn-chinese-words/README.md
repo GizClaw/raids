@@ -11,6 +11,14 @@ Explore verified primary Chinese textbook treasures through proverb and two-part
 | `eino.yaml` | `eino-learn-chinese-words` | eino | learner | `eino-learn-chinese-words.model` | `eino-learn-chinese-words.tutor` |
 | `flowcraft.yaml` | `flowcraft-learn-chinese-words` | flowcraft | learner | `flowcraft-learn-chinese-words.model` | `flowcraft-learn-chinese-words.tutor` |
 
+The tutor's system prompt starts with the Workspace safety fence, followed by a
+blank line and the learning rules and knowledge card. Flowcraft references
+`${board.safety_fence}`; Eino binds `input.safety_fence` and renders
+`{safety_fence}` with `f_string`. With `off`, only two leading newlines remain.
+Tester and memory nodes do not receive this variable. See the
+[Workspace safety fence contract](../../README.md#workspace-safety-fence),
+including the required GizClaw version support.
+
 Install an implementation into a RuntimeProfile with `raids install learn-chinese-words --impl <engine> --profile <file> --collection <name> --set model.<alias>=<model id> --set voice.<alias>=<voice id>`; the slots above are the parameters the installer asks for.
 
 ## Knowledge card
