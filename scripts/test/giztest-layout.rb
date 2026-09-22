@@ -497,7 +497,7 @@ module GiztestLayout
       check(source.include?('情境重现声明不替代角色自述'), "history #{engine}: reenactment boundary missing")
       check(!source.include?('正文第一句必须逐字'), "history #{engine}: rigid scene opening")
     end
-    old = Dir['tests/giztest/*/*.giztest.yaml'].reject { |f| (TIERS + %w[device h106 reports]).include?(f.split('/')[2]) }
+    old = Dir['tests/giztest/*/*.giztest.yaml'].reject { |f| (TIERS + %w[device h106 safety-fence reports]).include?(f.split('/')[2]) }
     check(old.empty?, "legacy Giztest files remain: #{old.join(', ')}")
   end
 end

@@ -4,12 +4,13 @@ require_relative 'yaml_compat'
 # models and the Flowcraft draft -> board.getVar -> published script pattern.
 module SafetyFences
   FLOWCRAFT_PREFIX = "${board.safety_fence}\n\n".freeze
+  # Realtime drivers substitute ${input.safety_fence} in instructions and trim
+  # the result, so an off fence leaves no leading blank line. The dotted name
+  # is not expanded as an environment variable when manifests are applied.
+  REALTIME_PREFIX = "${input.safety_fence}\n\n".freeze
+  REALTIME_DRIVERS = %w[doubao-realtime doubao-realtime-duplex dashscope-realtime].freeze
   # ASTTranslate has no system prompt entry, so GizClaw provides no fence.
-  # Realtime drivers expect a ${safety_fence} placeholder in instructions, but
-  # manifest loading expands every ${NAME} as an environment variable with no
-  # escape, so file-applied realtime Workflows cannot carry it yet. Keep them
-  # listed here until GizClaw resolves that conflict.
-  UNFENCED_DRIVERS = %w[ast-translate doubao-realtime doubao-realtime-duplex dashscope-realtime].freeze
+  UNFENCED_DRIVERS = %w[ast-translate].freeze
 
   def self.player_file?(file)
     name = File.basename(file)
@@ -70,6 +71,10 @@ module SafetyFences
     spec = document.fetch('spec')
     driver = spec.fetch('driver')
     return [] if UNFENCED_DRIVERS.include?(driver)
+    if REALTIME_DRIVERS.include?(driver)
+      return [] if spec.dig(driver.tr('-', '_'), 'instructions').to_s.start_with?(REALTIME_PREFIX)
+      return ["#{file}: realtime instructions must start with ${input.safety_fence} followed by a blank line"]
+    end
     return ["#{file}: unknown driver #{driver}; review safety fence coverage"] unless %w[eino flowcraft].include?(driver)
     graph = spec.fetch(driver).fetch('graph')
     nodes = driver == 'flowcraft' ? flowcraft_nodes(graph) : eino_nodes(graph)

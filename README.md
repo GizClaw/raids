@@ -72,12 +72,13 @@ client value is `28c4e4e9-a05f-5a7e-815e-9cf9afb6878f`.
 
 ### Workspace safety fence
 
-Every player-facing Flowcraft and Eino implementation places the Workspace
+Every player-facing Flowcraft, Eino, and Doubao Realtime implementation places the Workspace
 `safety_fence_level` prompt first in the system message, then a blank line and
 the scenario instructions. The Workspace chooses `off`, `general`, or `child`;
 the RuntimeProfile owns the complete text in
 `spec.safety_fences.{general,child}.prompt`. `child` does not inherit `general`.
-Raids does not choose a level or supply fallback fence text.
+Raids does not choose a level or supply fallback fence text; only the
+`testing` RuntimeProfile carries example `general`/`child` prompts for Giztest.
 
 ```yaml
 # Flowcraft LLM config
@@ -102,6 +103,14 @@ messages:
   - placeholder: history
 ```
 
+```yaml
+# Doubao Realtime instructions; GizClaw substitutes and trims the result
+instructions: |
+  ${input.safety_fence}
+
+  Original scenario instructions.
+```
+
 Eino input keys become template variable names; no extra State field is
 needed. All current player prompts use `f_string`: `{safety_fence}` is the
 variable, while `{{` and `}}` escape literal braces. Neither this formatter
@@ -112,7 +121,10 @@ formats rather than change every template to remove that whitespace. Future
 `go_template` prompts can use `{{if .safety_fence}}{{.safety_fence}}`, a blank
 line, then `{{end}}` immediately before the original text; `jinja2` can use
 `{% if safety_fence %}{{ safety_fence }}`, a blank line, then `{% endif %}`.
-These conditional forms omit the separator at `off`.
+These conditional forms omit the separator at `off`. Realtime drivers
+substitute `${input.safety_fence}` and trim the result, so Doubao Realtime
+leaves no leading blank lines at `off`; the dotted name is not expanded as an
+environment variable by `gizclaw admin apply`.
 
 Only player replies receive the variable, including drafts forwarded through
 published scripts, every narrator/character, and each alternative response
@@ -123,8 +135,9 @@ remain part of the scenario even at `off`.
 
 `make test-unit-resources` runs `scripts/test/safety-fences.rb` and its fixture
 tests before schema validation. Discovery includes every Workflow YAML under
-each raid, excluding Tester/Giztest files. `ast-translate` and the realtime
-drivers are listed as unfenced (see below); any other driver fails until its
+each raid, excluding Tester/Giztest files. Realtime instructions must start
+with `${input.safety_fence}` and a blank line; `ast-translate` is exempt because
+GizClaw gives it no system prompt entry, and any other driver fails until its
 coverage is reviewed.
 The check follows directly published Flowcraft LLMs, drafts read by published
 scripts, and Eino prompt outputs consumed by published text ChatModels. Every
@@ -132,21 +145,20 @@ such prompt must start with its bound fence and a blank line. A graph without
 a recognized player reply path fails and needs an explicit coverage review
 when adding a new graph shape.
 
-**Runtime dependency:** Eino's reserved `input.safety_fence` binding requires
-the GizClaw Workspace safety fence change. CI is currently pinned to
-**v0.18.12**, which rejects it with `binding source "input.safety_fence" is not
-declared`. Until GizClaw releases that support and CI's pinned artifact and
-checksum are upgraded, `make test-unit-resources` fails on the Eino catalog.
-Local offline validation can use `GIZCLAW=/absolute/path/to/gizclaw` built from
-the fence-enabled source. The CI pin and validation remain intact.
+**Runtime dependency:** the fence needs **GizClaw v0.20.2** or later for both
+validation and serving; CI pins v0.20.2. Earlier releases reject Eino's
+`input.safety_fence` binding as undeclared.
 
-This contract covers every raid with Flowcraft/Eino implementations.
-`ast-translate` has no system prompt entry, so GizClaw provides no fence to it.
-`doubao-realtime` is player-facing but **not yet fenced**: GizClaw expects a
-`${safety_fence}` placeholder in realtime `instructions`, while manifest loading
-expands every `${NAME}` as an environment variable with no escape, so
-`gizclaw admin validate/apply` rejects or rewrites it. It stays unfenced until
-GizClaw resolves that conflict.
+This contract covers every raid with Flowcraft/Eino implementations and
+`doubao-realtime`. `ast-translate` has no system prompt entry, so GizClaw
+accepts the level without providing a fence to it.
+
+`tests/giztest/safety-fence/chat-assistant.flowcraft.giztest.yaml` checks the
+fence end to end: the same request to repeat an insult is answered verbatim in
+an `off` Workspace and refused in a `child` Workspace, and both replies are
+printed from Workspace history. It needs the fenced `flowcraft-chat-assistant`
+and the `testing` profile's `safety_fences` deployed; run it with
+`gizclaw test run tests/giztest/safety-fence`. It is outside `make test-e2e`.
 
 ### Runtime alias ownership
 
@@ -494,7 +506,7 @@ voice aliases the manifest lists.
 
 ## Declarative live tests
 
-Live tests use `tests/giztest/{smoke,quality,soak}/<raid>.<implementation>.giztest.yaml`, one implementation per file, named after its Workflow file. There are **529 tier files**: **179 smoke**, **179 quality**, and **171 soak**. The **128 device** files and the two external H106 files remain separate, for **659 `.giztest.yaml` files** total; generated reports are excluded. Selected files run concurrently with `gizclaw test run --parallel N`.
+Live tests use `tests/giztest/{smoke,quality,soak}/<raid>.<implementation>.giztest.yaml`, one implementation per file, named after its Workflow file. There are **529 tier files**: **179 smoke**, **179 quality**, and **171 soak**. The **128 device** files, the two external H106 files and the `safety-fence` end-to-end file remain separate, for **660 `.giztest.yaml` files** total; generated reports are excluded. Selected files run concurrently with `gizclaw test run --parallel N`.
 
 - **smoke** measures speed, latency and responsiveness, including complete audio and independent first-response probes.
 - **quality** enforces deterministic quality and safety guardrails, including transitions, corrections, language and role boundaries. Independent suite responses run in parallel and finish together within the existing file budget; long Tester relays live in soak.

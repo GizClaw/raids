@@ -109,10 +109,14 @@ class SafetyFencesTest < Minitest::Test
     assert_empty SafetyFences.errors({}, 'workflows/fixture/test.multi-role.yaml')
   end
 
-  def test_unfenced_drivers_are_exempt_and_unknown_drivers_fail
-    %w[ast-translate doubao-realtime].each do |driver|
-      assert_empty SafetyFences.errors({'spec' => {'driver' => driver}}, 'workflows/fixture/conversation.yaml')
+  def test_realtime_instructions_and_unfenced_drivers
+    realtime = ->(instructions) { {'spec' => {'driver' => 'doubao-realtime', 'doubao_realtime' => {'instructions' => instructions}}} }
+    assert_empty SafetyFences.errors(realtime.call("${input.safety_fence}\n\nSpeak."), 'workflows/fixture/conversation.yaml')
+    ['Speak.', "Speak.\n\n${input.safety_fence}", "${safety_fence}\n\nSpeak.", "Safety: ${input.safety_fence}\n\nSpeak.",
+     "${input.safety_fence}\nSpeak."].each do |instructions|
+      assert_equal 1, SafetyFences.errors(realtime.call(instructions), 'workflows/fixture/conversation.yaml').size
     end
+    assert_empty SafetyFences.errors({'spec' => {'driver' => 'ast-translate'}}, 'workflows/fixture/zh-en.yaml')
     assert_match(/unknown driver/, SafetyFences.errors({'spec' => {'driver' => 'other'}}, 'workflows/fixture/x.yaml').join)
   end
 
