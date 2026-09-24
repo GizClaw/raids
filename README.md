@@ -280,9 +280,9 @@ not substitute a hidden model default.
 The public MemoryLayout catalog is organized by reusable scenario:
 
 - `user-chat-with-assistant` stores durable user conversation context in the owner Peer's
-  shared memory scope for Flowcraft, Mem0, and Volc Mem0. Other layouts retain the
-  default Workspace scope, so story, adventure, and learning state stays private
-  to each Workspace.
+  shared memory scope for Flowcraft, Mem0, and Volc Mem0. Other layouts explicitly
+  select the Workspace scope for each implementation, so story, adventure, and
+  learning state stays private to each Workspace.
 - `story-teller` separates Graph-written progress from narrated continuity.
 - `adventure` stores player-visible investigation state, discoveries,
   interviews, and explicit corrections.
