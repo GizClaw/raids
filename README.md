@@ -279,7 +279,10 @@ not substitute a hidden model default.
 
 The public MemoryLayout catalog is organized by reusable scenario:
 
-- `user-chat-with-assistant` stores durable user conversation context.
+- `user-chat-with-assistant` stores durable user conversation context in the owner Peer's
+  shared memory scope for Flowcraft, Mem0, and Volc Mem0. Other layouts explicitly
+  select the Workspace scope for each implementation, so story, adventure, and
+  learning state stays private to each Workspace.
 - `story-teller` separates Graph-written progress from narrated continuity.
 - `adventure` stores player-visible investigation state, discoveries,
   interviews, and explicit corrections.
@@ -435,7 +438,7 @@ merged by [GizClaw #590](https://github.com/GizClaw/gizclaw/pull/590).
 ## Static resource validation
 
 Raids uses the released GizClaw binary as the only authority for declarative
-Resource format validation. With GizClaw v0.18.15 or later on `PATH`, validate
+Resource format validation. With GizClaw v0.21.3 or later on `PATH`, validate
 every applyable catalog Resource with:
 
 ```sh
@@ -480,9 +483,8 @@ Go module downloads are disabled. Offline validation cannot establish real
 provider voice switching, timing, interruption or audible continuity.
 
 Passing this check establishes schema, binding, and deterministic routing
-contracts, not live behavior. CI still pins the immutable v0.18.2 Linux package
-and verifies its published SHA-256 digest; that pin predates `speaker_voices`
-and must be upgraded separately to validate this merged catalog.
+contracts, not live behavior. CI pins the immutable v0.21.3 Linux package
+and verifies its published SHA-256 digest before validation.
 `make test-unit-voices` separately requires exactly 635 MiniMax Voice files and exactly one
 `model: speech-2.6-turbo` field in each. Per-file schema validation alone does
 not prove other runtime-only requirements such as cross-resource references or
