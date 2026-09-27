@@ -27,6 +27,7 @@ REMIND_AT = [10, 5, 3, 2, 1]
 CLOSINGS_ZH = ["你的下一个问题是什么？", "接下来你想问什么呢？", "你还想问点什么？", "要不要直接猜一猜答案？"]
 CLOSINGS_EN = ["What's your next question?", "What would you like to ask next?", "What else do you want to know?", "Do you want to take a guess?"]
 HINT_CUES = ["提示", "线索", "帮帮我", "帮我一下", "猜不到", "猜不出", "想不出", "太难了", "hint", "clue", "helpme", "imstuck"]
+ANSWER_REQUEST_CUES = ["告诉我答案", "答案是什么", "直接告诉我", "到底是谁", "到底是什么", "你说答案", "tellmetheanswer", "whatistheanswer", "justtellme", "whoisit", "whatisit"]
 GIVE_UP_CUES = ["我放弃", "放弃了", "不猜了", "认输", "猜不出来了", "igiveup", "giveup"]
 # What may surround the secret's name in a guess such as “是孔子吗” or “Is it Confucius?”.
 GUESS_FILLERS = ["是不是", "我猜是", "我猜", "我觉得是", "我觉得", "答案是", "谜底是", "应该是", "会不会是", "难道是", "那就是", "就是", "是", "吗", "呀", "啊", "呢", "吧", "嘛", "他", "她", "它", "这个人", "这个", "这种", "那个", "一只", "一头", "一条", "一种", "一个", "一位", "一匹", "一块", "一座", "一颗", "一台", "一辆", "一件", "一项", "一本", "一张", "theansweris", "isit", "itis", "iguess", "ithink", "maybe", "is", "it", "the", "an", "a"]
@@ -177,12 +178,12 @@ def starts_no(content):
     return low == "no"
 
 def counts_as_question(text):
-    # Only questions and guesses use up the 20 chances; asking for a hint,
-    # giving up, and game commands do not.
+    # Only questions and guesses use up the 20 chances; asking for a hint or
+    # for the answer, giving up, and game commands do not.
     word = compact(text)
     if word in START_WORDS or word in RESTART_WORDS or word in STOP_EXACT:
         return False
-    return not (matches_any(word, HINT_CUES) or matches_any(word, GIVE_UP_CUES) or matches_any(word, RESUME_CUES) or matches_any(word, STOP_CONTAINS))
+    return not (matches_any(word, HINT_CUES) or matches_any(word, ANSWER_REQUEST_CUES) or matches_any(word, GIVE_UP_CUES) or matches_any(word, RESUME_CUES) or matches_any(word, STOP_CONTAINS))
 
 def analyze(messages):
     history = list(messages)

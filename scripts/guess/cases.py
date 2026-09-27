@@ -120,6 +120,10 @@ def control_cases(data: dict[str, Any]) -> list[dict[str, Any]]:
         case("hints-keep-chances", "问题？", round1 + [item for pair in [[user(f"问题{i}？"), host("是。还想问什么？")] for i in range(18)] for item in pair]
              + [user("给我一个提示"), host("小提示：" + s1["hints"][0] + "。还想问什么？")],
              {"route": {"equals": "play"}, "direction": {"includes_all": ["还剩 1 次提问机会"]}}),
+        case("answer-request-keeps-chances", "问题？", round1 + [user(data["tests"]["first"]["ask"]), host("想看答案可以说“我放弃”哦。你的下一个问题是什么？"), user("问题？"), host("是。还想问什么？")],
+             {"route": {"equals": "play"}, "direction": {"includes_all": ["小提示："]}, "rules": {"includes_all": ["你不知道谜底的名字"]}}),
+        case("resume-after-answer-request", "继续上次的内容", round1 + [user(data["tests"]["first"]["ask"]), host("想看答案可以说“我放弃”哦。"), user("问题？"), host("是。")],
+             {"route": {"equals": "say"}, "direction": {"includes_all": ["你已经问了 1 次，还剩 19 次机会"]}}),
         case("last-question", "问题？", round1 + [item for pair in [[user(f"问题{i}？"), host("是。还想问什么？")] for i in range(19)] for item in pair],
              {"route": {"equals": "play"}, "direction": {"includes_all": [f"20 次机会用完啦，答案揭晓：{s1['zh']}！"]}}),
         case("top-level", "问题？", [user("开始"), host(opening(data, top, 7))],
