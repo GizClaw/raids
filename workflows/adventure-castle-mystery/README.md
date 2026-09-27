@@ -2,7 +2,7 @@
 
 Collect evidence, test deductions, and avoid false accusations in a child-safe castle mystery.
 
-- Category: `adventure`; rating: `9+` (mystery); tags: `mystery`, `deduction`, `evidence`
+- Category: `adventure`; rating: `child`, `teen` (mystery); tags: `mystery`, `deduction`, `evidence`
 
 ## Workspace safety fence
 

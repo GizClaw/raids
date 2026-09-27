@@ -6,7 +6,7 @@ set -euo pipefail
 # so every MiniMax system Voice declares provider_data.model explicitly.
 cd "$(dirname -- "${BASH_SOURCE[0]}")/../.."
 
-ruby scripts/test/testing-voices.rb
+python3 scripts/test/testing_voices.py
 
 readonly expected_count=635
 readonly expected_model='speech-2.6-turbo'

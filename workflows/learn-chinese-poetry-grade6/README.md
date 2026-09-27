@@ -2,7 +2,7 @@
 
 Explore every classical poem in China's grade 6 primary Chinese textbooks — authors, backgrounds, and extensions — using verified facts.
 
-- Category: `learn`; rating: `6+`; tags: `learn`, `chinese`, `poetry`, `grade-6`, `curriculum`, `facts`
+- Category: `learn`; rating: `child`; tags: `learn`, `chinese`, `poetry`, `grade-6`, `curriculum`, `facts`
 
 ## Implementations
 

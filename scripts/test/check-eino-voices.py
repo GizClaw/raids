@@ -1,12 +1,14 @@
 """Check cross-resource spoken Eino Voice ownership without provider access.
 
 Resource YAML schemas are checked by GizClaw; these checks cover the catalog's
-canonical scalar/default Voice and RuntimeProfile binding layout using stdlib.
+canonical scalar/default Voice and RuntimeProfile binding layout using stdlib
+and PyYAML.
 """
 import json
 import re
-import subprocess
 from pathlib import Path
+
+import yaml
 
 
 def scalar(value):
@@ -29,14 +31,10 @@ def voice_bindings(path):
     text = re.split(r"^    \S", text, maxsplit=1, flags=re.M)[0]
     aliases = re.findall(r"^      ([^\s:]+):", text, re.M)
     assert len(set(aliases)) == len(aliases), f"{path}: duplicate Voice alias"
-    # Profiles can share bindings through YAML anchors (Journey variants).
-    # Ruby/Psych is already used by the catalog closure checks and is offline.
-    result = subprocess.run(
-        ["ruby", "-r" + str(Path(__file__).resolve().with_name("yaml_compat.rb")), "-rjson", "-e",
-         "puts JSON.generate(YAML.load_file(ARGV[0]).fetch('spec').fetch('resources').fetch('voices'))",
-         str(path)], check=True, capture_output=True, text=True,
-    )
-    return {alias: binding["resource_id"] for alias, binding in json.loads(result.stdout).items()}
+    # Profiles can share bindings through YAML anchors (Journey variants);
+    # yaml.safe_load resolves them offline.
+    voices = yaml.safe_load(path.read_text(encoding="utf-8"))["spec"]["resources"]["voices"]
+    return {alias: binding["resource_id"] for alias, binding in voices.items()}
 
 
 def main():
@@ -63,7 +61,7 @@ def main():
         for impl in einos:
             path = manifest.parent / impl["file"]
             # Multi-role resource IDs retain the full suffix; aliases use -mr
-            # to fit the alias-length contract enforced by voice-bindings.rb.
+            # to fit the alias-length contract enforced by voice-bindings.py.
             namespace = impl["workflow_id"]
             if impl["file"].endswith(".multi-role.yaml"):
                 namespace = namespace.removesuffix("-multi-role") + "-mr"

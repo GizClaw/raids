@@ -233,7 +233,7 @@ def render_raid_manifest(
     manifest["category"] = "learn"
     manifest["title"] = dict(title)
     manifest["summary"] = dict(summary)
-    manifest["rating"]["age"] = "6+"
+    manifest["rating"]["age"] = ["child"]
     manifest["tags"] = list(tags)
     for engine in ("eino", "flowcraft"):
         implementation = manifest["implementations"][engine]

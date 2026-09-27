@@ -2,7 +2,7 @@
 
 Coordinate information, energy, and teamwork in a non-violent space rescue.
 
-- Category: `adventure`; rating: `6+` (mild-peril); tags: `space`, `teamwork`, `problem-solving`
+- Category: `adventure`; rating: `child` (mild-peril); tags: `space`, `teamwork`, `problem-solving`
 
 ## Workspace safety fence
 

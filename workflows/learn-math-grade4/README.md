@@ -2,7 +2,7 @@
 
 Explore grade 4 People's Education Press primary math through Math Corner topics, puzzles, and verified mathematical culture, with hints before answers.
 
-- Category: `learn`; rating: `6+`; tags: `learn`, `math`, `grade-4`, `curriculum`, `puzzles`, `facts`
+- Category: `learn`; rating: `child`; tags: `learn`, `math`, `grade-4`, `curriculum`, `puzzles`, `facts`
 
 ## Implementations
 

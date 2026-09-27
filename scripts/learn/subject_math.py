@@ -236,7 +236,7 @@ def render_readme(
     lines = [
         f"# {manifest['title']['en']} (`{raid}`) — {manifest['title']['zh-CN']}\n",
         manifest["summary"]["en"] + "\n",
-        "- Category: `learn`; rating: `6+`; tags: " + ", ".join(f"`{tag}`" for tag in manifest["tags"]) + "\n",
+        "- Category: `learn`; rating: `child`; tags: " + ", ".join(f"`{tag}`" for tag in manifest["tags"]) + "\n",
         f"""## Implementations
 
 {shared.implementation_table(raid)}

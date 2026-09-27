@@ -2,7 +2,7 @@
 
 Long-form detective mystery with free investigation, testimony checks, evidence corrections, and a provisional conclusion.
 
-- Category: `adventure`; rating: `12+` (mystery-death); tags: `murder-mystery`, `deduction`, `role-play`
+- Category: `adventure`; rating: `teen`, `adult` (mystery-death); tags: `murder-mystery`, `deduction`, `role-play`
 
 ## Workspace safety fence
 

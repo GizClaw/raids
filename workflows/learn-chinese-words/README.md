@@ -2,7 +2,7 @@
 
 Explore verified primary Chinese textbook treasures through proverb and two-part-allegorical-saying riddles, quotation attributions, couplets, and character stories.
 
-- Category: `learn`; rating: `6+`; tags: `learn`, `chinese`, `proverbs`, `characters`, `curriculum`, `facts`
+- Category: `learn`; rating: `child`; tags: `learn`, `chinese`, `proverbs`, `characters`, `curriculum`, `facts`
 
 ## Implementations
 

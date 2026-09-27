@@ -2,7 +2,7 @@
 
 Learn safety priorities, rescue signaling, and resource planning on a fictional island.
 
-- Category: `adventure`; rating: `6+` (mild-peril); tags: `survival`, `problem-solving`
+- Category: `adventure`; rating: `child` (mild-peril); tags: `survival`, `problem-solving`
 
 ## Workspace safety fence
 
