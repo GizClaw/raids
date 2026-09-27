@@ -332,8 +332,9 @@ region (`guess-physics-terms`). A product picks its regional content when its
 RuntimeProfile is assembled; both public profiles bind the Eino Workflows in the
 `guess` collection as `guess.<subject>[-<region>]-eino`.
 
-The catalog has nine guess raids: `guess-history-figures-cn` (the only regional
-one), `guess-world-figures`, `guess-physics-terms`, `guess-chemistry-terms`,
+The catalog has ten guess raids: `guess-history-figures-cn` (the only regional
+one), `guess-chinese-idioms` (idioms and the folk stories behind them, for
+Chinese speakers anywhere), `guess-world-figures`, `guess-physics-terms`, `guess-chemistry-terms`,
 `guess-math-terms`, `guess-animals`, `guess-body-health`,
 `guess-world-landmarks`, and `guess-inventions-discoveries`. Each has ten named
 levels and about 144 answers. They all target kindergarten to high school
@@ -593,7 +594,7 @@ package lacks a `raid.json`, or when a manifest uses any other age value.
 
 ## Declarative live tests
 
-Live tests use `tests/giztest/{smoke,quality,soak}/<raid>.<implementation>.giztest.yaml`, one implementation per file, named after its Workflow file. There are **556 tier files**: **188 smoke**, **188 quality**, and **180 soak**. The **128 device** files, the two external H106 files and the `safety-fence` end-to-end file remain separate, for **687 `.giztest.yaml` files** total; generated reports are excluded. Selected files run concurrently with `gizclaw test run --parallel N`.
+Live tests use `tests/giztest/{smoke,quality,soak}/<raid>.<implementation>.giztest.yaml`, one implementation per file, named after its Workflow file. There are **559 tier files**: **189 smoke**, **189 quality**, and **181 soak**. The **128 device** files, the two external H106 files and the `safety-fence` end-to-end file remain separate, for **690 `.giztest.yaml` files** total; generated reports are excluded. Selected files run concurrently with `gizclaw test run --parallel N`.
 
 - **smoke** measures speed, latency and responsiveness, including complete audio and independent first-response probes.
 - **quality** enforces deterministic quality and safety guardrails, including transitions, corrections, language and role boundaries. Independent suite responses run in parallel and finish together within the existing file budget; long Tester relays live in soak.

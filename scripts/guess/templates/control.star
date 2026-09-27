@@ -30,7 +30,7 @@ HINT_CUES = ["提示", "线索", "帮帮我", "帮我一下", "猜不到", "猜�
 ANSWER_REQUEST_CUES = ["告诉我答案", "答案是什么", "直接告诉我", "到底是谁", "到底是什么", "你说答案", "tellmetheanswer", "whatistheanswer", "justtellme", "whoisit", "whatisit"]
 GIVE_UP_CUES = ["我放弃", "放弃了", "不猜了", "认输", "猜不出来了", "igiveup", "giveup"]
 # What may surround the secret's name in a guess such as “是孔子吗” or “Is it Confucius?”.
-GUESS_FILLERS = ["是不是", "我猜是", "我猜", "我觉得是", "我觉得", "答案是", "谜底是", "应该是", "会不会是", "难道是", "那就是", "就是", "是", "吗", "呀", "啊", "呢", "吧", "嘛", "他", "她", "它", "这个人", "这个", "这种", "那个", "一只", "一头", "一条", "一种", "一个", "一位", "一匹", "一块", "一座", "一颗", "一台", "一辆", "一件", "一项", "一本", "一张", "theansweris", "isit", "itis", "iguess", "ithink", "maybe", "is", "it", "the", "an", "a"]
+GUESS_FILLERS = ["是不是", "我猜是", "我猜", "我觉得是", "我觉得", "答案是", "谜底是", "应该是", "会不会是", "难道是", "那就是", "就是", "是", "吗", "呀", "啊", "呢", "吧", "嘛", "他", "她", "它", "这个人", "这个成语", "这个故事", "的故事", "成语", "故事", "这个", "这种", "那个", "一只", "一头", "一条", "一种", "一个", "一位", "一匹", "一块", "一座", "一颗", "一台", "一辆", "一件", "一项", "一本", "一张", "theansweris", "isit", "itis", "iguess", "ithink", "maybe", "is", "it", "the", "an", "a"]
 DECLINE_EXACT = ["不要", "不想", "不了", "不用了", "先不了", "no", "nope", "notnow", "nothanks"]
 
 def compact(text):
@@ -339,23 +339,26 @@ def reveal_words(lang, state, reason):
         tail = "你还在第 " + str(level) + " 关“" + title(level, lang) + "”，要不要再来一题？"
     return lead + item["profile"] + tail
 
+def unused_hint_numbers(state):
+    # A hint is used when History holds its exact Chinese text or, for an
+    # English game where the hint is translated, its number ("Hint 2:").
+    hints = secret_for(state["level"], state["puzzle"])["hints"]
+    low = state["said"].lower()
+    left = [i for i in range(len(hints)) if hints[i] not in state["said"] and ("hint " + str(i + 1)) not in low]
+    return left if len(left) > 0 else [len(hints) - 1]
+
 def unused_hints(state):
     hints = secret_for(state["level"], state["puzzle"])["hints"]
-    left = [hint for hint in hints if hint not in state["said"]]
-    # A hint spoken in English is a translation, so its Chinese text never
-    # shows up in History; count those off the front of the list in order.
-    untracked = state["hints"] - (len(hints) - len(left))
-    if untracked > 0:
-        left = left[untracked:]
-    return left if len(left) > 0 else hints[-1:]
+    return [hints[i] for i in unused_hint_numbers(state)]
 
 def hint_choice(lang, state, closing):
     # Prewritten hints cannot know what the child has already found out, so the
     # host picks, among the unused ones, one that tells the child something new.
     options = unused_hints(state)
     if lang == "en":
-        # English hints are given strictly in order so the count above stays exact.
-        return "say “Hint:” followed by this hint translated into English, then “" + closing + "” — add no other clue: " + options[0]
+        # The number, not the translated text, tells later turns which hint was used.
+        number = unused_hint_numbers(state)[0] + 1
+        return "say “Hint " + str(number) + ":” followed by this hint translated into English, then “" + closing + "” — add no other clue: " + options[0]
     if len(options) == 1:
         return "逐字说“小提示：" + options[0] + "。" + closing + "”，不要补充别的线索"
     return "从下面几条提示里挑一条孩子还不知道的（不要和前面已经问出来的答案重复），逐字说“小提示：所选的那条。" + closing + "”，不要补充别的线索：" + " / ".join(options)
@@ -399,7 +402,7 @@ def answer_rules(lang, state):
             lines.append("如果孩子要提示或线索（包括要大提示、问名字里的字）：" + hint_choice("zh", state, closing) + "。")
         if state["streak"] + 1 >= AUTO_HINT_AFTER:
             first = unused_hints(state)[0]
-            lines.append(("If this answer is “No”, add “Hint:” followed by this hint in English: " + first) if lang == "en" else ("如果这次的回答是“不是”，就在回答后面逐字加一句“小提示：" + first + "。”"))
+            lines.append(("If this answer is “No”, add “Hint " + str(unused_hint_numbers(state)[0] + 1) + ":” followed by this hint in English: " + first) if lang == "en" else ("如果这次的回答是“不是”，就在回答后面逐字加一句“小提示：" + first + "。”"))
     lines.append("If the child talks about copying something dangerous in real life, follow the safety rules first." if lang == "en" else "如果涉及现实中的危险模仿或安全问题，先按安全规则回答。")
     return lines
 
