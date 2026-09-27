@@ -358,7 +358,7 @@ def hint_choice(lang, state, closing):
     if lang == "en":
         # The number, not the translated text, tells later turns which hint was used.
         number = unused_hint_numbers(state)[0] + 1
-        return "say “Hint " + str(number) + ":” followed by this hint translated into English, then “" + closing + "” — add no other clue: " + options[0]
+        return "reply with ONE sentence that joins the hint and the question, and nothing else: “Hint " + str(number) + ": <this hint translated into English>, so " + closing[0].lower() + closing[1:] + "” — add no other clue. The hint to translate: " + options[0]
     if len(options) == 1:
         return "逐字说“小提示：" + options[0] + "。" + closing + "”，不要补充别的线索"
     return "从下面几条提示里挑一条孩子还不知道的（不要和前面已经问出来的答案重复），逐字说“小提示：所选的那条。" + closing + "”，不要补充别的线索：" + " / ".join(options)
