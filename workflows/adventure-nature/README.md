@@ -2,7 +2,7 @@
 
 Learn about weather, plants, animals, and ecosystems through observation clues.
 
-- Category: `adventure`; rating: `6+`; tags: `nature`, `science`, `observation`
+- Category: `adventure`; rating: `child`; tags: `nature`, `science`, `observation`
 
 ## Workspace safety fence
 

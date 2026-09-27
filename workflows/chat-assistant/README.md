@@ -1,6 +1,6 @@
 # Chat Assistant (`chat-assistant`) — 聊天助手
 
-- Category: `assistant`; rating: `all`; tags: `assistant`, `memory`, `scheduling`
+- Category: `assistant`; rating: `preschool`, `child`, `teen`, `adult`, `senior`; tags: `assistant`, `memory`, `scheduling`
 
 ## Workspace safety fence
 

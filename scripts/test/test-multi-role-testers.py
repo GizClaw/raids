@@ -9,11 +9,11 @@ import json
 from pathlib import Path
 import subprocess
 
+import yaml
+
 
 def documents(paths):
-    return json.loads(subprocess.check_output(
-        ['ruby', '-r' + str(Path(__file__).resolve().with_name('yaml_compat.rb')), '-rjson', '-e',
-         'puts JSON.generate(ARGV.map { |p| YAML.load_file(p) })', *map(str, paths)], text=True))
+    return [yaml.safe_load(Path(p).read_text(encoding='utf-8')) for p in paths]
 
 
 def script(doc):

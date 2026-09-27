@@ -31,6 +31,7 @@ workflows/<raid-name>/routing-cases.json   # shared dual-engine routing cases fo
 runtime-profiles/<profile-name>.yaml
 registration-tokens/<token-name>.yaml
 runtime-profile.example.yaml
+raids.txt                                  # one raid ID per line: the table of contents
 ```
 
 File names are repository-local. Each applyable catalog Resource declares its
@@ -133,7 +134,7 @@ routing, memory extraction, and summaries do not receive it. Tester Workflows
 play the user and do not receive the fence. Existing scenario safety rules
 remain part of the scenario even at `off`.
 
-`make test-unit-resources` runs `scripts/test/safety-fences.rb` and its fixture
+`make test-unit-resources` runs `scripts/test/safety_fences.py` and its fixture
 tests before schema validation. Discovery includes every Workflow YAML under
 each raid, excluding Tester/Giztest files. Realtime instructions must start
 with `${input.safety_fence}` and a blank line; `ast-translate` is exempt because
@@ -453,6 +454,14 @@ declarative Giztest corpus with `gizclaw test validate`. It does not read
 `runtime-profile.example.yaml`. It is offline: it does not use a GizClaw context, contact Server, or mutate
 resources.
 
+Checks and generators are Python 3 behind the shell Make entry points; only the
+routing gate runs the engines' own JavaScript and Starlark through Node.js and
+Go. The Python scripts need PyYAML, pinned in `scripts/requirements.txt`:
+
+```sh
+python3 -m pip install -r scripts/requirements.txt
+```
+
 Every public Make target dispatches to the same-named script under
 `scripts/<group>/<target>.sh`; the Makefile itself only declares targets,
 default variables, and exports. `make help` lists the complete surface:
@@ -477,7 +486,7 @@ their original bounds. Quality budgets are 30 minutes for these longer stories.
 Each raid supplies a version-1 `routing-cases.json`. The gate executes actual
 Flowcraft JavaScript and Eino Starlark against state and content-control
 assertions. Single-speaker naming/order assertions have been removed from the
-31 story/adventure/figure fixtures; murder mystery retains its existing tests. Ruby,
+31 story/adventure/figure fixtures; murder mystery retains its existing tests. Python,
 Node.js and a local Go toolchain with cached Starlark dependencies are required;
 Go module downloads are disabled. Offline validation cannot establish real
 provider voice switching, timing, interruption or audible continuity.
@@ -499,12 +508,42 @@ engine implementation (`flowcraft.yaml`, `eino.yaml`, …), the scenario's singl
 original relay Tester (`test.yaml`, id `<raid>-test`), a `raid.json` manifest, and a
 README. `raid.json` declares the implementations and the slots each needs —
 model aliases, voice aliases, MemoryLayout — without binding them to concrete
-resources; rating (`raids-age-v1`), category, and tags make the catalog
+resources; rating (`raids-age-v2`), category, and tags make the catalog
 filterable. It is descriptive metadata for consumers and reviewers, not an
 input to a generator: `runtime-profiles/default.yaml` and
 `runtime-profiles/testing.yaml` stay hand-written, and adding a raid to a
 profile means binding its Workflow in a collection and declaring the model and
 voice aliases the manifest lists.
+
+The audio-only `ast-translate` (category `translate`, one implementation per
+language pair) and `doubao-realtime` packages speak through their driver rather
+than a voice adapter and have no Tester or soak tier, so their manifests omit
+`tester` and register only smoke and quality tests.
+
+### Age rating
+
+`rating.age` lists every life stage a raid suits, youngest first, each at most
+once. `raids-age-v2` allows only these five stages:
+
+| Stage | Audience | Ages |
+| --- | --- | --- |
+| `preschool` | preschool children | 3–5 |
+| `child` | primary-school children | 6–11 |
+| `teen` | teenagers | 12–17 |
+| `adult` | adults | 18–59 |
+| `senior` | older adults | 60+ |
+
+A general tool such as an assistant lists all five. `rating.content` separately
+names content advisories such as `mild-peril` or `mystery-death`.
+
+### Raid list
+
+[`raids.txt`](raids.txt) at the repository root is the table of contents: one
+raid ID per line, sorted, for every package under `workflows/`. Read
+`workflows/<id>/raid.json` for its title, rating, category, and tags. After
+adding or removing a raid, run `python3 scripts/test/raid-manifests.py` to
+rewrite the list; `make test-unit-resources` fails when it is stale, when a
+package lacks a `raid.json`, or when a manifest uses any other age value.
 
 ## Declarative live tests
 
@@ -513,7 +552,7 @@ Live tests use `tests/giztest/{smoke,quality,soak}/<raid>.<implementation>.gizte
 - **smoke** measures speed, latency and responsiveness, including complete audio and independent first-response probes.
 - **quality** enforces deterministic quality and safety guardrails, including transitions, corrections, language and role boundaries. Independent suite responses run in parallel and finish together within the existing file budget; long Tester relays live in soak.
 - **soak** runs long conversations between the Tester and target Workflow, including reload and memory continuity.
-- **device** replays the H106 entry flow for every story, adventure and Journey implementation: “开始”, “我选第一个”, “继续”, leave and re-enter (`server.run.stop` + reload), “继续上次的内容”, “开始”. Every reply must end with a question; original stories must enter chapter 2 on “继续”, resume there, and restart at chapter 1. The files are generated by `ruby scripts/test/device-flow.rb`, are not registered in `raid.json`, and run with `make test-e2e TIER=device`.
+- **device** replays the H106 entry flow for every story, adventure and Journey implementation: “开始”, “我选第一个”, “继续”, leave and re-enter (`server.run.stop` + reload), “继续上次的内容”, “开始”. Every reply must end with a question; original stories must enter chapter 2 on “继续”, resume there, and restart at chapter 1. The files are generated by `python3 scripts/test/device-flow.py`, are not registered in `raid.json`, and run with `make test-e2e TIER=device`.
 
 The audio-only `ast-translate` and `doubao-realtime` targets have no soak protocol. Murder Mystery is Flowcraft-only. Journey tests all four implementations against equal gates, including recall; its history-only implementation has no recall exemption.
 
@@ -539,7 +578,7 @@ GizClaw Flowcraft History store; deployments must configure
 semantic recall and must not become a per-turn response barrier.
 
 [Murder Mystery](workflows/murder-mystery/README.md) remains a free-investigation
-`adventure`, rated **12+ / mystery-death**. Its host handles openings, evidence
+`adventure`, rated **teen, adult / mystery-death**. Its host handles openings, evidence
 checks, corrections, reasoning, provisional accusations, and conclusions.
 The housekeeper, chef, Shen Zhiqiu (沈知秋), and lawyer answer individual
 interviews in first person using their own testimony and public dialogue;

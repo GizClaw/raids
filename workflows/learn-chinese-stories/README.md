@@ -2,7 +2,7 @@
 
 Explore verified primary Chinese textbook stories through classical texts, fables, idiom origins, and Happy Reading selections.
 
-- Category: `learn`; rating: `6+`; tags: `learn`, `chinese`, `stories`, `classical`, `curriculum`, `facts`
+- Category: `learn`; rating: `child`; tags: `learn`, `chinese`, `stories`, `classical`, `curriculum`, `facts`
 
 ## Implementations
 

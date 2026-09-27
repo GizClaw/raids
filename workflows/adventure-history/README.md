@@ -2,7 +2,7 @@
 
 Explore historical settings as a time observer and understand cause and effect.
 
-- Category: `adventure`; rating: `9+`; tags: `history`, `time-travel`, `facts`
+- Category: `adventure`; rating: `child`, `teen`; tags: `history`, `time-travel`, `facts`
 
 ## Workspace safety fence
 
