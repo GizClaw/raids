@@ -1,0 +1,25 @@
+      - id: @@NODE@@
+        type: prompt
+        inputs:
+          safety_fence:
+            from: input.safety_fence
+          rules:
+            from: host-rules
+          history:
+            from: input.messages
+          direction:
+            from: game-direction
+        outputs:
+          messages: host-messages
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+@@CARD@@
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'

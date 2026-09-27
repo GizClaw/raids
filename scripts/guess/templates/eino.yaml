@@ -1,0 +1,115 @@
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata:
+  id: eino-@@RAID@@
+spec:
+  driver: eino
+  toolkit:
+    tool_ids: []
+  eino:
+    voice_adapter:
+      asr_model: asr
+      default_voice: eino-@@RAID@@.host
+    graph:
+      name: @@RAID@@-eino
+      compile:
+        node_trigger_mode: any_predecessor
+        max_run_steps: 12
+      state:
+        fields:
+        - name: game-route
+          type: string
+          merge: replace
+        - name: game-direction
+          type: string
+          merge: replace
+        - name: game-node
+          type: string
+          merge: replace
+        - name: host-rules
+          type: string
+          merge: replace
+        - name: host-messages
+          type: messages
+          merge: replace
+        - name: answer
+          type: string
+          merge: replace
+      nodes:
+      - id: control-round
+        type: script
+        inputs:
+          text:
+            from: input.text
+          messages:
+            from: input.messages
+        outputs:
+          route: game-route
+          node: game-node
+          direction: game-direction
+          rules: host-rules
+        language: starlark
+        entrypoint: run
+        source: |
+@@CONTROL@@
+        limits:
+          max_execution_steps: 300000
+          timeout: 500ms
+          max_input_bytes: 262144
+          max_output_bytes: 65536
+@@CARD_NODES@@
+      - id: build-host-prompt
+        type: prompt
+        inputs:
+          safety_fence:
+            from: input.safety_fence
+          history:
+            from: input.messages
+          direction:
+            from: game-direction
+        outputs:
+          messages: host-messages
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+@@HOST_PROMPT@@
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: host-model
+        type: chat_model
+        inputs:
+          messages:
+            from: host-messages
+        outputs:
+          text: answer
+        model: eino-@@RAID@@.model
+        max_tokens: 512
+        temperature: 0.3
+      edges:
+      - from: start
+        to: control-round
+@@CARD_EDGES@@
+      - from: build-host-prompt
+        to: host-model
+      - from: host-model
+        to: end
+      branches:
+      - from: control-round
+        mode: first_match
+        routes:
+@@CARD_ROUTES@@
+        default: build-host-prompt
+      outputs:
+      - node: host-model
+        field: answer
+        name: assistant
+        mime_type: text/plain
+        primary: true
+    conversation:
+      starts: peer
+    limits:
+      max_output_bytes: 4194304
