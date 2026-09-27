@@ -117,6 +117,9 @@ def control_cases(data: dict[str, Any]) -> list[dict[str, Any]]:
              {"route": {"equals": "play"}, "direction": {"includes_all": ["3 次提示已经用完了"]}}),
         case("remaining-five", "问题？", round1 + [item for pair in [[user(f"问题{i}？"), host("是。还想问什么？")] for i in range(14)] for item in pair],
              {"route": {"equals": "play"}, "direction": {"includes_all": ["还剩 5 次提问机会"]}}),
+        case("hints-keep-chances", "问题？", round1 + [item for pair in [[user(f"问题{i}？"), host("是。还想问什么？")] for i in range(18)] for item in pair]
+             + [user("给我一个提示"), host("小提示：" + s1["hints"][0] + "。还想问什么？")],
+             {"route": {"equals": "play"}, "direction": {"includes_all": ["还剩 1 次提问机会"]}}),
         case("last-question", "问题？", round1 + [item for pair in [[user(f"问题{i}？"), host("是。还想问什么？")] for i in range(19)] for item in pair],
              {"route": {"equals": "play"}, "direction": {"includes_all": [f"20 次机会用完啦，答案揭晓：{s1['zh']}！"]}}),
         case("top-level", "问题？", [user("开始"), host(opening(data, top, 7))],

@@ -229,6 +229,14 @@ spec:
                       return True
               return low == "no"
 
+          def counts_as_question(text):
+              # Only questions and guesses use up the 20 chances; asking for a hint,
+              # giving up, and game commands do not.
+              word = compact(text)
+              if word in START_WORDS or word in RESTART_WORDS or word in STOP_EXACT:
+                  return False
+              return not (matches_any(word, HINT_CUES) or matches_any(word, GIVE_UP_CUES) or matches_any(word, RESUME_CUES) or matches_any(word, STOP_CONTAINS))
+
           def analyze(messages):
               history = list(messages)
               if len(history) > 0 and history[-1].get("role", "") == "user":
@@ -263,7 +271,8 @@ spec:
               for message in history[start + 1:]:
                   content = message.get("content", "")
                   if message.get("role", "") == "user":
-                      state["asked"] += 1
+                      if counts_as_question(content):
+                          state["asked"] += 1
                       continue
                   if state["over"]:
                       state["after"] += 1

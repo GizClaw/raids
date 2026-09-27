@@ -229,6 +229,14 @@ spec:
                       return True
               return low == "no"
 
+          def counts_as_question(text):
+              # Only questions and guesses use up the 20 chances; asking for a hint,
+              # giving up, and game commands do not.
+              word = compact(text)
+              if word in START_WORDS or word in RESTART_WORDS or word in STOP_EXACT:
+                  return False
+              return not (matches_any(word, HINT_CUES) or matches_any(word, GIVE_UP_CUES) or matches_any(word, RESUME_CUES) or matches_any(word, STOP_CONTAINS))
+
           def analyze(messages):
               history = list(messages)
               if len(history) > 0 and history[-1].get("role", "") == "user":
@@ -263,7 +271,8 @@ spec:
               for message in history[start + 1:]:
                   content = message.get("content", "")
                   if message.get("role", "") == "user":
-                      state["asked"] += 1
+                      if counts_as_question(content):
+                          state["asked"] += 1
                       continue
                   if state["over"]:
                       state["after"] += 1
@@ -1631,7 +1640,7 @@ spec:
             生活例子：身高1.35米；体温36.5摄氏度
             是不是一种图形：否
             是不是一个数：是
-            注意：它不一定比1小，比如12.5也是它；它和分数可以互相转化。
+            注意：它不一定比1小，比如12.5也是它；有限（已隐藏）和无限循环（已隐藏）能化成分数，圆周率这样的无限不循环（已隐藏）不能。
         - placeholder: history
         - role: system
           template: '【本轮指令】{direction}'
