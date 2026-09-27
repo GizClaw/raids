@@ -160,7 +160,7 @@ def main() -> int:
         rendered = generate.render_eino(raid, data)
         total = sum(len(level["items"]) for level in data["levels"])
         nodes = rendered.count("\n      - id: card-l")
-        routes = rendered.count("\n            field: game-node\n")
+        routes = rendered.count("{when: {field: game-node, op: eq, value: card-l")
         if nodes != total or routes != total:
             raise SystemExit(f"{raid}: expected {total} card nodes and routes, found {nodes} nodes and {routes} routes")
         for level_number, level in enumerate(data["levels"], 1):
