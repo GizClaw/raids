@@ -395,6 +395,11 @@ spec:
           def unused_hints(state):
               hints = secret_for(state["level"], state["puzzle"])["hints"]
               left = [hint for hint in hints if hint not in state["said"]]
+              # A hint spoken in English is a translation, so its Chinese text never
+              # shows up in History; count those off the front of the list in order.
+              untracked = state["hints"] - (len(hints) - len(left))
+              if untracked > 0:
+                  left = left[untracked:]
               return left if len(left) > 0 else hints[-1:]
 
           def hint_choice(lang, state, closing):
@@ -402,8 +407,8 @@ spec:
               # host picks, among the unused ones, one that tells the child something new.
               options = unused_hints(state)
               if lang == "en":
-                  pick = "this hint translated into English" if len(options) == 1 else "the one hint below, translated into English, that tells the child something they have not found out yet"
-                  return "say “Hint:” followed by " + pick + ", then “" + closing + "” — add no other clue: " + " / ".join(options)
+                  # English hints are given strictly in order so the count above stays exact.
+                  return "say “Hint:” followed by this hint translated into English, then “" + closing + "” — add no other clue: " + options[0]
               if len(options) == 1:
                   return "逐字说“小提示：" + options[0] + "。" + closing + "”，不要补充别的线索"
               return "从下面几条提示里挑一条孩子还不知道的（不要和前面已经问出来的答案重复），逐字说“小提示：所选的那条。" + closing + "”，不要补充别的线索：" + " / ".join(options)
