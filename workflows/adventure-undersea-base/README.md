@@ -2,7 +2,7 @@
 
 Manage an undersea research base while exploring ocean ecosystems.
 
-- Category: `adventure`; rating: `6+` (mild-peril); tags: `ocean`, `science`, `exploration`
+- Category: `adventure`; rating: `child` (mild-peril); tags: `ocean`, `science`, `exploration`
 
 ## Workspace safety fence
 

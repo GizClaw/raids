@@ -18,9 +18,9 @@ require_command "$GIZCLAW_TEST_CLI"
 require_command jq
 cd "$root"
 
-require_command ruby
-ruby scripts/test/test-safety-fences.rb
-ruby scripts/test/safety-fences.rb
+require_python_yaml
+python3 scripts/test/test_safety_fences.py
+python3 scripts/test/safety_fences.py
 
 for dir in $resource_dirs; do
 	test -d "$dir" || {
@@ -68,27 +68,25 @@ test -d tests/giztest || {
 	exit 1
 }
 
-require_command ruby
 # admin validate does not apply the Server's RuntimeProfile alias syntax check.
-ruby scripts/test/test-runtime-profile-aliases.rb
-ruby scripts/test/runtime-profile-aliases.rb
-ruby scripts/test/starlark-modules.rb | scripts/test/test-starlark-routing.sh --modules
+python3 scripts/test/test_runtime_profile_aliases.py
+python3 scripts/test/runtime_profile_aliases.py
+python3 scripts/test/starlark-modules.py | scripts/test/test-starlark-routing.sh --modules
 python3 scripts/test/test-multi-role-testers.py
-ruby scripts/test/test-eino-script-outputs.rb
-ruby scripts/test/eino-script-outputs.rb
-ruby scripts/test/test-giztest-layout.rb
+python3 scripts/test/test_eino_script_outputs.py
+python3 scripts/test/eino_script_outputs.py
+python3 scripts/test/test_giztest_layout.py
 # Includes upstream RealTime inventory, ASR, complete-audio and 2s/3s
 # first-response checks, mapped to original clients in smoke tier files.
-ruby scripts/test/giztest-layout.rb
+python3 scripts/test/giztest_layout.py
 
 # Resolve the complete manifest -> branch -> published node -> alias -> Voice
-# chain using parsed YAML, not aggregate text counts. Ruby uses only stdlib.
-require_command ruby
-ruby scripts/test/voice-bindings.rb
+# chain using parsed YAML, not aggregate text counts.
+python3 scripts/test/voice-bindings.py
 
 # Execute every declared routing suite against both real engine scripts.
 require_command node
-ruby scripts/test/routing-sources.rb | node scripts/test/test-routing.js
+python3 scripts/test/routing-sources.py | node scripts/test/test-routing.js
 
 # A chapter heading spoken on its own leaves the child waiting in silence, so
 # every story Workflow must continue into the new chapter's opening, and each
@@ -116,12 +114,7 @@ for package in workflows/story-* workflows/figure-*; do
 				exit 1
 			}
 		done
-        ruby -ryaml -e '
-          require File.expand_path("scripts/test/giztest-layout.rb")
-          step = GiztestLayout.steps(YAML.load_file(ARGV[0])).find { |s| s["id"] == "#{ARGV[1]}_transitions_enter_next_chapter_with_story" }
-          pattern = step && step.dig("expect", "/text", "pattern")
-          abort "#{ARGV[0]}: #{ARGV[1]} missing chapter-opening continuation assertion" unless (ARGV[1].include?("multi_role") ? step.dig("expect", "/text", "min_length") == 1 && !pattern : pattern && pattern.include?("第 2 章[：:]") && pattern.include?("{20,}"))
-        ' "$test_file" "$client"
+		python3 scripts/test/giztest_layout.py --story-transition "$test_file" "$client"
 
 		grep -F "\"file\": \"$test_file\"" "$package/raid.json" >/dev/null || {
 			printf 'raid manifest lacks story transition Giztest: %s\n' "$test_file" >&2
@@ -134,6 +127,10 @@ printf 'validated %s story transition Giztests\n' "$transition_count"
 
 # The H106 device entry contract (开始 / 继续 / 继续上次的内容) is generated for
 # every story, adventure and Journey implementation; stale files fail here.
-ruby scripts/test/device-flow.rb --check
+python3 scripts/test/device-flow.py --check
+
+# Every raid.json rates ages with raids-age-v2 life stages, and raids.txt
+# lists every raid; stale or free-form values fail here.
+python3 scripts/test/raid-manifests.py --check
 
 "$GIZCLAW_TEST_CLI" test validate -f tests/giztest

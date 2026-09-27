@@ -1,6 +1,6 @@
 # Journey to the West (`journey-guide`) — 西游记
 
-- Category: `story`; rating: `6+` (mild-peril); tags: `journey-to-the-west`, `interactive-fiction`, `chinese-classic`
+- Category: `story`; rating: `child` (mild-peril); tags: `journey-to-the-west`, `interactive-fiction`, `chinese-classic`
 
 ## Workspace safety fence
 

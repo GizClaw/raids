@@ -2,7 +2,7 @@
 
 Practice hypotheses and evidence through safe experiments and thought experiments.
 
-- Category: `adventure`; rating: `6+`; tags: `science`, `experiments`, `facts`
+- Category: `adventure`; rating: `child`; tags: `science`, `experiments`, `facts`
 
 ## Workspace safety fence
 

@@ -1,0 +1,74 @@
+{
+  "schema": "raids.raid/v1alpha1",
+  "id": "doubao-realtime",
+  "category": "assistant",
+  "title": {
+    "zh-CN": "豆包助手",
+    "en": "Doubao Assistant"
+  },
+  "summary": {
+    "zh-CN": "端到端实时语音聊天：回答简短自然，天气、新闻等实时问题会联网搜索。",
+    "en": "End-to-end realtime voice chat that answers briefly and naturally and searches the web for live questions such as weather or news."
+  },
+  "rating": {
+    "age": [
+      "preschool",
+      "child",
+      "teen",
+      "adult",
+      "senior"
+    ],
+    "scheme": "raids-age-v2",
+    "content": []
+  },
+  "tags": [
+    "assistant",
+    "realtime",
+    "web-search"
+  ],
+  "language": [
+    "zh-CN"
+  ],
+  "implementations": {
+    "conversation": {
+      "file": "conversation.yaml",
+      "workflow_id": "doubao-realtime-conversation",
+      "driver": "doubao-realtime",
+      "input": [
+        "realtime"
+      ],
+      "parameters": {
+        "models": {
+          "doubao-realtime-conversation.model": {
+            "kind": "realtime",
+            "role": "assistant",
+            "description": "Doubao end-to-end realtime dialog model"
+          }
+        },
+        "voices": {
+          "doubao-realtime-conversation.assistant": {
+            "role": "assistant",
+            "language": "zh-CN",
+            "description": "Assistant voice"
+          }
+        }
+      }
+    }
+  },
+  "tests": [
+    {
+      "file": "tests/giztest/smoke/doubao-realtime.conversation.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "conversation"
+      ]
+    },
+    {
+      "file": "tests/giztest/quality/doubao-realtime.conversation.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "conversation"
+      ]
+    }
+  ]
+}

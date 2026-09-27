@@ -14,6 +14,16 @@ require_command() {
 	}
 }
 
+# require_python_yaml exits when python3 cannot import PyYAML, the only
+# third-party module the repository scripts use.
+require_python_yaml() {
+	require_command python3
+	python3 -c 'import yaml' 2>/dev/null || {
+		printf 'missing Python module yaml: python3 -m pip install -r scripts/requirements.txt\n' >&2
+		exit 1
+	}
+}
+
 # go_modules prints every Go module directory under tools/.
 go_modules() {
 	root="$1"

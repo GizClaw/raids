@@ -2,7 +2,7 @@
 
 Escape a friendly monster maze using direction, shape, and logic puzzles.
 
-- Category: `adventure`; rating: `6+` (mild-peril); tags: `maze`, `spatial`, `puzzle`
+- Category: `adventure`; rating: `child` (mild-peril); tags: `maze`, `spatial`, `puzzle`
 
 ## Workspace safety fence
 

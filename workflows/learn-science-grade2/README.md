@@ -2,7 +2,7 @@
 
 Explore grade 2 Educational Science Press primary science through safe home experiments, corrected misconceptions, and verified science facts.
 
-- Category: `learn`; rating: `6+`; tags: `learn`, `science`, `grade-2`, `curriculum`, `experiments`, `facts`
+- Category: `learn`; rating: `child`; tags: `learn`, `science`, `grade-2`, `curriculum`, `experiments`, `facts`
 
 ## Implementations
 

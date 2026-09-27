@@ -2,7 +2,7 @@
 
 Explore real astronomy through missions, questions, and observations.
 
-- Category: `adventure`; rating: `6+`; tags: `space`, `astronomy`, `facts`
+- Category: `adventure`; rating: `child`; tags: `space`, `astronomy`, `facts`
 
 ## Workspace safety fence
 

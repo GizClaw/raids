@@ -2,7 +2,7 @@
 
 Solve maps, codes, and observation clues in a cooperative treasure hunt.
 
-- Category: `adventure`; rating: `6+` (mild-peril); tags: `treasure`, `clues`, `exploration`
+- Category: `adventure`; rating: `child` (mild-peril); tags: `treasure`, `clues`, `exploration`
 
 ## Workspace safety fence
 

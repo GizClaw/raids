@@ -2,7 +2,7 @@
 
 Practice expressing, listening to, and responding to viewpoints on age-appropriate topics.
 
-- Category: `adventure`; rating: `9+`; tags: `debate`, `reasoning`, `speaking`
+- Category: `adventure`; rating: `child`, `teen`; tags: `debate`, `reasoning`, `speaking`
 
 ## Workspace safety fence
 
