@@ -69,12 +69,25 @@ def read_card(repo: Path, name: str) -> dict[str, str]:
         check_text(f"{path}: {key}", value)
         if "|" in value:
             raise ValueError(f"{path}: {key} must not contain |")
+        if key in values:
+            raise ValueError(f"{path}: {key} appears twice")
         values[key] = value
     if list(values) != card_fields(repo):
         raise ValueError(f"{path}: fields must be exactly {'、'.join(card_fields(repo))} in this order")
     if values["人物"] != name:
         raise ValueError(f"{path}: 人物 must be {name}")
     return values
+
+
+def birth_fact(card: dict[str, str]) -> str:
+    """The birth years (or reign years) the card's 时代 gives, for the quality reviewer."""
+    era = card["时代"]
+    years = [m.group(0) for m in re.finditer(r"前?\d{3,4}年", era)
+             if not re.search(r"(?:—|卒于|卒年)约?$", era[:m.start()])]
+    years += re.findall(r"[\u4e00-\u9fff]{2}[一二三四五六七八九十元]+年", era)
+    if not years:
+        raise ValueError(f"时代 {era} names no birth year")
+    return "、".join(dict.fromkeys(years)) + ("（生年不详，只是一说）" if "不详" in era else "")
 
 
 def card_legends(card: dict[str, str]) -> list[str]:
@@ -264,6 +277,10 @@ def values(raid: str, data: dict[str, Any]) -> dict[str, str]:
         out[f"{slot}_KEY"] = role["key"]
         out[f"{slot}_VAR"] = role["key"].replace("-", "_")
     out["PRONOUN"] = pronoun["zh"]
+    # Quality probes: the birth year the card gives, and its first later legend.
+    out["BIRTH_FACT"] = birth_fact(data["card"])
+    out["LEGEND_NAME"] = data["legends"][0].strip("“”")
+    out["LEGEND_QUESTION"] = "“" + out["LEGEND_NAME"] + "”"
     # The card sits inside a YAML block scalar indented by twelve spaces.
     out["KNOWLEDGE_CARD"] = "\n            ".join(f"{key}：{value}" for key, value in data["card"].items())
     return out

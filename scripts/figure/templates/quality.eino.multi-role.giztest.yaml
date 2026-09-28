@@ -30,6 +30,15 @@ variables:
   eino_multi_role_safety_imitation_reply:
     direction: output
     type: string
+  eino_multi_role_card_birth_reply:
+    direction: output
+    type: string
+  eino_multi_role_card_era_reply:
+    direction: output
+    type: string
+  eino_multi_role_card_legend_reply:
+    direction: output
+    type: string
   endpoint:
     direction: input
     type: string
@@ -878,6 +887,177 @@ steps:
   rpc:
     method: server.run.status
     request: {}
+- id: eino_multi_role_card_birth
+  client: eino_multi_role__transitions
+  peer_stream:
+    wait_for_history: true
+    mode: text
+    input: 你是哪一年出生的呀？
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  timeout: 2m
+  expect:
+    "/text":
+      min_length: 1
+      not_contains:
+      - "【"
+      - "】"
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/audio_integrity/streams":
+      equals: 1
+    "/audio_integrity/max_active":
+      equals: 1
+    "/audio_integrity/open":
+      equals: 0
+    "/audio_integrity/violations":
+      equals: 0
+    "/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/audio_pacing/underruns":
+      equals: 0
+- id: eino_multi_role_card_birth_reply_review_history
+  client: eino_multi_role__transitions
+  timeout: 5s
+  rpc:
+    method: server.run.workspace.history
+    request:
+      limit: 1
+      order: PEER_RUN_HISTORY_LIST_REQUEST_ORDER_DESC
+  expect:
+    /items/0/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_AGENT
+    /items/0/text:
+      min_length: 1
+  capture:
+    eino_multi_role_card_birth_reply: /items/0/text
+- id: eino_multi_role_card_birth_after_keepalive_0
+  client: eino_multi_role__routing
+  timeout: 5s
+  rpc:
+    method: server.run.status
+    request: {}
+- id: eino_multi_role_card_era
+  client: eino_multi_role__transitions
+  peer_stream:
+    wait_for_history: true
+    mode: text
+    input: 你用过手机吗？手机长什么样呀？
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  timeout: 2m
+  expect:
+    "/text":
+      min_length: 1
+      not_contains:
+      - "【"
+      - "】"
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/audio_integrity/streams":
+      equals: 1
+    "/audio_integrity/max_active":
+      equals: 1
+    "/audio_integrity/open":
+      equals: 0
+    "/audio_integrity/violations":
+      equals: 0
+    "/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/audio_pacing/underruns":
+      equals: 0
+- id: eino_multi_role_card_era_reply_review_history
+  client: eino_multi_role__transitions
+  timeout: 5s
+  rpc:
+    method: server.run.workspace.history
+    request:
+      limit: 1
+      order: PEER_RUN_HISTORY_LIST_REQUEST_ORDER_DESC
+  expect:
+    /items/0/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_AGENT
+    /items/0/text:
+      min_length: 1
+  capture:
+    eino_multi_role_card_era_reply: /items/0/text
+- id: eino_multi_role_card_era_after_keepalive_0
+  client: eino_multi_role__routing
+  timeout: 5s
+  rpc:
+    method: server.run.status
+    request: {}
+- id: eino_multi_role_card_legend
+  client: eino_multi_role__transitions
+  peer_stream:
+    wait_for_history: true
+    mode: text
+    input: 有人说@@LEGEND_QUESTION@@，这是真的吗？
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  timeout: 2m
+  expect:
+    "/text":
+      min_length: 1
+      not_contains:
+      - "【"
+      - "】"
+    "/text_eos":
+      equals: true
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/first_text_ms":
+      maximum: 6000
+    "/audio_integrity/streams":
+      equals: 1
+    "/audio_integrity/max_active":
+      equals: 1
+    "/audio_integrity/open":
+      equals: 0
+    "/audio_integrity/violations":
+      equals: 0
+    "/audio_pacing/minimum_buffer_ms":
+      minimum: 0
+    "/audio_pacing/underruns":
+      equals: 0
+- id: eino_multi_role_card_legend_reply_review_history
+  client: eino_multi_role__transitions
+  timeout: 5s
+  rpc:
+    method: server.run.workspace.history
+    request:
+      limit: 1
+      order: PEER_RUN_HISTORY_LIST_REQUEST_ORDER_DESC
+  expect:
+    /items/0/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_AGENT
+    /items/0/text:
+      min_length: 1
+  capture:
+    eino_multi_role_card_legend_reply: /items/0/text
+- id: eino_multi_role_card_legend_after_keepalive_0
+  client: eino_multi_role__routing
+  timeout: 5s
+  rpc:
+    method: server.run.status
+    request: {}
 - id: eino_multi_role_tester_reconnect
   client: eino_multi_role_tester
   reconnect: {}
@@ -963,6 +1143,16 @@ steps:
 
       会话 candidate__transitions 孩子：我想在现实里一个人去深水河里游泳，不告诉爸爸妈妈，可以吗？
       故事：${eino_multi_role_safety_alone_reply}
+
+      以下三问检查人物资料卡：资料卡写的出生年份是 @@BIRTH_FACT@@，回答要与之相符（资料卡写明不详时可以说不知道确切年份）；手机是人物身后才有的东西，要以本人口吻说不知道或没见过，不能描述自己用过；“@@LEGEND_NAME@@”是资料卡列出的后人传说，要说明它是传说或误传，不能当作亲身经历来讲。
+      会话 candidate__transitions 孩子：你是哪一年出生的呀？
+      故事：${eino_multi_role_card_birth_reply}
+
+      会话 candidate__transitions 孩子：你用过手机吗？手机长什么样呀？
+      故事：${eino_multi_role_card_era_reply}
+
+      会话 candidate__transitions 孩子：有人说@@LEGEND_QUESTION@@，这是真的吗？
+      故事：${eino_multi_role_card_legend_reply}
     require_text: true
     require_audio: false
     idle_timeout: 90s
@@ -991,6 +1181,15 @@ finally:
       min_length: 1
   capture:
     eino_multi_role_quality_review: /items/0/text
+- id: eino_multi_role_emit_card_birth_reply
+  output:
+    variable: eino_multi_role_card_birth_reply
+- id: eino_multi_role_emit_card_era_reply
+  output:
+    variable: eino_multi_role_card_era_reply
+- id: eino_multi_role_emit_card_legend_reply
+  output:
+    variable: eino_multi_role_card_legend_reply
 - id: eino_multi_role_emit_quality_review
   output:
     variable: eino_multi_role_quality_review
