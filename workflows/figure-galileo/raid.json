@@ -29,73 +29,6 @@
     "zh-CN"
   ],
   "implementations": {
-    "eino": {
-      "file": "eino.yaml",
-      "workflow_id": "eino-figure-galileo",
-      "driver": "eino",
-      "input": [
-        "text",
-        "realtime"
-      ],
-      "memory": {
-        "layout_id": "story-teller"
-      },
-      "parameters": {
-        "models": {
-          "eino-figure-galileo.model": {
-            "kind": "llm",
-            "role": "narrator",
-            "description": "Chat model that generates every turn; needs streaming Chinese output"
-          }
-        },
-        "voices": {
-          "eino-figure-galileo.storyteller": {
-            "role": "storyteller",
-            "language": "zh-CN",
-            "description": "Storyteller voice"
-          }
-        }
-      }
-    },
-    "flowcraft": {
-      "file": "flowcraft.yaml",
-      "workflow_id": "flowcraft-figure-galileo",
-      "driver": "flowcraft",
-      "input": [
-        "text",
-        "push-to-talk",
-        "realtime"
-      ],
-      "memory": {
-        "layout_id": "story-teller"
-      },
-      "parameters": {
-        "models": {
-          "flowcraft-figure-galileo.model": {
-            "kind": "llm",
-            "role": "narrator",
-            "description": "Chat model that generates every turn; needs streaming Chinese output"
-          }
-        },
-        "voices": {
-          "flowcraft-figure-galileo.storyteller": {
-            "role": "storyteller",
-            "language": "zh-CN",
-            "description": "Storyteller voice"
-          },
-          "flowcraft-figure-galileo.galileo": {
-            "role": "galileo",
-            "language": "zh-CN",
-            "description": "伽利略 character voice"
-          },
-          "flowcraft-figure-galileo.castelli": {
-            "role": "castelli",
-            "language": "zh-CN",
-            "description": "卡斯泰利 character voice"
-          }
-        }
-      }
-    },
     "eino-multi-role": {
       "file": "eino.multi-role.yaml",
       "workflow_id": "eino-figure-galileo-multi-role",
@@ -143,101 +76,6 @@
           }
         }
       }
-    },
-    "flowcraft-multi-role": {
-      "file": "flowcraft.multi-role.yaml",
-      "workflow_id": "flowcraft-figure-galileo-multi-role",
-      "driver": "flowcraft",
-      "input": [
-        "text",
-        "push-to-talk",
-        "realtime"
-      ],
-      "memory": {
-        "layout_id": "story-teller"
-      },
-      "parameters": {
-        "models": {
-          "flowcraft-figure-galileo-mr.model": {
-            "kind": "llm",
-            "role": "narrator",
-            "description": "Chat model that generates every turn; needs streaming Chinese output"
-          }
-        },
-        "voices": {
-          "flowcraft-figure-galileo-mr.storyteller": {
-            "role": "storyteller",
-            "language": "zh-CN",
-            "description": "旁白：连续剧本段落音色"
-          },
-          "flowcraft-figure-galileo-mr.galileo": {
-            "role": "galileo",
-            "language": "zh-CN",
-            "description": "伽利略：连续剧本段落音色"
-          },
-          "flowcraft-figure-galileo-mr.castelli": {
-            "role": "castelli",
-            "language": "zh-CN",
-            "description": "卡斯泰利：连续剧本段落音色"
-          },
-          "flowcraft-figure-galileo-mr.kepler": {
-            "role": "kepler",
-            "language": "zh-CN",
-            "description": "开普勒：连续剧本段落音色"
-          },
-          "flowcraft-figure-galileo-mr.viviani": {
-            "role": "viviani",
-            "language": "zh-CN",
-            "description": "维维亚尼：连续剧本段落音色"
-          }
-        }
-      }
-    }
-  },
-  "tester": {
-    "file": "test.yaml",
-    "workflow_id": "figure-galileo-test",
-    "driver": "eino",
-    "parameters": {
-      "models": {
-        "figure-galileo-test.model": {
-          "kind": "llm",
-          "role": "judge",
-          "description": "Chat model that generates every turn; needs streaming Chinese output"
-        }
-      }
-    },
-    "route": {
-      "responses": 16,
-      "checkpoints": [
-        "response-1",
-        "response-2",
-        "response-3",
-        "response-4",
-        "response-5",
-        "response-6",
-        "response-7",
-        "response-8",
-        "response-9",
-        "response-10",
-        "response-11",
-        "response-12",
-        "response-13",
-        "response-14",
-        "response-15",
-        "response-16"
-      ],
-      "milestones": [
-        8,
-        16
-      ],
-      "reload_before": 9,
-      "chapters": [
-        "斜面上的小球",
-        "镜筒里的月亮",
-        "一本对话录",
-        "看不见的星空"
-      ]
     }
   },
   "testers": {
@@ -287,52 +125,16 @@
         ]
       },
       "implementations": [
-        "eino-multi-role",
-        "flowcraft-multi-role"
+        "eino-multi-role"
       ]
     }
   },
   "tests": [
     {
-      "file": "tests/giztest/smoke/figure-galileo.eino.giztest.yaml",
-      "tier": "smoke",
-      "implementations": [
-        "eino"
-      ]
-    },
-    {
-      "file": "tests/giztest/smoke/figure-galileo.flowcraft.giztest.yaml",
-      "tier": "smoke",
-      "implementations": [
-        "flowcraft"
-      ]
-    },
-    {
       "file": "tests/giztest/smoke/figure-galileo.eino.multi-role.giztest.yaml",
       "tier": "smoke",
       "implementations": [
         "eino-multi-role"
-      ]
-    },
-    {
-      "file": "tests/giztest/smoke/figure-galileo.flowcraft.multi-role.giztest.yaml",
-      "tier": "smoke",
-      "implementations": [
-        "flowcraft-multi-role"
-      ]
-    },
-    {
-      "file": "tests/giztest/quality/figure-galileo.eino.giztest.yaml",
-      "tier": "quality",
-      "implementations": [
-        "eino"
-      ]
-    },
-    {
-      "file": "tests/giztest/quality/figure-galileo.flowcraft.giztest.yaml",
-      "tier": "quality",
-      "implementations": [
-        "flowcraft"
       ]
     },
     {
@@ -343,38 +145,10 @@
       ]
     },
     {
-      "file": "tests/giztest/quality/figure-galileo.flowcraft.multi-role.giztest.yaml",
-      "tier": "quality",
-      "implementations": [
-        "flowcraft-multi-role"
-      ]
-    },
-    {
-      "file": "tests/giztest/soak/figure-galileo.eino.giztest.yaml",
-      "tier": "soak",
-      "implementations": [
-        "eino"
-      ]
-    },
-    {
-      "file": "tests/giztest/soak/figure-galileo.flowcraft.giztest.yaml",
-      "tier": "soak",
-      "implementations": [
-        "flowcraft"
-      ]
-    },
-    {
       "file": "tests/giztest/soak/figure-galileo.eino.multi-role.giztest.yaml",
       "tier": "soak",
       "implementations": [
         "eino-multi-role"
-      ]
-    },
-    {
-      "file": "tests/giztest/soak/figure-galileo.flowcraft.multi-role.giztest.yaml",
-      "tier": "soak",
-      "implementations": [
-        "flowcraft-multi-role"
       ]
     }
   ]

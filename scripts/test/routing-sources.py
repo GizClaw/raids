@@ -31,11 +31,14 @@ for package in sorted(p for p in glob.glob('workflows/*') if os.path.isdir(p)):
     manifest_file = f'{package}/raid.json'
     manifest = load_json(manifest_file) if os.path.exists(manifest_file) else {}
     for variant in ('', '.multi-role'):
-        if variant != '' and not os.path.exists(f'{package}/flowcraft{variant}.yaml'):
+        # Figure raids ship only eino.multi-role, so a variant needs either engine.
+        if variant != '' and not any(os.path.exists(f'{package}/{e}{variant}.yaml') for e in ('flowcraft', 'eino')):
             continue
         flow_file, eino_file = (f'{package}/{e}{variant}.yaml' for e in ('flowcraft', 'eino'))
         flow = dig(load_yaml(flow_file), 'spec', 'flowcraft') if os.path.exists(flow_file) else None
         eino = dig(load_yaml(eino_file), 'spec', 'eino') if os.path.exists(eino_file) else None
+        if flow is None and eino is None:
+            continue
         expanded = any(len(dig(i, 'parameters', 'voices') or {}) > 3 for i in (manifest.get('implementations') or {}).values())
         expanded = expanded or len((None if flow is None else dig(flow, 'voice_adapter', 'speaker_voices')) or {}) > 3
         expanded = expanded or len((None if eino is None else dig(eino, 'voice_adapter', 'speaker_voices')) or {}) > 3
@@ -79,7 +82,8 @@ for package in sorted(p for p in glob.glob('workflows/*') if os.path.isdir(p)):
                 continue
         sources = {}
         for engine, spec in (('flowcraft', flow), ('eino', eino)):
-            if not (engine in manifest['implementations'] and engine in data):
+            implemented = engine in manifest['implementations'] or engine + variant.replace('.', '-') in manifest['implementations']
+            if not (implemented and engine in data):
                 continue
             node_id = data[engine].get('node', 'control-story' if engine == 'flowcraft' else 'select-speaker')
             nodes = None if spec is None else dig(spec, 'graph', 'nodes')

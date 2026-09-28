@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regenerate figure-* raid packages from workflows/<raid>/figure.json."""
+"""Regenerate figure-* raid packages from workflows/<raid>/figure.json and cards/figure/<人物>.txt."""
 
 from __future__ import annotations
 
@@ -14,9 +14,10 @@ sys.dont_write_bytecode = True
 
 HERE = Path(__file__).resolve().parent
 TEMPLATES = HERE / "templates"
-MAX_ALIAS = 63  # GizClaw runtime aliases, e.g. flowcraft-<raid>-mr.<role>
+MAX_ALIAS = 63  # GizClaw runtime aliases, e.g. eino-<raid>-mr.<role>
 TIERS = ("smoke", "quality", "soak", "device")
-VARIANTS = ("eino", "flowcraft", "eino.multi-role", "flowcraft.multi-role")
+VARIANT = "eino.multi-role"  # the only implementation: file stem and Giztest suffix
+IMPLEMENTATION = "eino-multi-role"  # its key in raid.json
 CHAPTERS = (1, 2, 3, 4)
 KEY = re.compile(r"[a-z]+(?:-[a-z]+)*")
 # Figure text lands inside JS and Starlark string literals and Eino f_string
@@ -39,6 +40,49 @@ def repository_root() -> Path:
 
 def discover_raids(repo: Path) -> list[str]:
     return sorted(path.parent.name for path in (repo / "workflows").glob("figure-*/figure.json"))
+
+
+# A knowledge card describes the person, not the raid: one “字段：值” line per
+# field in cards/figure/_template.txt order. The whole card is embedded in the
+# prompt as the factual reference; list fields separate items with “；”.
+CARDS = ("cards", "figure")
+NONE = "无"
+
+
+def card_fields(repo: Path) -> list[str]:
+    path = repo.joinpath(*CARDS, "_template.txt")
+    return [line.partition("：")[0].strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+
+def read_card(repo: Path, name: str) -> dict[str, str]:
+    path = repo.joinpath(*CARDS, f"{name}.txt")
+    if not path.is_file():
+        raise ValueError(f"missing knowledge card {path.relative_to(repo)}")
+    values: dict[str, str] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        key, sep, value = line.partition("：")
+        key, value = key.strip(), value.strip()
+        if not sep or not key or not value:
+            raise ValueError(f"{path}: “{line}” must be a non-empty “字段：值” line")
+        check_text(f"{path}: {key}", value)
+        if "|" in value:
+            raise ValueError(f"{path}: {key} must not contain |")
+        values[key] = value
+    if list(values) != card_fields(repo):
+        raise ValueError(f"{path}: fields must be exactly {'、'.join(card_fields(repo))} in this order")
+    if values["人物"] != name:
+        raise ValueError(f"{path}: 人物 must be {name}")
+    return values
+
+
+def card_legends(card: dict[str, str]) -> list[str]:
+    """Legend names, the part of each 后人传说 item before “——”."""
+    names = [item.partition("——")[0].strip() for item in card["后人传说"].split("；") if item.strip()]
+    if not names or any(not name for name in names):
+        raise ValueError("后人传说 must list items as “名称——说明”")
+    return names
 
 
 def template(name: str) -> str:
@@ -115,13 +159,13 @@ def load(repo: Path, raid: str) -> dict[str, Any]:
         for view in role["views"]:
             for field in ("want", "temper", "action"):
                 check_text(f"{where} view {field}", view[field])
-        alias = f"flowcraft-{raid}-mr.{role['key']}"
+        alias = f"eino-{raid}-mr.{role['key']}"
         if len(alias.encode("utf-8")) > MAX_ALIAS:
             raise ValueError(f"{where}: Voice alias {alias} exceeds {MAX_ALIAS} bytes")
     for guest in guests:
         if 1 in role_chapters(guest):
             raise ValueError(f"{path}: guest {guest['key']} must arrive after chapter 1; the companion is the chapter 1 partner")
-    if len(f"flowcraft-{raid}-multi-role".encode("utf-8")) > MAX_ALIAS:
+    if len(f"eino-{raid}-multi-role".encode("utf-8")) > MAX_ALIAS:
         raise ValueError(f"{path}: raid ID is too long for its multi-role Workflow ID")
     for number, chapter in enumerate(data["chapters"], 1):
         check_text(f"{path}: chapter {number} title", chapter["title"])
@@ -132,8 +176,6 @@ def load(repo: Path, raid: str) -> dict[str, Any]:
                   "opening.question", "opening.choice", "title.zh-CN"):
         section, _, key = field.partition(".")
         check_text(f"{path}: {field}", data[section][key] if key else data[section])
-    for legend in data["legends"]:
-        check_text(f"{path}: legend", legend)
     if data["opening"]["choice"] not in data["opening"]["question"]:
         raise ValueError(f"{path}: opening.choice must be one of the options named in opening.question")
     if not data["opening"]["intro"].startswith(f"我是{figure['name']}") or companion["name"] not in data["opening"]["intro"]:
@@ -141,6 +183,14 @@ def load(repo: Path, raid: str) -> dict[str, Any]:
     for guest in guests:
         if guest["name"] not in data["opening"]["guests"]:
             raise ValueError(f"{path}: opening.guests must announce {guest['name']}")
+    if "legends" in data:
+        raise ValueError(f"{path}: legends belong in the knowledge card's 后人传说, not in figure.json")
+    card = read_card(repo, figure["name"])
+    for role in (companion, *guests):
+        if role["name"] not in card["身边的人"]:
+            raise ValueError(f"cards/figure/{figure['name']}.txt: 身边的人 must describe {role['name']}")
+    data["card"] = card
+    data["legends"] = card_legends(card)
     return data
 
 
@@ -214,6 +264,8 @@ def values(raid: str, data: dict[str, Any]) -> dict[str, str]:
         out[f"{slot}_KEY"] = role["key"]
         out[f"{slot}_VAR"] = role["key"].replace("-", "_")
     out["PRONOUN"] = pronoun["zh"]
+    # The card sits inside a YAML block scalar indented by twelve spaces.
+    out["KNOWLEDGE_CARD"] = "\n            ".join(f"{key}：{value}" for key, value in data["card"].items())
     return out
 
 
@@ -248,7 +300,6 @@ def render_readme(raid: str, data: dict[str, Any], slots: dict[str, str]) -> str
         "REFLEXIVE": pronoun["reflexive"],
         "HARDSHIP": data["hardship_en"],
         "MR_ALIASES_EINO": ", ".join(f"`eino-{raid}-mr.{key}`" for key in ["storyteller"] + [r["key"] for r in cast(data)]),
-        "MR_ALIASES_FLOWCRAFT": ", ".join(f"`flowcraft-{raid}-mr.{key}`" for key in ["storyteller"] + [r["key"] for r in cast(data)]),
     })
 
 
@@ -280,47 +331,12 @@ def render_routing(raid: str, data: dict[str, Any], slots: dict[str, str]) -> st
 
 
 def raid_manifest(raid: str, data: dict[str, Any]) -> str:
-    roles = cast(data)
     llm = "Chat model that generates every turn; needs streaming Chinese output"
-    titles = [chapter["title"] for chapter in data["chapters"]]
-    route = {
-        "responses": 16,
-        "checkpoints": [f"response-{n}" for n in range(1, 17)],
-        "milestones": [8, 16],
-        "reload_before": 9,
-        "chapters": titles,
-    }
-
-    def implementation(engine: str, multi_role: bool) -> dict[str, Any]:
-        variant = f"{engine}.multi-role" if multi_role else engine
-        alias = f"{engine}-{raid}-mr" if multi_role else f"{engine}-{raid}"
-        voices = {f"{alias}.storyteller": {"role": "storyteller", "language": "zh-CN",
-                                           "description": "旁白：连续剧本段落音色" if multi_role else "Storyteller voice"}}
-        if multi_role:
-            voiced = roles
-        elif engine == "flowcraft":
-            voiced = roles[:2]
-        else:
-            voiced = []
-        for role in voiced:
-            voices[f"{alias}.{role['key']}"] = {
-                "role": role["key"],
-                "language": "zh-CN",
-                "description": f"{role['name']}：连续剧本段落音色" if multi_role else f"{role['name']} character voice",
-            }
-        return {
-            "file": f"{variant}.yaml",
-            "workflow_id": f"{engine}-{raid}" + ("-multi-role" if multi_role else ""),
-            "driver": engine,
-            "input": ["text", "push-to-talk", "realtime"] if engine == "flowcraft" else ["text", "realtime"],
-            "memory": {"layout_id": "story-teller"},
-            "parameters": {
-                "models": {f"{alias}.model": {"kind": "llm", "role": "narrator", "description": llm}},
-                "voices": voices,
-            },
-        }
-
-    judge = {"models": {f"{raid}-test.model": {"kind": "llm", "role": "judge", "description": llm}}}
+    alias = f"eino-{raid}-mr"
+    voices = {f"{alias}.storyteller": {"role": "storyteller", "language": "zh-CN", "description": "旁白：连续剧本段落音色"}}
+    for role in cast(data):
+        voices[f"{alias}.{role['key']}"] = {"role": role["key"], "language": "zh-CN",
+                                            "description": f"{role['name']}：连续剧本段落音色"}
     manifest = {
         "schema": "raids.raid/v1alpha1",
         "id": raid,
@@ -330,27 +346,39 @@ def raid_manifest(raid: str, data: dict[str, Any]) -> str:
         "rating": {"age": data["rating"]["age"], "scheme": "raids-age-v2", "content": data["rating"]["content"]},
         "tags": data["tags"],
         "language": ["zh-CN"],
+        # A figure raid ships one implementation: continuous Eino multi-role narration.
         "implementations": {
-            "eino": implementation("eino", False),
-            "flowcraft": implementation("flowcraft", False),
-            "eino-multi-role": implementation("eino", True),
-            "flowcraft-multi-role": implementation("flowcraft", True),
+            IMPLEMENTATION: {
+                "file": f"{VARIANT}.yaml",
+                "workflow_id": f"eino-{raid}-multi-role",
+                "driver": "eino",
+                "input": ["text", "realtime"],
+                "memory": {"layout_id": "story-teller"},
+                "parameters": {
+                    "models": {f"{alias}.model": {"kind": "llm", "role": "narrator", "description": llm}},
+                    "voices": voices,
+                },
+            },
         },
-        "tester": {"file": "test.yaml", "workflow_id": f"{raid}-test", "driver": "eino", "parameters": judge, "route": route},
         "testers": {
             "multi-role": {
                 "file": "test.multi-role.yaml",
                 "workflow_id": f"{raid}-test-multi-role",
                 "driver": "eino",
-                "parameters": judge,
-                "route": route,
-                "implementations": ["eino-multi-role", "flowcraft-multi-role"],
+                "parameters": {"models": {f"{raid}-test.model": {"kind": "llm", "role": "judge", "description": llm}}},
+                "route": {
+                    "responses": 16,
+                    "checkpoints": [f"response-{n}" for n in range(1, 17)],
+                    "milestones": [8, 16],
+                    "reload_before": 9,
+                    "chapters": [chapter["title"] for chapter in data["chapters"]],
+                },
+                "implementations": [IMPLEMENTATION],
             },
         },
         "tests": [
-            {"file": f"tests/giztest/{tier}/{raid}.{variant}.giztest.yaml", "tier": tier,
-             "implementations": [variant.replace(".", "-")]}
-            for tier in TIERS[:3] for variant in VARIANTS
+            {"file": f"tests/giztest/{tier}/{raid}.{VARIANT}.giztest.yaml", "tier": tier, "implementations": [IMPLEMENTATION]}
+            for tier in TIERS[:3]
         ],
     }
     return json.dumps(manifest, ensure_ascii=False, indent=2) + "\n"
@@ -362,13 +390,11 @@ def outputs(raid: str, data: dict[str, Any]) -> dict[str, str]:
         f"workflows/{raid}/raid.json": raid_manifest(raid, data),
         f"workflows/{raid}/README.md": render_readme(raid, data, slots),
         f"workflows/{raid}/routing-cases.json": render_routing(raid, data, slots),
-        f"workflows/{raid}/test.yaml": fill(template("test.yaml"), slots),
         f"workflows/{raid}/test.multi-role.yaml": fill(template("test.multi-role.yaml"), slots),
+        f"workflows/{raid}/{VARIANT}.yaml": fill(template(f"{VARIANT}.yaml"), slots),
     }
-    for variant in VARIANTS:
-        files[f"workflows/{raid}/{variant}.yaml"] = fill(template(f"{variant}.yaml"), slots)
-        for tier in TIERS:
-            files[f"tests/giztest/{tier}/{raid}.{variant}.giztest.yaml"] = fill(template(f"{tier}.{variant}.giztest.yaml"), slots)
+    for tier in TIERS:
+        files[f"tests/giztest/{tier}/{raid}.{VARIANT}.giztest.yaml"] = fill(template(f"{tier}.{VARIANT}.giztest.yaml"), slots)
     return files
 
 

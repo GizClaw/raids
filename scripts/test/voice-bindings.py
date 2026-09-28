@@ -86,8 +86,10 @@ for file in sorted(glob.glob('workflows/*/raid.json')):
         for p in profiles.values():
             ids = [dig(p, 'resources', 'voices', a, 'resource_id') for a in aliases]
             check(len(set(ids)) == len(ids), f'{workflow}: duplicate multi-role Voice resources')
-            for a in aliases:
-                check(dig(p, 'resources', 'voices', a) == dig(p, 'resources', 'voices', a.replace(original_id + '-mr', original_id, 1)), f'{workflow}: changed Voice binding {a}')
+            # A variant keeps its original's Voices; figure raids have no original to match.
+            if any(i['workflow_id'] == original_id for i in manifest['implementations'].values()):
+                for a in aliases:
+                    check(dig(p, 'resources', 'voices', a) == dig(p, 'resources', 'voices', a.replace(original_id + '-mr', original_id, 1)), f'{workflow}: changed Voice binding {a}')
         if raid.startswith(('story-', 'adventure-', 'figure-')):
             speaker_maps[engine] = adapter['speaker_voices']
             check(adapter['speaker_voices']['旁白'] == adapter['default_voice'], f'{workflow}: narrator mismatch')
