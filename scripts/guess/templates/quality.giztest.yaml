@@ -1,0 +1,86 @@
+# User Story:
+# As a Raids quality maintainer,
+# I want one scripted guessing round per level-up path for @@RAID@@,
+# So that yes-or-no discipline, secret keeping, small hints, level-up praise and English play fail at exact gates.
+version: gizclaw.test/v1alpha1
+name: @@RAID@@.quality.eino
+clients:
+  eino__quality:
+    identity: ephemeral
+    connection: webrtc
+    access_point: "${endpoint}"
+variables:
+  endpoint:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_ENDPOINT
+  registration_token:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_REGISTRATION_TOKEN
+    secret: true
+  eino_quality_candidate_workspace:
+    direction: input
+    type: string
+    generate: token
+repeat: 1
+timeout: 10m
+steps:
+- id: eino__quality_register
+  client: eino__quality
+  rpc:
+    method: server.register
+    request:
+      token: "${registration_token}"
+- id: eino_quality_stop_create_candidate_workspace
+  client: eino__quality
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: eino_quality_create_candidate_workspace
+  client: eino__quality
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_quality_candidate_workspace}"
+      collection: raidtest-targets
+      workflow_name: eino-@@RAID@@
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_quality_select_candidate_workspace
+  client: eino__quality
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${eino_quality_candidate_workspace}"
+- id: eino_quality_warmup_candidate_workspace
+  client: eino__quality
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+@@PROBES@@
+finally:
+- id: eino__quality_stop
+  client: eino__quality
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: eino_quality_delete_candidate_workspace
+  client: eino__quality
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: "${eino_quality_candidate_workspace}"
+- id: eino__quality_delete
+  client: eino__quality
+  rpc:
+    method: server.peer.delete
+    request: {}
+report:
+  redact:
+  - registration_token

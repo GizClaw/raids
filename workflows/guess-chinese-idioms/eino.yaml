@@ -1,0 +1,4341 @@
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata:
+  id: eino-guess-chinese-idioms
+spec:
+  driver: eino
+  toolkit:
+    tool_ids: []
+  eino:
+    voice_adapter:
+      asr_model: asr
+      default_voice: eino-guess-chinese-idioms.host
+    graph:
+      name: guess-chinese-idioms-eino
+      compile:
+        node_trigger_mode: any_predecessor
+        max_run_steps: 12
+      state:
+        fields:
+        - name: game-route
+          type: string
+          merge: replace
+        - name: game-direction
+          type: string
+          merge: replace
+        - name: game-node
+          type: string
+          merge: replace
+        - name: host-rules
+          type: string
+          merge: replace
+        - name: host-messages
+          type: messages
+          merge: replace
+        - name: answer
+          type: string
+          merge: replace
+      nodes:
+      - id: control-round
+        type: script
+        inputs:
+          text:
+            from: input.text
+          messages:
+            from: input.messages
+        outputs:
+          route: game-route
+          node: game-node
+          direction: game-direction
+          rules: host-rules
+        language: starlark
+        entrypoint: run
+        source: |
+          # Generated from workflows/guess-chinese-idioms/puzzles.json by scripts/guess/generate.py.
+          # Eino keeps no hidden state between turns, so every turn rebuilds the game
+          # from the spoken History: the latest "谜题来啦"/"Puzzle time" opening names
+          # the level and the puzzle number, and (level, puzzle) picks the secret.
+          # Each turn makes one model call: this script either writes the host's
+          # instruction for build-host-prompt, or activates the current puzzle's card
+          # node, whose card has the name removed so the host cannot say it.
+          DATA = {"subject_zh": "一个成语故事", "subject_en": "a Chinese idiom story", "examples_zh": ["它的故事里有动物吗？", "它是一个寓言故事吗？", "它是褒义词吗？", "它的故事主角是小孩吗？"], "examples_en": ["Is there an animal in its story?", "Is it a fable?", "Does it have a positive meaning?", "Is the main character in its story a child?"], "restate_zh": ["它的故事里有动物吗？", "是，它的故事里有动物。", "不是，它的故事里没有动物。"], "restate_en": ["Is there an animal in its story?", "Yes, there is an animal in its story.", "No, there is no animal in its story."], "host_rules": "你是儿童猜谜游戏“猜猜成语故事”的主持人。玩法：主持人心里藏着一个成语故事，孩子用能回答“是”或“不是”的问题来猜，每一题最多 20 次提问；猜中就升一关，一共 10 关，关名从“成语小萌新”一直到“成语大宗师”。孩子可能说中文，也可能说英文。\n你不知道谜底的名字。需要回答孩子的问题时，系统会在【谜底卡】里给你这一题的资料，谜底的名字已经隐藏，你也不要去猜它叫什么；回答是非题时以这张卡为准，卡上没写到又拿不准的就说说不准。揭晓答案时系统才会在指令里告诉你名字。本轮要做什么写在对话最后的【本轮指令】里，照着做，说得自然、热情、简短。\n孩子说的“它”“这个成语”“这个故事”“this”“it”都指谜底成语和它背后的故事；按谜底卡上的意思、出处类型、故事主角和故事内容来判断，故事里真正出现的人、动物和东西才算“故事里有”，只在比方里提到的不算，褒贬和用法按今天的常见用法回答。\n必须遵守：\n1. 本轮指令要求“逐字说”的句子必须一字不差地说出来，包括数字、标点和引号里的称号，不改写、不省略、不调换顺序。\n2. 只回答孩子问到的那一点，绝不能主动补充谜底卡上的其他描述、线索、特征、猜测方向或评价；复述孩子的问题时只能用孩子问题里已有的意思。\n3. 只有本轮指令要求揭晓答案时才能说“答案揭晓”“答案就是”“The answer is”；只有本轮指令要求开新题时才能说“谜题来啦”“Puzzle time”；只有真的给提示时才能说“小提示”“Hint”。平时绝不能说这些词。\n4. 按【本轮指令】写明的回复语言回答：中文就全部用中文；English 就全部用英文，逐字句也用指令给出的英文原句。\n5. 安全永远优先于本轮指令：孩子提到要在现实中模仿危险做法或遇到安全问题时，中文回复必须逐字包含“不要模仿”和“找家长、老师或可信任成年人帮助”，英文回复要说 do not copy it 并请孩子 ask a parent, teacher or trusted adult for help。\n6. 不要自己数还剩几次提问机会，只有本轮指令写了剩余次数时才说那个数字。\n7. 语气像节目主持人一样活泼友好，适合小朋友；平时回复1到3句话、100个字以内，开新题和揭晓答案时可以到150个字；最后一句必须是问孩子的问题，道别时也用一个轻松的问题结尾。\n8. 只输出适合朗读的正文，不输出 Markdown、列表、emoji、括号注释、舞台说明或系统字段，也不要提到“本轮指令”“裁判”这些词。", "levels": [{"title_zh": "成语小萌新", "title_en": "Idiom Newbie", "step": 7, "offset": 0, "items": [{"zh": "乌鸦喝水", "en": "a crow drinking water", "aliases": ["the crow and the pitcher", "the thirsty crow"], "profile": "口渴的乌鸦往瓶子里一颗颗放小石子，让水慢慢升高，终于喝到了水。", "hints": ["它是一个寓言故事", "它的主角是一只鸟", "它教我们遇事动脑筋"]}, {"zh": "龟兔赛跑", "en": "the tortoise and the hare", "aliases": ["the hare and the tortoise", "龟兔比赛"], "profile": "骄傲的兔子比赛时半路睡大觉，一直坚持往前爬的乌龟反而先到了终点。", "hints": ["它是一个寓言故事", "它的故事里有两只动物", "它告诉我们不能骄傲"]}, {"zh": "小马过河", "en": "the little horse crosses the river", "aliases": [], "profile": "要过河的小马听老牛说水浅、松鼠说水深，最后自己下河一试，才知道水不深也不浅。", "hints": ["它是一个寓言故事", "它的故事里有好几种动物", "它告诉我们要亲自去试"]}, {"zh": "狼来了", "en": "the boy who cried wolf", "aliases": ["放羊的孩子"], "profile": "放羊娃几次大喊有狼来骗大家，等狼真的来了，再喊也没有人相信他了。", "hints": ["它是一个寓言故事", "它的主角是一个小男孩", "它告诉我们要诚实"]}, {"zh": "小猫钓鱼", "en": "the kitten goes fishing", "aliases": [], "profile": "小猫一会儿捉蜻蜓，一会儿追蝴蝶，一条鱼也没钓到，专心以后才钓到了大鱼。", "hints": ["它是一个寓言故事", "它的主角是一种动物", "它告诉我们做事要专心"]}, {"zh": "猴子捞月", "en": "monkeys fishing for the moon", "aliases": ["猴子捞月亮"], "profile": "一群猴子看见井水里的月亮，以为月亮掉进了井里，就一只拉着一只倒挂下去捞。", "hints": ["它是一个寓言故事", "它的主角是一群动物", "它和夜晚的天空有关"]}, {"zh": "孔融让梨", "en": "Kong Rong gives up the bigger pear", "aliases": [], "profile": "东汉的孔融四岁时，把大个的梨让给哥哥和弟弟，自己拿了最小的一个。", "hints": ["它是一个历史故事", "它的主角是一个小孩", "它和水果有关"]}, {"zh": "司马光砸缸", "en": "Sima Guang breaks the water vat", "aliases": ["司马光破瓮", "司马光砸缸救人"], "profile": "小伙伴掉进装满水的大缸，七岁的司马光搬起石头砸破缸，水流出来，小伙伴得救了。", "hints": ["它是一个历史故事", "它的主角是一个小孩", "它和救人有关"]}, {"zh": "曹冲称象", "en": "Cao Chong weighs the elephant", "aliases": ["曹冲秤象"], "profile": "年幼的曹冲让大象站上船，在船边画线，再换成石头装到同样深，称石头就知道象有多重。", "hints": ["它是一个历史故事", "它的主角是一个小孩", "它和重量有关"]}, {"zh": "嫦娥奔月", "en": "Chang'e flies to the moon", "aliases": ["嫦娥飞天"], "profile": "后羿的妻子吃下了仙药，身体变得很轻，一直飘上了月亮，住进了广寒宫。", "hints": ["它是一个神话故事", "它的主角是一位女子", "它和中秋节有关"]}, {"zh": "拔苗助长", "en": "pulling up seedlings to help them grow", "aliases": ["揠苗助长"], "profile": "宋国有个农夫嫌禾苗长得慢，把它们一棵棵往上拔高，结果禾苗全都枯死了。", "hints": ["它是一个寓言故事", "它的主角是一个农夫", "它告诉我们不能太心急"]}, {"zh": "坐井观天", "en": "looking at the sky from the bottom of a well", "aliases": ["井底之蛙"], "profile": "井底的青蛙以为天只有井口那么大，小鸟告诉它天无边无际，它还不相信。", "hints": ["它是一个寓言故事", "它的故事里有两只动物", "它说的是见识太少"]}, {"zh": "神笔马良", "en": "Ma Liang and the magic brush", "aliases": ["马良神笔"], "profile": "穷孩子马良得到一支神奇的笔，画什么就变成真的，他用它帮助穷苦的人。", "hints": ["它是一个有名的童话", "它的主角是一个小孩", "它和画画有关"]}, {"zh": "铁杵磨成针", "en": "grinding an iron rod into a needle", "aliases": ["磨杵成针", "铁杵成针", "铁杵磨针"], "profile": "小时候贪玩的李白看见一位老奶奶在磨一根铁棒，说要把它磨成针，从此发奋读书。", "hints": ["它是一个民间传说", "它的主角里有一位诗人", "它告诉我们要有恒心"]}, {"zh": "女娲补天", "en": "Nuwa mends the sky", "aliases": [], "profile": "天塌了一个大窟窿，女神女娲炼出五色石把它补好，人们又能安稳地生活了。", "hints": ["它是一个神话故事", "它的主角是一位神仙", "它的故事里有五彩的石头"]}, {"zh": "鲤鱼跳龙门", "en": "the carp leaps over the Dragon Gate", "aliases": ["鲤鱼跃龙门", "鱼跃龙门"], "profile": "黄河里的鲤鱼奋力往上跳，谁能跳过高高的龙门，谁就变成一条真正的龙。", "hints": ["它是一个古老的传说", "它的主角是一种动物", "它和变身有关"]}]}, {"title_zh": "故事小书童", "title_en": "Story Page", "step": 7, "offset": 0, "items": [{"zh": "亡羊补牢", "en": "mending the pen after losing a sheep", "aliases": [], "profile": "羊圈破了个洞，狼钻进来叼走了羊，养羊人起初不修，又丢了羊才赶紧把羊圈补好。", "hints": ["它是一个寓言故事", "它的故事里有动物", "它告诉我们犯错要赶快改"]}, {"zh": "画蛇添足", "en": "drawing legs on a snake", "aliases": [], "profile": "几个人比赛画蛇，先画完的人得意地给蛇添上脚，结果被别人抢先拿走了奖品。", "hints": ["它是一个寓言故事", "它的故事里有一场比赛", "它告诉我们别做多余的事"]}, {"zh": "掩耳盗铃", "en": "covering one's ears to steal a bell", "aliases": [], "profile": "有人想偷一口大钟，怕钟声被人听见，就捂住自己的耳朵，以为别人也听不见。", "hints": ["它是一个寓言故事", "它的主角是一个人", "它告诉我们别自己骗自己"]}, {"zh": "刻舟求剑", "en": "marking the boat to find a lost sword", "aliases": [], "profile": "楚国人坐船时剑掉进江里，他在船边刻个记号，等船停了才从记号那里下水去找。", "hints": ["它是一个寓言故事", "它的故事发生在水上", "它告诉我们要懂得变通"]}, {"zh": "后羿射日", "en": "Hou Yi shoots down the suns", "aliases": ["羿射九日"], "profile": "天上同时出来十个太阳，晒得庄稼都枯了，神箭手后羿射下九个，只留下一个。", "hints": ["它是一个神话故事", "它的主角是一位英雄", "它和天气太热有关"]}, {"zh": "盘古开天", "en": "Pangu separates heaven and earth", "aliases": ["盘古开天地", "盘古开天辟地", "开天辟地"], "profile": "天地还像一个大鸡蛋的时候，巨人盘古用斧头把它劈开，从此有了天和地。", "hints": ["它是一个神话故事", "它的主角是一个巨人", "它和世界的起源有关"]}, {"zh": "大禹治水", "en": "Yu the Great tames the floods", "aliases": ["禹治洪水"], "profile": "洪水泛滥时，禹带着大家挖河道，把水引进大海，十三年里三次路过家门都没进去。", "hints": ["它是一个古老的传说", "它的主角非常能吃苦", "它和挖河道有关"]}, {"zh": "守株待兔", "en": "waiting by a tree stump for a hare", "aliases": [], "profile": "宋国农夫看见一只兔子撞到树桩上倒下了，从此不干活，天天守着树桩等兔子。", "hints": ["它是一个寓言故事", "它的主角是一个农夫", "它告诉我们不能只靠运气"]}, {"zh": "愚公移山", "en": "the foolish old man moves the mountains", "aliases": [], "profile": "老人愚公带着子孙一筐筐挖挡路的两座大山，天帝被感动，派神仙把山背走了。", "hints": ["它是一个寓言故事", "它的主角是一位老人", "它告诉我们要坚持"]}, {"zh": "狐假虎威", "en": "the fox borrows the tiger's might", "aliases": [], "profile": "狐狸骗老虎说自己是百兽之王，带着老虎在森林里走，野兽们其实是被老虎吓跑的。", "hints": ["它是一个寓言故事", "它的故事里有两只动物", "它说的是仗势欺人"]}, {"zh": "玉兔捣药", "en": "the jade rabbit pounds medicine", "aliases": ["月兔捣药"], "profile": "月亮上住着一只白白的兔子，它拿着药杵，一直在捣制长生不老的仙药。", "hints": ["它是一个神话传说", "它的主角是一种动物", "它和月亮有关"]}, {"zh": "凿壁偷光", "en": "boring through the wall to borrow light", "aliases": ["凿壁借光"], "profile": "西汉的匡衡家里穷，晚上点不起灯，就在墙上凿个小洞，借邻居家的烛光读书。", "hints": ["它是一个历史故事", "它的主角爱读书", "它和晚上没有灯有关"]}, {"zh": "孟母三迁", "en": "Mencius's mother moves three times", "aliases": [], "profile": "孟子小时候，妈妈为了给他找好的学习环境搬了三次家，最后搬到了学堂旁边。", "hints": ["它是一个历史故事", "它和一位古代思想家有关", "它说的是学习环境很重要"]}, {"zh": "牛郎织女", "en": "the Cowherd and the Weaver Girl", "aliases": ["鹊桥相会"], "profile": "放牛的青年和天上的仙女结了婚，被王母娘娘用银河隔开，每年七夕在鹊桥上相会。", "hints": ["它是一个民间传说", "它的故事里有神仙", "它和七夕节有关"]}, {"zh": "叶公好龙", "en": "Lord She loves dragons", "aliases": [], "profile": "叶公到处画龙、刻龙，说自己最爱龙，真龙来看他时，他却吓得转身就跑。", "hints": ["它是一个寓言故事", "它的主角是一个人", "它说的是嘴上喜欢心里怕"]}, {"zh": "精卫填海", "en": "Jingwei fills the sea", "aliases": [], "profile": "炎帝的小女儿在东海落水后变成了一只小鸟，每天衔来树枝和石子，要把东海填平。", "hints": ["它是一个神话故事", "它的主角变成了一只鸟", "它告诉我们永不放弃"]}]}, {"title_zh": "寓言小达人", "title_en": "Fable Whiz", "step": 7, "offset": 0, "items": [{"zh": "夸父逐日", "en": "Kuafu chases the sun", "aliases": ["夸父追日"], "profile": "巨人夸父想追上太阳，一路喝干了黄河和渭水，最后倒在路上，手杖化成一片桃林。", "hints": ["它是一个神话故事", "它的主角是一个巨人", "它和跑很远的路有关"]}, {"zh": "自相矛盾", "en": "one's own spear against one's own shield", "aliases": ["以子之矛攻子之盾"], "profile": "楚国人夸自己的盾什么都刺不破，又夸自己的矛什么都能刺破，被人一问就答不上来。", "hints": ["它是一个寓言故事", "它的主角是一个卖东西的人", "它告诉我们说话要前后一致"]}, {"zh": "滥竽充数", "en": "an unskilled player filling a place in the band", "aliases": [], "profile": "不会吹竽的南郭先生混在三百人的乐队里装样子，新国王要一个个听，他只好逃走了。", "hints": ["它是一个寓言故事", "它和音乐有关", "它说的是没有真本领"]}, {"zh": "南辕北辙", "en": "driving north to reach the south", "aliases": [], "profile": "有人要去南方的楚国，却驾车一直往北走，还说自己马好、钱多、车夫本领高。", "hints": ["它是一个寓言故事", "它和坐车赶路有关", "它说的是方向错了"]}, {"zh": "对牛弹琴", "en": "playing the lute to a cow", "aliases": [], "profile": "古代音乐家公明仪对着牛弹了一首高雅的曲子，牛照样低头吃草，一点也不理会。", "hints": ["它是一个古代故事", "它和音乐有关", "它的故事里有一种动物"]}, {"zh": "画龙点睛", "en": "adding the eyes to a painted dragon", "aliases": [], "profile": "南朝画家张僧繇在墙上画了四条龙，给其中两条点上眼睛，它们就破墙飞上了天。", "hints": ["它是一个古代传说", "它的主角是一位艺术家", "它说的是关键的一笔"]}, {"zh": "闻鸡起舞", "en": "rising to practise at the rooster's crow", "aliases": [], "profile": "东晋的祖逖和好友刘琨立志报效国家，半夜听到鸡叫就起床练剑，从不偷懒。", "hints": ["它是一个历史故事", "它的主角是两个好朋友", "它和勤奋练功有关"]}, {"zh": "田忌赛马", "en": "Tian Ji's horse race", "aliases": [], "profile": "孙膑让田忌用下等马对齐王的上等马，再用上等马、中等马赢下后两场，以弱胜强。", "hints": ["它是一个历史故事", "它的故事里有动物", "它和安排顺序有关"]}, {"zh": "囊萤映雪", "en": "reading by fireflies and snow light", "aliases": ["囊萤夜读", "映雪读书"], "profile": "晋朝的车胤用纱袋装萤火虫照明，孙康借着雪地的反光，都在夜里刻苦读书。", "hints": ["它是一个历史故事", "它的主角爱读书", "它和夜里照明有关"]}, {"zh": "黄香温席", "en": "Huang Xiang warms the bed", "aliases": ["扇枕温衾"], "profile": "东汉九岁的黄香夏天给父亲扇凉枕席，冬天先用身体把被子焐暖，再请父亲睡。", "hints": ["它是一个历史故事", "它的主角是一个小孩", "它和孝顺父母有关"]}, {"zh": "杞人忧天", "en": "the man of Qi fears the sky will fall", "aliases": [], "profile": "杞国有个人整天担心天会塌下来、地会陷下去，愁得吃不下饭，也睡不着觉。", "hints": ["它是一个寓言故事", "它的主角是一个普通百姓", "它说的是没必要的烦恼"]}, {"zh": "鹬蚌相争", "en": "the snipe and the clam grapple", "aliases": ["鹬蚌相争渔翁得利", "渔翁得利"], "profile": "鹬去啄蚌的肉，蚌夹住鹬的嘴，谁也不让谁，结果被路过的渔夫一起捉走了。", "hints": ["它是一个寓言故事", "它的故事里有两只动物", "它说的是两方都不肯让"]}, {"zh": "郑人买履", "en": "the man of Zheng buys shoes", "aliases": [], "profile": "郑国人量好脚的尺码却忘了带，跑回家去取，回来集市已散，他宁信尺码也不用脚试。", "hints": ["它是一个寓言故事", "它和去集市有关", "它说的是不懂变通"]}, {"zh": "八仙过海", "en": "the Eight Immortals cross the sea", "aliases": ["八仙过海各显神通"], "profile": "八位神仙要渡过东海，他们不坐船，各自拿出自己的宝物，一起渡过了大海。", "hints": ["它是一个神话传说", "它的主角有好几位", "它说的是各有各的本领"]}, {"zh": "鲁班造锯", "en": "Lu Ban invents the saw", "aliases": ["鲁班发明锯子"], "profile": "木匠鲁班上山时手被带小齿的草叶划破，他受到启发，发明了能锯木头的锯子。", "hints": ["它是一个民间传说", "它的主角是一位工匠", "它和发明有关"]}, {"zh": "仓颉造字", "en": "Cangjie creates writing", "aliases": [], "profile": "传说黄帝时的史官仓颉观察鸟兽留下的脚印，受到启发，创造出了最早的汉字。", "hints": ["它是一个古代传说", "它的主角是一位古人", "它和语文课有关"]}]}, {"title_zh": "成语小侦探", "title_en": "Idiom Detective", "step": 7, "offset": 0, "items": [{"zh": "塞翁失马", "en": "the old man at the frontier loses his horse", "aliases": ["塞翁失马焉知非福"], "profile": "边塞老人的马跑了，他说未必是坏事，不久马带回一匹好马，之后祸福又接连转变。", "hints": ["它是一个寓言故事", "它的故事里有动物", "它说的是好坏会互相转变"]}, {"zh": "卧薪尝胆", "en": "sleeping on brushwood and tasting gall", "aliases": [], "profile": "越王勾践失败后睡在柴草上，每天尝一尝苦胆，提醒自己不忘耻辱，发愤图强。", "hints": ["它是一个历史故事", "它的主角是一位国王", "它说的是失败后发奋"]}, {"zh": "程门立雪", "en": "standing in the snow at Cheng's door", "aliases": [], "profile": "北宋的杨时和朋友去拜见老师程颐，见老师在打盹，就站在门外等，雪积了一尺深。", "hints": ["它是一个历史故事", "它的主角是学生", "它说的是尊敬老师"]}, {"zh": "胸有成竹", "en": "having the bamboo in one's mind", "aliases": ["成竹在胸"], "profile": "北宋画家文与可种了满院竹子，天天观察，画竹子前心里早就有了竹子的样子。", "hints": ["它是一个历史故事", "它的主角是一位画家", "它的故事里种满了植物"]}, {"zh": "入木三分", "en": "three fen deep into the wood", "aliases": [], "profile": "书法家王羲之在木板上写字，工人刻字时发现墨迹渗进木头里足足有三分深。", "hints": ["它是一个历史故事", "它的主角是一位书法家", "它说的是很有力量"]}, {"zh": "班门弄斧", "en": "showing off with an axe at Lu Ban's door", "aliases": [], "profile": "在木匠祖师鲁班家门口摆弄斧头，比喻在行家面前卖弄本领，不自量力。", "hints": ["它来自古人的诗文", "它和一位古代巧匠有关", "它说的是不自量力"]}, {"zh": "买椟还珠", "en": "buying the box and returning the pearl", "aliases": [], "profile": "楚国人把珍珠装进精美的木盒子去卖，郑国人买下了盒子，却把珍珠还给了他。", "hints": ["它是一个寓言故事", "它的故事里有一件宝贝", "它说的是只看外表"]}, {"zh": "邯郸学步", "en": "learning to walk in Handan", "aliases": [], "profile": "燕国少年到赵国邯郸学当地人走路，没学会，反而忘了自己原来的走法，只好爬回家。", "hints": ["它是一个寓言故事", "它的主角是一个少年", "它说的是盲目模仿"]}, {"zh": "专心致志", "en": "giving one's whole mind to it", "aliases": [], "profile": "围棋高手弈秋教两个学生，一个用心听讲，另一个总想着射大雁，学得就差多了。", "hints": ["它是一个寓言故事", "它和下棋有关", "它说的是学习要认真"]}, {"zh": "杯弓蛇影", "en": "a bow's reflection taken for a snake", "aliases": [], "profile": "有位客人把杯子里弓的倒影当成了蛇，吓出了病，知道真相以后，病马上就好了。", "hints": ["它是一个历史故事", "它和看错东西有关", "它说的是自己吓自己"]}, {"zh": "高山流水", "en": "high mountains and flowing water", "aliases": ["伯牙鼓琴", "伯牙绝弦"], "profile": "伯牙弹琴时心里想着高山和流水，钟子期都能听出来，两个人成了知音好友。", "hints": ["它是一个古代故事", "它和音乐有关", "它说的是知心朋友"]}, {"zh": "伯乐相马", "en": "Bole judges horses", "aliases": [], "profile": "伯乐看见一匹拉盐车的瘦马，一眼认出它是千里马，那匹马也仰起头长声嘶鸣。", "hints": ["它是一个古代故事", "它的故事里有动物", "它说的是发现人才"]}, {"zh": "世外桃源", "en": "a land of peach blossoms beyond the world", "aliases": ["桃花源"], "profile": "渔人顺着开满桃花的小溪找到一个村子，那里的人与世隔绝，生活得安宁快乐。", "hints": ["它来自一篇古文", "它的主角是一个渔人", "它说的是美好的地方"]}, {"zh": "吴刚伐桂", "en": "Wu Gang chops the osmanthus tree", "aliases": [], "profile": "月宫里的吴刚被罚砍一棵桂花树，可树每砍一斧就马上长好，他只好一直砍下去。", "hints": ["它是一个神话故事", "它和月亮有关", "它说的是永远做不完的事"]}, {"zh": "青梅竹马", "en": "green plums and bamboo horses", "aliases": [], "profile": "小男孩骑着竹竿当马，绕着井栏摆弄青梅，和小女孩一起快快乐乐地长大。", "hints": ["它来自一首古诗", "它的主角是两个小孩", "它和一起长大有关"]}]}, {"title_zh": "典故探险家", "title_en": "Allusion Explorer", "step": 7, "offset": 0, "items": [{"zh": "一叶障目", "en": "a single leaf blocks the eyes", "aliases": ["一叶障目不见泰山", "一叶蔽目"], "profile": "楚国人以为举着螳螂藏身的叶子别人就看不见他，举着叶子去拿别人的东西，当场被抓住。", "hints": ["它是一个寓言故事", "它的主角是一个人", "它说的是看问题太片面"]}, {"zh": "螳臂当车", "en": "a mantis tries to stop a chariot", "aliases": ["螳臂挡车"], "profile": "齐庄公坐车外出，一只螳螂举起前腿想挡住车轮，庄公佩服它的勇气，让车绕开了它。", "hints": ["它是一个寓言故事", "它的主角是一只小虫", "它说的是不自量力"]}, {"zh": "按图索骥", "en": "looking for a fine horse by its picture", "aliases": [], "profile": "伯乐的儿子照着书里写的额头高、眼睛亮去找千里马，结果抓回来一只癞蛤蟆。", "hints": ["它是一个寓言故事", "它的故事里有动物", "它说的是做事太死板"]}, {"zh": "三人成虎", "en": "three people make a tiger", "aliases": [], "profile": "大臣问国王：三个人都说集市上有老虎，您信不信？说明说的人多了，谣言也会被当真。", "hints": ["它是一个历史故事", "它的主角是一位大臣", "它和谣言有关"]}, {"zh": "一鸣惊人", "en": "amazing everyone with one cry", "aliases": [], "profile": "大臣用一只三年不飞不叫的大鸟打比方劝国王，国王说这只鸟一叫就会让人吃惊。", "hints": ["它是一个历史故事", "它的主角是一位国王", "它说的是突然做出好成绩"]}, {"zh": "天衣无缝", "en": "heavenly clothes have no seams", "aliases": [], "profile": "郭翰夜里遇见从天上下来的织女，发现她的衣服没有一条缝，原来仙衣不用针线缝。", "hints": ["它是一个神话传说", "它的故事里有一位仙女", "它说的是完美没破绽"]}, {"zh": "点石成金", "en": "touching stone and turning it into gold", "aliases": [], "profile": "神仙用手指一点，石头就变成了金子，有个贪心的人却不要金子，只想要那根手指。", "hints": ["它是一个神话传说", "它的故事里有一位神仙", "它和把东西变好有关"]}, {"zh": "鹏程万里", "en": "the roc's ten thousand li journey", "aliases": [], "profile": "北海有条大鱼变成一只大鸟，翅膀像天边的云，一飞就是九万里。", "hints": ["它来自古人的寓言", "它的主角是一只大鸟", "它常用来祝福别人"]}, {"zh": "朝三暮四", "en": "three in the morning, four in the evening", "aliases": [], "profile": "养猴人说早上给三颗橡子、晚上给四颗，猴子们都生气；改成早四晚三，它们就高兴了。", "hints": ["它是一个寓言故事", "它的故事里有一群动物", "它说的是主意变来变去"]}, {"zh": "望洋兴叹", "en": "gazing at the ocean and sighing", "aliases": [], "profile": "秋天河水上涨，河神河伯很得意，到了北海看见无边的大海，才感叹自己渺小。", "hints": ["它来自古人的寓言", "它的主角是一位河神", "它说的是感到自己渺小"]}, {"zh": "道旁苦李", "en": "bitter plums by the roadside", "aliases": ["道边苦李"], "profile": "路边李树结满果子，小伙伴都去摘，七岁的王戎说树长在路边还没人摘，一定是苦的。", "hints": ["它是一个历史故事", "它的主角是一个小孩", "它和摘果子有关"]}, {"zh": "相濡以沫", "en": "moistening each other with spit", "aliases": [], "profile": "泉水干了，几条鱼困在地上，互相吐出唾沫把对方弄湿，一起坚持下去。", "hints": ["它来自古人的寓言", "它的主角是一些动物", "它说的是困难中彼此帮忙"]}, {"zh": "因材施教", "en": "teaching according to each student's talent", "aliases": [], "profile": "子路和冉有问了孔子同一个问题，孔子却给了相反的回答，因为两个学生的性格不一样。", "hints": ["它是一个历史故事", "它的主角是一位老师", "它说的是每个人不一样"]}, {"zh": "画荻教子", "en": "teaching a son by writing with reeds", "aliases": ["欧母画荻"], "profile": "欧阳修小时候家里穷，买不起纸笔，母亲就用荻草秆在地上写字教他读书。", "hints": ["它是一个历史故事", "它的主角是一位妈妈", "它和写字学习有关"]}, {"zh": "疑邻盗斧", "en": "suspecting the neighbour of stealing an axe", "aliases": ["疑邻窃斧", "亡斧疑邻"], "profile": "有人丢了斧头，怀疑是邻居的儿子偷的，越看越像；后来找到了斧头，再看又不像了。", "hints": ["它是一个寓言故事", "它和丢东西有关", "它说的是不要冤枉别人"]}]}, {"title_zh": "故事收藏家", "title_en": "Story Collector", "step": 5, "offset": 0, "items": [{"zh": "余音绕梁", "en": "the lingering song circles the beams", "aliases": ["绕梁三日"], "profile": "歌女韩娥路过齐国时唱歌换饭吃，她走后三天，歌声好像还绕着房梁没有散去。", "hints": ["它是一个古代故事", "它的主角是一位女子", "它和唱歌有关"]}, {"zh": "沧海桑田", "en": "blue seas turn into mulberry fields", "aliases": ["桑田沧海"], "profile": "仙女麻姑说，她已经三次看见东海变成了桑田，蓬莱附近的海水也比从前浅了。", "hints": ["它是一个神话传说", "它的主角是一位仙女", "它说的是变化很大"]}, {"zh": "庄周梦蝶", "en": "Zhuangzi dreams of a butterfly", "aliases": ["庄生梦蝶", "庄周梦蝴蝶"], "profile": "庄子梦见自己变成一只蝴蝶，醒来后分不清是自己梦见了蝴蝶，还是蝴蝶梦见了自己。", "hints": ["它来自古人的寓言", "它的主角是一位思想家", "它的故事里有一种昆虫"]}, {"zh": "黄粱一梦", "en": "the dream of yellow millet", "aliases": ["黄粱美梦", "一枕黄粱"], "profile": "穷书生卢生枕着仙人给的枕头睡着，梦里过了富贵的一生，醒来小米饭还没煮熟。", "hints": ["它来自一篇唐代小说", "它的主角是一个书生", "它说的是好愿望一场空"]}, {"zh": "渐入佳境", "en": "gradually reaching the best part", "aliases": [], "profile": "画家顾恺之吃甘蔗总从梢头吃起，别人觉得奇怪，他说这样越吃越甜，越来越好。", "hints": ["它是一个历史故事", "它的主角是一位画家", "它和吃东西有关"]}, {"zh": "断机教子", "en": "cutting the loom threads to teach a son", "aliases": ["孟母断织", "断织教子"], "profile": "孟子逃学回家，母亲拿刀割断正在织的布，告诉他半途而废就像断了的布一样没用。", "hints": ["它是一个历史故事", "它和一位思想家有关", "它说的是不能半途而废"]}, {"zh": "洛阳纸贵", "en": "paper prices rise in Luoyang", "aliases": [], "profile": "西晋的左思写成《三都赋》，人人争着抄写，京城的纸一下子变得很贵。", "hints": ["它是一个历史故事", "它的主角是一位作家", "它说的是作品很受欢迎"]}, {"zh": "江郎才尽", "en": "Jiang's talent runs dry", "aliases": [], "profile": "南朝的江淹年轻时文章写得好，传说他梦见有人要回一支五彩笔，从此再也写不出好文章。", "hints": ["它是一个历史故事", "它的主角是一位作家", "它和做梦有关"]}, {"zh": "韦编三绝", "en": "the leather bindings broke three times", "aliases": [], "profile": "孔子晚年爱读《易经》，一遍又一遍地翻看，把串竹简的皮绳都磨断了好几次。", "hints": ["它是一个历史故事", "它的主角是一位思想家", "它和读书有关"]}, {"zh": "举案齐眉", "en": "raising the tray to eyebrow level", "aliases": [], "profile": "东汉的梁鸿做工回家，妻子孟光端饭时总把托盘举得和眉毛一样高，表示敬重。", "hints": ["它是一个历史故事", "它的主角是一对夫妻", "它说的是互相尊重"]}, {"zh": "门庭若市", "en": "the courtyard is as busy as a market", "aliases": [], "profile": "齐王听了邹忌的劝告，下令欢迎大家提意见，来进言的人多得王宫门前像集市一样。", "hints": ["它是一个历史故事", "它的主角是一位大臣", "它说的是人非常多"]}, {"zh": "割席断交", "en": "cutting the mat to end a friendship", "aliases": ["管宁割席"], "profile": "管宁和华歆同坐一张席子读书，华歆总被金子和大官的车马吸引，管宁就割开席子分开坐。", "hints": ["它是一个历史故事", "它的主角是两个同学", "它说的是不再做朋友"]}, {"zh": "陆绩怀橘", "en": "Lu Ji hides oranges for his mother", "aliases": ["怀橘遗亲"], "profile": "六岁的陆绩去别人家做客，把招待他的橘子藏在怀里，说要带回去给母亲尝尝。", "hints": ["它是一个历史故事", "它的主角是一个小孩", "它和水果有关"]}, {"zh": "一字千金", "en": "a thousand gold pieces for one word", "aliases": [], "profile": "吕不韦把编好的书挂在城门口，说谁能增删一个字就赏千金，结果没有人能改。", "hints": ["它是一个历史故事", "它和编书有关", "它说的是文章写得好"]}]}, {"title_zh": "成语博士", "title_en": "Idiom Doctor", "step": 5, "offset": 0, "items": [{"zh": "鸡犬升天", "en": "chickens and dogs rise to heaven", "aliases": ["一人得道鸡犬升天"], "profile": "传说淮南王刘安吃了仙药成仙飞走，家里的鸡和狗吃了剩下的仙药，也跟着飞上了天。", "hints": ["它是一个神话传说", "它的故事里有动物", "它说的是跟着别人沾光"]}, {"zh": "南柯一梦", "en": "a dream of the Southern Bough", "aliases": ["南柯梦"], "profile": "淳于棼在槐树下睡着，梦见自己在大槐安国做官，醒来发现那只是树下的蚂蚁窝。", "hints": ["它来自一篇唐代小说", "它的故事里有一种昆虫", "它说的是一场空欢喜"]}, {"zh": "名落孙山", "en": "name falling behind Sun Shan", "aliases": [], "profile": "孙山考了最后一名回乡，同乡问儿子考上没有，他说儿子的名字还在孙山的后面。", "hints": ["它是一个历史故事", "它和考试有关", "它是一种委婉的说法"]}, {"zh": "临池学书", "en": "practising calligraphy beside the pond", "aliases": [], "profile": "东汉书法家张芝天天在池塘边练字，用池水洗笔洗砚，时间长了整个池塘的水都黑了。", "hints": ["它是一个历史故事", "它的主角字写得很好", "它说的是刻苦练习"]}, {"zh": "咏絮之才", "en": "the talent of likening snow to willow catkins", "aliases": ["咏絮才"], "profile": "下大雪时谢安问像什么，侄子说像撒盐，侄女谢道韫说像柳絮随风飞起，大家都夸她。", "hints": ["它是一个历史故事", "它的主角是一位女孩", "它和下雪有关"]}, {"zh": "狡兔三窟", "en": "a crafty hare has three burrows", "aliases": [], "profile": "门客冯谖替孟尝君烧掉百姓的欠债契约，又办成两件事，说聪明的兔子要有三个洞才安全。", "hints": ["它是一个历史故事", "它的主角是一位门客", "它说的是多准备几条退路"]}, {"zh": "一字之师", "en": "a teacher of one word", "aliases": [], "profile": "诗人齐己写早梅说“昨夜数枝开”，郑谷把“数枝”改成“一枝”，齐己便拜郑谷为师。", "hints": ["它是一个历史故事", "它和写诗有关", "它说的是改一个词"]}, {"zh": "老妪能解", "en": "even an old woman can understand", "aliases": [], "profile": "相传白居易写好诗，先念给一位老奶奶听，她听懂了才定稿，听不懂就再改。", "hints": ["它是一个历史故事", "它的主角是一位诗人", "它说的是通俗易懂"]}, {"zh": "梦笔生花", "en": "dreaming of a brush that blossoms", "aliases": ["妙笔生花"], "profile": "李白年轻时梦见自己用的毛笔笔头上开出了花，后来他才思敏捷，写出了很多好诗。", "hints": ["它是一个古人的故事", "它的主角是一位诗人", "它和写文章有关"]}, {"zh": "东床快婿", "en": "the son-in-law on the eastern bed", "aliases": ["东床坦腹", "坦腹东床"], "profile": "郗鉴派人到王家挑女婿，别人都很拘谨，只有王羲之敞着肚子躺在东边床上，被选中了。", "hints": ["它是一个历史故事", "它的主角是一位书法家", "它和一门亲事有关"]}, {"zh": "管鲍之交", "en": "the friendship of Guan and Bao", "aliases": [], "profile": "鲍叔牙了解好友管仲的难处，一起做生意时多分钱给他，还把他推荐给了齐桓公。", "hints": ["它是一个历史故事", "它的主角是两个好朋友", "它说的是互相信任"]}, {"zh": "雪中送炭", "en": "sending charcoal in the snow", "aliases": [], "profile": "相传宋太宗在大雪天想到穷人没有柴火取暖，就派人给他们送去木炭和米。", "hints": ["它是一个历史故事", "它和冬天有关", "它说的是及时帮助别人"]}, {"zh": "悬壶济世", "en": "hanging a gourd to help the world", "aliases": [], "profile": "集市上有位卖药的老人挂着一个葫芦，治好了很多人的病，天黑后就跳进葫芦里不见了。", "hints": ["它是一个神话传说", "它的主角是一位老人", "它和看病有关"]}, {"zh": "百里负米", "en": "carrying rice for a hundred li", "aliases": ["子路负米"], "profile": "孔子的学生子路小时候家里穷，常从百里外背米回家，给父母做饭吃。", "hints": ["它是一个历史故事", "它的主角是孔子的学生", "它和孝顺父母有关"]}]}, {"title_zh": "典故学士", "title_en": "Allusion Scholar", "step": 7, "offset": 0, "items": [{"zh": "曲高和寡", "en": "the loftier the tune, the fewer who join in", "aliases": [], "profile": "宋玉对楚王说，唱通俗的歌有几千人跟着唱，唱最高深的曲子，能跟着唱的只剩几个人。", "hints": ["它来自一篇古文", "它的故事讲的是唱歌", "它说的是懂的人很少"]}, {"zh": "观棋烂柯", "en": "watching chess until the axe handle rots", "aliases": ["王质烂柯"], "profile": "樵夫王质上山砍柴，看几个童子下棋，才看了一会儿，斧头柄已经烂了，回村时熟人都不在了。", "hints": ["它是一个神话传说", "它的主角是一个砍柴的人", "它和时间过得飞快有关"]}, {"zh": "歧路亡羊", "en": "losing a sheep at the forking roads", "aliases": ["多歧亡羊"], "profile": "杨子的邻居丢了一只羊，很多人去追，可岔路里又有岔路，最后还是没找到。", "hints": ["它是一个寓言故事", "它的故事里有动物", "它说的是方向太多会迷失"]}, {"zh": "响遏行云", "en": "a song that stops the drifting clouds", "aliases": [], "profile": "薛谭以为学完唱歌要走，老师秦青送别时唱了一曲，歌声让天上的云都停住了，他便留下再学。", "hints": ["它是一个古代故事", "它的主角是一对师生", "它和唱歌有关"]}, {"zh": "小时了了", "en": "clever as a child", "aliases": [], "profile": "十岁的孔融机智应答，有人说他小时聪明长大未必好，他回嘴说那您小时候一定很聪明。", "hints": ["它是一个历史故事", "它的主角是一个孩子", "它和说话机智有关"]}, {"zh": "目不窥园", "en": "never glancing at the garden", "aliases": ["三年不窥园"], "profile": "西汉学者董仲舒专心读书讲学，家里有花园，他三年都没有去看过一眼。", "hints": ["它是一个历史故事", "它的主角是一位学者", "它说的是专心读书"]}, {"zh": "乘兴而来", "en": "coming on a whim", "aliases": ["雪夜访戴", "乘兴而来兴尽而返"], "profile": "下雪夜王徽之想念朋友戴逵，坐了一夜船去看他，到门口却转身回去，说兴致已经没了。", "hints": ["它是一个历史故事", "它和下雪有关", "它说的是想去就去"]}, {"zh": "门可罗雀", "en": "sparrows could be netted at the door", "aliases": [], "profile": "翟公做大官时客人挤满门口，丢了官以后，门口冷清得可以张网捉麻雀。", "hints": ["它是一个历史故事", "它的故事里有一种小鸟", "它和冷清有关"]}, {"zh": "杏林春暖", "en": "spring warmth in the apricot grove", "aliases": [], "profile": "名医董奉给人看病不收钱，只请治好的人种几棵杏树，几年后长成了一大片杏林。", "hints": ["它是一个古人的故事", "它的主角是一位医生", "它和种树有关"]}, {"zh": "涸辙之鲋", "en": "a carp in a dried-up rut", "aliases": [], "profile": "庄子向人借粮，那人说以后再借，庄子就讲了车辙里一条鱼只求一点水救命的故事。", "hints": ["它来自古人的寓言", "它的主角是一位思想家", "它说的是急需帮助"]}, {"zh": "近水楼台", "en": "the waterside tower gets the moonlight first", "aliases": ["近水楼台先得月"], "profile": "苏麟写诗提醒范仲淹，靠近水边的楼台先照到月光，范仲淹明白后也推荐了他。", "hints": ["它来自一句古诗", "它和月光有关", "它说的是先得到好处"]}, {"zh": "黄雀衔环", "en": "the oriole brings jade rings", "aliases": [], "profile": "少年杨宝救了一只受伤的黄雀，养好后放飞，后来黄衣童子送来四枚白玉环报答他。", "hints": ["它是一个古代传说", "它的故事里有一只小鸟", "它说的是报答恩情"]}, {"zh": "梅妻鹤子", "en": "plum trees as wife and cranes as children", "aliases": [], "profile": "北宋诗人林逋隐居西湖孤山，不做官也不娶妻，种梅花养仙鹤，好像梅是妻子、鹤是孩子。", "hints": ["它是一个历史故事", "它的主角是一位诗人", "它和隐居有关"]}]}, {"title_zh": "说书大师", "title_en": "Master Storyteller", "step": 7, "offset": 0, "items": [{"zh": "难兄难弟", "en": "hard to tell which brother is better", "aliases": [], "profile": "元方和季方的儿子争论谁的父亲更好，祖父陈寔说两人都好，难分哪个做哥哥、弟弟更好。", "hints": ["它是一个历史故事", "它和一家人有关", "它的意思古今不一样"]}, {"zh": "曲突徙薪", "en": "bending the chimney and moving the firewood", "aliases": [], "profile": "客人劝主人把烟囱改弯、柴草搬远，主人不听，后来家里失火了，他也没感谢那位客人。", "hints": ["它是一个古代故事", "它说的是提前预防", "它和厨房有关"]}, {"zh": "圆木警枕", "en": "a round log as a waking pillow", "aliases": [], "profile": "司马光用一段圆木头当枕头，一翻身木头就滚动把他惊醒，他就起来接着读书。", "hints": ["它是一个历史故事", "它的主角是一位史学家", "它和睡觉有关"]}, {"zh": "身无长物", "en": "owning nothing extra", "aliases": [], "profile": "同族的王忱以为王恭从会稽带回很多竹席，想要一张，王恭把自己坐的那张给了他，自己改坐草垫。", "hints": ["它是一个历史故事", "它和一张席子有关", "它说的是生活很简朴"]}, {"zh": "断齑划粥", "en": "cutting pickles and dividing porridge", "aliases": ["划粥断齑"], "profile": "范仲淹年轻时借住在山里苦读，每天煮一锅粥，冷了划成四块，早晚各吃两块，配点咸菜。", "hints": ["它是一个历史故事", "它的主角后来当了大官", "它和吃饭有关"]}, {"zh": "才高八斗", "en": "talent of eight dou", "aliases": ["八斗之才"], "profile": "谢灵运说，天下的才华一共一石，曹植一个人就占了八斗，他自己占一斗，其余的人分一斗。", "hints": ["它是一个历史故事", "它和诗人有关", "它说的是文采很好"]}, {"zh": "彩衣娱亲", "en": "wearing colourful clothes to amuse parents", "aliases": ["戏彩娱亲", "老莱娱亲"], "profile": "老莱子七十岁了，还穿上五彩的衣服，学小孩子玩耍，逗年老的父母开心。", "hints": ["它是一个历史故事", "它的主角是一位老人", "它和孝顺父母有关"]}, {"zh": "吹箫引凤", "en": "playing the flute to call the phoenix", "aliases": ["萧史弄玉"], "profile": "萧史擅长吹箫，秦穆公的女儿弄玉嫁给他，两人吹箫引来凤凰，后来乘着凤凰飞走了。", "hints": ["它是一个神话传说", "它和音乐有关", "它的故事里有神鸟"]}, {"zh": "合浦珠还", "en": "the pearls return to Hepu", "aliases": ["珠还合浦"], "profile": "合浦的官员乱采珍珠，珠蚌都迁走了；孟尝来了以后改掉坏规矩，珍珠又回到了合浦。", "hints": ["它是一个历史故事", "它的主角是一位好官", "它和海里的宝贝有关"]}, {"zh": "青眼有加", "en": "looking on someone with favour", "aliases": ["青眼相加"], "profile": "阮籍见到不喜欢的人就翻白眼，见到嵇康来访，就高兴地用黑眼珠正眼看他。", "hints": ["它是一个历史故事", "它的主角是一位诗人", "它说的是特别看重别人"]}, {"zh": "哭竹生笋", "en": "weeping in the bamboo until shoots grow", "aliases": ["孟宗哭竹"], "profile": "冬天孟宗的母亲生病想吃竹笋，他到竹林里伤心地哭，地上竟然冒出了竹笋。", "hints": ["它是一个古代传说", "它和冬天有关", "它和孝顺父母有关"]}, {"zh": "学富五车", "en": "learning that fills five carts", "aliases": [], "profile": "庄子说他的朋友惠施懂得很多学问，读的书多得能装满五辆车。", "hints": ["它是一个历史故事", "它的主角是一位思想家", "它和书很多有关"]}, {"zh": "千里鹅毛", "en": "a goose feather sent from a thousand li", "aliases": ["千里送鹅毛", "千里送鹅毛礼轻情意重"], "profile": "使者缅伯高给唐太宗送天鹅，路上天鹅飞走了，只留下一根羽毛，他就献上羽毛并写了诗。", "hints": ["它是一个民间故事", "它的故事中有一只鸟", "它和送礼物有关"]}]}, {"title_zh": "成语大宗师", "title_en": "Idiom Grandmaster", "step": 7, "offset": 0, "items": [{"zh": "郢书燕说", "en": "a letter from Ying explained in Yan", "aliases": [], "profile": "郢人夜里写信时对仆人说举烛，顺手写进了信里，燕国宰相把它理解成崇尚光明、任用贤人。", "hints": ["它是一个寓言故事", "它和一封信有关", "它讲的是理解错了意思"]}, {"zh": "越俎代庖", "en": "the priest takes over the cook's job", "aliases": [], "profile": "尧想把天下让给许由，许由说厨师不做饭，主持祭祀的人也不会放下祭器去替他做饭。", "hints": ["它来自古人的寓言", "它的主角是一位隐士", "它说的是管了别人的事"]}, {"zh": "曳尾涂中", "en": "dragging its tail in the mud", "aliases": ["曳尾泥涂"], "profile": "楚王派人请庄子做官，庄子说乌龟宁愿活着在泥里拖着尾巴爬，也不愿被供在庙堂上。", "hints": ["它来自古人的寓言", "它的主角是一位思想家", "它说的是自由自在最好"]}, {"zh": "濠梁之辩", "en": "the debate on the Hao River bridge", "aliases": ["濠上之辩", "子非鱼"], "profile": "庄子和惠子在濠水桥上看鱼，庄子说鱼很快乐，惠子问他不是鱼，怎么知道鱼快乐。", "hints": ["它来自古人的寓言", "它的主角是两个好朋友", "它和一场争论有关"]}, {"zh": "穿井得人", "en": "digging a well and gaining a person", "aliases": ["穿井得一人"], "profile": "宋国丁家打了一口井，说得到一个人，意思是省下一个人力，却被传成从井里挖出一个人。", "hints": ["它是一个寓言故事", "它和传话有关", "它说的是话越传越走样"]}, {"zh": "斫轮老手", "en": "the old master wheelwright", "aliases": ["轮扁斫轮"], "profile": "做车轮的轮扁对齐桓公说，做轮子的窍门只能自己体会，没法写进书里。", "hints": ["它来自古人的寓言", "它的主角是一位工匠", "它说的是经验丰富"]}, {"zh": "截发留宾", "en": "cutting her hair to host a guest", "aliases": [], "profile": "陶侃家里穷，朋友来访没钱招待，他的母亲剪下长发卖掉换来米，热情地留客人住下。", "hints": ["它是一个历史故事", "它的主角是一位妈妈", "它说的是热情好客"]}, {"zh": "吴牛喘月", "en": "the Wu ox pants at the moon", "aliases": [], "profile": "满奋怕风，坐在琉璃屏风后还发抖，他说自己像吴地的牛，被太阳晒怕了，看见月亮也喘气。", "hints": ["它是一个历史故事", "它的主角是一位大臣", "它说的是被吓怕了"]}, {"zh": "鸡黍之约", "en": "the promise of chicken and millet", "aliases": ["范张鸡黍"], "profile": "范式和好友张劭约好两年后去他家做客，到了那天，张劭准备好饭菜等候，范式果然准时来了。", "hints": ["它是一个历史故事", "它的主角是两个好朋友", "它说的是守信用"]}, {"zh": "杵臼之交", "en": "friendship at the mortar and pestle", "aliases": [], "profile": "读书人公沙穆没钱，去给吴祐家舂米干活，吴祐和他聊天后十分佩服，两人成了好朋友。", "hints": ["它是一个历史故事", "它的主角是两个朋友", "它说的是不看贫富"]}, {"zh": "带经而锄", "en": "hoeing with the classics in hand", "aliases": [], "profile": "西汉的倪宽家里穷，给人做工种地时把经书带在身边，一休息就拿出来读。", "hints": ["它是一个历史故事", "它和种地有关", "它说的是抓紧时间学习"]}, {"zh": "一傅众咻", "en": "one tutor among many noisy voices", "aliases": [], "profile": "楚国大夫请一个齐国人教儿子说齐国话，可周围很多楚国人整天吵闹，儿子怎么也学不会。", "hints": ["它来自古人的寓言", "它和学说话有关", "它说的是环境太吵"]}]}]}
+          MAX_ASK = 20
+          MAX_HINTS = 3
+          AUTO_HINT_AFTER = 5
+          SPACES = [" ", "　", "\t", "\n", "\r"]
+          DIGITS = {"0": 0, "1": 1, "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8, "9": 9, "０": 0, "１": 1, "２": 2, "３": 3, "４": 4, "５": 5, "６": 6, "７": 7, "８": 8, "９": 9}
+          CN_NUM = {"零": 0, "〇": 0, "一": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9}
+          DROP = " \t\n\r　。，,.!！?？、~～…\"'“”‘’:：;；()（）《》「」·•・-"
+          LATIN = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+          RESTART_WORDS = ["从头开始", "重新开始", "从第一关开始", "restart", "startover", "请从指定中文开场开始"]
+          START_WORDS = ["开始", "开始吧", "开始游戏", "start", "letsstart", "startgame", "letsplay"]
+          RESUME_CUES = ["继续上次", "continuewhere", "leftoff"]
+          STOP_CONTAINS = ["不玩了", "不想玩", "结束游戏", "退出游戏", "stopplaying", "dontwanttoplay"]
+          STOP_EXACT = ["结束", "再见", "拜拜", "退出", "stop", "bye", "goodbye", "quit"]
+          NEXT_CUES = ["下一题", "下一个", "再来", "开始", "继续", "准备好", "好的", "好啊", "好呀", "可以", "来吧", "next", "another", "ready", "letsgo", "sure", "okay", "yes"]
+          NEXT_EXACT = ["好", "嗯", "行", "要", "ok", "yeah", "yep"]
+          QUESTION_CUES = ["？", "?", "吗", "什么", "哪", "谁", "为什么", "怎么", "多少", "几", "what", "who", "when", "where", "why", "how", "which"]
+          MAX_FOLLOW_UPS = 2
+          REMIND_AT = [10, 5, 3, 2, 1]
+          CLOSINGS_ZH = ["你的下一个问题是什么？", "接下来你想问什么呢？", "你还想问点什么？", "要不要直接猜一猜答案？"]
+          CLOSINGS_EN = ["What's your next question?", "What would you like to ask next?", "What else do you want to know?", "Do you want to take a guess?"]
+          HINT_CUES = ["提示", "线索", "帮帮我", "帮我一下", "猜不到", "猜不出", "想不出", "太难了", "hint", "clue", "helpme", "imstuck"]
+          ANSWER_REQUEST_CUES = ["告诉我答案", "答案是什么", "直接告诉我", "到底是谁", "到底是什么", "你说答案", "tellmetheanswer", "whatistheanswer", "justtellme", "whoisit", "whatisit"]
+          GIVE_UP_CUES = ["我放弃", "放弃了", "不猜了", "认输", "猜不出来了", "igiveup", "giveup"]
+          # What may surround the secret's name in a guess such as “是孔子吗” or “Is it Confucius?”.
+          GUESS_FILLERS = ["是不是", "我猜是", "我猜", "我觉得是", "我觉得", "答案是", "谜底是", "应该是", "会不会是", "难道是", "那就是", "就是", "是", "吗", "呀", "啊", "呢", "吧", "嘛", "他", "她", "它", "这个人", "这个成语", "这个故事", "的故事", "成语", "故事", "这个", "这种", "那个", "一只", "一头", "一条", "一种", "一个", "一位", "一匹", "一块", "一座", "一颗", "一台", "一辆", "一件", "一项", "一本", "一张", "theansweris", "isit", "itis", "iguess", "ithink", "maybe", "is", "it", "the", "an", "a"]
+          DECLINE_EXACT = ["不要", "不想", "不了", "不用了", "先不了", "no", "nope", "notnow", "nothanks"]
+
+          def compact(text):
+              out = []
+              for ch in text.lower().codepoints():
+                  if ch in DROP:
+                      continue
+                  out.append(ch)
+              return "".join(out)
+
+          def has_cjk(text):
+              for ch in text.codepoints():
+                  code = ord(ch)
+                  if code >= 19968 and code <= 40959:
+                      return True
+              return False
+
+          def has_latin(text):
+              for ch in text.codepoints():
+                  if ch in LATIN:
+                      return True
+              return False
+
+          def pick_lang(text, previous):
+              if has_cjk(text):
+                  return "zh"
+              if has_latin(text):
+                  return "en"
+              if previous != "":
+                  return previous
+              return "zh"
+
+          def read_int(chars, start):
+              i = start
+              for ch in chars[start:]:
+                  if ch in SPACES:
+                      i += 1
+                  else:
+                      break
+              value = 0
+              count = 0
+              for ch in chars[i:]:
+                  if ch in DIGITS:
+                      value = value * 10 + DIGITS[ch]
+                      count += 1
+                  else:
+                      break
+              if count > 0:
+                  return [value, i + count]
+              seq = []
+              for ch in chars[i:]:
+                  if ch in CN_NUM or ch == "十":
+                      seq.append(ch)
+                  else:
+                      break
+              if len(seq) == 0:
+                  return [-1, i]
+              if "十" in seq:
+                  pos = seq.index("十")
+                  tens = 1
+                  if pos > 0:
+                      tens = CN_NUM.get(seq[pos - 1], 1)
+                  ones = 0
+                  if pos + 1 < len(seq):
+                      ones = CN_NUM.get(seq[pos + 1], 0)
+                  return [tens * 10 + ones, i + len(seq)]
+              return [CN_NUM[seq[0]], i + len(seq)]
+
+          def numbers_after(content, prefix, suffix):
+              found = []
+              chars = list(content.codepoints())
+              pchars = list(prefix.codepoints())
+              schars = list(suffix.codepoints())
+              plen = len(pchars)
+              for i in range(len(chars)):
+                  if chars[i:i + plen] != pchars:
+                      continue
+                  got = read_int(chars, i + plen)
+                  if got[0] < 0:
+                      continue
+                  j = got[1]
+                  for ch in chars[j:]:
+                      if ch in SPACES:
+                          j += 1
+                      else:
+                          break
+                  if len(schars) == 0 or chars[j:j + len(schars)] == schars:
+                      found.append(got[0])
+              return found
+
+          def round_info(content):
+              low = content.lower()
+              levels = []
+              puzzles = []
+              if "谜题来啦" in content:
+                  levels = numbers_after(content, "第", "关")
+                  puzzles = numbers_after(content, "第", "题")
+              elif "puzzle time" in low:
+                  levels = numbers_after(low, "level", "")
+                  puzzles = numbers_after(low, "puzzle", "")
+              if len(levels) == 0 or len(puzzles) == 0:
+                  return None
+              return [min(max(levels[0], 1), len(DATA["levels"])), max(puzzles[0], 1)]
+
+          def secret_index(level, puzzle):
+              lv = DATA["levels"][level - 1]
+              return (lv["offset"] + (puzzle - 1) * lv["step"]) % len(lv["items"])
+
+          def secret_for(level, puzzle):
+              return DATA["levels"][level - 1]["items"][secret_index(level, puzzle)]
+
+          def two(n):
+              return ("0" + str(n)) if n < 10 else str(n)
+
+          def card_node(level, puzzle):
+              # Each puzzle has its own prompt node holding only its background card;
+              # the branch after this script activates exactly that one.
+              return "card-l" + two(level) + "-p" + two(secret_index(level, puzzle))
+
+          def names_of(item):
+              return [item["zh"], item["en"]] + item["aliases"]
+
+          def mentions(text, item):
+              low = text.lower()
+              for name in names_of(item):
+                  if name != "" and name.lower() in low:
+                      return True
+              return False
+
+          def revealed(content, item):
+              low = content.lower()
+              cue = "答案就是" in content or "答案揭晓" in content or "the answer is" in low or "the answer was" in low
+              return cue and mentions(content, item)
+
+          def won_cue(content):
+              return "猜对啦" in content or "you got it" in content.lower()
+
+          def starts_no(content):
+              low = content.strip().lower()
+              if content.strip().startswith("不是"):
+                  return True
+              for head in ["no,", "no.", "no!", "no ", "nope"]:
+                  if low.startswith(head):
+                      return True
+              return low == "no"
+
+          def counts_as_question(text):
+              # Only questions and guesses use up the 20 chances; asking for a hint or
+              # for the answer, giving up, and game commands do not.
+              word = compact(text)
+              if word in START_WORDS or word in RESTART_WORDS or word in STOP_EXACT:
+                  return False
+              return not (matches_any(word, HINT_CUES) or matches_any(word, ANSWER_REQUEST_CUES) or matches_any(word, GIVE_UP_CUES) or matches_any(word, RESUME_CUES) or matches_any(word, STOP_CONTAINS))
+
+          def analyze(messages):
+              history = list(messages)
+              if len(history) > 0 and history[-1].get("role", "") == "user":
+                  history = history[:-1]
+              state = {"found": False, "level": 1, "puzzle": 0, "asked": 0, "hints": 0, "streak": 0, "over": False, "won": False, "after": 0, "lang": "", "start": -1, "said": ""}
+              for message in reversed(history):
+                  if message.get("role", "") == "user":
+                      content = message.get("content", "")
+                      if has_cjk(content):
+                          state["lang"] = "zh"
+                          break
+                      if has_latin(content):
+                          state["lang"] = "en"
+                          break
+              start = -1
+              for i in range(len(history)):
+                  if history[i].get("role", "") == "user":
+                      continue
+                  content = history[i].get("content", "")
+                  if "谜题来啦" not in content and "puzzle time" not in content.lower():
+                      continue
+                  info = round_info(content)
+                  if info != None:
+                      start = i
+                      state["level"] = info[0]
+                      state["puzzle"] = info[1]
+              if start < 0:
+                  return state
+              state["found"] = True
+              state["start"] = start
+              item = secret_for(state["level"], state["puzzle"])
+              for message in history[start + 1:]:
+                  content = message.get("content", "")
+                  if message.get("role", "") == "user":
+                      if counts_as_question(content):
+                          state["asked"] += 1
+                      continue
+                  if state["over"]:
+                      state["after"] += 1
+                      continue
+                  state["said"] += content + "\n"
+                  if revealed(content, item):
+                      state["over"] = True
+                      state["won"] = won_cue(content)
+                      continue
+                  if "小提示" in content or "hint:" in content.lower():
+                      state["hints"] += 1
+                      state["streak"] = 0
+                  elif starts_no(content):
+                      state["streak"] += 1
+                  else:
+                      state["streak"] = 0
+              return state
+
+          def title(level, lang):
+              lv = DATA["levels"][level - 1]
+              return lv["title_en"] if lang == "en" else lv["title_zh"]
+
+          def example(lang, index):
+              examples = DATA["examples_en"] if lang == "en" else DATA["examples_zh"]
+              return examples[index % len(examples)]
+
+          def head(lang):
+              if lang == "en":
+                  return "【回复语言：English】整条回复只用英文，逐字句也用下面给出的英文原句。"
+              return "【回复语言：中文】"
+
+          def open_lead(lang, level, puzzle, full):
+              # The marker sentence always comes first: History keeps only the spoken
+              # prefix of a reply the child talks over, and the marker carries the state.
+              if lang == "en":
+                  marker = "Puzzle time! Level " + str(level) + ", " + title(level, lang) + ", puzzle " + str(puzzle) + "."
+                  if full:
+                      return [marker, "I'm thinking of " + DATA["subject_en"] + ". You have 20 questions, and I can only answer yes or no. What's your first question?"]
+                  return [marker, "I've got a new one in mind, and you have 20 questions again. What's your first question?"]
+              marker = "谜题来啦！第 " + str(level) + " 关“" + title(level, lang) + "”，第 " + str(puzzle) + " 题。"
+              if full:
+                  return [marker, "我心里已经藏好了" + DATA["subject_zh"] + "，你有 20 次提问机会，只能问我用“是”或“不是”回答的问题。你的第一个问题是什么？"]
+              return [marker, "我又想好了" + DATA["subject_zh"] + "，还是 20 次提问机会。你的第一个问题是什么？"]
+
+          def open_round(lang, level, puzzle, full):
+              lead = open_lead(lang, level, puzzle, full)
+              if lang == "en":
+                  body = "Start a new puzzle. Say this whole paragraph exactly, word for word, beginning with “Puzzle time”, and add nothing before or after it: “" + lead[0] + " " + lead[1] + "”"
+              else:
+                  body = "本轮开启新的一题。从“谜题来啦”开始，逐字说出下面这一整段话，一字不改，前后都不要添加别的内容：“" + lead[0] + lead[1] + "”"
+              return {"route": "open", "node": "", "direction": head(lang) + body, "rules": ""}
+
+          def say(lang, zh, en):
+              return {"route": "say", "node": "", "direction": head(lang) + (en if lang == "en" else zh), "rules": ""}
+
+          def recap(lang, state):
+              level = state["level"]
+              left = MAX_ASK - state["asked"]
+              zh = "孩子想接着玩上次的题。逐字说“我们接着玩第 " + str(level) + " 关“" + title(level, "zh") + "”的第 " + str(state["puzzle"]) + " 题，你已经问了 " + str(state["asked"]) + " 次，还剩 " + str(left) + " 次机会。”然后用一个问题请孩子继续提问，不要透露任何关于谜底的信息。"
+              en = "The child wants to continue the last puzzle. Say exactly: “Let's keep going with Level " + str(level) + ", " + title(level, "en") + ", puzzle " + str(state["puzzle"]) + ". You've asked " + str(state["asked"]) + " questions and have " + str(left) + " left.” Then ask the child for the next question, without revealing anything about the answer."
+              return say(lang, zh, en)
+
+          def ask_first(lang, state):
+              zh = "孩子说要开始，但这一题已经开始了。逐字说“我们已经开始啦！”再用一句话提醒玩法：只能问能用“是”或“不是”回答的问题，例如“" + example("zh", 0) + "”。最后问孩子第一个问题是什么。"
+              en = "The child asked to start, but this puzzle has already started. Say exactly “We've already started!” and remind them in one sentence to ask yes or no questions, for example “" + example("en", 0) + "”. Then ask for their first question."
+              return say(lang, zh, en)
+
+          def farewell(lang, state, midround):
+              level = state["level"]
+              if midround:
+                  zh_keep = "这一题先帮你留着，下次说“继续上次的内容”就能接着猜"
+                  en_keep = "this puzzle will wait for them, and next time they can say “continue where we left off”"
+              else:
+                  zh_keep = "下次说“开始”就能接着挑战"
+                  en_keep = "next time they can say “start” to keep playing"
+              zh = "孩子想先不玩了。用一两句话温暖地道别，告诉孩子现在在第 " + str(level) + " 关“" + title(level, "zh") + "”，" + zh_keep + "，最后用一个轻松的问题结尾，例如“下次再来挑战好吗？”。不要开启新的一题，不要说出任何谜底。"
+              en = "The child wants to stop for now. Say a warm goodbye in one or two sentences, tell them they are at Level " + str(level) + ", " + title(level, "en") + ", and that " + en_keep + ". End with a light question such as “See you next time?”. Do not start a new puzzle or reveal any answer."
+              return say(lang, zh, en)
+
+          def is_guess(text, item):
+              word = compact(text)
+              for name in sorted([compact(n) for n in names_of(item) if n != ""], key=len, reverse=True):
+                  if name == "" or name not in word:
+                      continue
+                  rest = word.replace(name, "")
+                  # Longest first, so "an" is not cut down to a stray "n" by "a".
+                  for filler in sorted(GUESS_FILLERS, key=len, reverse=True):
+                      rest = rest.replace(filler, "")
+                  return rest == ""
+              return False
+
+          def reveal(lang, state, reason):
+              # The whole reveal is our own text, so the host reads it verbatim instead of
+              # composing it (a composed reveal tends to stop after its first sentence).
+              if lang == "en":
+                  return "Say this whole paragraph exactly, word for word, adding nothing: “" + reveal_words(lang, state, reason) + "”"
+              return "逐字说出下面这一整段话，一字不改：“" + reveal_words(lang, state, reason) + "”"
+
+          def reveal_words(lang, state, reason):
+              level = state["level"]
+              item = secret_for(level, state["puzzle"])
+              top = level >= len(DATA["levels"])
+              if lang == "en":
+                  if reason == "win":
+                      lead = "You got it! The answer is " + item["en"] + "!"
+                      tail = ("Amazing, you're already at the top level, Level " + str(level) + ": " + title(level, lang) + "! Ready for the next puzzle?") if top else ("Congratulations, you've reached Level " + str(level + 1) + ": " + title(level + 1, lang) + "! Ready for the next puzzle?")
+                  else:
+                      lead = ("No worries! The answer is " + item["en"] + "!") if reason == "giveup" else ("That was your 20th question! The answer is " + item["en"] + "!")
+                      tail = "You're still at Level " + str(level) + ", " + title(level, lang) + ". Want to try another puzzle?"
+                  return lead + " " + tail
+              if reason == "win":
+                  lead = "猜对啦！答案就是" + item["zh"] + "！"
+                  tail = ("太厉害了，你已经是最高的第 " + str(level) + " 关“" + title(level, lang) + "”！准备好挑战下一题了吗？") if top else ("恭喜你升到第 " + str(level + 1) + " 关，获得“" + title(level + 1, lang) + "”称号！准备好挑战下一题了吗？")
+              else:
+                  lead = ("没关系，答案揭晓：" + item["zh"] + "！") if reason == "giveup" else ("20 次机会用完啦，答案揭晓：" + item["zh"] + "！")
+                  tail = "你还在第 " + str(level) + " 关“" + title(level, lang) + "”，要不要再来一题？"
+              return lead + item["profile"] + tail
+
+          def unused_hint_numbers(state):
+              # A hint is used when History holds its exact Chinese text or, for an
+              # English game where the hint is translated, its number ("Hint 2:").
+              hints = secret_for(state["level"], state["puzzle"])["hints"]
+              low = state["said"].lower()
+              left = [i for i in range(len(hints)) if hints[i] not in state["said"] and ("hint " + str(i + 1)) not in low]
+              return left if len(left) > 0 else [len(hints) - 1]
+
+          def unused_hints(state):
+              hints = secret_for(state["level"], state["puzzle"])["hints"]
+              return [hints[i] for i in unused_hint_numbers(state)]
+
+          def hint_choice(lang, state, closing):
+              # Prewritten hints cannot know what the child has already found out, so the
+              # host picks, among the unused ones, one that tells the child something new.
+              options = unused_hints(state)
+              if lang == "en":
+                  # The number, not the translated text, tells later turns which hint was used.
+                  number = unused_hint_numbers(state)[0] + 1
+                  return "reply with ONE sentence that joins the hint and the question, and nothing else: “Hint " + str(number) + ": <this hint translated into English>, so " + closing[0].lower() + closing[1:] + "” — add no other clue. The hint to translate: " + options[0]
+              if len(options) == 1:
+                  return "逐字说“小提示：" + options[0] + "。" + closing + "”，不要补充别的线索"
+              return "从下面几条提示里挑一条孩子还不知道的（不要和前面已经问出来的答案重复），逐字说“小提示：所选的那条。" + closing + "”，不要补充别的线索：" + " / ".join(options)
+
+          def give_hint(lang, state):
+              closing = (CLOSINGS_EN if lang == "en" else CLOSINGS_ZH)[state["asked"] % len(CLOSINGS_EN)]
+              if state["hints"] >= MAX_HINTS:
+                  return say(lang, "孩子要提示，但这一题的 " + str(MAX_HINTS) + " 次提示已经用完了。温和地告诉他提示用完啦（不要说“小提示”这几个字），鼓励他继续用是非题来猜，最后逐字问“" + closing + "”", "The child wants a hint, but all " + str(MAX_HINTS) + " hints for this puzzle are used. Kindly say so without the word “Hint”, encourage more yes or no questions, and end with exactly “" + closing + "”")
+              return say(lang, "孩子要提示。" + hint_choice("zh", state, closing) + "。", "The child wants a hint. " + hint_choice("en", state, closing) + ".")
+
+          def answer_rules(lang, state):
+              asked = state["asked"]
+              ex_q = DATA["restate_en"] if lang == "en" else DATA["restate_zh"]
+              # The model copies the example's shape, so the example carries the closing question.
+              closing = (CLOSINGS_EN if lang == "en" else CLOSINGS_ZH)[asked % len(CLOSINGS_EN)]
+              sample = example(lang, asked)
+              if lang == "en":
+                  lines = [
+                      "The child is asking or guessing. The system has already checked that the child did NOT name the answer.",
+                      "Answer from the puzzle card: if it is a yes or no question, start with “Yes” or “No” and you may restate it (if they asked “" + ex_q[0] + "”, say “" + ex_q[1] + " " + closing + "” or “" + ex_q[2] + " " + closing + "”). Mostly true with a clear exception: start with “Partly”. Not on the card and not sure: start with “I'm not sure about that one”. Titles given after death or by later admirers do not count.",
+                      "Only answer and restate. Never explain why, and never say any book, work, event, title, place, person or number from the card.",
+                      "If the child names an answer to guess, it is wrong: start with “No”, say that is not it, and encourage them.",
+                      "If it cannot be answered with yes or no (a name, a year, letters of the name): start with “I can only answer yes or no” and give exactly this example: “" + sample + "”.",
+                      "If they ask for the answer or who it is without giving up, tell them they can say “I give up” to see it.",
+                  ]
+              else:
+                  lines = [
+                      "孩子在提问或猜答案。系统已经核对过：孩子这句话没有说中谜底。",
+                      "按谜底卡回答：能用“是/不是”回答的问题，回复第一个字必须是“是”，或以“不是”开头，后面可以把问题改成陈述句复述一遍（孩子问“" + ex_q[0] + "”就说“" + ex_q[1] + closing + "”或“" + ex_q[2] + closing + "”）；大体对但有明显例外就以“有一部分是”开头；卡上没写到、拿不准就以“这个我也说不准”开头。身份按本人真实做过的事判断，后世追封、尊称不算。",
+                      "只回答和复述，不要解释原因，绝不能说出谜底卡上的书名、作品、事件、称号、地名、人名或数字。",
+                      "如果孩子是直接说出一个答案来猜，那一定猜错了：以“不是”开头，说“不是某某哦”（某某换成孩子猜的答案），再鼓励一句。",
+                      "如果问题不能用是或不是回答（例如问名字、问哪一年、问名字里的字）：以“这个问题我只能回答是或不是哦”开头，再逐字举这个例子：“" + sample + "”。",
+                      "如果孩子要答案或问谜底是谁但没有说放弃：告诉孩子想看答案可以说“我放弃”。",
+                  ]
+              if state["hints"] >= MAX_HINTS:
+                  lines.append("If the child asks for a hint: all " + str(MAX_HINTS) + " hints for this puzzle are used, say so kindly without using the word “Hint”." if lang == "en" else "如果孩子要提示：这一题的 " + str(MAX_HINTS) + " 次提示已经用完了，温和地告诉他，不要说“小提示”这几个字。")
+              else:
+                  if lang == "en":
+                      lines.append("If the child asks for a hint or clue: " + hint_choice("en", state, closing) + ".")
+                  else:
+                      lines.append("如果孩子要提示或线索（包括要大提示、问名字里的字）：" + hint_choice("zh", state, closing) + "。")
+                  if state["streak"] + 1 >= AUTO_HINT_AFTER:
+                      first = unused_hints(state)[0]
+                      lines.append(("If this answer is “No”, add “Hint " + str(unused_hint_numbers(state)[0] + 1) + ":” followed by this hint in English: " + first) if lang == "en" else ("如果这次的回答是“不是”，就在回答后面逐字加一句“小提示：" + first + "。”"))
+              lines.append("If the child talks about copying something dangerous in real life, follow the safety rules first." if lang == "en" else "如果涉及现实中的危险模仿或安全问题，先按安全规则回答。")
+              return lines
+
+          def play(text, lang, state):
+              level = state["level"]
+              item = secret_for(level, state["puzzle"])
+              if is_guess(text, item):
+                  return say(lang, reveal("zh", state, "win"), reveal("en", state, "win"))
+              if matches_any(compact(text), GIVE_UP_CUES):
+                  return say(lang, reveal("zh", state, "giveup"), reveal("en", state, "giveup"))
+              if matches_any(compact(text), HINT_CUES):
+                  return give_hint(lang, state)
+              lines = answer_rules(lang, state)
+              left = MAX_ASK - state["asked"] - 1
+              if left <= 0:
+                  lines.append(("This was the 20th question. First answer it in one sentence by the rules above, then say this exactly, word for word: “" + reveal_words("en", state, "out") + "”") if lang == "en" else ("这是第 20 问。先按上面的规则用一句话回答这一问，然后" + reveal("zh", state, "out")))
+              else:
+                  if left in REMIND_AT:
+                      lines.append(("Also tell the child they have " + str(left) + " questions left.") if lang == "en" else ("再告诉孩子还剩 " + str(left) + " 次提问机会。"))
+                  if lang == "en":
+                      # English replies tend to stop after the answer, so the two-part
+                      # shape goes first where the model cannot miss it.
+                      lines.insert(0, "Your reply must be two parts: first your answer as described below, then exactly this question: “" + CLOSINGS_EN[state["asked"] % len(CLOSINGS_EN)] + "” Never stop after the answer.")
+                      lines.append("Every reply ends with that question.")
+                  else:
+                      lines.append("最后一句必须是以问号结尾的简短问句，例如“" + CLOSINGS_ZH[state["asked"] % len(CLOSINGS_ZH)] + "”，不要用“请继续提问吧”这类陈述句结尾。")
+              return {"route": "play", "node": card_node(level, state["puzzle"]), "direction": head(lang) + "\n".join(lines), "rules": DATA["host_rules"]}
+
+          def follow_up(text, lang, state):
+              # The revealed puzzle's own card node answers the follow-up question.
+              if lang == "en":
+                  body = "The last answer has been revealed and the child is asking about it. Answer in one or two short, child-friendly sentences: use the puzzle card first, and you may add well-established common knowledge you are sure of; if you are not sure, say so. Do not start a new puzzle or say “Puzzle time”. End with exactly “Ready for the next puzzle?”"
+              else:
+                  body = "上一题的答案已经揭晓，孩子在追问和它有关的问题。用一两句适合小朋友的话简短回答：先用谜底卡上的内容，卡上没有的，可以补充你确定的公认常识；拿不准就直说不知道。不要开启新的一题，不要说“谜题来啦”；最后逐字问“准备好挑战下一题了吗？”"
+              return {"route": "follow", "node": card_node(state["level"], state["puzzle"]), "direction": head(lang) + body, "rules": DATA["host_rules"]}
+
+          def matches_any(word, words):
+              for candidate in words:
+                  if candidate in word:
+                      return True
+              return False
+
+          def run(input):
+              text = input["text"].strip()
+              state = analyze(input["messages"])
+              lang = pick_lang(text, state["lang"])
+              word = compact(text)
+              if word in RESTART_WORDS:
+                  return open_round(lang, 1, state["puzzle"] + 1, True)
+              if not state["found"]:
+                  return open_round(lang, 1, state["puzzle"] + 1, True)
+              if state["over"]:
+                  if word in STOP_EXACT or word in DECLINE_EXACT or matches_any(word, STOP_CONTAINS):
+                      return farewell(lang, state, False)
+                  wants_next = word in NEXT_EXACT or matches_any(word, NEXT_CUES)
+                  if not wants_next and state["after"] < MAX_FOLLOW_UPS and matches_any(text.lower(), QUESTION_CUES):
+                      return follow_up(text, lang, state)
+                  level = state["level"]
+                  if state["won"] and level < len(DATA["levels"]):
+                      level += 1
+                  return open_round(lang, level, state["puzzle"] + 1, False)
+              if matches_any(word, RESUME_CUES):
+                  return recap(lang, state)
+              if word in START_WORDS:
+                  if state["asked"] == 0:
+                      return ask_first(lang, state)
+                  return open_round(lang, state["level"], state["puzzle"] + 1, True)
+              if word in STOP_EXACT or matches_any(word, STOP_CONTAINS):
+                  return farewell(lang, state, True)
+              return play(text, lang, state)
+        limits:
+          max_execution_steps: 300000
+          timeout: 500ms
+          max_input_bytes: 262144
+          max_output_bytes: 65536
+      - id: card-l01-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：口渴的乌鸦往瓶子里一颗颗放小石子，让水慢慢升高，终于喝到了水。
+            字数：四个字
+            意思：遇到困难时开动脑筋，想出好办法解决问题。
+            出处类型：寓言
+            故事主角：一只口渴的乌鸦
+            褒义还是贬义：褒义
+            什么时候用：夸小朋友遇到难题时动脑筋想出了好办法。
+            注意：它来自古希腊的伊索寓言，不是神话，也不是中国古代故事。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：骄傲的兔子比赛时半路睡大觉，一直坚持往前爬的乌龟反而先到了终点。
+            字数：四个字
+            意思：骄傲会让人失败，坚持不懈才能取得成功。
+            出处类型：寓言
+            故事主角：一只乌龟和一只兔子
+            褒义还是贬义：中性
+            什么时候用：提醒领先的人别骄傲，落后的人要坚持到底。
+            注意：它来自古希腊的伊索寓言；比赛最后是乌龟赢了。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：要过河的小马听老牛说水浅、松鼠说水深，最后自己下河一试，才知道水不深也不浅。
+            字数：四个字
+            意思：做事不能光听别人说，要自己动脑筋、亲自去试一试。
+            出处类型：寓言
+            故事主角：一匹小马，还有老牛、松鼠和马妈妈
+            褒义还是贬义：中性
+            什么时候用：鼓励孩子遇到事情自己想一想、试一试。
+            注意：它是中国现代作家彭文席写的故事；小马最后顺利过了河。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：放羊娃几次大喊有狼来骗大家，等狼真的来了，再喊也没有人相信他了。
+            字数：三个字
+            意思：说谎的人会失去别人的信任，要做诚实的人。
+            出处类型：寓言
+            故事主角：一个放羊的男孩、村民们和一只狼
+            褒义还是贬义：贬义
+            什么时候用：提醒总爱开玩笑骗人的小朋友要说真话。
+            注意：它来自古希腊的伊索寓言，不是中国古代故事；故事里有狼也有羊。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：小猫一会儿捉蜻蜓，一会儿追蝴蝶，一条鱼也没钓到，专心以后才钓到了大鱼。
+            字数：四个字
+            意思：做事要一心一意，不能三心二意。
+            出处类型：寓言
+            故事主角：一只小猫和猫妈妈
+            褒义还是贬义：中性
+            什么时候用：提醒写作业时东张西望、不专心的小朋友。
+            注意：它是中国现代作家金近写的儿童故事；故事里还有蜻蜓和蝴蝶。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：一群猴子看见井水里的月亮，以为月亮掉进了井里，就一只拉着一只倒挂下去捞。
+            字数：四个字
+            意思：比喻白费力气，也提醒人先看清真相再行动。
+            出处类型：寓言
+            故事主角：一群猴子
+            褒义还是贬义：贬义
+            什么时候用：说一个人白忙了一场，什么也没得到。
+            注意：井里的只是月亮的倒影；它是很古老的寓言，最早从古印度传到中国。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：东汉的孔融四岁时，把大个的梨让给哥哥和弟弟，自己拿了最小的一个。
+            字数：四个字
+            意思：懂得谦让，尊敬兄长，友爱兄弟姐妹。
+            出处类型：历史故事
+            故事主角：四岁的孔融和他的哥哥、弟弟
+            褒义还是贬义：褒义
+            什么时候用：夸小朋友把好东西先让给别人。
+            注意：故事发生在东汉；孔融是孔子的后代；故事里没有动物。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：小伙伴掉进装满水的大缸，七岁的司马光搬起石头砸破缸，水流出来，小伙伴得救了。
+            字数：五个字
+            意思：遇到危急的事要冷静、机智，想办法救人。
+            出处类型：历史故事
+            故事主角：北宋七岁的司马光和一起玩的小伙伴
+            褒义还是贬义：褒义
+            什么时候用：夸小朋友遇到急事不慌张，能想出好办法。
+            注意：故事发生在北宋，小伙伴得救了；现实中有人落水要马上找大人帮忙。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：年幼的曹冲让大象站上船，在船边画线，再换成石头装到同样深，称石头就知道象有多重。
+            字数：四个字
+            意思：用巧妙的办法解决难题，形容小孩聪明机智。
+            出处类型：历史故事
+            故事主角：三国时五六岁的曹冲和一头大象
+            褒义还是贬义：褒义
+            什么时候用：夸人想出了一个聪明的好办法。
+            注意：故事里有大象，也有船和石头；曹冲是曹操的儿子。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：后羿的妻子吃下了仙药，身体变得很轻，一直飘上了月亮，住进了广寒宫。
+            字数：四个字
+            意思：中国古代的神话故事，也用来说人类登月、探索月球。
+            出处类型：神话传说
+            故事主角：美丽的嫦娥，还有她的丈夫后羿
+            褒义还是贬义：中性
+            什么时候用：中秋节讲故事，或者说起中国的探月工程。
+            注意：它和中秋节有关；中国的探月卫星就叫嫦娥号。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：宋国有个农夫嫌禾苗长得慢，把它们一棵棵往上拔高，结果禾苗全都枯死了。
+            字数：四个字
+            意思：违反事物发展的规律，急于求成，反而把事情办坏。
+            出处类型：寓言
+            故事主角：宋国的一个农夫和他的儿子
+            褒义还是贬义：贬义
+            什么时候用：劝家长别逼孩子一下子学太多、太难的东西。
+            注意：它出自《孟子》；故事里没有动物。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：井底的青蛙以为天只有井口那么大，小鸟告诉它天无边无际，它还不相信。
+            字数：四个字
+            意思：比喻眼界狭小，见识太少。
+            出处类型：寓言
+            故事主角：一只青蛙和一只小鸟
+            褒义还是贬义：贬义
+            什么时候用：说一个人见识很少，还以为自己什么都知道。
+            注意：课本里是青蛙和小鸟；《庄子》里相似的故事是青蛙和东海的大鳖。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p12
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：穷孩子马良得到一支神奇的笔，画什么就变成真的，他用它帮助穷苦的人。
+            字数：四个字
+            意思：常用来夸画画或写作本领特别高的人。
+            出处类型：民间故事
+            故事主角：一个爱画画的穷孩子马良
+            褒义还是贬义：褒义
+            什么时候用：夸一个同学画画画得特别好。
+            注意：它是现代作家洪汛涛写的童话，讲得像民间故事；马良不是真实人物。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p13
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：小时候贪玩的李白看见一位老奶奶在磨一根铁棒，说要把它磨成针，从此发奋读书。
+            字数：五个字
+            意思：只要有恒心、肯下功夫，再难的事也能做成。
+            出处类型：民间故事
+            故事主角：小时候的李白和一位老奶奶
+            褒义还是贬义：褒义
+            什么时候用：鼓励练琴、练字想放弃的人坚持下去。
+            注意：这是关于诗人李白的传说，不一定真的发生过；故事里没有神仙。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p14
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：天塌了一个大窟窿，女神女娲炼出五色石把它补好，人们又能安稳地生活了。
+            字数：四个字
+            意思：比喻改造天地的雄心和本领，也比喻弥补重大的缺失。
+            出处类型：神话传说
+            故事主角：女神女娲
+            褒义还是贬义：褒义
+            什么时候用：赞美有人做成了一件拯救大家的大事。
+            注意：她用的是五色石；女娲捏泥土造人是另一个神话故事。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p15
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：黄河里的鲤鱼奋力往上跳，谁能跳过高高的龙门，谁就变成一条真正的龙。
+            字数：五个字
+            意思：比喻努力之后取得成功，地位一下子提高。
+            出处类型：神话传说
+            故事主角：黄河里的一群鲤鱼
+            褒义还是贬义：褒义
+            什么时候用：祝贺别人考上好学校或者取得大成功。
+            注意：龙门在黄河上；跳过去的鲤鱼会变成龙，跳不过去的就回来接着练。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：羊圈破了个洞，狼钻进来叼走了羊，养羊人起初不修，又丢了羊才赶紧把羊圈补好。
+            字数：四个字
+            意思：出了问题以后及时想办法补救，还不算晚。
+            出处类型：寓言
+            故事主角：一个养羊的人和他的羊
+            褒义还是贬义：中性
+            什么时候用：考试错了题赶紧弄懂，下次就不再错。
+            注意：出自《战国策》里的一句话，后来被编成养羊人的故事；故事里有狼。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：几个人比赛画蛇，先画完的人得意地给蛇添上脚，结果被别人抢先拿走了奖品。
+            字数：四个字
+            意思：做了多余的事，反而把事情弄糟。
+            出处类型：寓言
+            故事主角：楚国几个比赛画画的人
+            褒义还是贬义：贬义
+            什么时候用：作文已经写好了，又加了一段没用的话。
+            注意：它出自《战国策》；故事里的蛇是画出来的，不是真蛇。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：有人想偷一口大钟，怕钟声被人听见，就捂住自己的耳朵，以为别人也听不见。
+            字数：四个字
+            意思：自己欺骗自己，明明掩盖不了的事偏要掩盖。
+            出处类型：寓言
+            故事主角：一个想偷东西的人
+            褒义还是贬义：贬义
+            什么时候用：有人把考砸的卷子藏起来，以为爸妈就不会知道。
+            注意：它出自《吕氏春秋》，原故事里偷的是一口钟；故事里没有动物。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：楚国人坐船时剑掉进江里，他在船边刻个记号，等船停了才从记号那里下水去找。
+            字数：四个字
+            意思：死守老办法，不懂得情况已经变化了。
+            出处类型：寓言
+            故事主角：一个坐船过江的楚国人
+            褒义还是贬义：贬义
+            什么时候用：情况变了还用老办法做事的时候。
+            注意：它出自《吕氏春秋》；船一直在往前走，所以剑找不到了。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：天上同时出来十个太阳，晒得庄稼都枯了，神箭手后羿射下九个，只留下一个。
+            字数：四个字
+            意思：中国古代神话，赞美为百姓除害的英雄。
+            出处类型：神话传说
+            故事主角：神箭手后羿和天上的十个太阳
+            褒义还是贬义：褒义
+            什么时候用：讲中国古代神话，或者夸人本领高强。
+            注意：他射下了九个，留下了一个；他是嫦娥的丈夫。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：天地还像一个大鸡蛋的时候，巨人盘古用斧头把它劈开，从此有了天和地。
+            字数：四个字
+            意思：中国古代讲世界是怎么来的神话，也比喻前所未有的大事。
+            出处类型：神话传说
+            故事主角：巨人盘古
+            褒义还是贬义：褒义
+            什么时候用：讲世界起源的神话，或说一件事前所未有。
+            注意：盘古倒下后，身体变成了山川、河流、太阳和月亮。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：洪水泛滥时，禹带着大家挖河道，把水引进大海，十三年里三次路过家门都没进去。
+            字数：四个字
+            意思：赞美为大家吃苦、一心做好公事的精神。
+            出处类型：神话传说
+            故事主角：禹和跟他一起治水的百姓
+            褒义还是贬义：褒义
+            什么时候用：讲古代治理洪水的故事，赞美一心为公的人。
+            注意：他用疏导的办法，不只靠堵；他的父亲鲧用堵的办法没有成功。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：宋国农夫看见一只兔子撞到树桩上倒下了，从此不干活，天天守着树桩等兔子。
+            字数：四个字
+            意思：不想努力，只想靠运气得到好处；也指死守经验，不知变通。
+            出处类型：寓言
+            故事主角：一个农夫和一只兔子
+            褒义还是贬义：贬义
+            什么时候用：有人不复习，只盼着考试刚好考到自己会的。
+            注意：它出自《韩非子》；故事里有动物；农夫再也没等到第二只兔子。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：老人愚公带着子孙一筐筐挖挡路的两座大山，天帝被感动，派神仙把山背走了。
+            字数：四个字
+            意思：做事有恒心、有毅力，不怕困难。
+            出处类型：寓言
+            故事主角：快九十岁的愚公和他的子孙
+            褒义还是贬义：褒义
+            什么时候用：鼓励人碰到很大很难的事也要坚持。
+            注意：它出自《列子》；邻居智叟笑他傻；最后是神仙帮忙把山搬走的。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：狐狸骗老虎说自己是百兽之王，带着老虎在森林里走，野兽们其实是被老虎吓跑的。
+            字数：四个字
+            意思：依仗别人的势力来欺负人、吓唬人。
+            出处类型：寓言
+            故事主角：一只狐狸和一只老虎
+            褒义还是贬义：贬义
+            什么时候用：有人仗着哥哥厉害，在别的小朋友面前耀武扬威。
+            注意：它出自《战国策》；野兽们怕的是老虎，不是狐狸。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：月亮上住着一只白白的兔子，它拿着药杵，一直在捣制长生不老的仙药。
+            字数：四个字
+            意思：中国古代关于月亮的神话，常在中秋节讲起。
+            出处类型：神话传说
+            故事主角：月亮上的一只白兔
+            褒义还是贬义：中性
+            什么时候用：中秋节赏月时给小朋友讲月亮上的故事。
+            注意：它和嫦娥的故事有关；中国的月球车也叫玉兔号。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：西汉的匡衡家里穷，晚上点不起灯，就在墙上凿个小洞，借邻居家的烛光读书。
+            字数：四个字
+            意思：形容家境贫寒却刻苦读书。
+            出处类型：历史故事
+            故事主角：西汉少年匡衡
+            褒义还是贬义：褒义
+            什么时候用：赞美条件很差还坚持努力学习的人。
+            注意：他借的是邻居家透过来的烛光，没有拿走东西；后来他成了大学问家。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p12
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：孟子小时候，妈妈为了给他找好的学习环境搬了三次家，最后搬到了学堂旁边。
+            字数：四个字
+            意思：父母用心为孩子选择好的成长环境。
+            出处类型：历史故事
+            故事主角：孟子的妈妈和小时候的孟子
+            褒义还是贬义：褒义
+            什么时候用：说家长为了孩子上学用心选择住的地方。
+            注意：她们家先住在墓地旁，又搬到集市旁，最后住到学堂旁。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p13
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：放牛的青年和天上的仙女结了婚，被王母娘娘用银河隔开，每年七夕在鹊桥上相会。
+            字数：四个字
+            意思：中国四大民间传说之一，常用来说分隔两地的夫妻。
+            出处类型：民间故事
+            故事主角：放牛的牛郎和天上的仙女织女
+            褒义还是贬义：中性
+            什么时候用：七夕节讲故事，或说夫妻长期分隔两地。
+            注意：它和七夕节有关；喜鹊搭桥让他们相会；天上有牛郎星和织女星。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p14
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：叶公到处画龙、刻龙，说自己最爱龙，真龙来看他时，他却吓得转身就跑。
+            字数：四个字
+            意思：嘴上说喜欢某样东西，其实并不是真的喜欢。
+            出处类型：寓言
+            故事主角：叶公和一条真龙
+            褒义还是贬义：贬义
+            什么时候用：有人嘴上说爱小狗，小狗真来了却吓得躲开。
+            注意：它出自西汉刘向的《新序》；龙是神话里的动物，不是真实动物。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p15
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：炎帝的小女儿在东海落水后变成了一只小鸟，每天衔来树枝和石子，要把东海填平。
+            字数：四个字
+            意思：比喻意志坚决，不怕艰难，坚持到底。
+            出处类型：神话传说
+            故事主角：炎帝的小女儿变成的精卫鸟
+            褒义还是贬义：褒义
+            什么时候用：赞美人不怕困难，坚持做一件很难的事。
+            注意：它出自《山海经》；精卫是一只鸟，炎帝的小女儿名叫女娃。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：巨人夸父想追上太阳，一路喝干了黄河和渭水，最后倒在路上，手杖化成一片桃林。
+            字数：四个字
+            意思：比喻有远大的志向和坚持追求的决心，也比喻不自量力。
+            出处类型：神话传说
+            故事主角：巨人夸父
+            褒义还是贬义：中性
+            什么时候用：赞美人追求梦想的勇气和决心。
+            注意：它出自《山海经》；他最后没有追上太阳。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：楚国人夸自己的盾什么都刺不破，又夸自己的矛什么都能刺破，被人一问就答不上来。
+            字数：四个字
+            意思：比喻说话、做事前后抵触，互相冲突。
+            出处类型：寓言
+            故事主角：楚国一个卖矛和盾的人
+            褒义还是贬义：贬义
+            什么时候用：有人说的前后两句话对不上的时候。
+            注意：它出自《韩非子》；故事里只是在卖东西，没有打仗。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：不会吹竽的南郭先生混在三百人的乐队里装样子，新国王要一个个听，他只好逃走了。
+            字数：四个字
+            意思：没有真本领的人混在内行里凑数，也比喻以次充好。
+            出处类型：寓言
+            故事主角：南郭先生和爱听竽合奏的齐宣王
+            褒义还是贬义：贬义
+            什么时候用：合唱时有人不会唱，只张嘴不出声。
+            注意：它出自《韩非子》；竽是一种古代的吹奏乐器。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：有人要去南方的楚国，却驾车一直往北走，还说自己马好、钱多、车夫本领高。
+            字数：四个字
+            意思：行动和目的正好相反，越努力离目标越远。
+            出处类型：寓言
+            故事主角：一个坐马车要去楚国的人
+            褒义还是贬义：贬义
+            什么时候用：想减肥却天天吃很多零食的时候。
+            注意：它出自《战国策》；故事里有马和马车，但主角是人。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：古代音乐家公明仪对着牛弹了一首高雅的曲子，牛照样低头吃草，一点也不理会。
+            字数：四个字
+            意思：对不懂道理的人讲道理，也讽刺说话不看对象。
+            出处类型：寓言
+            故事主角：音乐家公明仪和一头牛
+            褒义还是贬义：贬义
+            什么时候用：讲了半天大道理，对方完全听不懂。
+            注意：牛听不懂高雅的曲子，换成蚊虫和小牛的声音，牛就竖起了耳朵。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：南朝画家张僧繇在墙上画了四条龙，给其中两条点上眼睛，它们就破墙飞上了天。
+            字数：四个字
+            意思：在关键的地方加上一笔，让整体更生动、更传神。
+            出处类型：神话传说
+            故事主角：南朝画家张僧繇和他画的龙
+            褒义还是贬义：褒义
+            什么时候用：夸作文的结尾一句话写得特别好。
+            注意：没点眼睛的两条龙还留在墙上；这是关于一位真实画家的传说。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：东晋的祖逖和好友刘琨立志报效国家，半夜听到鸡叫就起床练剑，从不偷懒。
+            字数：四个字
+            意思：比喻有志向的人及时奋发，勤奋努力。
+            出处类型：历史故事
+            故事主角：祖逖和他的好朋友刘琨
+            褒义还是贬义：褒义
+            什么时候用：夸人每天早早起床坚持锻炼或学习。
+            注意：舞的是剑，不是跳舞；故事里有鸡叫，但主角是人。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：孙膑让田忌用下等马对齐王的上等马，再用上等马、中等马赢下后两场，以弱胜强。
+            字数：四个字
+            意思：合理安排自己的力量，用巧妙的策略以弱胜强。
+            出处类型：历史故事
+            故事主角：齐国的田忌和他的谋士孙膑
+            褒义还是贬义：褒义
+            什么时候用：班级比赛时巧妙安排谁先上场。
+            注意：它出自《史记》；他们和齐王比了三场，输一场赢两场。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：晋朝的车胤用纱袋装萤火虫照明，孙康借着雪地的反光，都在夜里刻苦读书。
+            字数：四个字
+            意思：形容家境贫苦，刻苦读书。
+            出处类型：历史故事
+            故事主角：晋朝的车胤和孙康两个穷学生
+            褒义还是贬义：褒义
+            什么时候用：赞美条件艰苦仍坚持学习的人。
+            注意：它合了两个人的故事；故事里有萤火虫这种小昆虫。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：东汉九岁的黄香夏天给父亲扇凉枕席，冬天先用身体把被子焐暖，再请父亲睡。
+            字数：四个字
+            意思：形容孝顺父母，体贴长辈。
+            出处类型：历史故事
+            故事主角：东汉九岁的黄香和他的父亲
+            褒义还是贬义：褒义
+            什么时候用：夸孩子懂得照顾爸爸妈妈。
+            注意：《三字经》里有“香九龄，能温席”；故事里没有动物。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：杞国有个人整天担心天会塌下来、地会陷下去，愁得吃不下饭，也睡不着觉。
+            字数：四个字
+            意思：比喻不必要或没有根据的担心。
+            出处类型：寓言
+            故事主角：杞国的一个人和开导他的人
+            褒义还是贬义：贬义
+            什么时候用：有人总担心根本不会发生的事。
+            注意：它出自《列子》；后来有人开导他，他才放下心来。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：鹬去啄蚌的肉，蚌夹住鹬的嘴，谁也不让谁，结果被路过的渔夫一起捉走了。
+            字数：四个字
+            意思：双方争执不下，结果让第三方占了便宜。
+            出处类型：寓言
+            故事主角：一只鹬鸟、一只河蚌和一个渔夫
+            褒义还是贬义：贬义
+            什么时候用：两个同学抢玩具，结果玩具被别人拿走了。
+            注意：它出自《战国策》；常和“（已隐藏）”连起来说。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p12
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：郑国人量好脚的尺码却忘了带，跑回家去取，回来集市已散，他宁信尺码也不用脚试。
+            字数：四个字
+            意思：比喻死守教条，不懂根据实际情况灵活处理。
+            出处类型：寓言
+            故事主角：郑国一个要买鞋的人
+            褒义还是贬义：贬义
+            什么时候用：有人只照着说明书做，一点也不看实际情况。
+            注意：它出自《韩非子》；履就是鞋子；故事里没有动物。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p13
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：八位神仙要渡过东海，他们不坐船，各自拿出自己的宝物，一起渡过了大海。
+            字数：四个字
+            意思：比喻各自拿出本领，互相比赛或一起完成任务。
+            出处类型：神话传说
+            故事主角：铁拐李、何仙姑等八位神仙
+            褒义还是贬义：褒义
+            什么时候用：大家各用各的办法完成同一件事。
+            注意：常说“（已隐藏），各显神通”；八位神仙里有一位是女的。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p14
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：木匠鲁班上山时手被带小齿的草叶划破，他受到启发，发明了能锯木头的锯子。
+            字数：四个字
+            意思：常用来说从身边的小事得到启发，发明新东西。
+            出处类型：民间故事
+            故事主角：古代巧匠鲁班
+            褒义还是贬义：褒义
+            什么时候用：讲发明创造的故事，鼓励孩子多观察。
+            注意：这是民间传说，不一定真的发生过；鲁班被尊为木匠的祖师。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p15
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：传说黄帝时的史官仓颉观察鸟兽留下的脚印，受到启发，创造出了最早的汉字。
+            字数：四个字
+            意思：中国古代关于汉字起源的传说。
+            出处类型：神话传说
+            故事主角：黄帝时的史官仓颉
+            褒义还是贬义：中性
+            什么时候用：给小朋友讲汉字是怎么来的。
+            注意：传说他有四只眼睛；汉字其实是很多人慢慢创造出来的。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：边塞老人的马跑了，他说未必是坏事，不久马带回一匹好马，之后祸福又接连转变。
+            字数：四个字
+            意思：坏事在一定条件下可以变成好事，好事也可能变成坏事。
+            出处类型：寓言
+            故事主角：住在边塞的一位老人和他的儿子
+            褒义还是贬义：中性
+            什么时候用：安慰遇到倒霉事的人，说不定会变成好事。
+            注意：它出自《淮南子》；儿子骑马摔伤了腿，后来反而因此躲过一场大难。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：越王勾践失败后睡在柴草上，每天尝一尝苦胆，提醒自己不忘耻辱，发愤图强。
+            字数：四个字
+            意思：形容人刻苦自励，下决心奋发图强。
+            出处类型：历史故事
+            故事主角：春秋时越国的国王勾践
+            褒义还是贬义：褒义
+            什么时候用：输了比赛后下决心苦练，准备下次赢回来。
+            注意：胆是动物的苦胆，非常苦；后来越国重新强大了起来。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：北宋的杨时和朋友去拜见老师程颐，见老师在打盹，就站在门外等，雪积了一尺深。
+            字数：四个字
+            意思：形容尊敬老师，诚心求学。
+            出处类型：历史故事
+            故事主角：北宋学者杨时、游酢和老师程颐
+            褒义还是贬义：褒义
+            什么时候用：赞美学生尊敬老师，虚心求教。
+            注意：等的是程颐，不是他的哥哥程颢；故事发生在下雪的冬天。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：北宋画家文与可种了满院竹子，天天观察，画竹子前心里早就有了竹子的样子。
+            字数：四个字
+            意思：做事之前已经有了全面的考虑和把握。
+            出处类型：历史故事
+            故事主角：北宋画家文与可，也叫文同
+            褒义还是贬义：褒义
+            什么时候用：考试前复习得很好，一点也不慌。
+            注意：这个说法来自苏轼写文与可画竹的文章；故事里没有动物。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：书法家王羲之在木板上写字，工人刻字时发现墨迹渗进木头里足足有三分深。
+            字数：四个字
+            意思：形容书法有力，也比喻分析问题很深刻。
+            出处类型：历史故事
+            故事主角：东晋书法家王羲之
+            褒义还是贬义：褒义
+            什么时候用：夸一篇文章把问题分析得很透彻。
+            注意：王羲之被称为书圣；故事里没有动物。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：在木匠祖师鲁班家门口摆弄斧头，比喻在行家面前卖弄本领，不自量力。
+            字数：四个字
+            意思：在行家面前卖弄本领，不自量力；也常用来自谦。
+            出处类型：诗文
+            故事主角：在鲁班门前摆弄斧头的人
+            褒义还是贬义：贬义
+            什么时候用：在书法老师面前写字时，谦虚地说自己献丑了。
+            注意：明代梅之涣写诗笑话在李白墓前题诗的人，就用了这个说法。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：楚国人把珍珠装进精美的木盒子去卖，郑国人买下了盒子，却把珍珠还给了他。
+            字数：四个字
+            意思：比喻没有眼光，取舍不当，只看外表不看内容。
+            出处类型：寓言
+            故事主角：卖珍珠的楚国人和买盒子的郑国人
+            褒义还是贬义：贬义
+            什么时候用：买书只为了好看的封面，却不读里面的内容。
+            注意：它出自《韩非子》；椟就是木匣子；故事里没有动物。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：燕国少年到赵国邯郸学当地人走路，没学会，反而忘了自己原来的走法，只好爬回家。
+            字数：四个字
+            意思：一味模仿别人，不但学不到本领，反而把原来会的也丢了。
+            出处类型：寓言
+            故事主角：燕国的一个少年
+            褒义还是贬义：贬义
+            什么时候用：盲目模仿别人，结果把自己的长处也丢了。
+            注意：它出自《庄子》；邯郸是赵国的都城，今天在河北。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：围棋高手弈秋教两个学生，一个用心听讲，另一个总想着射大雁，学得就差多了。
+            字数：四个字
+            意思：一心一意，把心思全放在一件事上。
+            出处类型：寓言
+            故事主角：围棋高手弈秋和他的两个学生
+            褒义还是贬义：褒义
+            什么时候用：夸人写作业时非常认真，一点也不走神。
+            注意：它出自《孟子》里的《学弈》；弈就是下围棋。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：有位客人把杯子里弓的倒影当成了蛇，吓出了病，知道真相以后，病马上就好了。
+            字数：四个字
+            意思：比喻疑神疑鬼，自己吓唬自己。
+            出处类型：历史故事
+            故事主角：晋朝的乐广和他的一位客人
+            褒义还是贬义：贬义
+            什么时候用：有人听到一点声音就紧张得不得了。
+            注意：杯子里并没有真的蛇，只是墙上挂的弓的倒影。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：伯牙弹琴时心里想着高山和流水，钟子期都能听出来，两个人成了知音好友。
+            字数：四个字
+            意思：比喻知己或知音，也比喻乐曲高妙。
+            出处类型：历史故事
+            故事主角：琴师伯牙和樵夫钟子期
+            褒义还是贬义：褒义
+            什么时候用：形容两个人特别懂对方，是真正的知心朋友。
+            注意：子期去世后，伯牙摔琴断弦，再也不弹琴了。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：伯乐看见一匹拉盐车的瘦马，一眼认出它是千里马，那匹马也仰起头长声嘶鸣。
+            字数：四个字
+            意思：比喻善于发现和推荐人才。
+            出处类型：历史故事
+            故事主角：春秋时擅长看马的伯乐和一匹千里马
+            褒义还是贬义：褒义
+            什么时候用：夸老师发现了学生的特长，好好培养他。
+            注意：伯乐是会看马的人，不是马；韩愈写过“世有伯乐，然后有千里马”。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p12
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：渔人顺着开满桃花的小溪找到一个村子，那里的人与世隔绝，生活得安宁快乐。
+            字数：四个字
+            意思：比喻不受外界影响的美好地方，或理想中的美好世界。
+            出处类型：诗文
+            故事主角：东晋武陵的一个渔人和村子里的人
+            褒义还是贬义：褒义
+            什么时候用：形容一个风景优美、安静美好的地方。
+            注意：出自陶渊明的《（已隐藏）记》；渔人后来再也没找到那里。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p13
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：月宫里的吴刚被罚砍一棵桂花树，可树每砍一斧就马上长好，他只好一直砍下去。
+            字数：四个字
+            意思：月亮上的神话，常用来比喻永远做不完的事。
+            出处类型：神话传说
+            故事主角：月宫里的吴刚和一棵桂花树
+            褒义还是贬义：中性
+            什么时候用：中秋节讲月亮上的神话故事。
+            注意：它出自唐代的《酉阳杂俎》；那棵桂树有五百丈高。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p14
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：小男孩骑着竹竿当马，绕着井栏摆弄青梅，和小女孩一起快快乐乐地长大。
+            字数：四个字
+            意思：形容小时候一起天真玩耍的好朋友。
+            出处类型：诗文
+            故事主角：一起长大的一个男孩和一个女孩
+            褒义还是贬义：褒义
+            什么时候用：说两个人从小就是一起玩的好朋友。
+            注意：出自李白的诗《长干行》；竹马是当马骑的竹竿，不是真马。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：楚国人以为举着螳螂藏身的叶子别人就看不见他，举着叶子去拿别人的东西，当场被抓住。
+            字数：四个字
+            意思：比喻被局部现象迷惑，看不到全局。
+            出处类型：寓言
+            故事主角：楚国一个穷书生
+            褒义还是贬义：贬义
+            什么时候用：只看到一点小问题，就忘了整件事。
+            注意：故事出自三国时的《笑林》；树叶根本藏不住人。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：齐庄公坐车外出，一只螳螂举起前腿想挡住车轮，庄公佩服它的勇气，让车绕开了它。
+            字数：四个字
+            意思：比喻不估量自己的力量，去做办不到的事。
+            出处类型：寓言
+            故事主角：一只螳螂和齐庄公的车
+            褒义还是贬义：贬义
+            什么时候用：说有人不自量力，偏要去做根本做不到的事。
+            注意：《庄子》里也用它打比方；故事里车绕开了，螳螂没有受伤。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：伯乐的儿子照着书里写的额头高、眼睛亮去找千里马，结果抓回来一只癞蛤蟆。
+            字数：四个字
+            意思：比喻按照线索寻找，也比喻办事死板、不知变通。
+            出处类型：寓言
+            故事主角：伯乐的儿子和一只癞蛤蟆
+            褒义还是贬义：中性
+            什么时候用：照着地图去找地方，或者说人做事太死板。
+            注意：骥就是好马；他找回来的是癞蛤蟆，不是马。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：大臣问国王：三个人都说集市上有老虎，您信不信？说明说的人多了，谣言也会被当真。
+            字数：四个字
+            意思：说的人多了，就能使人把谣言当成事实。
+            出处类型：历史故事
+            故事主角：魏国大臣庞葱和魏王
+            褒义还是贬义：贬义
+            什么时候用：提醒大家别轻易相信很多人在传的谣言。
+            注意：集市上并没有真老虎，老虎只是打比方；它出自《战国策》。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：大臣用一只三年不飞不叫的大鸟打比方劝国王，国王说这只鸟一叫就会让人吃惊。
+            字数：四个字
+            意思：比喻平时没有什么表现，一下子做出惊人的成绩。
+            出处类型：历史故事
+            故事主角：一位国王和劝他的大臣
+            褒义还是贬义：褒义
+            什么时候用：平时不起眼的同学在比赛中拿了第一名。
+            注意：故事里的大鸟只是打比方，并没有真的鸟；国王是齐威王或楚庄王。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：郭翰夜里遇见从天上下来的织女，发现她的衣服没有一条缝，原来仙衣不用针线缝。
+            字数：四个字
+            意思：比喻事物完美自然，没有一点破绽。
+            出处类型：神话传说
+            故事主角：唐朝人郭翰和天上的织女
+            褒义还是贬义：褒义
+            什么时候用：夸大家配合得特别好，一点差错都没有。
+            注意：它出自古代志怪书《灵怪录》；这里的织女是天上的仙女。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：神仙用手指一点，石头就变成了金子，有个贪心的人却不要金子，只想要那根手指。
+            字数：四个字
+            意思：比喻把不好的东西变好，常指修改文章让它变得出色。
+            出处类型：神话传说
+            故事主角：一位神仙和一个贪心的人
+            褒义还是贬义：褒义
+            什么时候用：老师改了一个词，整篇作文立刻变好了。
+            注意：这是神仙传说；贪心的人最后什么也没得到。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：北海有条大鱼变成一只大鸟，翅膀像天边的云，一飞就是九万里。
+            字数：四个字
+            意思：比喻前程远大，常用来祝福别人。
+            出处类型：寓言
+            故事主角：大鱼变成的大鹏鸟
+            褒义还是贬义：褒义
+            什么时候用：毕业时祝同学前程远大。
+            注意：出自《庄子·逍遥游》；大鹏是传说中的大鸟，由大鱼鲲变来。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：养猴人说早上给三颗橡子、晚上给四颗，猴子们都生气；改成早四晚三，它们就高兴了。
+            字数：四个字
+            意思：原指用花招骗人，现在多指反复无常，主意常变。
+            出处类型：寓言
+            故事主角：一个养猴子的老人和一群猴子
+            褒义还是贬义：贬义
+            什么时候用：有人一会儿喜欢这个，一会儿又喜欢那个。
+            注意：出自《庄子》和《列子》；其实每天给的总数都是七颗。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：秋天河水上涨，河神河伯很得意，到了北海看见无边的大海，才感叹自己渺小。
+            字数：四个字
+            意思：比喻做事时因力量不够或条件不足而感到无可奈何。
+            出处类型：寓言
+            故事主角：黄河的河神河伯和北海的海神
+            褒义还是贬义：中性
+            什么时候用：看到太贵的玩具，只能叹口气买不起。
+            注意：出自《庄子·秋水》；望洋原来是抬头仰视的样子，不是看海洋。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：路边李树结满果子，小伙伴都去摘，七岁的王戎说树长在路边还没人摘，一定是苦的。
+            字数：四个字
+            意思：比喻被人丢在一边、没有用处的东西；也夸人会推理。
+            出处类型：历史故事
+            故事主角：七岁的王戎和一群小伙伴
+            褒义还是贬义：中性
+            什么时候用：讲王戎聪明推理的故事，或说没人要的东西。
+            注意：出自《世说新语》；课本里的故事叫《王戎不取道旁李》。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：泉水干了，几条鱼困在地上，互相吐出唾沫把对方弄湿，一起坚持下去。
+            字数：四个字
+            意思：比喻在困难中用微薄的力量互相帮助。
+            出处类型：寓言
+            故事主角：泉水干涸后困在地上的几条鱼
+            褒义还是贬义：褒义
+            什么时候用：形容一家人在困难时互相扶持。
+            注意：出自《庄子》；后面一句是“不如相忘于江湖”。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p12
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：子路和冉有问了孔子同一个问题，孔子却给了相反的回答，因为两个学生的性格不一样。
+            字数：四个字
+            意思：根据每个学生的不同情况，用不同的方法教育。
+            出处类型：历史故事
+            故事主角：孔子和他的学生子路、冉有
+            褒义还是贬义：褒义
+            什么时候用：夸老师会根据每个同学的特点来教。
+            注意：故事出自《论语》，这四个字是后人总结出来的。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p13
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：欧阳修小时候家里穷，买不起纸笔，母亲就用荻草秆在地上写字教他读书。
+            字数：四个字
+            意思：形容母亲教子有方，家境贫寒也重视教育。
+            出处类型：历史故事
+            故事主角：北宋欧阳修和他的母亲郑氏
+            褒义还是贬义：褒义
+            什么时候用：赞美妈妈在困难中仍用心教孩子学习。
+            注意：荻是一种长在水边、像芦苇的草；欧阳修后来成了大文学家。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p14
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：有人丢了斧头，怀疑是邻居的儿子偷的，越看越像；后来找到了斧头，再看又不像了。
+            字数：四个字
+            意思：比喻不从实际出发，凭主观猜疑别人。
+            出处类型：寓言
+            故事主角：丢了斧头的人和邻居家的儿子
+            褒义还是贬义：贬义
+            什么时候用：提醒别人不要随便怀疑同学拿了自己的东西。
+            注意：出自《列子》；斧头是自己丢在山谷里的，邻居没有偷。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：歌女韩娥路过齐国时唱歌换饭吃，她走后三天，歌声好像还绕着房梁没有散去。
+            字数：四个字
+            意思：形容歌声或音乐优美，让人久久难忘。
+            出处类型：历史故事
+            故事主角：古代擅长唱歌的女子韩娥
+            褒义还是贬义：褒义
+            什么时候用：夸一场音乐会好听得让人忘不了。
+            注意：出自《列子》；梁是房顶下的大横梁。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：仙女麻姑说，她已经三次看见东海变成了桑田，蓬莱附近的海水也比从前浅了。
+            字数：四个字
+            意思：比喻世界上的事情变化很大。
+            出处类型：神话传说
+            故事主角：仙女麻姑和神仙王方平
+            褒义还是贬义：中性
+            什么时候用：回到小时候住的地方，发现一切都变了样。
+            注意：出自晋代葛洪的《神仙传》；桑田是种桑树的田地。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：庄子梦见自己变成一只蝴蝶，醒来后分不清是自己梦见了蝴蝶，还是蝴蝶梦见了自己。
+            字数：四个字
+            意思：比喻人生如梦，也用来思考梦和现实的区别。
+            出处类型：寓言
+            故事主角：思想家庄子和一只蝴蝶
+            褒义还是贬义：中性
+            什么时候用：做了一个很真的梦，醒来一时分不清。
+            注意：出自《庄子·齐物论》；庄子的名字叫庄周。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：穷书生卢生枕着仙人给的枕头睡着，梦里过了富贵的一生，醒来小米饭还没煮熟。
+            字数：四个字
+            意思：比喻不能实现的美好愿望，好事像梦一样一下子就没了。
+            出处类型：诗文
+            故事主角：书生卢生和仙人吕翁
+            褒义还是贬义：贬义
+            什么时候用：说有人一心想发大财，结果只是空想。
+            注意：出自唐代小说《枕中记》；黄粱就是黄小米。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：画家顾恺之吃甘蔗总从梢头吃起，别人觉得奇怪，他说这样越吃越甜，越来越好。
+            字数：四个字
+            意思：比喻情况越来越好，或兴趣越来越浓。
+            出处类型：历史故事
+            故事主角：东晋画家顾恺之
+            褒义还是贬义：褒义
+            什么时候用：学钢琴越学越有意思，越弹越好。
+            注意：出自《晋书》和《世说新语》；甘蔗靠近根的部分比梢头甜。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：孟子逃学回家，母亲拿刀割断正在织的布，告诉他半途而废就像断了的布一样没用。
+            字数：四个字
+            意思：比喻做事不能半途而废，也赞美母亲教子有方。
+            出处类型：历史故事
+            故事主角：孟子的母亲和小时候的孟子
+            褒义还是贬义：褒义
+            什么时候用：劝人学东西不要学到一半就放弃。
+            注意：出自西汉刘向的《列女传》；机就是织布机。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：西晋的左思写成《三都赋》，人人争着抄写，京城的纸一下子变得很贵。
+            字数：四个字
+            意思：形容一部作品写得好，流传很广。
+            出处类型：历史故事
+            故事主角：西晋文学家左思
+            褒义还是贬义：褒义
+            什么时候用：一本新书特别受欢迎，书店都卖光了。
+            注意：出自《晋书》；当时还没有印刷术，大家都用纸抄写。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：南朝的江淹年轻时文章写得好，传说他梦见有人要回一支五彩笔，从此再也写不出好文章。
+            字数：四个字
+            意思：比喻才思减退，再也写不出好作品。
+            出处类型：历史故事
+            故事主角：南朝文学家江淹
+            褒义还是贬义：贬义
+            什么时候用：形容以前很会写作的人，后来写不出好东西了。
+            注意：出自《南史》；梦里要回五彩笔的人自称郭璞。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：孔子晚年爱读《易经》，一遍又一遍地翻看，把串竹简的皮绳都磨断了好几次。
+            字数：四个字
+            意思：形容读书非常勤奋刻苦。
+            出处类型：历史故事
+            故事主角：晚年的孔子
+            褒义还是贬义：褒义
+            什么时候用：夸人把一本书读了一遍又一遍。
+            注意：出自《史记》；那时的书是用皮绳串起来的竹简。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：东汉的梁鸿做工回家，妻子孟光端饭时总把托盘举得和眉毛一样高，表示敬重。
+            字数：四个字
+            意思：形容夫妻互相尊敬，恩爱和睦。
+            出处类型：历史故事
+            故事主角：东汉的梁鸿和妻子孟光
+            褒义还是贬义：褒义
+            什么时候用：夸爷爷奶奶几十年来一直互相尊重。
+            注意：出自《后汉书》；案是古代端饭用的有脚托盘，不是桌子。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：齐王听了邹忌的劝告，下令欢迎大家提意见，来进言的人多得王宫门前像集市一样。
+            字数：四个字
+            意思：形容来的人很多，非常热闹。
+            出处类型：历史故事
+            故事主角：齐国大臣邹忌和齐威王
+            褒义还是贬义：中性
+            什么时候用：新开的书店门口挤满了人。
+            注意：出自《战国策》；邹忌先拿自己和美男子徐公比美来打比方。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：管宁和华歆同坐一张席子读书，华歆总被金子和大官的车马吸引，管宁就割开席子分开坐。
+            字数：四个字
+            意思：比喻和志向不同的朋友断绝来往。
+            出处类型：历史故事
+            故事主角：东汉末年的管宁和华歆
+            褒义还是贬义：中性
+            什么时候用：说两个朋友因为想法差别太大而不再来往。
+            注意：出自《世说新语》；席是古人坐的草席。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p12
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：六岁的陆绩去别人家做客，把招待他的橘子藏在怀里，说要带回去给母亲尝尝。
+            字数：四个字
+            意思：形容孩子孝顺，心里总想着父母。
+            出处类型：历史故事
+            故事主角：东汉末年六岁的陆绩和他的母亲
+            褒义还是贬义：褒义
+            什么时候用：孩子吃到好吃的，先想着留给爸爸妈妈。
+            注意：出自《三国志》；橘子掉出来后，他才说出原因。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p13
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：吕不韦把编好的书挂在城门口，说谁能增删一个字就赏千金，结果没有人能改。
+            字数：四个字
+            意思：形容文章写得好，一个字也不能改动。
+            出处类型：历史故事
+            故事主角：秦国丞相吕不韦和他主持编的书
+            褒义还是贬义：褒义
+            什么时候用：夸一篇文章写得精彩，每个字都恰到好处。
+            注意：出自《史记》；那部书叫《吕氏春秋》。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：传说淮南王刘安吃了仙药成仙飞走，家里的鸡和狗吃了剩下的仙药，也跟着飞上了天。
+            字数：四个字
+            意思：比喻一个人得势，和他有关系的人也跟着沾光。
+            出处类型：神话传说
+            故事主角：西汉淮南王刘安和他家的鸡、狗
+            褒义还是贬义：贬义
+            什么时候用：批评有人当了官，亲戚朋友也跟着占便宜。
+            注意：出自晋代葛洪的《神仙传》；常说“一人得道，（已隐藏）”。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：淳于棼在槐树下睡着，梦见自己在大槐安国做官，醒来发现那只是树下的蚂蚁窝。
+            字数：四个字
+            意思：比喻一场空欢喜，美好的事像梦一样落空。
+            出处类型：诗文
+            故事主角：唐代小说里的淳于棼和一窝蚂蚁
+            褒义还是贬义：中性
+            什么时候用：梦见自己中了大奖，醒来发现是一场空。
+            注意：出自唐代李公佐的小说；梦里的大槐安国其实是一个蚂蚁国。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：孙山考了最后一名回乡，同乡问儿子考上没有，他说儿子的名字还在孙山的后面。
+            字数：四个字
+            意思：指考试或选拔没有被录取。
+            出处类型：历史故事
+            故事主角：宋代读书人孙山和他同乡的儿子
+            褒义还是贬义：中性
+            什么时候用：委婉地说某人这次没有考上。
+            注意：出自宋代的《过庭录》；孙山自己考上了，只是最后一名。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：东汉书法家张芝天天在池塘边练字，用池水洗笔洗砚，时间长了整个池塘的水都黑了。
+            字数：四个字
+            意思：形容刻苦练习书法。
+            出处类型：历史故事
+            故事主角：东汉书法家张芝
+            褒义还是贬义：褒义
+            什么时候用：夸人每天坚持练毛笔字。
+            注意：张芝被称为草圣；民间也流传王羲之洗笔的墨池的故事。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：下大雪时谢安问像什么，侄子说像撒盐，侄女谢道韫说像柳絮随风飞起，大家都夸她。
+            字数：四个字
+            意思：称赞女子有写诗作文的才华。
+            出处类型：历史故事
+            故事主角：东晋才女谢道韫和她的叔叔谢安
+            褒义还是贬义：褒义
+            什么时候用：夸一个女孩很会写诗、写作文。
+            注意：出自《世说新语》；她说的句子是“未若柳絮因风起”。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：门客冯谖替孟尝君烧掉百姓的欠债契约，又办成两件事，说聪明的兔子要有三个洞才安全。
+            字数：四个字
+            意思：比喻藏身的地方多，或者给自己准备好几条退路。
+            出处类型：历史故事
+            故事主角：战国时的孟尝君和他的门客冯谖
+            褒义还是贬义：贬义
+            什么时候用：说一个人做事总给自己留好几条后路。
+            注意：出自《战国策》；兔子只是打比方，故事主角是人，没有真兔子。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：诗人齐己写早梅说“昨夜数枝开”，郑谷把“数枝”改成“一枝”，齐己便拜郑谷为师。
+            字数：四个字
+            意思：指改正一个字就能让人受益的老师。
+            出处类型：历史故事
+            故事主角：唐末诗人齐己和郑谷
+            褒义还是贬义：褒义
+            什么时候用：同学帮我改了作文里的一个词，我叫他小老师。
+            注意：这个故事被好几部古书记载；诗写的是早开的梅花。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：相传白居易写好诗，先念给一位老奶奶听，她听懂了才定稿，听不懂就再改。
+            字数：四个字
+            意思：形容诗文通俗易懂，人人都能看懂。
+            出处类型：历史故事
+            故事主角：唐代诗人白居易和一位老奶奶
+            褒义还是贬义：褒义
+            什么时候用：夸一篇文章写得浅显易懂。
+            注意：这是宋代人记下的传说；老妪就是老妇人。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：李白年轻时梦见自己用的毛笔笔头上开出了花，后来他才思敏捷，写出了很多好诗。
+            字数：四个字
+            意思：比喻文思大进，写作才能很高。
+            出处类型：历史故事
+            故事主角：唐代诗人李白
+            褒义还是贬义：褒义
+            什么时候用：夸人的作文写得越来越好。
+            注意：出自五代的《开元天宝遗事》，是关于李白的传说。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：郗鉴派人到王家挑女婿，别人都很拘谨，只有王羲之敞着肚子躺在东边床上，被选中了。
+            字数：四个字
+            意思：称赞令人满意的女婿。
+            出处类型：历史故事
+            故事主角：东晋书法家王羲之和大臣郗鉴
+            褒义还是贬义：褒义
+            什么时候用：夸别人家的女婿很优秀。
+            注意：出自《世说新语》；床在这里是古人坐卧的榻。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：鲍叔牙了解好友管仲的难处，一起做生意时多分钱给他，还把他推荐给了齐桓公。
+            字数：四个字
+            意思：形容朋友之间彼此信任，友谊深厚。
+            出处类型：历史故事
+            故事主角：春秋时齐国的管仲和鲍叔牙
+            褒义还是贬义：褒义
+            什么时候用：形容两个好朋友互相信任、互相理解。
+            注意：出自《史记》；管仲说“生我者父母，知我者鲍子也”。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：相传宋太宗在大雪天想到穷人没有柴火取暖，就派人给他们送去木炭和米。
+            字数：四个字
+            意思：比喻在别人急需的时候给予帮助。
+            出处类型：历史故事
+            故事主角：宋太宗和大雪天里挨冻的穷人
+            褒义还是贬义：褒义
+            什么时候用：同学忘带伞时，你把伞借给他。
+            注意：宋代范成大的诗里也有这个说法；它和锦上添花意思相对。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p12
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：集市上有位卖药的老人挂着一个葫芦，治好了很多人的病，天黑后就跳进葫芦里不见了。
+            字数：四个字
+            意思：称赞医生行医救人。
+            出处类型：神话传说
+            故事主角：卖药的仙人壶公和看见他的费长房
+            褒义还是贬义：褒义
+            什么时候用：赞美医生治病救人。
+            注意：出自《后汉书》；壶就是葫芦，古代药铺常挂葫芦当招牌。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p13
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：孔子的学生子路小时候家里穷，常从百里外背米回家，给父母做饭吃。
+            字数：四个字
+            意思：形容孝顺父母，不怕辛苦。
+            出处类型：历史故事
+            故事主角：孔子的学生子路和他的父母
+            褒义还是贬义：褒义
+            什么时候用：夸孩子为了照顾父母不怕吃苦。
+            注意：出自《孔子家语》；它是古代二十四孝故事之一。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：宋玉对楚王说，唱通俗的歌有几千人跟着唱，唱最高深的曲子，能跟着唱的只剩几个人。
+            字数：四个字
+            意思：比喻作品或言论太高深，能理解的人很少。
+            出处类型：诗文
+            故事主角：战国时楚国文学家宋玉和楚王
+            褒义还是贬义：中性
+            什么时候用：一首很深奥的曲子，听得懂的人很少。
+            注意：出自宋玉的《对楚王问》；阳春白雪也出自这个故事。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：樵夫王质上山砍柴，看几个童子下棋，才看了一会儿，斧头柄已经烂了，回村时熟人都不在了。
+            字数：四个字
+            意思：比喻世事变化很大，时间过得飞快。
+            出处类型：神话传说
+            故事主角：晋代樵夫王质和下棋的仙童
+            褒义还是贬义：中性
+            什么时候用：感叹时间过得好快，一切都变了。
+            注意：出自南朝的《述异记》；柯是斧头的木柄。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：杨子的邻居丢了一只羊，很多人去追，可岔路里又有岔路，最后还是没找到。
+            字数：四个字
+            意思：比喻事情复杂多变，没有正确方向就会迷失。
+            出处类型：寓言
+            故事主角：杨子和他丢了羊的邻居
+            褒义还是贬义：中性
+            什么时候用：学东西贪多、方向太多，反而什么都没学好。
+            注意：出自《列子》；杨子是战国思想家杨朱。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：薛谭以为学完唱歌要走，老师秦青送别时唱了一曲，歌声让天上的云都停住了，他便留下再学。
+            字数：四个字
+            意思：形容歌声嘹亮动听，也比喻学无止境。
+            出处类型：历史故事
+            故事主角：学唱歌的薛谭和他的老师秦青
+            褒义还是贬义：褒义
+            什么时候用：夸人唱歌嗓音嘹亮，特别好听。
+            注意：出自《列子》；遏就是阻止、挡住。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：十岁的孔融机智应答，有人说他小时聪明长大未必好，他回嘴说那您小时候一定很聪明。
+            字数：四个字
+            意思：指人小时候很聪明，常接“大未必佳”。
+            出处类型：历史故事
+            故事主角：十岁的孔融和大人陈韪
+            褒义还是贬义：中性
+            什么时候用：提醒小时候聪明的人，长大也要继续努力。
+            注意：出自《世说新语》；了了就是聪明、明白。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：西汉学者董仲舒专心读书讲学，家里有花园，他三年都没有去看过一眼。
+            字数：四个字
+            意思：形容专心致志，埋头苦读。
+            出处类型：历史故事
+            故事主角：西汉学者董仲舒
+            褒义还是贬义：褒义
+            什么时候用：夸人为了学习连玩的时间都不要了。
+            注意：出自《汉书》；他挂着帷幕给学生讲课。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：下雪夜王徽之想念朋友戴逵，坐了一夜船去看他，到门口却转身回去，说兴致已经没了。
+            字数：四个字
+            意思：趁着一时的兴致来到，常接“兴尽而返”。
+            出处类型：历史故事
+            故事主角：东晋的王徽之和他的朋友戴逵
+            褒义还是贬义：中性
+            什么时候用：一时兴起去做一件事，玩够了就走。
+            注意：出自《世说新语》；王徽之是王羲之的儿子；他最后没进门见戴逵。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：翟公做大官时客人挤满门口，丢了官以后，门口冷清得可以张网捉麻雀。
+            字数：四个字
+            意思：形容来的人很少，非常冷清。
+            出处类型：历史故事
+            故事主角：西汉的翟公和他家的客人
+            褒义还是贬义：中性
+            什么时候用：形容一家店生意冷清，没什么人来。
+            注意：出自《史记》；和门庭若市的意思相反。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：名医董奉给人看病不收钱，只请治好的人种几棵杏树，几年后长成了一大片杏林。
+            字数：四个字
+            意思：赞美医生医术高明，医德高尚。
+            出处类型：神话传说
+            故事主角：三国时的名医董奉
+            褒义还是贬义：褒义
+            什么时候用：给好医生送锦旗时的赞美话。
+            注意：出自葛洪的《神仙传》；重病治好的种五棵，轻病的种一棵。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：庄子向人借粮，那人说以后再借，庄子就讲了车辙里一条鱼只求一点水救命的故事。
+            字数：四个字
+            意思：比喻处在困境中、急需帮助的人。
+            出处类型：寓言
+            故事主角：庄子、监河侯和庄子故事里的一条鲫鱼
+            褒义还是贬义：中性
+            什么时候用：说有人正处在困境里，急需一点帮助。
+            注意：出自《庄子》；鲋就是鲫鱼；鱼是庄子讲的故事里的角色。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：苏麟写诗提醒范仲淹，靠近水边的楼台先照到月光，范仲淹明白后也推荐了他。
+            字数：四个字
+            意思：比喻因为靠得近，就能先得到好处。
+            出处类型：诗文
+            故事主角：北宋的范仲淹和苏麟
+            褒义还是贬义：中性
+            什么时候用：住在学校旁边的同学总是最早到校。
+            注意：出自宋代的《清夜录》；完整的诗句还有“向阳花木易为春”。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：少年杨宝救了一只受伤的黄雀，养好后放飞，后来黄衣童子送来四枚白玉环报答他。
+            字数：四个字
+            意思：比喻知恩图报。
+            出处类型：神话传说
+            故事主角：汉朝时九岁的杨宝和一只黄雀
+            褒义还是贬义：褒义
+            什么时候用：说受到别人帮助的人要记得报答。
+            注意：出自《续齐谐记》；常和结草连起来说成结草衔环。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p12
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：北宋诗人林逋隐居西湖孤山，不做官也不娶妻，种梅花养仙鹤，好像梅是妻子、鹤是孩子。
+            字数：四个字
+            意思：比喻清高隐居、爱好自然的生活。
+            出处类型：历史故事
+            故事主角：北宋隐居的诗人林逋
+            褒义还是贬义：褒义
+            什么时候用：形容一个人隐居山林，种花养鸟，自得其乐。
+            注意：他写过咏梅名句“疏影横斜水清浅”；故事里有鸟也有花。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：元方和季方的儿子争论谁的父亲更好，祖父陈寔说两人都好，难分哪个做哥哥、弟弟更好。
+            字数：四个字
+            意思：原指兄弟俩都很好，难分高下；现在多指处境相同的人。
+            出处类型：历史故事
+            故事主角：东汉的陈寔和他的儿子元方、季方
+            褒义还是贬义：中性
+            什么时候用：开玩笑说两个一起被罚站的同学。
+            注意：出自《世说新语》；原来是夸兄弟都好，意思和今天的用法不一样。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：客人劝主人把烟囱改弯、柴草搬远，主人不听，后来家里失火了，他也没感谢那位客人。
+            字数：四个字
+            意思：比喻事先采取措施，防止灾祸发生。
+            出处类型：历史故事
+            故事主角：一位提建议的客人和一户人家
+            褒义还是贬义：褒义
+            什么时候用：提前检查电线，防止发生危险。
+            注意：出自《汉书》，是有人上书劝皇帝防患于未然时讲的故事。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：司马光用一段圆木头当枕头，一翻身木头就滚动把他惊醒，他就起来接着读书。
+            字数：四个字
+            意思：形容刻苦学习，珍惜时间。
+            出处类型：历史故事
+            故事主角：北宋史学家司马光
+            褒义还是贬义：褒义
+            什么时候用：讲古人刻苦读书、珍惜时间的故事。
+            注意：出自宋代范祖禹的文章；他后来编写了《资治通鉴》。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：同族的王忱以为王恭从会稽带回很多竹席，想要一张，王恭把自己坐的那张给了他，自己改坐草垫。
+            字数：四个字
+            意思：除了自身以外没有多余的东西，形容贫穷或俭朴。
+            出处类型：历史故事
+            故事主角：东晋的王恭和同族的王忱
+            褒义还是贬义：中性
+            什么时候用：形容一个人很简朴，家里没有多余的东西。
+            注意：出自《世说新语》；长在这里读zhàng，是多余的意思。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：范仲淹年轻时借住在山里苦读，每天煮一锅粥，冷了划成四块，早晚各吃两块，配点咸菜。
+            字数：四个字
+            意思：形容生活贫苦，仍然刻苦读书。
+            出处类型：历史故事
+            故事主角：年轻时的北宋名臣范仲淹
+            褒义还是贬义：褒义
+            什么时候用：讲古人在艰苦条件下坚持读书。
+            注意：出自宋代的《湘山野录》；齑是切碎的咸菜。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：谢灵运说，天下的才华一共一石，曹植一个人就占了八斗，他自己占一斗，其余的人分一斗。
+            字数：四个字
+            意思：形容人很有才华。
+            出处类型：历史故事
+            故事主角：南朝诗人谢灵运和他夸奖的曹植
+            褒义还是贬义：褒义
+            什么时候用：夸一个人学问好，文采出众。
+            注意：石和斗是古代的容量单位，十斗是一石。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：老莱子七十岁了，还穿上五彩的衣服，学小孩子玩耍，逗年老的父母开心。
+            字数：四个字
+            意思：形容孝顺父母，想办法让父母高兴。
+            出处类型：历史故事
+            故事主角：春秋时楚国的老莱子和他的父母
+            褒义还是贬义：褒义
+            什么时候用：夸孩子给爸爸妈妈表演节目，逗他们开心。
+            注意：它是二十四孝故事之一；老莱子自己已经是老人了。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：萧史擅长吹箫，秦穆公的女儿弄玉嫁给他，两人吹箫引来凤凰，后来乘着凤凰飞走了。
+            字数：四个字
+            意思：比喻夫妻美满，也形容乐声美妙。
+            出处类型：神话传说
+            故事主角：会吹箫的萧史和公主弄玉
+            褒义还是贬义：褒义
+            什么时候用：形容一对夫妻都喜欢音乐，生活美满。
+            注意：出自西汉刘向的《列仙传》；箫是一种竖着吹的竹管乐器。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：合浦的官员乱采珍珠，珠蚌都迁走了；孟尝来了以后改掉坏规矩，珍珠又回到了合浦。
+            字数：四个字
+            意思：比喻失去的东西又回来了，或离开的人又回来了。
+            出处类型：历史故事
+            故事主角：东汉的合浦太守孟尝和海里的珠蚌
+            褒义还是贬义：褒义
+            什么时候用：丢了很久的东西又找回来了。
+            注意：出自《后汉书》；这里的孟尝不是战国的孟尝君。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：阮籍见到不喜欢的人就翻白眼，见到嵇康来访，就高兴地用黑眼珠正眼看他。
+            字数：四个字
+            意思：形容对人特别看重或喜爱。
+            出处类型：历史故事
+            故事主角：魏晋诗人阮籍和他的朋友嵇康
+            褒义还是贬义：褒义
+            什么时候用：老师对一个认真的学生特别看重。
+            注意：出自《晋书》；青眼就是黑眼珠，白眼表示看不起。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：冬天孟宗的母亲生病想吃竹笋，他到竹林里伤心地哭，地上竟然冒出了竹笋。
+            字数：四个字
+            意思：形容孝心感动天地。
+            出处类型：神话传说
+            故事主角：三国时吴国的孟宗和他的母亲
+            褒义还是贬义：褒义
+            什么时候用：讲古代孝顺父母的故事。
+            注意：它是二十四孝故事之一；冬天本来很难长出竹笋。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：庄子说他的朋友惠施懂得很多学问，读的书多得能装满五辆车。
+            字数：四个字
+            意思：形容读书多，学问大。
+            出处类型：历史故事
+            故事主角：战国思想家惠施
+            褒义还是贬义：褒义
+            什么时候用：夸一位爷爷读过很多书，学问很大。
+            注意：出自《庄子·天下》；那时的书是竹简，又重又占地方。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p12
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：使者缅伯高给唐太宗送天鹅，路上天鹅飞走了，只留下一根羽毛，他就献上羽毛并写了诗。
+            字数：四个字
+            意思：礼物虽轻，情意却很深厚。
+            出处类型：民间故事
+            故事主角：唐朝时远道而来的使者缅伯高
+            褒义还是贬义：褒义
+            什么时候用：送给朋友一张亲手画的卡片时说。
+            注意：常说“（已隐藏），礼轻情意重”；飞走的是一只白天鹅。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：郢人夜里写信时对仆人说举烛，顺手写进了信里，燕国宰相把它理解成崇尚光明、任用贤人。
+            字数：四个字
+            意思：比喻牵强附会，曲解原意。
+            出处类型：寓言
+            故事主角：楚国郢都写信的人和燕国的宰相
+            褒义还是贬义：贬义
+            什么时候用：有人把别人的话理解歪了，还说得头头是道。
+            注意：出自《韩非子》；燕国照这个理解去做，国家反而治理好了。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：尧想把天下让给许由，许由说厨师不做饭，主持祭祀的人也不会放下祭器去替他做饭。
+            字数：四个字
+            意思：比喻超出自己的职责范围，去做别人该做的事。
+            出处类型：寓言
+            故事主角：传说中的帝王尧和隐士许由
+            褒义还是贬义：贬义
+            什么时候用：班长替老师给同学打分，就是管了不该管的事。
+            注意：出自《庄子·逍遥游》；俎是祭祀时放肉的器具，庖是厨师。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：楚王派人请庄子做官，庄子说乌龟宁愿活着在泥里拖着尾巴爬，也不愿被供在庙堂上。
+            字数：四个字
+            意思：比喻宁愿过自由自在的平凡生活，也不去做官受约束。
+            出处类型：寓言
+            故事主角：庄子和楚王派来的两位大夫
+            褒义还是贬义：中性
+            什么时候用：说一个人不在乎名利，只想自由自在地生活。
+            注意：出自《庄子·秋水》；庄子当时正在濮水边钓鱼；乌龟是他打的比方。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：庄子和惠子在濠水桥上看鱼，庄子说鱼很快乐，惠子问他不是鱼，怎么知道鱼快乐。
+            字数：四个字
+            意思：指庄子和惠子关于能不能知道鱼快乐的辩论。
+            出处类型：寓言
+            故事主角：庄子和他的朋友惠子
+            褒义还是贬义：中性
+            什么时候用：两个人争论一个问题，各有各的道理。
+            注意：出自《庄子·秋水》；故事里的鱼是真的在水里游的鱼。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：宋国丁家打了一口井，说得到一个人，意思是省下一个人力，却被传成从井里挖出一个人。
+            字数：四个字
+            意思：比喻传言容易失真，听到的话要调查清楚。
+            出处类型：寓言
+            故事主角：宋国的丁家和听到传言的国君
+            褒义还是贬义：中性
+            什么时候用：一句话传来传去，意思全变了。
+            注意：出自《吕氏春秋》；井里其实并没有挖出人来。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：做车轮的轮扁对齐桓公说，做轮子的窍门只能自己体会，没法写进书里。
+            字数：四个字
+            意思：比喻经验丰富、技艺纯熟的人。
+            出处类型：寓言
+            故事主角：做车轮的工匠轮扁和齐桓公
+            褒义还是贬义：褒义
+            什么时候用：夸做了几十年菜的老厨师手艺高超。
+            注意：出自《庄子·天道》；斫就是砍削。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：陶侃家里穷，朋友来访没钱招待，他的母亲剪下长发卖掉换来米，热情地留客人住下。
+            字数：四个字
+            意思：形容热情好客，真心待客。
+            出处类型：历史故事
+            故事主角：东晋陶侃的母亲湛氏和客人范逵
+            褒义还是贬义：褒义
+            什么时候用：形容主人家条件不好，也尽心招待客人。
+            注意：出自《世说新语》；她还把草垫剁碎，拿来喂客人的马。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：满奋怕风，坐在琉璃屏风后还发抖，他说自己像吴地的牛，被太阳晒怕了，看见月亮也喘气。
+            字数：四个字
+            意思：比喻因为吃过苦头，见到相似的东西就害怕。
+            出处类型：历史故事
+            故事主角：西晋大臣满奋和晋武帝
+            褒义还是贬义：中性
+            什么时候用：被狗吓过的人，看见小狗玩具也紧张。
+            注意：出自《世说新语》；牛只是满奋打的比方，故事里并没有真的牛。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：范式和好友张劭约好两年后去他家做客，到了那天，张劭准备好饭菜等候，范式果然准时来了。
+            字数：四个字
+            意思：比喻朋友之间守信用，情谊深厚。
+            出处类型：历史故事
+            故事主角：东汉的范式和他的好朋友张劭
+            褒义还是贬义：褒义
+            什么时候用：形容好朋友说到做到，按时赴约。
+            注意：出自《后汉书》；黍就是黄米；张劭的母亲起初不相信范式会来。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：读书人公沙穆没钱，去给吴祐家舂米干活，吴祐和他聊天后十分佩服，两人成了好朋友。
+            字数：四个字
+            意思：比喻不计较贫富和身份的朋友。
+            出处类型：历史故事
+            故事主角：东汉的公沙穆和吴祐
+            褒义还是贬义：褒义
+            什么时候用：形容两个身份不同，却真心相待的朋友。
+            注意：出自《后汉书》；杵和臼是舂米用的木棒和石臼。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：西汉的倪宽家里穷，给人做工种地时把经书带在身边，一休息就拿出来读。
+            字数：四个字
+            意思：形容一边劳动一边刻苦学习。
+            出处类型：历史故事
+            故事主角：西汉的倪宽，也写作兒宽
+            褒义还是贬义：褒义
+            什么时候用：夸人工作再忙也抽时间学习。
+            注意：出自《汉书》；他后来当上了御史大夫。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：楚国大夫请一个齐国人教儿子说齐国话，可周围很多楚国人整天吵闹，儿子怎么也学不会。
+            字数：四个字
+            意思：比喻学习或做事时受到干扰，难有成效。
+            出处类型：寓言
+            故事主角：一位楚国大夫的儿子和他的齐国老师
+            褒义还是贬义：中性
+            什么时候用：一边写作业一边被电视吵，怎么也学不进去。
+            注意：出自《孟子》；傅是老师，咻是吵闹。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: build-host-prompt
+        type: prompt
+        inputs:
+          safety_fence:
+            from: input.safety_fence
+          history:
+            from: input.messages
+          direction:
+            from: game-direction
+        outputs:
+          messages: host-messages
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            你是儿童猜谜游戏“猜猜成语故事”的主持人。玩法：主持人心里藏着一个成语故事，孩子用能回答“是”或“不是”的问题来猜，每一题最多 20 次提问；猜中就升一关，一共 10 关，关名从“成语小萌新”一直到“成语大宗师”。孩子可能说中文，也可能说英文。
+            你不知道谜底的名字。需要回答孩子的问题时，系统会在【谜底卡】里给你这一题的资料，谜底的名字已经隐藏，你也不要去猜它叫什么；回答是非题时以这张卡为准，卡上没写到又拿不准的就说说不准。揭晓答案时系统才会在指令里告诉你名字。本轮要做什么写在对话最后的【本轮指令】里，照着做，说得自然、热情、简短。
+            孩子说的“它”“这个成语”“这个故事”“this”“it”都指谜底成语和它背后的故事；按谜底卡上的意思、出处类型、故事主角和故事内容来判断，故事里真正出现的人、动物和东西才算“故事里有”，只在比方里提到的不算，褒贬和用法按今天的常见用法回答。
+            必须遵守：
+            1. 本轮指令要求“逐字说”的句子必须一字不差地说出来，包括数字、标点和引号里的称号，不改写、不省略、不调换顺序。
+            2. 只回答孩子问到的那一点，绝不能主动补充谜底卡上的其他描述、线索、特征、猜测方向或评价；复述孩子的问题时只能用孩子问题里已有的意思。
+            3. 只有本轮指令要求揭晓答案时才能说“答案揭晓”“答案就是”“The answer is”；只有本轮指令要求开新题时才能说“谜题来啦”“Puzzle time”；只有真的给提示时才能说“小提示”“Hint”。平时绝不能说这些词。
+            4. 按【本轮指令】写明的回复语言回答：中文就全部用中文；English 就全部用英文，逐字句也用指令给出的英文原句。
+            5. 安全永远优先于本轮指令：孩子提到要在现实中模仿危险做法或遇到安全问题时，中文回复必须逐字包含“不要模仿”和“找家长、老师或可信任成年人帮助”，英文回复要说 do not copy it 并请孩子 ask a parent, teacher or trusted adult for help。
+            6. 不要自己数还剩几次提问机会，只有本轮指令写了剩余次数时才说那个数字。
+            7. 语气像节目主持人一样活泼友好，适合小朋友；平时回复1到3句话、100个字以内，开新题和揭晓答案时可以到150个字；最后一句必须是问孩子的问题，道别时也用一个轻松的问题结尾。
+            8. 只输出适合朗读的正文，不输出 Markdown、列表、emoji、括号注释、舞台说明或系统字段，也不要提到“本轮指令”“裁判”这些词。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: host-model
+        type: chat_model
+        inputs:
+          messages:
+            from: host-messages
+        outputs:
+          text: answer
+        model: eino-guess-chinese-idioms.model
+        max_tokens: 512
+        temperature: 0.3
+      edges:
+      - from: start
+        to: control-round
+      - {from: card-l01-p00, to: host-model}
+      - {from: card-l01-p01, to: host-model}
+      - {from: card-l01-p02, to: host-model}
+      - {from: card-l01-p03, to: host-model}
+      - {from: card-l01-p04, to: host-model}
+      - {from: card-l01-p05, to: host-model}
+      - {from: card-l01-p06, to: host-model}
+      - {from: card-l01-p07, to: host-model}
+      - {from: card-l01-p08, to: host-model}
+      - {from: card-l01-p09, to: host-model}
+      - {from: card-l01-p10, to: host-model}
+      - {from: card-l01-p11, to: host-model}
+      - {from: card-l01-p12, to: host-model}
+      - {from: card-l01-p13, to: host-model}
+      - {from: card-l01-p14, to: host-model}
+      - {from: card-l01-p15, to: host-model}
+      - {from: card-l02-p00, to: host-model}
+      - {from: card-l02-p01, to: host-model}
+      - {from: card-l02-p02, to: host-model}
+      - {from: card-l02-p03, to: host-model}
+      - {from: card-l02-p04, to: host-model}
+      - {from: card-l02-p05, to: host-model}
+      - {from: card-l02-p06, to: host-model}
+      - {from: card-l02-p07, to: host-model}
+      - {from: card-l02-p08, to: host-model}
+      - {from: card-l02-p09, to: host-model}
+      - {from: card-l02-p10, to: host-model}
+      - {from: card-l02-p11, to: host-model}
+      - {from: card-l02-p12, to: host-model}
+      - {from: card-l02-p13, to: host-model}
+      - {from: card-l02-p14, to: host-model}
+      - {from: card-l02-p15, to: host-model}
+      - {from: card-l03-p00, to: host-model}
+      - {from: card-l03-p01, to: host-model}
+      - {from: card-l03-p02, to: host-model}
+      - {from: card-l03-p03, to: host-model}
+      - {from: card-l03-p04, to: host-model}
+      - {from: card-l03-p05, to: host-model}
+      - {from: card-l03-p06, to: host-model}
+      - {from: card-l03-p07, to: host-model}
+      - {from: card-l03-p08, to: host-model}
+      - {from: card-l03-p09, to: host-model}
+      - {from: card-l03-p10, to: host-model}
+      - {from: card-l03-p11, to: host-model}
+      - {from: card-l03-p12, to: host-model}
+      - {from: card-l03-p13, to: host-model}
+      - {from: card-l03-p14, to: host-model}
+      - {from: card-l03-p15, to: host-model}
+      - {from: card-l04-p00, to: host-model}
+      - {from: card-l04-p01, to: host-model}
+      - {from: card-l04-p02, to: host-model}
+      - {from: card-l04-p03, to: host-model}
+      - {from: card-l04-p04, to: host-model}
+      - {from: card-l04-p05, to: host-model}
+      - {from: card-l04-p06, to: host-model}
+      - {from: card-l04-p07, to: host-model}
+      - {from: card-l04-p08, to: host-model}
+      - {from: card-l04-p09, to: host-model}
+      - {from: card-l04-p10, to: host-model}
+      - {from: card-l04-p11, to: host-model}
+      - {from: card-l04-p12, to: host-model}
+      - {from: card-l04-p13, to: host-model}
+      - {from: card-l04-p14, to: host-model}
+      - {from: card-l05-p00, to: host-model}
+      - {from: card-l05-p01, to: host-model}
+      - {from: card-l05-p02, to: host-model}
+      - {from: card-l05-p03, to: host-model}
+      - {from: card-l05-p04, to: host-model}
+      - {from: card-l05-p05, to: host-model}
+      - {from: card-l05-p06, to: host-model}
+      - {from: card-l05-p07, to: host-model}
+      - {from: card-l05-p08, to: host-model}
+      - {from: card-l05-p09, to: host-model}
+      - {from: card-l05-p10, to: host-model}
+      - {from: card-l05-p11, to: host-model}
+      - {from: card-l05-p12, to: host-model}
+      - {from: card-l05-p13, to: host-model}
+      - {from: card-l05-p14, to: host-model}
+      - {from: card-l06-p00, to: host-model}
+      - {from: card-l06-p01, to: host-model}
+      - {from: card-l06-p02, to: host-model}
+      - {from: card-l06-p03, to: host-model}
+      - {from: card-l06-p04, to: host-model}
+      - {from: card-l06-p05, to: host-model}
+      - {from: card-l06-p06, to: host-model}
+      - {from: card-l06-p07, to: host-model}
+      - {from: card-l06-p08, to: host-model}
+      - {from: card-l06-p09, to: host-model}
+      - {from: card-l06-p10, to: host-model}
+      - {from: card-l06-p11, to: host-model}
+      - {from: card-l06-p12, to: host-model}
+      - {from: card-l06-p13, to: host-model}
+      - {from: card-l07-p00, to: host-model}
+      - {from: card-l07-p01, to: host-model}
+      - {from: card-l07-p02, to: host-model}
+      - {from: card-l07-p03, to: host-model}
+      - {from: card-l07-p04, to: host-model}
+      - {from: card-l07-p05, to: host-model}
+      - {from: card-l07-p06, to: host-model}
+      - {from: card-l07-p07, to: host-model}
+      - {from: card-l07-p08, to: host-model}
+      - {from: card-l07-p09, to: host-model}
+      - {from: card-l07-p10, to: host-model}
+      - {from: card-l07-p11, to: host-model}
+      - {from: card-l07-p12, to: host-model}
+      - {from: card-l07-p13, to: host-model}
+      - {from: card-l08-p00, to: host-model}
+      - {from: card-l08-p01, to: host-model}
+      - {from: card-l08-p02, to: host-model}
+      - {from: card-l08-p03, to: host-model}
+      - {from: card-l08-p04, to: host-model}
+      - {from: card-l08-p05, to: host-model}
+      - {from: card-l08-p06, to: host-model}
+      - {from: card-l08-p07, to: host-model}
+      - {from: card-l08-p08, to: host-model}
+      - {from: card-l08-p09, to: host-model}
+      - {from: card-l08-p10, to: host-model}
+      - {from: card-l08-p11, to: host-model}
+      - {from: card-l08-p12, to: host-model}
+      - {from: card-l09-p00, to: host-model}
+      - {from: card-l09-p01, to: host-model}
+      - {from: card-l09-p02, to: host-model}
+      - {from: card-l09-p03, to: host-model}
+      - {from: card-l09-p04, to: host-model}
+      - {from: card-l09-p05, to: host-model}
+      - {from: card-l09-p06, to: host-model}
+      - {from: card-l09-p07, to: host-model}
+      - {from: card-l09-p08, to: host-model}
+      - {from: card-l09-p09, to: host-model}
+      - {from: card-l09-p10, to: host-model}
+      - {from: card-l09-p11, to: host-model}
+      - {from: card-l09-p12, to: host-model}
+      - {from: card-l10-p00, to: host-model}
+      - {from: card-l10-p01, to: host-model}
+      - {from: card-l10-p02, to: host-model}
+      - {from: card-l10-p03, to: host-model}
+      - {from: card-l10-p04, to: host-model}
+      - {from: card-l10-p05, to: host-model}
+      - {from: card-l10-p06, to: host-model}
+      - {from: card-l10-p07, to: host-model}
+      - {from: card-l10-p08, to: host-model}
+      - {from: card-l10-p09, to: host-model}
+      - {from: card-l10-p10, to: host-model}
+      - {from: card-l10-p11, to: host-model}
+      - from: build-host-prompt
+        to: host-model
+      - from: host-model
+        to: end
+      branches:
+      - from: control-round
+        mode: first_match
+        routes:
+        - {when: {field: game-node, op: eq, value: card-l01-p00}, to: card-l01-p00}
+        - {when: {field: game-node, op: eq, value: card-l01-p01}, to: card-l01-p01}
+        - {when: {field: game-node, op: eq, value: card-l01-p02}, to: card-l01-p02}
+        - {when: {field: game-node, op: eq, value: card-l01-p03}, to: card-l01-p03}
+        - {when: {field: game-node, op: eq, value: card-l01-p04}, to: card-l01-p04}
+        - {when: {field: game-node, op: eq, value: card-l01-p05}, to: card-l01-p05}
+        - {when: {field: game-node, op: eq, value: card-l01-p06}, to: card-l01-p06}
+        - {when: {field: game-node, op: eq, value: card-l01-p07}, to: card-l01-p07}
+        - {when: {field: game-node, op: eq, value: card-l01-p08}, to: card-l01-p08}
+        - {when: {field: game-node, op: eq, value: card-l01-p09}, to: card-l01-p09}
+        - {when: {field: game-node, op: eq, value: card-l01-p10}, to: card-l01-p10}
+        - {when: {field: game-node, op: eq, value: card-l01-p11}, to: card-l01-p11}
+        - {when: {field: game-node, op: eq, value: card-l01-p12}, to: card-l01-p12}
+        - {when: {field: game-node, op: eq, value: card-l01-p13}, to: card-l01-p13}
+        - {when: {field: game-node, op: eq, value: card-l01-p14}, to: card-l01-p14}
+        - {when: {field: game-node, op: eq, value: card-l01-p15}, to: card-l01-p15}
+        - {when: {field: game-node, op: eq, value: card-l02-p00}, to: card-l02-p00}
+        - {when: {field: game-node, op: eq, value: card-l02-p01}, to: card-l02-p01}
+        - {when: {field: game-node, op: eq, value: card-l02-p02}, to: card-l02-p02}
+        - {when: {field: game-node, op: eq, value: card-l02-p03}, to: card-l02-p03}
+        - {when: {field: game-node, op: eq, value: card-l02-p04}, to: card-l02-p04}
+        - {when: {field: game-node, op: eq, value: card-l02-p05}, to: card-l02-p05}
+        - {when: {field: game-node, op: eq, value: card-l02-p06}, to: card-l02-p06}
+        - {when: {field: game-node, op: eq, value: card-l02-p07}, to: card-l02-p07}
+        - {when: {field: game-node, op: eq, value: card-l02-p08}, to: card-l02-p08}
+        - {when: {field: game-node, op: eq, value: card-l02-p09}, to: card-l02-p09}
+        - {when: {field: game-node, op: eq, value: card-l02-p10}, to: card-l02-p10}
+        - {when: {field: game-node, op: eq, value: card-l02-p11}, to: card-l02-p11}
+        - {when: {field: game-node, op: eq, value: card-l02-p12}, to: card-l02-p12}
+        - {when: {field: game-node, op: eq, value: card-l02-p13}, to: card-l02-p13}
+        - {when: {field: game-node, op: eq, value: card-l02-p14}, to: card-l02-p14}
+        - {when: {field: game-node, op: eq, value: card-l02-p15}, to: card-l02-p15}
+        - {when: {field: game-node, op: eq, value: card-l03-p00}, to: card-l03-p00}
+        - {when: {field: game-node, op: eq, value: card-l03-p01}, to: card-l03-p01}
+        - {when: {field: game-node, op: eq, value: card-l03-p02}, to: card-l03-p02}
+        - {when: {field: game-node, op: eq, value: card-l03-p03}, to: card-l03-p03}
+        - {when: {field: game-node, op: eq, value: card-l03-p04}, to: card-l03-p04}
+        - {when: {field: game-node, op: eq, value: card-l03-p05}, to: card-l03-p05}
+        - {when: {field: game-node, op: eq, value: card-l03-p06}, to: card-l03-p06}
+        - {when: {field: game-node, op: eq, value: card-l03-p07}, to: card-l03-p07}
+        - {when: {field: game-node, op: eq, value: card-l03-p08}, to: card-l03-p08}
+        - {when: {field: game-node, op: eq, value: card-l03-p09}, to: card-l03-p09}
+        - {when: {field: game-node, op: eq, value: card-l03-p10}, to: card-l03-p10}
+        - {when: {field: game-node, op: eq, value: card-l03-p11}, to: card-l03-p11}
+        - {when: {field: game-node, op: eq, value: card-l03-p12}, to: card-l03-p12}
+        - {when: {field: game-node, op: eq, value: card-l03-p13}, to: card-l03-p13}
+        - {when: {field: game-node, op: eq, value: card-l03-p14}, to: card-l03-p14}
+        - {when: {field: game-node, op: eq, value: card-l03-p15}, to: card-l03-p15}
+        - {when: {field: game-node, op: eq, value: card-l04-p00}, to: card-l04-p00}
+        - {when: {field: game-node, op: eq, value: card-l04-p01}, to: card-l04-p01}
+        - {when: {field: game-node, op: eq, value: card-l04-p02}, to: card-l04-p02}
+        - {when: {field: game-node, op: eq, value: card-l04-p03}, to: card-l04-p03}
+        - {when: {field: game-node, op: eq, value: card-l04-p04}, to: card-l04-p04}
+        - {when: {field: game-node, op: eq, value: card-l04-p05}, to: card-l04-p05}
+        - {when: {field: game-node, op: eq, value: card-l04-p06}, to: card-l04-p06}
+        - {when: {field: game-node, op: eq, value: card-l04-p07}, to: card-l04-p07}
+        - {when: {field: game-node, op: eq, value: card-l04-p08}, to: card-l04-p08}
+        - {when: {field: game-node, op: eq, value: card-l04-p09}, to: card-l04-p09}
+        - {when: {field: game-node, op: eq, value: card-l04-p10}, to: card-l04-p10}
+        - {when: {field: game-node, op: eq, value: card-l04-p11}, to: card-l04-p11}
+        - {when: {field: game-node, op: eq, value: card-l04-p12}, to: card-l04-p12}
+        - {when: {field: game-node, op: eq, value: card-l04-p13}, to: card-l04-p13}
+        - {when: {field: game-node, op: eq, value: card-l04-p14}, to: card-l04-p14}
+        - {when: {field: game-node, op: eq, value: card-l05-p00}, to: card-l05-p00}
+        - {when: {field: game-node, op: eq, value: card-l05-p01}, to: card-l05-p01}
+        - {when: {field: game-node, op: eq, value: card-l05-p02}, to: card-l05-p02}
+        - {when: {field: game-node, op: eq, value: card-l05-p03}, to: card-l05-p03}
+        - {when: {field: game-node, op: eq, value: card-l05-p04}, to: card-l05-p04}
+        - {when: {field: game-node, op: eq, value: card-l05-p05}, to: card-l05-p05}
+        - {when: {field: game-node, op: eq, value: card-l05-p06}, to: card-l05-p06}
+        - {when: {field: game-node, op: eq, value: card-l05-p07}, to: card-l05-p07}
+        - {when: {field: game-node, op: eq, value: card-l05-p08}, to: card-l05-p08}
+        - {when: {field: game-node, op: eq, value: card-l05-p09}, to: card-l05-p09}
+        - {when: {field: game-node, op: eq, value: card-l05-p10}, to: card-l05-p10}
+        - {when: {field: game-node, op: eq, value: card-l05-p11}, to: card-l05-p11}
+        - {when: {field: game-node, op: eq, value: card-l05-p12}, to: card-l05-p12}
+        - {when: {field: game-node, op: eq, value: card-l05-p13}, to: card-l05-p13}
+        - {when: {field: game-node, op: eq, value: card-l05-p14}, to: card-l05-p14}
+        - {when: {field: game-node, op: eq, value: card-l06-p00}, to: card-l06-p00}
+        - {when: {field: game-node, op: eq, value: card-l06-p01}, to: card-l06-p01}
+        - {when: {field: game-node, op: eq, value: card-l06-p02}, to: card-l06-p02}
+        - {when: {field: game-node, op: eq, value: card-l06-p03}, to: card-l06-p03}
+        - {when: {field: game-node, op: eq, value: card-l06-p04}, to: card-l06-p04}
+        - {when: {field: game-node, op: eq, value: card-l06-p05}, to: card-l06-p05}
+        - {when: {field: game-node, op: eq, value: card-l06-p06}, to: card-l06-p06}
+        - {when: {field: game-node, op: eq, value: card-l06-p07}, to: card-l06-p07}
+        - {when: {field: game-node, op: eq, value: card-l06-p08}, to: card-l06-p08}
+        - {when: {field: game-node, op: eq, value: card-l06-p09}, to: card-l06-p09}
+        - {when: {field: game-node, op: eq, value: card-l06-p10}, to: card-l06-p10}
+        - {when: {field: game-node, op: eq, value: card-l06-p11}, to: card-l06-p11}
+        - {when: {field: game-node, op: eq, value: card-l06-p12}, to: card-l06-p12}
+        - {when: {field: game-node, op: eq, value: card-l06-p13}, to: card-l06-p13}
+        - {when: {field: game-node, op: eq, value: card-l07-p00}, to: card-l07-p00}
+        - {when: {field: game-node, op: eq, value: card-l07-p01}, to: card-l07-p01}
+        - {when: {field: game-node, op: eq, value: card-l07-p02}, to: card-l07-p02}
+        - {when: {field: game-node, op: eq, value: card-l07-p03}, to: card-l07-p03}
+        - {when: {field: game-node, op: eq, value: card-l07-p04}, to: card-l07-p04}
+        - {when: {field: game-node, op: eq, value: card-l07-p05}, to: card-l07-p05}
+        - {when: {field: game-node, op: eq, value: card-l07-p06}, to: card-l07-p06}
+        - {when: {field: game-node, op: eq, value: card-l07-p07}, to: card-l07-p07}
+        - {when: {field: game-node, op: eq, value: card-l07-p08}, to: card-l07-p08}
+        - {when: {field: game-node, op: eq, value: card-l07-p09}, to: card-l07-p09}
+        - {when: {field: game-node, op: eq, value: card-l07-p10}, to: card-l07-p10}
+        - {when: {field: game-node, op: eq, value: card-l07-p11}, to: card-l07-p11}
+        - {when: {field: game-node, op: eq, value: card-l07-p12}, to: card-l07-p12}
+        - {when: {field: game-node, op: eq, value: card-l07-p13}, to: card-l07-p13}
+        - {when: {field: game-node, op: eq, value: card-l08-p00}, to: card-l08-p00}
+        - {when: {field: game-node, op: eq, value: card-l08-p01}, to: card-l08-p01}
+        - {when: {field: game-node, op: eq, value: card-l08-p02}, to: card-l08-p02}
+        - {when: {field: game-node, op: eq, value: card-l08-p03}, to: card-l08-p03}
+        - {when: {field: game-node, op: eq, value: card-l08-p04}, to: card-l08-p04}
+        - {when: {field: game-node, op: eq, value: card-l08-p05}, to: card-l08-p05}
+        - {when: {field: game-node, op: eq, value: card-l08-p06}, to: card-l08-p06}
+        - {when: {field: game-node, op: eq, value: card-l08-p07}, to: card-l08-p07}
+        - {when: {field: game-node, op: eq, value: card-l08-p08}, to: card-l08-p08}
+        - {when: {field: game-node, op: eq, value: card-l08-p09}, to: card-l08-p09}
+        - {when: {field: game-node, op: eq, value: card-l08-p10}, to: card-l08-p10}
+        - {when: {field: game-node, op: eq, value: card-l08-p11}, to: card-l08-p11}
+        - {when: {field: game-node, op: eq, value: card-l08-p12}, to: card-l08-p12}
+        - {when: {field: game-node, op: eq, value: card-l09-p00}, to: card-l09-p00}
+        - {when: {field: game-node, op: eq, value: card-l09-p01}, to: card-l09-p01}
+        - {when: {field: game-node, op: eq, value: card-l09-p02}, to: card-l09-p02}
+        - {when: {field: game-node, op: eq, value: card-l09-p03}, to: card-l09-p03}
+        - {when: {field: game-node, op: eq, value: card-l09-p04}, to: card-l09-p04}
+        - {when: {field: game-node, op: eq, value: card-l09-p05}, to: card-l09-p05}
+        - {when: {field: game-node, op: eq, value: card-l09-p06}, to: card-l09-p06}
+        - {when: {field: game-node, op: eq, value: card-l09-p07}, to: card-l09-p07}
+        - {when: {field: game-node, op: eq, value: card-l09-p08}, to: card-l09-p08}
+        - {when: {field: game-node, op: eq, value: card-l09-p09}, to: card-l09-p09}
+        - {when: {field: game-node, op: eq, value: card-l09-p10}, to: card-l09-p10}
+        - {when: {field: game-node, op: eq, value: card-l09-p11}, to: card-l09-p11}
+        - {when: {field: game-node, op: eq, value: card-l09-p12}, to: card-l09-p12}
+        - {when: {field: game-node, op: eq, value: card-l10-p00}, to: card-l10-p00}
+        - {when: {field: game-node, op: eq, value: card-l10-p01}, to: card-l10-p01}
+        - {when: {field: game-node, op: eq, value: card-l10-p02}, to: card-l10-p02}
+        - {when: {field: game-node, op: eq, value: card-l10-p03}, to: card-l10-p03}
+        - {when: {field: game-node, op: eq, value: card-l10-p04}, to: card-l10-p04}
+        - {when: {field: game-node, op: eq, value: card-l10-p05}, to: card-l10-p05}
+        - {when: {field: game-node, op: eq, value: card-l10-p06}, to: card-l10-p06}
+        - {when: {field: game-node, op: eq, value: card-l10-p07}, to: card-l10-p07}
+        - {when: {field: game-node, op: eq, value: card-l10-p08}, to: card-l10-p08}
+        - {when: {field: game-node, op: eq, value: card-l10-p09}, to: card-l10-p09}
+        - {when: {field: game-node, op: eq, value: card-l10-p10}, to: card-l10-p10}
+        - {when: {field: game-node, op: eq, value: card-l10-p11}, to: card-l10-p11}
+        default: build-host-prompt
+      outputs:
+      - node: host-model
+        field: answer
+        name: assistant
+        mime_type: text/plain
+        primary: true
+    conversation:
+      starts: peer
+    limits:
+      max_output_bytes: 4194304

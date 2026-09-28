@@ -47,7 +47,10 @@ func main() {
 	}
 	var data struct {
 		Source string
-		Cases  []struct {
+		// Steps overrides the default budget for scripts whose Workflow node
+		// declares a larger max_execution_steps limit.
+		Steps uint64
+		Cases []struct {
 			ID      string
 			Input   map[string]any
 			Speaker string
@@ -59,7 +62,11 @@ func main() {
 	}
 	for i, c := range data.Cases {
 		t := &starlark.Thread{Name: "routing"}
-		t.SetMaxExecutionSteps(100000)
+		steps := uint64(100000)
+		if data.Steps > 0 {
+			steps = data.Steps
+		}
+		t.SetMaxExecutionSteps(steps)
 		globals, err := starlark.ExecFile(t, "controller.star", data.Source, nil)
 		if err != nil {
 			panic(err)
