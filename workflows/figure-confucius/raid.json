@@ -1,0 +1,381 @@
+{
+  "schema": "raids.raid/v1alpha1",
+  "id": "figure-confucius",
+  "category": "figure",
+  "title": {
+    "zh-CN": "孔子的一生",
+    "en": "A Life with Confucius"
+  },
+  "summary": {
+    "zh-CN": "由孔子本人带孩子走完他的一生，从开门收徒到周游列国，并分清史实、传说与改编。",
+    "en": "Walk through the life of Confucius with the teacher himself, telling history, legend, and adaptation apart."
+  },
+  "rating": {
+    "age": [
+      "child",
+      "teen"
+    ],
+    "scheme": "raids-age-v2",
+    "content": [
+      "historical-hardship"
+    ]
+  },
+  "tags": [
+    "historical-figure",
+    "philosophy",
+    "biography"
+  ],
+  "language": [
+    "zh-CN"
+  ],
+  "implementations": {
+    "eino": {
+      "file": "eino.yaml",
+      "workflow_id": "eino-figure-confucius",
+      "driver": "eino",
+      "input": [
+        "text",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "eino-figure-confucius.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "eino-figure-confucius.storyteller": {
+            "role": "storyteller",
+            "language": "zh-CN",
+            "description": "Storyteller voice"
+          }
+        }
+      }
+    },
+    "flowcraft": {
+      "file": "flowcraft.yaml",
+      "workflow_id": "flowcraft-figure-confucius",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-figure-confucius.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-figure-confucius.storyteller": {
+            "role": "storyteller",
+            "language": "zh-CN",
+            "description": "Storyteller voice"
+          },
+          "flowcraft-figure-confucius.confucius": {
+            "role": "confucius",
+            "language": "zh-CN",
+            "description": "孔子 character voice"
+          },
+          "flowcraft-figure-confucius.zi-lu": {
+            "role": "zi-lu",
+            "language": "zh-CN",
+            "description": "子路 character voice"
+          }
+        }
+      }
+    },
+    "eino-multi-role": {
+      "file": "eino.multi-role.yaml",
+      "workflow_id": "eino-figure-confucius-multi-role",
+      "driver": "eino",
+      "input": [
+        "text",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "eino-figure-confucius-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "eino-figure-confucius-mr.storyteller": {
+            "role": "storyteller",
+            "language": "zh-CN",
+            "description": "旁白：连续剧本段落音色"
+          },
+          "eino-figure-confucius-mr.confucius": {
+            "role": "confucius",
+            "language": "zh-CN",
+            "description": "孔子：连续剧本段落音色"
+          },
+          "eino-figure-confucius-mr.zi-lu": {
+            "role": "zi-lu",
+            "language": "zh-CN",
+            "description": "子路：连续剧本段落音色"
+          },
+          "eino-figure-confucius-mr.lao-zi": {
+            "role": "lao-zi",
+            "language": "zh-CN",
+            "description": "老子：连续剧本段落音色"
+          },
+          "eino-figure-confucius-mr.yan-hui": {
+            "role": "yan-hui",
+            "language": "zh-CN",
+            "description": "颜回：连续剧本段落音色"
+          }
+        }
+      }
+    },
+    "flowcraft-multi-role": {
+      "file": "flowcraft.multi-role.yaml",
+      "workflow_id": "flowcraft-figure-confucius-multi-role",
+      "driver": "flowcraft",
+      "input": [
+        "text",
+        "push-to-talk",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "flowcraft-figure-confucius-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "flowcraft-figure-confucius-mr.storyteller": {
+            "role": "storyteller",
+            "language": "zh-CN",
+            "description": "旁白：连续剧本段落音色"
+          },
+          "flowcraft-figure-confucius-mr.confucius": {
+            "role": "confucius",
+            "language": "zh-CN",
+            "description": "孔子：连续剧本段落音色"
+          },
+          "flowcraft-figure-confucius-mr.zi-lu": {
+            "role": "zi-lu",
+            "language": "zh-CN",
+            "description": "子路：连续剧本段落音色"
+          },
+          "flowcraft-figure-confucius-mr.lao-zi": {
+            "role": "lao-zi",
+            "language": "zh-CN",
+            "description": "老子：连续剧本段落音色"
+          },
+          "flowcraft-figure-confucius-mr.yan-hui": {
+            "role": "yan-hui",
+            "language": "zh-CN",
+            "description": "颜回：连续剧本段落音色"
+          }
+        }
+      }
+    }
+  },
+  "tester": {
+    "file": "test.yaml",
+    "workflow_id": "figure-confucius-test",
+    "driver": "eino",
+    "parameters": {
+      "models": {
+        "figure-confucius-test.model": {
+          "kind": "llm",
+          "role": "judge",
+          "description": "Chat model that generates every turn; needs streaming Chinese output"
+        }
+      }
+    },
+    "route": {
+      "responses": 16,
+      "checkpoints": [
+        "response-1",
+        "response-2",
+        "response-3",
+        "response-4",
+        "response-5",
+        "response-6",
+        "response-7",
+        "response-8",
+        "response-9",
+        "response-10",
+        "response-11",
+        "response-12",
+        "response-13",
+        "response-14",
+        "response-15",
+        "response-16"
+      ],
+      "milestones": [
+        8,
+        16
+      ],
+      "reload_before": 9,
+      "chapters": [
+        "开门收徒",
+        "问礼洛邑",
+        "周游列国",
+        "晚年归鲁"
+      ]
+    }
+  },
+  "testers": {
+    "multi-role": {
+      "file": "test.multi-role.yaml",
+      "workflow_id": "figure-confucius-test-multi-role",
+      "driver": "eino",
+      "parameters": {
+        "models": {
+          "figure-confucius-test.model": {
+            "kind": "llm",
+            "role": "judge",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        }
+      },
+      "route": {
+        "responses": 16,
+        "checkpoints": [
+          "response-1",
+          "response-2",
+          "response-3",
+          "response-4",
+          "response-5",
+          "response-6",
+          "response-7",
+          "response-8",
+          "response-9",
+          "response-10",
+          "response-11",
+          "response-12",
+          "response-13",
+          "response-14",
+          "response-15",
+          "response-16"
+        ],
+        "milestones": [
+          8,
+          16
+        ],
+        "reload_before": 9,
+        "chapters": [
+          "开门收徒",
+          "问礼洛邑",
+          "周游列国",
+          "晚年归鲁"
+        ]
+      },
+      "implementations": [
+        "eino-multi-role",
+        "flowcraft-multi-role"
+      ]
+    }
+  },
+  "tests": [
+    {
+      "file": "tests/giztest/smoke/figure-confucius.eino.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "eino"
+      ]
+    },
+    {
+      "file": "tests/giztest/smoke/figure-confucius.flowcraft.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "flowcraft"
+      ]
+    },
+    {
+      "file": "tests/giztest/smoke/figure-confucius.eino.multi-role.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "eino-multi-role"
+      ]
+    },
+    {
+      "file": "tests/giztest/smoke/figure-confucius.flowcraft.multi-role.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "flowcraft-multi-role"
+      ]
+    },
+    {
+      "file": "tests/giztest/quality/figure-confucius.eino.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "eino"
+      ]
+    },
+    {
+      "file": "tests/giztest/quality/figure-confucius.flowcraft.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "flowcraft"
+      ]
+    },
+    {
+      "file": "tests/giztest/quality/figure-confucius.eino.multi-role.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "eino-multi-role"
+      ]
+    },
+    {
+      "file": "tests/giztest/quality/figure-confucius.flowcraft.multi-role.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "flowcraft-multi-role"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/figure-confucius.eino.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "eino"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/figure-confucius.flowcraft.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "flowcraft"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/figure-confucius.eino.multi-role.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "eino-multi-role"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/figure-confucius.flowcraft.multi-role.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "flowcraft-multi-role"
+      ]
+    }
+  ]
+}

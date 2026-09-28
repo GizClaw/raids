@@ -593,7 +593,7 @@ def validate():
             check(t['file'].split('/')[2:3] == [t.get('tier')] and len(names) == 1 and names[0] in implementations and
                   t['file'] == f"tests/giztest/{t.get('tier')}/{raid}.{stem(implementations[names[0]]['file'])}.giztest.yaml",
                   f'{file}: implementation registration mismatch')
-    check(realtime_count == 102, f'expected 102 original story/adventure/figure/learn RealTime clients, found {realtime_count}')
+    check(realtime_count == 124, f'expected 124 original story/adventure/figure/learn RealTime clients, found {realtime_count}')
     print(f'validated {realtime_count} original RealTime clients with ASR and audio response gates')
     for prefix in ('story', 'adventure', 'figure'):
         for engine in ('flowcraft', 'eino'):

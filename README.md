@@ -364,6 +364,24 @@ manifest, README, and Giztests; `make test-unit-guess` regenerates every package
 temporary directory, fails on drift, and replays the game-state scenarios in
 `scripts/guess/cases.py` through the Starlark interpreter GizClaw uses.
 
+### Historical-figure raids
+
+The `figure` category lets a child talk with a historical person who tells
+their own life in the first person, one chapter per life stage, and then stays
+for free conversation. It reuses the chaptered story contract below. The
+child's choices may send the person down a path they did not take; what stays
+fixed is knowledge: the person only knows their own era, and later legends are
+told as legend. The catalog has twelve: `figure-li-bai`, `figure-confucius`,
+`figure-sima-qian`, `figure-su-shi`, `figure-zhang-qian`, `figure-li-shizhen`,
+`figure-marie-curie`, `figure-einstein`, `figure-da-vinci`, `figure-edison`,
+`figure-nightingale` and `figure-galileo`. The default profile binds their
+Flowcraft Workflows in the `figure` collection as `figure.<key>`.
+
+Each package is generated from its `workflows/<raid>/figure.json` by
+`python3 scripts/figure/generate.py`; `make test-unit-figure` regenerates every
+package in a temporary directory and fails on drift. See
+[`scripts/figure/README.md`](scripts/figure/README.md) for the data fields.
+
 The public story catalog contains 19 titles, each with paired Flowcraft and
 Eino implementations. Every title owns an independent four-chapter bible,
 player role, character knowledge boundaries, transition and ending conditions,
@@ -523,7 +541,7 @@ contains a populated value.
 
 The target also checks the manifest → speaker mapping → both RuntimeProfiles →
 Voice resource chain, distinct role Voices and matching bindings across engines.
-For 31 continuous-narration raids it verifies a single narration LLM, configured
+For 42 continuous-narration raids it verifies a single narration LLM, configured
 Chinese markers, 300–600-character story probes, clean text, complete serial
 audio and zero underruns. First-response gates remain unchanged. Quality keeps
 safety, transitions, choice endings and correction/recovery contracts; soak
@@ -533,7 +551,7 @@ their original bounds. Quality budgets are 30 minutes for these longer stories.
 Each raid supplies a version-1 `routing-cases.json`. The gate executes actual
 Flowcraft JavaScript and Eino Starlark against state and content-control
 assertions. Single-speaker naming/order assertions have been removed from the
-31 story/adventure/figure fixtures; murder mystery retains its existing tests. Python,
+42 story/adventure/figure fixtures; murder mystery retains its existing tests. Python,
 Node.js and a local Go toolchain with cached Starlark dependencies are required;
 Go module downloads are disabled. Offline validation cannot establish real
 provider voice switching, timing, interruption or audible continuity.

@@ -40,6 +40,12 @@ variables:
   flowcraft_verdict:
     direction: output
     type: string
+  flowcraft_tester_last_reply:
+    direction: output
+    type: string
+  flowcraft_candidate_last_reply:
+    direction: output
+    type: string
 repeat: 1
 timeout: 180m
 steps:
@@ -178,6 +184,34 @@ finally:
 - id: flowcraft_emit_verdict
   output:
     variable: flowcraft_verdict
+# The first relay captures nothing, and a failed relay skips its capture, so read
+# the Tester's last reply from its History to keep a checkpoint FAIL reason.
+- id: flowcraft_tester_last_reply_history
+  client: flowcraft_tester
+  timeout: 5s
+  rpc:
+    method: server.run.workspace.history
+    request:
+      limit: 1
+      order: PEER_RUN_HISTORY_LIST_REQUEST_ORDER_DESC
+  capture:
+    flowcraft_tester_last_reply: /items/0/text
+- id: flowcraft_emit_tester_last_reply
+  output:
+    variable: flowcraft_tester_last_reply
+- id: flowcraft_candidate_last_reply_history
+  client: flowcraft
+  timeout: 5s
+  rpc:
+    method: server.run.workspace.history
+    request:
+      limit: 1
+      order: PEER_RUN_HISTORY_LIST_REQUEST_ORDER_DESC
+  capture:
+    flowcraft_candidate_last_reply: /items/0/text
+- id: flowcraft_emit_candidate_last_reply
+  output:
+    variable: flowcraft_candidate_last_reply
 - id: flowcraft_stop_candidate_run
   client: flowcraft
   rpc:
