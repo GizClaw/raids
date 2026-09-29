@@ -1,17 +1,17 @@
 # Giztest 测试
 
-测试布局为 `tests/giztest/{smoke,quality,soak}/<raid>.<implementation>.giztest.yaml`，每个文件只运行一个实现，共 559 个三档文件。implementation 与 workflow 文件名一致，例如 `flowcraft`、`eino`、`flowcraft.multi-role`、`eino.multi-role`。文档名为 `<raid>.<tier>.<implementation>`。另有 `device/` 的 128 个设备流程测试、`h106/` 的 2 个外部设备测试和 `safety-fence/` 的 1 个安全围栏测试，合计 690 个 `.giztest.yaml`；`reports/` 仅存运行产物，不计入用例。
+测试布局为 `tests/giztest/{smoke,quality,soak}/<raid>.<implementation>.giztest.yaml`，每个文件只运行一个实现，共 583 个三档文件。implementation 与 workflow 文件名一致，例如 `flowcraft`、`eino`、`flowcraft.multi-role`、`eino.multi-role`。文档名为 `<raid>.<tier>.<implementation>`。另有 `device/` 的 136 个设备流程测试、`h106/` 的 2 个外部设备测试和 `safety-fence/` 的 1 个安全围栏测试，合计 722 个 `.giztest.yaml`；`reports/` 仅存运行产物，不计入用例。
 
 | 档位 | 文件数 | 定义 |
 | --- | ---: | --- |
-| smoke | 189 | 速度、延迟、响应度：开场、角色探针、RealTime，完整音频与独立首响应 |
-| quality | 189 | 质量控制与安全围栏：剧情、转场、更正、语言、角色边界；只保留确定性断言 |
-| soak | 181 | Tester 与被测 workflow 长回合对跑，检查记忆、重载及长程一致性 |
-| device | 128 | H106 进入流程：`开始` → `我选第一个` → `继续` → 退出重进 → `继续上次的内容` → `开始`，每轮必须以问孩子的问题结尾 |
+| smoke | 197 | 速度、延迟、响应度：开场、角色探针、RealTime，完整音频与独立首响应 |
+| quality | 197 | 质量控制与安全围栏：剧情、转场、更正、语言、角色边界；只保留确定性断言 |
+| soak | 189 | Tester 与被测 workflow 长回合对跑，检查记忆、重载及长程一致性 |
+| device | 136 | H106 进入流程：`开始` → `我选第一个` → `继续` → 退出重进 → `继续上次的内容` → `开始`，每轮必须以问孩子的问题结尾 |
 
-`device/` 覆盖 19 个 story、11 个 adventure 的四个实现和 Journey 的四个实现。H106 在孩子确认进入时只提交一次 `开始` 或 `继续上次的内容`，之后只有孩子按键说话才有输入，所以每轮回复都必须以问题结尾，文字匹配 `[？?][”"’」』）)]*\s*$`，并要求 text/audio EOS。原版 story 另外要求：两次 `开始` 都输出 `第 1 章` 与第一章标题，章节结束轮提到 `继续`，`继续` 后输出 `第 2 章` 与第二章标题，重进后的 `继续上次的内容` 含第二章标题且不含 `第 1 章` 或玩法说明；multi-role 不得残留 `【】`；Journey 的 `开始` 必须从石猴开场且不出现 Tester 路线里的 `明月`、`清禾`、`青铜铃`。文件由 `python3 scripts/test/device-flow.py` 生成，`make test-unit-resources` 用 `--check` 校验文件未过期、目标 workflow 含对应契约；不登记在 `raid.json`，用 `make test-e2e TIER=device` 运行。
+`device/` 覆盖 19 个 story、11 个 adventure 的四个实现、12 个 figure 的 Eino 多角色实现和 Journey 的四个实现。H106 在孩子确认进入时只提交一次 `开始` 或 `继续上次的内容`，之后只有孩子按键说话才有输入，所以每轮回复都必须以问题结尾，文字匹配 `[？?][”"’」』）)]*\s*$`，并要求 text/audio EOS。原版 story 另外要求：两次 `开始` 都输出 `第 1 章` 与第一章标题，章节结束轮提到 `继续`，`继续` 后输出 `第 2 章` 与第二章标题，重进后的 `继续上次的内容` 含第二章标题且不含 `第 1 章` 或玩法说明；multi-role 不得残留 `【】`；Journey 的 `开始` 必须从石猴开场且不出现 Tester 路线里的 `明月`、`清禾`、`青铜铃`。文件由 `python3 scripts/test/device-flow.py` 生成，`make test-unit-resources` 用 `--check` 校验文件未过期、目标 workflow 含对应契约；不登记在 `raid.json`，用 `make test-e2e TIER=device` 运行。
 
-66 个 raid 均有 smoke/quality；`ast-translate` 和 `doubao-realtime` 是音频专用目标，没有 Tester 长回合协议，故无 soak，其余 64 个均有三档。Murder Mystery 只有 Flowcraft original/multi-role；Journey 分别运行 `flowcraft`、`eino-history`、`eino-memory-async`、`eino-memory-recall`。AST 按七个 workflow 拆分，`zh-en-auto` 同一文件保留两个方向，不把不同翻译方向当作等价实现；Doubao 使用 `conversation` 文件名。
+77 个 raid 均有 smoke/quality；`ast-translate` 和 `doubao-realtime` 是音频专用目标，没有 Tester 长回合协议，故无 soak，其余 75 个均有三档。Murder Mystery 只有 Flowcraft original/multi-role；figure 只有 Eino multi-role，没有可对比的 Flowcraft 实现；Journey 分别运行 `flowcraft`、`eino-history`、`eino-memory-async`、`eino-memory-recall`。AST 按七个 workflow 拆分，`zh-en-auto` 同一文件保留两个方向，不把不同翻译方向当作等价实现；Doubao 使用 `conversation` 文件名。
 
 ```sh
 export GIZCLAW_TEST_ENDPOINT=<host:port>
@@ -28,7 +28,7 @@ make test-unit-voices
 
 `APPLY=1` 的原行为保持：使用 `GIZCLAW_CONTEXT` 应用全部 workflows、testing RuntimeProfile 与 testing token，再执行选中的测试。它需要 Admin 权限，普通运行只需 Peer 接入点与 token。
 
-非 RealTime 往返的完整响应保留 6s 首字、90s 完整响应等原门槛；smoke 检查 text/audio EOS、非空音频、音频流闭合且无重叠、按设备听感检查 `/audio_pacing/underruns == 0` 且 `/audio_pacing/minimum_buffer_ms >= 0`（Giztest 的 500ms 预缓冲播放模型）。开始播放前的包间隔不代表设备听到卡顿；`max_interval_ms` 保留在 evidence 中用于诊断，不作为失败条件。独立 `completion: first_response` 探针要求首字 2s、首音 3s，主动结束流，因此不要求该探针 EOS。两分钟是速度目标，后期角色前置和完整语音可能超过；文件总 timeout 是运行预算，不能作为放宽单步门槛的依据。运行 CLI 必须支持 `/audio_integrity` 与 `/audio_pacing`，并且不低于 GizClaw v0.18.10：更早的 CLI 在 realtime 首响应探针里要等语音和尾静音同步发完才开始计时，且没有首个 BOS 前的音频暂存（GizClaw/gizclaw#1283），会报出与服务端无关的首字超时和音频边界违规。多角色语音要求服务端支持 `voice_adapter.speaker_voices`，文字不被 TTS 启动拖住要求服务端不低于 v0.18.10。
+非 RealTime 往返的完整响应只卡首字（6s）和首音的耗时，不设 text/audio EOS 耗时上限：回复写多长、播多久都不算失败，只要播放不欠载。完整响应步骤的 timeout 只是运行预算：没有其它已注册 client 空闲陪跑的步骤放宽到 6m（原 90s/2m）或 10m（原 4m），smoke 文件总预算 30m；有 client 空闲陪跑的步骤保留原值，以守住 180s 空闲调度门槛；smoke 检查 text/audio EOS、非空音频、音频流闭合且无重叠、按设备听感检查 `/audio_pacing/underruns == 0` 且 `/audio_pacing/minimum_buffer_ms >= 0`（Giztest 的 500ms 预缓冲播放模型）。开始播放前的包间隔不代表设备听到卡顿；`max_interval_ms` 保留在 evidence 中用于诊断，不作为失败条件。独立 `completion: first_response` 探针要求首字 2s、首音 3s，主动结束流，因此不要求该探针 EOS。文件总 timeout 是运行预算，不能作为放宽单步门槛的依据。运行 CLI 必须支持 `/audio_integrity` 与 `/audio_pacing`，并且不低于 GizClaw v0.18.10：更早的 CLI 在 realtime 首响应探针里要等语音和尾静音同步发完才开始计时，且没有首个 BOS 前的音频暂存（GizClaw/gizclaw#1283），会报出与服务端无关的首字超时和音频边界违规。多角色语音要求服务端支持 `voice_adapter.speaker_voices`，文字不被 TTS 启动拖住要求服务端不低于 v0.18.10。
 
 RealTime 的 `realtime_roundtrip` 负责验证完整往返：events/text 非空、text/audio EOS、audio_bytes >= 1，并保留统一的 audio_integrity 与 underruns/minimum_buffer 检查，不设置首字、首音或 EOS 耗时上限。该步骤的 first_text_ms 从开始发送输入语音计时，包含约 4s 输入语音及尾静音，正常可达 6.5–7.3s，不能套用 6s 首字门槛。随后的 `realtime_roundtrip_first_response`（原测试的 `realtime_first_response`）独立负责延迟验收，所有实现均保留首字 2s、首音 3s 的 timeout 和 maximum 断言。
 

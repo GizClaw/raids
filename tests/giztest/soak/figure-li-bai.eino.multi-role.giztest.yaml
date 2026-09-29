@@ -40,6 +40,12 @@ variables:
   eino_multi_role_verdict:
     direction: output
     type: string
+  eino_multi_role_tester_last_reply:
+    direction: output
+    type: string
+  eino_multi_role_candidate_last_reply:
+    direction: output
+    type: string
 repeat: 1
 timeout: 180m
 steps:
@@ -172,6 +178,34 @@ finally:
 - id: eino_multi_role_emit_verdict
   output:
     variable: eino_multi_role_verdict
+# The first relay captures nothing, and a failed relay skips its capture, so read
+# the Tester's last reply from its History to keep a checkpoint FAIL reason.
+- id: eino_multi_role_tester_last_reply_history
+  client: eino_multi_role_tester
+  timeout: 5s
+  rpc:
+    method: server.run.workspace.history
+    request:
+      limit: 1
+      order: PEER_RUN_HISTORY_LIST_REQUEST_ORDER_DESC
+  capture:
+    eino_multi_role_tester_last_reply: /items/0/text
+- id: eino_multi_role_emit_tester_last_reply
+  output:
+    variable: eino_multi_role_tester_last_reply
+- id: eino_multi_role_candidate_last_reply_history
+  client: eino_multi_role
+  timeout: 5s
+  rpc:
+    method: server.run.workspace.history
+    request:
+      limit: 1
+      order: PEER_RUN_HISTORY_LIST_REQUEST_ORDER_DESC
+  capture:
+    eino_multi_role_candidate_last_reply: /items/0/text
+- id: eino_multi_role_emit_candidate_last_reply
+  output:
+    variable: eino_multi_role_candidate_last_reply
 # Ephemeral peer deletion retires its owned Workspaces, including partial setup.
 - id: eino_multi_role_stop_candidate_run
   client: eino_multi_role

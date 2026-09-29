@@ -10,7 +10,7 @@ APPLY ?= 0
 export GIZCLAW GIZCLAW_TEST_CLI
 export TIER RAID PARALLEL APPLY GIZCLAW_CONTEXT REPORT
 
-.PHONY: help test-unit-resources test-unit-learn test-unit-guess test-unit-voices test-e2e
+.PHONY: help test-unit-resources test-unit-learn test-unit-guess test-unit-figure test-unit-voices test-e2e
 
 help:
 	@scripts/config/help.sh
@@ -23,6 +23,9 @@ test-unit-learn:
 
 test-unit-guess:
 	@scripts/test/test-unit-guess.sh
+
+test-unit-figure:
+	@scripts/test/test-unit-figure.sh
 
 test-unit-voices:
 	@scripts/test/test-unit-voices.sh

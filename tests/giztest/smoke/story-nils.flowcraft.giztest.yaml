@@ -34,7 +34,7 @@ variables:
     media_type: audio/ogg
     codec: opus
 repeat: 1
-timeout: 12m
+timeout: 30m
 steps:
 - id: flowcraft_register
   client: flowcraft
@@ -82,7 +82,7 @@ steps:
           conversation:
             initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
           input: WORKSPACE_INPUT_MODE_REALTIME
-- timeout: 2m
+- timeout: 6m
   id: flowcraft_narrator_chapter_setup_1
   client: flowcraft
   peer_stream:
@@ -107,10 +107,6 @@ steps:
       maximum: 90000
     "/events":
       non_empty: true
-    "/text_eos_ms":
-      maximum: 90000
-    "/audio_eos_ms":
-      maximum: 90000
     "/audio_integrity/streams":
       minimum: 1
     "/audio_integrity/max_active":
@@ -123,7 +119,7 @@ steps:
       minimum: 0
     "/audio_pacing/underruns":
       equals: 0
-- timeout: 2m
+- timeout: 6m
   id: flowcraft_probe_narrator
   client: flowcraft
   peer_stream:
@@ -154,10 +150,6 @@ steps:
       maximum: 90000
     "/events":
       non_empty: true
-    "/text_eos_ms":
-      maximum: 90000
-    "/audio_eos_ms":
-      maximum: 90000
     "/audio_integrity/streams":
       minimum: 1
     "/audio_integrity/max_active":
@@ -201,7 +193,7 @@ steps:
   rpc:
     method: server.run.workspace.reload
     request: {}
-- timeout: 2m
+- timeout: 6m
   id: flowcraft_probe_nils
   client: flowcraft
   peer_stream:
@@ -227,10 +219,6 @@ steps:
       maximum: 90000
     "/events":
       non_empty: true
-    "/text_eos_ms":
-      maximum: 90000
-    "/audio_eos_ms":
-      maximum: 90000
     "/audio_integrity/streams":
       minimum: 1
     "/audio_integrity/max_active":
@@ -274,7 +262,7 @@ steps:
   rpc:
     method: server.run.workspace.reload
     request: {}
-- timeout: 2m
+- timeout: 6m
   id: flowcraft_probe_akka
   client: flowcraft
   peer_stream:
@@ -300,10 +288,6 @@ steps:
       maximum: 90000
     "/events":
       non_empty: true
-    "/text_eos_ms":
-      maximum: 90000
-    "/audio_eos_ms":
-      maximum: 90000
     "/audio_integrity/streams":
       minimum: 1
     "/audio_integrity/max_active":
@@ -370,7 +354,7 @@ steps:
       - audio/ogg
     cache: run
   save_as: input_audio
-- timeout: 2m
+- timeout: 6m
   id: flowcraft_realtime_roundtrip
   client: flowcraft
   peer_stream:

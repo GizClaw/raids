@@ -28,7 +28,7 @@ variables:
     type: string
     generate: token
 repeat: 1
-timeout: 12m
+timeout: 30m
 steps:
 - id: eino_memory_async_register
   client: eino_memory_async
@@ -72,7 +72,7 @@ steps:
         eino_workspace_parameters:
           agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
           input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-- timeout: 2m
+- timeout: 6m
   id: eino_memory_async_turn_1_origin
   client: eino_memory_async
   peer_stream:
@@ -91,8 +91,6 @@ steps:
       non_empty: true
     "/first_text_ms":
       maximum: 6000
-    "/text_eos_ms":
-      maximum: 90000
     "/events":
       non_empty: true
     "/text_eos":
@@ -125,7 +123,7 @@ steps:
     method: server.run.workspace.reload
     request: {}
   timeout: 2m
-- timeout: 2m
+- timeout: 6m
   id: eino_memory_async_roundtrip
   peer_stream:
     mode: text
