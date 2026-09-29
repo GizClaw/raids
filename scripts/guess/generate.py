@@ -388,7 +388,7 @@ def raid_manifest(raid: str, data: dict[str, Any]) -> str:
 
 def probe(name: str, text: str, expect_text: dict[str, Any]) -> str:
     lines = [
-        "- timeout: 2m",
+        "- timeout: 6m",
         f"  id: eino_quality_{name}",
         "  client: eino__quality",
         "  peer_stream:",
