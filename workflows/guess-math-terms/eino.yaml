@@ -1,0 +1,4341 @@
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata:
+  id: eino-guess-math-terms
+spec:
+  driver: eino
+  toolkit:
+    tool_ids: []
+  eino:
+    voice_adapter:
+      asr_model: asr
+      default_voice: eino-guess-math-terms.host
+    graph:
+      name: guess-math-terms-eino
+      compile:
+        node_trigger_mode: any_predecessor
+        max_run_steps: 12
+      state:
+        fields:
+        - name: game-route
+          type: string
+          merge: replace
+        - name: game-direction
+          type: string
+          merge: replace
+        - name: game-node
+          type: string
+          merge: replace
+        - name: host-rules
+          type: string
+          merge: replace
+        - name: host-messages
+          type: messages
+          merge: replace
+        - name: answer
+          type: string
+          merge: replace
+      nodes:
+      - id: control-round
+        type: script
+        inputs:
+          text:
+            from: input.text
+          messages:
+            from: input.messages
+        outputs:
+          route: game-route
+          node: game-node
+          direction: game-direction
+          rules: host-rules
+        language: starlark
+        entrypoint: run
+        source: |
+          # Generated from workflows/guess-math-terms/puzzles.json by scripts/guess/generate.py.
+          # Eino keeps no hidden state between turns, so every turn rebuilds the game
+          # from the spoken History: the latest "谜题来啦"/"Puzzle time" opening names
+          # the level and the puzzle number, and (level, puzzle) picks the secret.
+          # Each turn makes one model call: this script either writes the host's
+          # instruction for build-host-prompt, or activates the current puzzle's card
+          # node, whose card has the name removed so the host cannot say it.
+          DATA = {"subject_zh": "一个数学名词", "subject_en": "a math word", "examples_zh": ["它是一种图形吗？", "它是一个数吗？", "它和计算有关吗？", "它和测量有关吗？"], "examples_en": ["Is it a shape?", "Is it a number?", "Is it about calculating?", "Is it used for measuring?"], "restate_zh": ["它是一个数吗？", "是，它是一个数。", "不是，它不是一个数。"], "restate_en": ["Is it a number?", "Yes, it is a number.", "No, it is not a number."], "host_rules": "你是儿童猜谜游戏“猜猜数学名词”的主持人。玩法：主持人心里藏着一个数学名词，孩子用能回答“是”或“不是”的问题来猜，每一题最多 20 次提问；猜中就升一关，一共 10 关，关名从“数学小萌新”一直到“无穷解谜者”。孩子可能说中文，也可能说英文。\n你不知道谜底的名字。需要回答孩子的问题时，系统会在【谜底卡】里给你这一题的资料，谜底的名字已经隐藏，你也不要去猜它叫什么；回答是非题时以这张卡为准，卡上没写到又拿不准的就说说不准。揭晓答案时系统才会在指令里告诉你名字。本轮要做什么写在对话最后的【本轮指令】里，照着做，说得自然、热情、简短。\n孩子说的“它”“这个东西”“this”“it”都指谜底名词。按这个数学名词在课本里的本来含义、常见例子和日常生活里的用法来判断；是图形、数、运算、单位或工具、定理或公式还是概念，也要按它的本意判断。\n必须遵守：\n1. 本轮指令要求“逐字说”的句子必须一字不差地说出来，包括数字、标点和引号里的称号，不改写、不省略、不调换顺序。\n2. 只回答孩子问到的那一点，绝不能主动补充谜底卡上的其他描述、线索、特征、猜测方向或评价；复述孩子的问题时只能用孩子问题里已有的意思。\n3. 只有本轮指令要求揭晓答案时才能说“答案揭晓”“答案就是”“The answer is”；只有本轮指令要求开新题时才能说“谜题来啦”“Puzzle time”；只有真的给提示时才能说“小提示”“Hint”。平时绝不能说这些词。\n4. 按【本轮指令】写明的回复语言回答：中文就全部用中文；English 就全部用英文，逐字句也用指令给出的英文原句。\n5. 安全永远优先于本轮指令：孩子提到要在现实中模仿危险做法或遇到安全问题时，中文回复必须逐字包含“不要模仿”和“找家长、老师或可信任成年人帮助”，英文回复要说 do not copy it 并请孩子 ask a parent, teacher or trusted adult for help。\n6. 不要自己数还剩几次提问机会，只有本轮指令写了剩余次数时才说那个数字。\n7. 语气像节目主持人一样活泼友好，适合小朋友；平时回复1到3句话、100个字以内，开新题和揭晓答案时可以到150个字；最后一句必须是问孩子的问题，道别时也用一个轻松的问题结尾。\n8. 只输出适合朗读的正文，不输出 Markdown、列表、emoji、括号注释、舞台说明或系统字段，也不要提到“本轮指令”“裁判”这些词。", "levels": [{"title_zh": "数学小萌新", "title_en": "Math Sprout", "step": 7, "offset": 0, "items": [{"zh": "圆形", "en": "circle", "aliases": ["圆", "圆圈"], "profile": "没有角、边是一条弯弯曲线的平面图形，边上每一点到中心的距离都一样。", "hints": ["它是一种平面图形", "它一个角也没有", "它的样子像车轮"]}, {"zh": "正方形", "en": "square", "aliases": [], "profile": "四条边一样长、四个角都是直角的平面图形。", "hints": ["它是一种平面图形", "它有四个角", "它的四条边一样长"]}, {"zh": "三角形", "en": "triangle", "aliases": ["三角"], "profile": "由三条线段首尾相连围成的平面图形，有三个角。", "hints": ["它是一种平面图形", "它的边都是直的", "它的角比正方形少"]}, {"zh": "长方形", "en": "rectangle", "aliases": ["矩形"], "profile": "四个角都是直角、对边一样长的平面图形。", "hints": ["它是一种平面图形", "它有四个直角", "它像一扇门的形状"]}, {"zh": "椭圆形", "en": "oval", "aliases": ["椭圆", "ellipse"], "profile": "像把圆压扁后得到的平面图形，没有角，边是光滑的曲线。", "hints": ["它是一种平面图形", "它没有角", "它像鸡蛋侧面的轮廓"]}, {"zh": "半圆形", "en": "semicircle", "aliases": ["半圆"], "profile": "把圆沿直径切成两半后得到的平面图形，一条边直、一条边弯。", "hints": ["它是一种平面图形", "它的边有直有弯", "它像量角器的形状"]}, {"zh": "五角星", "en": "star", "aliases": ["星形", "星星", "五星"], "profile": "有五个尖尖的角、看起来闪闪发光的平面图形，常印在奖励贴纸上。", "hints": ["它是一种平面图形", "它有很多尖尖的角", "它常出现在奖励贴纸上"]}, {"zh": "球体", "en": "sphere", "aliases": ["球", "圆球", "球形"], "profile": "从哪个方向看都是圆的立体图形，表面上每一点到中心的距离都一样。", "hints": ["它是一种立体图形", "它没有棱角", "它可以向各个方向滚"]}, {"zh": "正方体", "en": "cube", "aliases": ["立方体"], "profile": "由六个一样大的正方形围成的立体图形，有八个顶点和十二条棱。", "hints": ["它是一种立体图形", "它有六个面", "它的样子像骰子"]}, {"zh": "零", "en": "zero", "aliases": ["0"], "profile": "表示“一个也没有”的数，比所有正数都小，比所有负数都大。", "hints": ["它是一个数", "它表示什么都没有", "它写出来像个鸡蛋"]}, {"zh": "十", "en": "ten", "aliases": ["10"], "profile": "比九多一的数，正好是两只手手指头的个数。", "hints": ["它是一个数", "它是一个偶数", "它等于你手指的个数"]}, {"zh": "一半", "en": "half", "aliases": ["二分之一"], "profile": "把一个东西平均分成两份，其中的每一份就是它。", "hints": ["它和分东西有关", "它比一整个小", "它和平均分成两份有关"]}, {"zh": "加法", "en": "addition", "aliases": ["加", "加号"], "profile": "把两个或几个数合起来，求一共是多少的运算，结果叫和。", "hints": ["它是一种运算", "它能算出一共有多少", "它的符号像个十字"]}, {"zh": "减法", "en": "subtraction", "aliases": ["减", "减号"], "profile": "从一个数里去掉一部分，求还剩多少的运算，结果叫差。", "hints": ["它是一种运算", "它能算出还剩多少", "它的符号是一条短横线"]}, {"zh": "钟表", "en": "clock", "aliases": ["时钟", "钟", "闹钟", "手表"], "profile": "用来看时间的工具，表盘上有数字和会转动的指针。", "hints": ["它和时间有关", "它有会转的指针", "它常挂在墙上"]}, {"zh": "尺子", "en": "ruler", "aliases": ["直尺", "尺"], "profile": "上面有刻度、用来量长度和画直线的工具。", "hints": ["它和测量有关", "它上面有很多刻度", "它常放在文具盒里"]}]}, {"title_zh": "算术小能手", "title_en": "Arithmetic Whiz", "step": 7, "offset": 0, "items": [{"zh": "长方体", "en": "cuboid", "aliases": ["rectangular prism"], "profile": "由六个长方形围成的立体图形，相对的两个面完全一样，有八个顶点。", "hints": ["它是一种立体图形", "它有六个面", "它的样子像鞋盒"]}, {"zh": "圆柱", "en": "cylinder", "aliases": ["圆柱体"], "profile": "上下两个面是一样大的圆、侧面是弯曲面的立体图形。", "hints": ["它是一种立体图形", "它躺下能滚动", "它的样子像易拉罐"]}, {"zh": "偶数", "en": "even number", "aliases": ["双数"], "profile": "能被2整除的整数，比如0、2、4、6、8。", "hints": ["它是一类数", "它能平均分成两份", "它的个位可以是8"]}, {"zh": "乘法", "en": "multiplication", "aliases": ["乘", "乘号"], "profile": "求几个相同的数加起来是多少的简便算法，结果叫积。", "hints": ["它是一种运算", "它比连着相加更快", "它的符号像个斜十字"]}, {"zh": "线段", "en": "line segment", "aliases": [], "profile": "直线上两个端点之间的一段，有两个端点，可以量出长度。", "hints": ["它是一种几何图形", "它是直直的", "它有两个端点"]}, {"zh": "奇数", "en": "odd number", "aliases": ["单数"], "profile": "不能被2整除的整数，比如1、3、5、7、9。", "hints": ["它是一类数", "它不能平均分成两份", "它的个位可以是7"]}, {"zh": "等号", "en": "equals sign", "aliases": ["等于号"], "profile": "由两条一样长的平行短线组成的符号，表示两边的大小相等。", "hints": ["它是一个数学符号", "它由两条短线组成", "它说明两边一样多"]}, {"zh": "厘米", "en": "centimeter", "aliases": ["公分", "centimetre"], "profile": "常用的长度单位，1米等于100个它，大约是一个指甲盖的宽度。", "hints": ["它是一个单位", "它用来量长度", "它大约有指甲盖那么宽"]}, {"zh": "除法", "en": "division", "aliases": ["除", "除号"], "profile": "把一个数平均分成几份、求每份是多少的运算，结果叫商。", "hints": ["它是一种运算", "它和平均分有关", "它的符号上下各有一个点"]}, {"zh": "六边形", "en": "hexagon", "aliases": ["六角形"], "profile": "有六条边和六个角的平面图形，蜂巢的格子就是这个形状。", "hints": ["它是一种平面图形", "它的边比正方形多", "它像蜂巢的格子"]}, {"zh": "直角", "en": "right angle", "aliases": [], "profile": "正好是90度的角，像书本、桌子的角那样方方正正。", "hints": ["它是一种角", "它的大小是固定的", "它像书本的角"]}, {"zh": "乘法表", "en": "times table", "aliases": ["乘法口诀", "九九乘法表", "九九表", "multiplication table"], "profile": "把1到9两两相乘的结果排成表或编成口诀，方便背下来快速计算。", "hints": ["它和计算有关", "它常常需要背诵", "它可以编成顺口的口诀"]}, {"zh": "千克", "en": "kilogram", "aliases": ["公斤"], "profile": "常用的质量单位，等于1000克，一升水大约就这么重。", "hints": ["它是一个单位", "它和轻重有关", "它比克大得多"]}, {"zh": "余数", "en": "remainder", "aliases": [], "profile": "平均分东西分不完时剩下的部分，一定比除数小。", "hints": ["它和除法有关", "它是剩下来的部分", "它总比除数小"]}, {"zh": "日历", "en": "calendar", "aliases": ["月历", "挂历", "台历"], "profile": "按年、月、日排好日期的表，可以查今天是几月几日、星期几。", "hints": ["它和时间有关", "它能查日子", "它通常一年换一本"]}, {"zh": "小时", "en": "hour", "aliases": ["钟头"], "profile": "常用的时间单位，1个它等于60分钟，一天一夜有24个它。", "hints": ["它是一个单位", "它和时间有关", "它比分钟长"]}]}, {"title_zh": "图形小侦探", "title_en": "Shape Detective", "step": 7, "offset": 0, "items": [{"zh": "分数", "en": "fraction", "aliases": [], "profile": "把一个整体平均分成几份，表示其中一份或几份的数，比如三分之一。", "hints": ["它是一类数", "它和平均分有关", "它写的时候中间有条横线"]}, {"zh": "小数", "en": "decimal", "aliases": [], "profile": "像0.5、3.14这样中间带一个圆点的数，可以表示比1小的部分。", "hints": ["它是一类数", "它的中间有一个点", "它常出现在价格标签上"]}, {"zh": "周长", "en": "perimeter", "aliases": [], "profile": "围成一个图形一周的所有边的长度总和。", "hints": ["它和长度有关", "它要绕着图形走一圈", "它是各条边加起来"]}, {"zh": "面积", "en": "area", "aliases": [], "profile": "物体表面或平面图形的大小，用平方厘米、平方米来计量。", "hints": ["它和大小有关", "它说的是一个面有多大", "它的单位里有平方"]}, {"zh": "千米", "en": "kilometer", "aliases": ["公里", "kilometre"], "profile": "比较长的长度单位，等于1000米，常用来计量城市之间的距离。", "hints": ["它是一个单位", "它用来量很长的距离", "它等于很多个米"]}, {"zh": "平行四边形", "en": "parallelogram", "aliases": [], "profile": "两组对边分别平行的四边形，拉一拉会改变形状，容易变形。", "hints": ["它是一种平面图形", "它有四条边", "它像被推歪的长方形"]}, {"zh": "梯形", "en": "trapezoid", "aliases": ["trapezium"], "profile": "只有一组对边平行的四边形，像堤坝的横截面那样。", "hints": ["它是一种平面图形", "它有四条边", "它只有一组边平行"]}, {"zh": "平行线", "en": "parallel lines", "aliases": ["平行"], "profile": "在同一个平面上、永远不会相交的两条直线。", "hints": ["它和直线有关", "它总是成对出现", "它们永远不会碰到"]}, {"zh": "垂直", "en": "perpendicular", "aliases": ["互相垂直"], "profile": "两条直线相交成直角时的位置关系，就像十字路口那样。", "hints": ["它和直线有关", "它说的是一种位置关系", "它会形成直角"]}, {"zh": "锐角", "en": "acute angle", "aliases": [], "profile": "比直角小、大于0度的角，看起来尖尖的。", "hints": ["它是一种角", "它比直角小", "它看起来尖尖的"]}, {"zh": "量角器", "en": "protractor", "aliases": [], "profile": "量角的大小的工具，常见的是半圆形，上面刻有0到180度。", "hints": ["它是一种工具", "它上面有刻度", "它通常是半圆的形状"]}, {"zh": "算盘", "en": "abacus", "aliases": ["珠算盘"], "profile": "用拨动算珠来计算的传统工具，中国古代就广泛使用。", "hints": ["它是一种计算工具", "它不需要用电", "它上面有许多珠子"]}, {"zh": "轴对称", "en": "line symmetry", "aliases": ["对称", "轴对称图形", "reflection symmetry"], "profile": "一个图形沿一条直线对折后，两边能完全重合的特点。", "hints": ["它和图形有关", "它要沿直线对折", "它让两边一模一样"]}, {"zh": "条形统计图", "en": "bar chart", "aliases": ["条形图", "柱状图", "bar graph"], "profile": "用长短不同的直条表示数量多少的统计图。", "hints": ["它和统计有关", "它能比较数量多少", "它由一根根直条组成"]}, {"zh": "平均数", "en": "average", "aliases": ["平均值"], "profile": "把几个数加起来再除以个数得到的数，表示一组数据的一般水平。", "hints": ["它和统计有关", "它要先加再除", "它代表一组数的一般水平"]}, {"zh": "闰年", "en": "leap year", "aliases": [], "profile": "二月有29天、全年有366天的年份，一般每四年出现一次。", "hints": ["它和日历有关", "它比平常多一天", "它一般四年出现一次"]}]}, {"title_zh": "数字探险家", "title_en": "Number Explorer", "step": 7, "offset": 0, "items": [{"zh": "质数", "en": "prime number", "aliases": ["素数"], "profile": "大于1、只能被1和它本身整除的整数，比如2、3、5、7。", "hints": ["它是一类数", "它和因数有关", "它只能被1和自己整除"]}, {"zh": "合数", "en": "composite number", "aliases": [], "profile": "除了1和它本身以外，还有别的因数的整数，比如4、6、8、9。", "hints": ["它是一类数", "它和因数有关", "它的因数至少有三个"]}, {"zh": "因数", "en": "factor", "aliases": ["约数"], "profile": "能整除一个整数的数，比如1、2、3、6都能整除6。", "hints": ["它和整除有关", "它说的是两个数的关系", "它和倍数是一对"]}, {"zh": "倍数", "en": "multiple", "aliases": [], "profile": "一个数乘整数得到的数，比如3、6、9、12都是3的这种数。", "hints": ["它和整除有关", "它有无穷多个", "它和因数是一对"]}, {"zh": "百分数", "en": "percentage", "aliases": ["百分比", "百分率"], "profile": "表示一个数是另一个数的百分之几的数，用%号表示。", "hints": ["它是一类数", "它有专门的符号", "它常出现在电量显示上"]}, {"zh": "比例", "en": "proportion", "aliases": [], "profile": "表示两个比相等的式子，比如2比3等于4比6。", "hints": ["它和比有关", "它里面有四个数", "它常用于放大和缩小"]}, {"zh": "半径", "en": "radius", "aliases": [], "profile": "连接圆心和圆上任意一点的线段，同一个圆里它都一样长。", "hints": ["它和圆有关", "它是一条线段", "它从圆心出发"]}, {"zh": "直径", "en": "diameter", "aliases": [], "profile": "穿过圆心、两端都在圆上的线段，是圆里最长的线段。", "hints": ["它和圆有关", "它是一条线段", "它穿过圆的中心"]}, {"zh": "体积", "en": "volume", "aliases": [], "profile": "物体所占空间的大小，用立方厘米、立方米等单位来计量。", "hints": ["它和大小有关", "它说的是占多大空间", "它的单位里有立方"]}, {"zh": "圆锥", "en": "cone", "aliases": ["圆锥体"], "profile": "底面是一个圆、侧面是曲面、顶上有一个尖的立体图形。", "hints": ["它是一种立体图形", "它有一个尖顶", "它像冰淇淋蛋筒"]}, {"zh": "方程", "en": "equation", "aliases": [], "profile": "含有未知数的等式，比如x加3等于5。", "hints": ["它是一种式子", "它里面有等号", "它藏着一个未知数"]}, {"zh": "扇形统计图", "en": "pie chart", "aliases": ["扇形图", "饼图", "饼状图"], "profile": "用整个圆表示总数、用扇形大小表示各部分占多少的统计图。", "hints": ["它和统计有关", "它能看出各部分占多少", "它的样子像切开的比萨"]}, {"zh": "罗马数字", "en": "Roman numerals", "aliases": [], "profile": "古罗马人用字母表示数的方法，比如I表示1、V表示5、X表示10。", "hints": ["它是一种写数的方法", "它来自古代欧洲", "它用字母来表示数"]}, {"zh": "平方米", "en": "square meter", "aliases": ["平米", "square metre"], "profile": "常用的面积单位，边长1米的正方形面积就是这么大。", "hints": ["它是一个单位", "它用来量面积", "它常用来说房间多大"]}, {"zh": "钝角", "en": "obtuse angle", "aliases": [], "profile": "大于直角、小于平角的角，也就是在90度到180度之间。", "hints": ["它是一种角", "它比直角大", "它看起来张得很开"]}]}, {"title_zh": "代数小勇士", "title_en": "Algebra Knight", "step": 7, "offset": 0, "items": [{"zh": "负数", "en": "negative number", "aliases": [], "profile": "比0小的数，前面带一个负号，比如零下5摄氏度记作负5。", "hints": ["它是一类数", "它比0小", "它常出现在冬天的温度里"]}, {"zh": "圆周率", "en": "pi", "aliases": ["π", "派"], "profile": "圆的周长和直径的比值，约等于3.14，是一个永远写不完的小数。", "hints": ["它是一个数", "它和圆有关", "它的小数永远写不完"]}, {"zh": "绝对值", "en": "absolute value", "aliases": [], "profile": "数轴上一个数到0的距离，所以它永远不会是负数。", "hints": ["它和距离有关", "它不会是负数", "它写的时候有两条竖线"]}, {"zh": "有理数", "en": "rational number", "aliases": [], "profile": "能写成两个整数相除形式的数，包括整数和分数。", "hints": ["它是一类数", "它能写成分数", "它包括所有整数"]}, {"zh": "数轴", "en": "number line", "aliases": [], "profile": "规定了原点、正方向和单位长度的直线，可以用点来表示数。", "hints": ["它和数有关", "它画出来是一条直线", "它上面有原点"]}, {"zh": "相反数", "en": "opposite number", "aliases": [], "profile": "只有符号不同的两个数互为这种数，比如3和负3。", "hints": ["它总是成对出现", "它和正负号有关", "它们加起来等于0"]}, {"zh": "倒数", "en": "reciprocal", "aliases": [], "profile": "乘积是1的两个数互为这种数，比如2和二分之一。", "hints": ["它总是成对出现", "它和乘法有关", "它们的乘积是1"]}, {"zh": "乘方", "en": "exponentiation", "aliases": ["幂", "次方", "power"], "profile": "把同一个数连续乘好几次的运算，比如求2乘2乘2的结果。", "hints": ["它是一种运算", "它和乘法有关", "它的结果常常增长很快"]}, {"zh": "科学记数法", "en": "scientific notation", "aliases": [], "profile": "把很大或很小的数写成一个数乘10的几次方的简便写法。", "hints": ["它是一种写数的方法", "它适合写很大的数", "它会用到10"]}, {"zh": "代数式", "en": "algebraic expression", "aliases": [], "profile": "用运算符号把数和表示数的字母连起来的式子，比如2a加b。", "hints": ["它是一种式子", "它里面有字母", "它没有等号"]}, {"zh": "一元一次方程", "en": "linear equation in one variable", "aliases": [], "profile": "只含一个未知数、未知数的次数是1的整式方程，比如2x加1等于7。", "hints": ["它是一种等式", "它只有一个未知数", "它的未知数没有平方"]}, {"zh": "射线", "en": "ray", "aliases": [], "profile": "直线上一点和它一旁的部分，只有一个端点，向一方无限延伸。", "hints": ["它是一种几何图形", "它只有一个端点", "它像手电筒照出的光"]}, {"zh": "对顶角", "en": "vertical angles", "aliases": [], "profile": "两条直线相交时，位置相对、共用一个顶点的两个角，它们总是相等。", "hints": ["它和角有关", "它总是成对出现", "它的两个角大小一样"]}, {"zh": "角平分线", "en": "angle bisector", "aliases": [], "profile": "从角的顶点出发，把一个角分成两个相等部分的射线。", "hints": ["它和角有关", "它是一条射线", "它把角平均分开"]}, {"zh": "补角", "en": "supplementary angle", "aliases": [], "profile": "两个角加起来正好是180度时，这两个角互为这种角。", "hints": ["它和角有关", "它总是成对出现", "它们合起来是一个平角"]}]}, {"title_zh": "几何建筑师", "title_en": "Geometry Architect", "step": 5, "offset": 0, "items": [{"zh": "勾股定理", "en": "Pythagorean theorem", "aliases": ["毕达哥拉斯定理", "商高定理"], "profile": "直角三角形两条直角边的平方和，等于斜边的平方。", "hints": ["它是一个定理", "它和直角三角形有关", "它和三条边的平方有关"]}, {"zh": "无理数", "en": "irrational number", "aliases": [], "profile": "无限不循环的小数，不能写成两个整数之比，比如圆周率。", "hints": ["它是一类数", "它的小数写不完", "它不能写成分数"]}, {"zh": "平方根", "en": "square root", "aliases": [], "profile": "如果一个数自己乘自己等于a，这个数就叫a的它，比如3和负3都是9的它。", "hints": ["它是一个数", "它和平方有关", "它的符号像个钩子"]}, {"zh": "实数", "en": "real number", "aliases": [], "profile": "有理数和无理数的统称，每一个都能在数轴上找到一个点。", "hints": ["它是一类数", "它能在数轴上找到位置", "它包括有理数和无理数"]}, {"zh": "平面直角坐标系", "en": "Cartesian coordinate system", "aliases": ["直角坐标系", "坐标系"], "profile": "由两条互相垂直、原点重合的数轴组成，用一对数确定平面上点的位置。", "hints": ["它和位置有关", "它有两条数轴", "它用一对数表示点"]}, {"zh": "全等三角形", "en": "congruent triangles", "aliases": [], "profile": "形状和大小都完全一样、叠在一起能完全重合的两个三角形。", "hints": ["它和三角形有关", "它总是成对出现", "它们能完全重合"]}, {"zh": "等腰三角形", "en": "isosceles triangle", "aliases": [], "profile": "有两条边相等的三角形，它的两个底角也相等。", "hints": ["它是一种三角形", "它有两条边一样长", "它左右对称"]}, {"zh": "等边三角形", "en": "equilateral triangle", "aliases": ["正三角形"], "profile": "三条边都相等的三角形，三个角都是60度。", "hints": ["它是一种三角形", "它的三条边一样长", "它的每个角都是60度"]}, {"zh": "中位数", "en": "median", "aliases": [], "profile": "把一组数据从小到大排好后，正中间的那个数。", "hints": ["它和统计有关", "它需要先排序", "它在正中间"]}, {"zh": "众数", "en": "mode", "aliases": [], "profile": "一组数据中出现次数最多的那个数。", "hints": ["它和统计有关", "它和出现次数有关", "它是出现最多的那个"]}, {"zh": "二元一次方程组", "en": "system of linear equations", "aliases": [], "profile": "由两个含两个未知数的一次方程组成的方程组，通常能求出唯一一组解。", "hints": ["它不止一个等式", "它有两个未知数", "它能解鸡兔同笼问题"]}, {"zh": "不等式", "en": "inequality", "aliases": [], "profile": "用大于号、小于号等不等号连接的式子，比如x大于3。", "hints": ["它是一种式子", "它和比较大小有关", "它常用大于号或小于号"]}, {"zh": "因式分解", "en": "factorization", "aliases": ["分解因式"], "profile": "把一个多项式变成几个整式相乘形式的变形方法。", "hints": ["它是一种变形", "它和乘法方向相反", "它和多项式有关"]}, {"zh": "多边形", "en": "polygon", "aliases": [], "profile": "由三条或更多条线段首尾相连围成的平面图形，比如三角形、五边形。", "hints": ["它是一种平面图形", "它的边都是直的", "它的边至少有三条"]}]}, {"title_zh": "函数魔法师", "title_en": "Function Wizard", "step": 5, "offset": 0, "items": [{"zh": "函数", "en": "function", "aliases": [], "profile": "两个变量之间的一种对应关系，一个量变化时，另一个量随之确定地变化。", "hints": ["它和变化有关", "它说的是两个量的关系", "它可以画成图像"]}, {"zh": "一次函数", "en": "linear function", "aliases": [], "profile": "形如y等于kx加b、k不为0的函数，它的图像是一条直线。", "hints": ["它是一种函数", "它的图像是直的", "它的式子里x没有平方"]}, {"zh": "反比例函数", "en": "inverse proportion function", "aliases": [], "profile": "形如y等于k除以x、k不为0的函数，它的图像是双曲线。", "hints": ["它是一种函数", "它的图像有两支", "它让一个量越大另一个越小"]}, {"zh": "二次函数", "en": "quadratic function", "aliases": [], "profile": "形如y等于ax平方加bx加c、a不为0的函数，图像是抛物线。", "hints": ["它是一种函数", "它的图像是弯的", "它的式子里有平方"]}, {"zh": "抛物线", "en": "parabola", "aliases": [], "profile": "像投出的篮球在空中划过的弯曲路线，也是二次函数的图像。", "hints": ["它是一条曲线", "它是左右对称的", "它像扔出的球飞过的路线"]}, {"zh": "一元二次方程", "en": "quadratic equation", "aliases": [], "profile": "只含一个未知数、未知数最高次数是2的整式方程。", "hints": ["它是一种方程", "它只有一个未知数", "它的未知数有平方"]}, {"zh": "相似三角形", "en": "similar triangles", "aliases": [], "profile": "形状相同、大小可以不同的两个三角形，对应角相等，对应边成比例。", "hints": ["它和三角形有关", "它总是成对出现", "它们形状一样大小不同"]}, {"zh": "切线", "en": "tangent line", "aliases": [], "profile": "和圆只有一个公共点的直线，它和过那个点的半径互相垂直。", "hints": ["它是一条直线", "它和圆有关", "它只碰到圆的一个点"]}, {"zh": "正弦", "en": "sine", "aliases": ["sin"], "profile": "直角三角形里，一个锐角的对边和斜边的比值。", "hints": ["它和三角形有关", "它和角的大小有关", "它和对边、斜边有关"]}, {"zh": "概率", "en": "probability", "aliases": ["可能性"], "profile": "表示一件事情发生的可能有多大的数，在0到1之间。", "hints": ["它和随机事件有关", "它的值在0到1之间", "它和抛硬币有关"]}, {"zh": "方差", "en": "variance", "aliases": [], "profile": "衡量一组数据波动大小的量，它越大说明数据越分散。", "hints": ["它和统计有关", "它和平均数有关", "它越小数据越稳定"]}, {"zh": "黄金分割", "en": "golden ratio", "aliases": ["黄金比", "黄金比例"], "profile": "把一条线段分成两段，使较长段与全长之比约为0.618的分法，被认为特别好看。", "hints": ["它和比例有关", "它被认为很美", "它常用在绘画和建筑里"]}, {"zh": "中心对称", "en": "point symmetry", "aliases": ["中心对称图形"], "profile": "一个图形绕某一点旋转180度后，能和原来的图形完全重合的特点。", "hints": ["它和图形有关", "它要转半圈", "它围绕一个点"]}, {"zh": "三视图", "en": "three views", "aliases": [], "profile": "从正面、左面和上面观察同一个物体画出的三张图。", "hints": ["它和立体图形有关", "它由几张图组成", "它从不同方向看物体"]}]}, {"title_zh": "数学研究员", "title_en": "Math Researcher", "step": 7, "offset": 0, "items": [{"zh": "集合", "en": "set", "aliases": [], "profile": "把一些确定的、不同的对象放在一起看成一个整体，比如全班同学。", "hints": ["它和分类有关", "它把东西放在一起", "它里面的东西叫元素"]}, {"zh": "对数", "en": "logarithm", "aliases": [], "profile": "乘方的逆运算，如果10的2次方等于100，那么以10为底100的它就是2。", "hints": ["它是一种运算", "它和乘方有关", "它能把乘法变成加法"]}, {"zh": "指数函数", "en": "exponential function", "aliases": [], "profile": "形如y等于a的x次方的函数，a大于0且不等于1，能增长或衰减得非常快。", "hints": ["它是一种函数", "它的变量在右上角", "它能增长得非常快"]}, {"zh": "向量", "en": "vector", "aliases": ["矢量"], "profile": "既有大小又有方向的量，常画成一条带箭头的线段。", "hints": ["它和方向有关", "它有大小", "它常画成箭头"]}, {"zh": "等差数列", "en": "arithmetic sequence", "aliases": [], "profile": "从第二项起，每一项减去前一项的差都相同的一列数，比如1、3、5、7。", "hints": ["它是一列数", "它和相邻两项的差有关", "它每次增加同样多"]}, {"zh": "等比数列", "en": "geometric sequence", "aliases": [], "profile": "从第二项起，每一项与前一项的比都相同的一列数，比如1、2、4、8。", "hints": ["它是一列数", "它和相邻两项的比有关", "它常常成倍增长"]}, {"zh": "排列组合", "en": "permutations and combinations", "aliases": ["排列与组合"], "profile": "计算从一些东西里选出几个，按顺序或不按顺序各有多少种方法的计数方法。", "hints": ["它和计数有关", "它和挑选东西有关", "它要考虑顺序"]}, {"zh": "双曲线", "en": "hyperbola", "aliases": [], "profile": "由两支分开的曲线组成，平面上到两个定点距离之差不变的点形成它。", "hints": ["它是一种曲线", "它由两部分组成", "它和反比例函数有关"]}, {"zh": "弧度", "en": "radian", "aliases": ["弧度制"], "profile": "用弧长等于半径时的圆心角作为1个单位来度量角，180度等于π个它。", "hints": ["它是一个单位", "它用来量角", "它和半径有关"]}, {"zh": "标准差", "en": "standard deviation", "aliases": ["均方差"], "profile": "方差的算术平方根，用来衡量一组数据的分散程度。", "hints": ["它和统计有关", "它能衡量数据的分散", "它和方差有关"]}, {"zh": "阶乘", "en": "factorial", "aliases": [], "profile": "从1一直乘到n的连乘积，用n后面加感叹号表示，比如3的它是6。", "hints": ["它是一种运算", "它要连着乘", "它的符号是感叹号"]}, {"zh": "二进制", "en": "binary", "aliases": ["二进位制"], "profile": "只用0和1两个数字、逢二进一的记数方法，电脑内部就用它。", "hints": ["它是一种记数方法", "它只用两个数字", "它和电脑有关"]}, {"zh": "余弦定理", "en": "law of cosines", "aliases": [], "profile": "三角形中任一边的平方，等于另两边平方和减去这两边与夹角余弦乘积的两倍。", "hints": ["它是一个定理", "它和三角形有关", "它能由两边和夹角求第三边"]}]}, {"title_zh": "数学大师", "title_en": "Math Master", "step": 7, "offset": 0, "items": [{"zh": "导数", "en": "derivative", "aliases": ["微商"], "profile": "描述一个函数在某一点变化快慢的量，也就是瞬时变化率。", "hints": ["它和变化快慢有关", "它和切线有关", "它是微积分的一部分"]}, {"zh": "虚数", "en": "imaginary number", "aliases": [], "profile": "像3i、1+2i这样带着i的数，i的平方等于负1，这种数不在数轴上。", "hints": ["它是一类数", "它不在数轴上", "它离不开一个特殊的字母"]}, {"zh": "复数", "en": "complex number", "aliases": [], "profile": "由实数部分和虚数部分组成的数，形如a加bi。", "hints": ["它是一类数", "它由两部分组成", "它能在平面上表示"]}, {"zh": "极限", "en": "limit", "aliases": [], "profile": "一个量无限接近某个确定值的过程和结果，是微积分的基础。", "hints": ["它和无限有关", "它是微积分的基础", "它说的是越来越接近"]}, {"zh": "数学归纳法", "en": "mathematical induction", "aliases": ["归纳法"], "profile": "先证明第一步成立，再证明每一步成立都能推出下一步成立的证明方法。", "hints": ["它是一种证明方法", "它和正整数有关", "它像推倒多米诺骨牌"]}, {"zh": "二项式定理", "en": "binomial theorem", "aliases": [], "profile": "给出两个数的和的任意正整数次方展开式的定理。", "hints": ["它是一个定理", "它和乘方展开有关", "它的系数排成三角形"]}, {"zh": "正态分布", "en": "normal distribution", "aliases": ["高斯分布"], "profile": "中间高、两边低、左右对称的钟形分布，很多自然数据都符合它。", "hints": ["它和统计有关", "它的图像像一口钟", "它左右对称"]}, {"zh": "杨辉三角", "en": "Pascal's triangle", "aliases": ["帕斯卡三角形", "贾宪三角"], "profile": "把数排成三角形的数表，每个数等于它上方两个数之和。", "hints": ["它是一张数表", "它排成三角形", "它的两条边上都是1"]}, {"zh": "矩阵", "en": "matrix", "aliases": [], "profile": "把数排成横行竖列的长方形数表，在电脑图像和数据计算中很常用。", "hints": ["它是一张数表", "它有行也有列", "它常用于电脑图像"]}, {"zh": "自然常数", "en": "Euler's number", "aliases": ["欧拉数", "自然对数的底数"], "profile": "约等于2.718的无理数，在描述自然增长和复利时会自然出现。", "hints": ["它是一个数", "它的小数写不完", "它和复利增长有关"]}, {"zh": "斐波那契数列", "en": "Fibonacci sequence", "aliases": ["兔子数列"], "profile": "从1、1开始，每个数都等于前两个数之和的数列，比如1、1、2、3、5、8。", "hints": ["它是一列数", "它和前两个数的和有关", "它在向日葵上能找到"]}, {"zh": "反证法", "en": "proof by contradiction", "aliases": ["归谬法"], "profile": "先假设要证明的结论不成立，推出矛盾，从而说明结论成立的证明方法。", "hints": ["它是一种证明方法", "它先做一个假设", "它要推出矛盾"]}, {"zh": "无穷大", "en": "infinity", "aliases": ["无穷", "无限大"], "profile": "比任何数都大、没有尽头的概念，符号像一个横着的8。", "hints": ["它没有尽头", "它比任何数都大", "它的符号像横着的8"]}]}, {"title_zh": "无穷解谜者", "title_en": "Infinity Puzzle Solver", "step": 7, "offset": 0, "items": [{"zh": "积分", "en": "integral", "aliases": ["定积分"], "profile": "高等数学里求曲线下方面积等累积量的运算，和求导数互为逆运算。", "hints": ["它是一种运算", "它能求曲线下的面积", "它和导数正好相反"]}, {"zh": "欧拉恒等式", "en": "Euler's identity", "aliases": ["欧拉公式"], "profile": "把e、i、π、1和0这五个重要的数连在一个等式里，被称为最美的数学公式。", "hints": ["它是一个等式", "它包含五个重要的数", "它被称为最美的公式"]}, {"zh": "费马大定理", "en": "Fermat's Last Theorem", "aliases": ["费马最后定理"], "profile": "说n大于2时，x的n次方加y的n次方等于z的n次方没有正整数解的定理。", "hints": ["它是一个定理", "它和整数方程有关", "它等了三百多年才被证明"]}, {"zh": "哥德巴赫猜想", "en": "Goldbach's conjecture", "aliases": [], "profile": "猜想每个大于2的偶数都能写成两个质数之和，至今还没有被证明。", "hints": ["它还没被证明", "它和质数有关", "它和偶数有关"]}, {"zh": "黎曼猜想", "en": "Riemann hypothesis", "aliases": ["黎曼假设"], "profile": "关于质数分布规律的著名猜想，是千禧年七大数学难题之一，至今未被证明。", "hints": ["它还没被证明", "它和质数有关", "它有百万美元的奖金"]}, {"zh": "四色定理", "en": "four color theorem", "aliases": ["四色猜想", "四色问题"], "profile": "任何地图只用四种颜色涂色，就能让相邻的区域颜色都不相同。", "hints": ["它是一个定理", "它和颜色有关", "它和地图有关"]}, {"zh": "莫比乌斯带", "en": "Möbius strip", "aliases": ["莫比乌斯环", "Mobius strip"], "profile": "把纸条扭转半圈后首尾粘起来，得到的只有一个面、一条边的曲面。", "hints": ["它可以用纸条做", "它只有一个面", "它需要扭转半圈"]}, {"zh": "克莱因瓶", "en": "Klein bottle", "aliases": [], "profile": "一种没有里外之分的神奇曲面，在我们的三维空间里无法完整做出来。", "hints": ["它是一种曲面", "它没有里外之分", "它的样子像个瓶子"]}, {"zh": "分形", "en": "fractal", "aliases": ["碎形"], "profile": "局部和整体形状相似、不断放大也能看到相同花纹的几何图形。", "hints": ["它是一种形状", "它的局部像整体", "它在雪花上能找到"]}, {"zh": "拓扑学", "en": "topology", "aliases": ["拓扑"], "profile": "研究图形在拉伸、弯曲但不撕破时，哪些性质保持不变的数学分支。", "hints": ["它是一个数学分支", "它研究图形", "它把杯子和甜甜圈看成一样"]}, {"zh": "哥德尔不完备定理", "en": "Gödel's incompleteness theorems", "aliases": ["不完备定理", "哥德尔定理", "不完全性定理"], "profile": "证明任何足够复杂的数学系统里，总有真命题无法在系统内被证明的定理。", "hints": ["它是一个定理", "它和证明有关", "它说有些事证明不了"]}, {"zh": "超越数", "en": "transcendental number", "aliases": [], "profile": "不是任何整系数多项式方程的根的数，比如圆周率和自然常数。", "hints": ["它是一类数", "它的小数写不完", "它包括圆周率"]}]}]}
+          MAX_ASK = 20
+          MAX_HINTS = 3
+          AUTO_HINT_AFTER = 5
+          SPACES = [" ", "　", "\t", "\n", "\r"]
+          DIGITS = {"0": 0, "1": 1, "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8, "9": 9, "０": 0, "１": 1, "２": 2, "３": 3, "４": 4, "５": 5, "６": 6, "７": 7, "８": 8, "９": 9}
+          CN_NUM = {"零": 0, "〇": 0, "一": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9}
+          DROP = " \t\n\r　。，,.!！?？、~～…\"'“”‘’:：;；()（）《》「」·•・-"
+          LATIN = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+          RESTART_WORDS = ["从头开始", "重新开始", "从第一关开始", "restart", "startover", "请从指定中文开场开始"]
+          START_WORDS = ["开始", "开始吧", "开始游戏", "start", "letsstart", "startgame", "letsplay"]
+          RESUME_CUES = ["继续上次", "continuewhere", "leftoff"]
+          STOP_CONTAINS = ["不玩了", "不想玩", "结束游戏", "退出游戏", "stopplaying", "dontwanttoplay"]
+          STOP_EXACT = ["结束", "再见", "拜拜", "退出", "stop", "bye", "goodbye", "quit"]
+          NEXT_CUES = ["下一题", "下一个", "再来", "开始", "继续", "准备好", "好的", "好啊", "好呀", "可以", "来吧", "next", "another", "ready", "letsgo", "sure", "okay", "yes"]
+          NEXT_EXACT = ["好", "嗯", "行", "要", "ok", "yeah", "yep"]
+          QUESTION_CUES = ["？", "?", "吗", "什么", "哪", "谁", "为什么", "怎么", "多少", "几", "what", "who", "when", "where", "why", "how", "which"]
+          MAX_FOLLOW_UPS = 2
+          REMIND_AT = [10, 5, 3, 2, 1]
+          CLOSINGS_ZH = ["你的下一个问题是什么？", "接下来你想问什么呢？", "你还想问点什么？", "要不要直接猜一猜答案？"]
+          CLOSINGS_EN = ["What's your next question?", "What would you like to ask next?", "What else do you want to know?", "Do you want to take a guess?"]
+          HINT_CUES = ["提示", "线索", "帮帮我", "帮我一下", "猜不到", "猜不出", "想不出", "太难了", "hint", "clue", "helpme", "imstuck"]
+          ANSWER_REQUEST_CUES = ["告诉我答案", "答案是什么", "直接告诉我", "到底是谁", "到底是什么", "你说答案", "tellmetheanswer", "whatistheanswer", "justtellme", "whoisit", "whatisit"]
+          GIVE_UP_CUES = ["我放弃", "放弃了", "不猜了", "认输", "猜不出来了", "igiveup", "giveup"]
+          # What may surround the secret's name in a guess such as “是孔子吗” or “Is it Confucius?”.
+          GUESS_FILLERS = ["是不是", "我猜是", "我猜", "我觉得是", "我觉得", "答案是", "谜底是", "应该是", "会不会是", "难道是", "那就是", "就是", "是", "吗", "呀", "啊", "呢", "吧", "嘛", "他", "她", "它", "这个人", "这个成语", "这个故事", "的故事", "成语", "故事", "这个", "这种", "那个", "一只", "一头", "一条", "一种", "一个", "一位", "一匹", "一块", "一座", "一颗", "一台", "一辆", "一件", "一项", "一本", "一张", "theansweris", "isit", "itis", "iguess", "ithink", "maybe", "is", "it", "the", "an", "a"]
+          DECLINE_EXACT = ["不要", "不想", "不了", "不用了", "先不了", "no", "nope", "notnow", "nothanks"]
+
+          def compact(text):
+              out = []
+              for ch in text.lower().codepoints():
+                  if ch in DROP:
+                      continue
+                  out.append(ch)
+              return "".join(out)
+
+          def has_cjk(text):
+              for ch in text.codepoints():
+                  code = ord(ch)
+                  if code >= 19968 and code <= 40959:
+                      return True
+              return False
+
+          def has_latin(text):
+              for ch in text.codepoints():
+                  if ch in LATIN:
+                      return True
+              return False
+
+          def pick_lang(text, previous):
+              if has_cjk(text):
+                  return "zh"
+              if has_latin(text):
+                  return "en"
+              if previous != "":
+                  return previous
+              return "zh"
+
+          def read_int(chars, start):
+              i = start
+              for ch in chars[start:]:
+                  if ch in SPACES:
+                      i += 1
+                  else:
+                      break
+              value = 0
+              count = 0
+              for ch in chars[i:]:
+                  if ch in DIGITS:
+                      value = value * 10 + DIGITS[ch]
+                      count += 1
+                  else:
+                      break
+              if count > 0:
+                  return [value, i + count]
+              seq = []
+              for ch in chars[i:]:
+                  if ch in CN_NUM or ch == "十":
+                      seq.append(ch)
+                  else:
+                      break
+              if len(seq) == 0:
+                  return [-1, i]
+              if "十" in seq:
+                  pos = seq.index("十")
+                  tens = 1
+                  if pos > 0:
+                      tens = CN_NUM.get(seq[pos - 1], 1)
+                  ones = 0
+                  if pos + 1 < len(seq):
+                      ones = CN_NUM.get(seq[pos + 1], 0)
+                  return [tens * 10 + ones, i + len(seq)]
+              return [CN_NUM[seq[0]], i + len(seq)]
+
+          def numbers_after(content, prefix, suffix):
+              found = []
+              chars = list(content.codepoints())
+              pchars = list(prefix.codepoints())
+              schars = list(suffix.codepoints())
+              plen = len(pchars)
+              for i in range(len(chars)):
+                  if chars[i:i + plen] != pchars:
+                      continue
+                  got = read_int(chars, i + plen)
+                  if got[0] < 0:
+                      continue
+                  j = got[1]
+                  for ch in chars[j:]:
+                      if ch in SPACES:
+                          j += 1
+                      else:
+                          break
+                  if len(schars) == 0 or chars[j:j + len(schars)] == schars:
+                      found.append(got[0])
+              return found
+
+          def round_info(content):
+              low = content.lower()
+              levels = []
+              puzzles = []
+              if "谜题来啦" in content:
+                  levels = numbers_after(content, "第", "关")
+                  puzzles = numbers_after(content, "第", "题")
+              elif "puzzle time" in low:
+                  levels = numbers_after(low, "level", "")
+                  puzzles = numbers_after(low, "puzzle", "")
+              if len(levels) == 0 or len(puzzles) == 0:
+                  return None
+              return [min(max(levels[0], 1), len(DATA["levels"])), max(puzzles[0], 1)]
+
+          def secret_index(level, puzzle):
+              lv = DATA["levels"][level - 1]
+              return (lv["offset"] + (puzzle - 1) * lv["step"]) % len(lv["items"])
+
+          def secret_for(level, puzzle):
+              return DATA["levels"][level - 1]["items"][secret_index(level, puzzle)]
+
+          def two(n):
+              return ("0" + str(n)) if n < 10 else str(n)
+
+          def card_node(level, puzzle):
+              # Each puzzle has its own prompt node holding only its background card;
+              # the branch after this script activates exactly that one.
+              return "card-l" + two(level) + "-p" + two(secret_index(level, puzzle))
+
+          def names_of(item):
+              return [item["zh"], item["en"]] + item["aliases"]
+
+          def mentions(text, item):
+              low = text.lower()
+              for name in names_of(item):
+                  if name != "" and name.lower() in low:
+                      return True
+              return False
+
+          def revealed(content, item):
+              low = content.lower()
+              cue = "答案就是" in content or "答案揭晓" in content or "the answer is" in low or "the answer was" in low
+              return cue and mentions(content, item)
+
+          def won_cue(content):
+              return "猜对啦" in content or "you got it" in content.lower()
+
+          def starts_no(content):
+              low = content.strip().lower()
+              if content.strip().startswith("不是"):
+                  return True
+              for head in ["no,", "no.", "no!", "no ", "nope"]:
+                  if low.startswith(head):
+                      return True
+              return low == "no"
+
+          def counts_as_question(text):
+              # Only questions and guesses use up the 20 chances; asking for a hint or
+              # for the answer, giving up, and game commands do not.
+              word = compact(text)
+              if word in START_WORDS or word in RESTART_WORDS or word in STOP_EXACT:
+                  return False
+              return not (matches_any(word, HINT_CUES) or matches_any(word, ANSWER_REQUEST_CUES) or matches_any(word, GIVE_UP_CUES) or matches_any(word, RESUME_CUES) or matches_any(word, STOP_CONTAINS))
+
+          def analyze(messages):
+              history = list(messages)
+              if len(history) > 0 and history[-1].get("role", "") == "user":
+                  history = history[:-1]
+              state = {"found": False, "level": 1, "puzzle": 0, "asked": 0, "hints": 0, "streak": 0, "over": False, "won": False, "after": 0, "lang": "", "start": -1, "said": ""}
+              for message in reversed(history):
+                  if message.get("role", "") == "user":
+                      content = message.get("content", "")
+                      if has_cjk(content):
+                          state["lang"] = "zh"
+                          break
+                      if has_latin(content):
+                          state["lang"] = "en"
+                          break
+              start = -1
+              for i in range(len(history)):
+                  if history[i].get("role", "") == "user":
+                      continue
+                  content = history[i].get("content", "")
+                  if "谜题来啦" not in content and "puzzle time" not in content.lower():
+                      continue
+                  info = round_info(content)
+                  if info != None:
+                      start = i
+                      state["level"] = info[0]
+                      state["puzzle"] = info[1]
+              if start < 0:
+                  return state
+              state["found"] = True
+              state["start"] = start
+              item = secret_for(state["level"], state["puzzle"])
+              for message in history[start + 1:]:
+                  content = message.get("content", "")
+                  if message.get("role", "") == "user":
+                      if counts_as_question(content):
+                          state["asked"] += 1
+                      continue
+                  if state["over"]:
+                      state["after"] += 1
+                      continue
+                  state["said"] += content + "\n"
+                  if revealed(content, item):
+                      state["over"] = True
+                      state["won"] = won_cue(content)
+                      continue
+                  if "小提示" in content or "hint:" in content.lower():
+                      state["hints"] += 1
+                      state["streak"] = 0
+                  elif starts_no(content):
+                      state["streak"] += 1
+                  else:
+                      state["streak"] = 0
+              return state
+
+          def title(level, lang):
+              lv = DATA["levels"][level - 1]
+              return lv["title_en"] if lang == "en" else lv["title_zh"]
+
+          def example(lang, index):
+              examples = DATA["examples_en"] if lang == "en" else DATA["examples_zh"]
+              return examples[index % len(examples)]
+
+          def head(lang):
+              if lang == "en":
+                  return "【回复语言：English】整条回复只用英文，逐字句也用下面给出的英文原句。"
+              return "【回复语言：中文】"
+
+          def open_lead(lang, level, puzzle, full):
+              # The marker sentence always comes first: History keeps only the spoken
+              # prefix of a reply the child talks over, and the marker carries the state.
+              if lang == "en":
+                  marker = "Puzzle time! Level " + str(level) + ", " + title(level, lang) + ", puzzle " + str(puzzle) + "."
+                  if full:
+                      return [marker, "I'm thinking of " + DATA["subject_en"] + ". You have 20 questions, and I can only answer yes or no. What's your first question?"]
+                  return [marker, "I've got a new one in mind, and you have 20 questions again. What's your first question?"]
+              marker = "谜题来啦！第 " + str(level) + " 关“" + title(level, lang) + "”，第 " + str(puzzle) + " 题。"
+              if full:
+                  return [marker, "我心里已经藏好了" + DATA["subject_zh"] + "，你有 20 次提问机会，只能问我用“是”或“不是”回答的问题。你的第一个问题是什么？"]
+              return [marker, "我又想好了" + DATA["subject_zh"] + "，还是 20 次提问机会。你的第一个问题是什么？"]
+
+          def open_round(lang, level, puzzle, full):
+              lead = open_lead(lang, level, puzzle, full)
+              if lang == "en":
+                  body = "Start a new puzzle. Say this whole paragraph exactly, word for word, beginning with “Puzzle time”, and add nothing before or after it: “" + lead[0] + " " + lead[1] + "”"
+              else:
+                  body = "本轮开启新的一题。从“谜题来啦”开始，逐字说出下面这一整段话，一字不改，前后都不要添加别的内容：“" + lead[0] + lead[1] + "”"
+              return {"route": "open", "node": "", "direction": head(lang) + body, "rules": ""}
+
+          def say(lang, zh, en):
+              return {"route": "say", "node": "", "direction": head(lang) + (en if lang == "en" else zh), "rules": ""}
+
+          def recap(lang, state):
+              level = state["level"]
+              left = MAX_ASK - state["asked"]
+              zh = "孩子想接着玩上次的题。逐字说“我们接着玩第 " + str(level) + " 关“" + title(level, "zh") + "”的第 " + str(state["puzzle"]) + " 题，你已经问了 " + str(state["asked"]) + " 次，还剩 " + str(left) + " 次机会。”然后用一个问题请孩子继续提问，不要透露任何关于谜底的信息。"
+              en = "The child wants to continue the last puzzle. Say exactly: “Let's keep going with Level " + str(level) + ", " + title(level, "en") + ", puzzle " + str(state["puzzle"]) + ". You've asked " + str(state["asked"]) + " questions and have " + str(left) + " left.” Then ask the child for the next question, without revealing anything about the answer."
+              return say(lang, zh, en)
+
+          def ask_first(lang, state):
+              zh = "孩子说要开始，但这一题已经开始了。逐字说“我们已经开始啦！”再用一句话提醒玩法：只能问能用“是”或“不是”回答的问题，例如“" + example("zh", 0) + "”。最后问孩子第一个问题是什么。"
+              en = "The child asked to start, but this puzzle has already started. Say exactly “We've already started!” and remind them in one sentence to ask yes or no questions, for example “" + example("en", 0) + "”. Then ask for their first question."
+              return say(lang, zh, en)
+
+          def farewell(lang, state, midround):
+              level = state["level"]
+              if midround:
+                  zh_keep = "这一题先帮你留着，下次说“继续上次的内容”就能接着猜"
+                  en_keep = "this puzzle will wait for them, and next time they can say “continue where we left off”"
+              else:
+                  zh_keep = "下次说“开始”就能接着挑战"
+                  en_keep = "next time they can say “start” to keep playing"
+              zh = "孩子想先不玩了。用一两句话温暖地道别，告诉孩子现在在第 " + str(level) + " 关“" + title(level, "zh") + "”，" + zh_keep + "，最后用一个轻松的问题结尾，例如“下次再来挑战好吗？”。不要开启新的一题，不要说出任何谜底。"
+              en = "The child wants to stop for now. Say a warm goodbye in one or two sentences, tell them they are at Level " + str(level) + ", " + title(level, "en") + ", and that " + en_keep + ". End with a light question such as “See you next time?”. Do not start a new puzzle or reveal any answer."
+              return say(lang, zh, en)
+
+          def is_guess(text, item):
+              word = compact(text)
+              for name in sorted([compact(n) for n in names_of(item) if n != ""], key=len, reverse=True):
+                  if name == "" or name not in word:
+                      continue
+                  rest = word.replace(name, "")
+                  # Longest first, so "an" is not cut down to a stray "n" by "a".
+                  for filler in sorted(GUESS_FILLERS, key=len, reverse=True):
+                      rest = rest.replace(filler, "")
+                  return rest == ""
+              return False
+
+          def reveal(lang, state, reason):
+              # The whole reveal is our own text, so the host reads it verbatim instead of
+              # composing it (a composed reveal tends to stop after its first sentence).
+              if lang == "en":
+                  return "Say this whole paragraph exactly, word for word, adding nothing: “" + reveal_words(lang, state, reason) + "”"
+              return "逐字说出下面这一整段话，一字不改：“" + reveal_words(lang, state, reason) + "”"
+
+          def reveal_words(lang, state, reason):
+              level = state["level"]
+              item = secret_for(level, state["puzzle"])
+              top = level >= len(DATA["levels"])
+              if lang == "en":
+                  if reason == "win":
+                      lead = "You got it! The answer is " + item["en"] + "!"
+                      tail = ("Amazing, you're already at the top level, Level " + str(level) + ": " + title(level, lang) + "! Ready for the next puzzle?") if top else ("Congratulations, you've reached Level " + str(level + 1) + ": " + title(level + 1, lang) + "! Ready for the next puzzle?")
+                  else:
+                      lead = ("No worries! The answer is " + item["en"] + "!") if reason == "giveup" else ("That was your 20th question! The answer is " + item["en"] + "!")
+                      tail = "You're still at Level " + str(level) + ", " + title(level, lang) + ". Want to try another puzzle?"
+                  return lead + " " + tail
+              if reason == "win":
+                  lead = "猜对啦！答案就是" + item["zh"] + "！"
+                  tail = ("太厉害了，你已经是最高的第 " + str(level) + " 关“" + title(level, lang) + "”！准备好挑战下一题了吗？") if top else ("恭喜你升到第 " + str(level + 1) + " 关，获得“" + title(level + 1, lang) + "”称号！准备好挑战下一题了吗？")
+              else:
+                  lead = ("没关系，答案揭晓：" + item["zh"] + "！") if reason == "giveup" else ("20 次机会用完啦，答案揭晓：" + item["zh"] + "！")
+                  tail = "你还在第 " + str(level) + " 关“" + title(level, lang) + "”，要不要再来一题？"
+              return lead + item["profile"] + tail
+
+          def unused_hint_numbers(state):
+              # A hint is used when History holds its exact Chinese text or, for an
+              # English game where the hint is translated, its number ("Hint 2:").
+              hints = secret_for(state["level"], state["puzzle"])["hints"]
+              low = state["said"].lower()
+              left = [i for i in range(len(hints)) if hints[i] not in state["said"] and ("hint " + str(i + 1)) not in low]
+              return left if len(left) > 0 else [len(hints) - 1]
+
+          def unused_hints(state):
+              hints = secret_for(state["level"], state["puzzle"])["hints"]
+              return [hints[i] for i in unused_hint_numbers(state)]
+
+          def hint_choice(lang, state, closing):
+              # Prewritten hints cannot know what the child has already found out, so the
+              # host picks, among the unused ones, one that tells the child something new.
+              options = unused_hints(state)
+              if lang == "en":
+                  # The number, not the translated text, tells later turns which hint was used.
+                  number = unused_hint_numbers(state)[0] + 1
+                  return "reply with ONE sentence that joins the hint and the question, and nothing else: “Hint " + str(number) + ": <this hint translated into English>, so " + closing[0].lower() + closing[1:] + "” — add no other clue. The hint to translate: " + options[0]
+              if len(options) == 1:
+                  return "逐字说“小提示：" + options[0] + "。" + closing + "”，不要补充别的线索"
+              return "从下面几条提示里挑一条孩子还不知道的（不要和前面已经问出来的答案重复），逐字说“小提示：所选的那条。" + closing + "”，不要补充别的线索：" + " / ".join(options)
+
+          def give_hint(lang, state):
+              closing = (CLOSINGS_EN if lang == "en" else CLOSINGS_ZH)[state["asked"] % len(CLOSINGS_EN)]
+              if state["hints"] >= MAX_HINTS:
+                  return say(lang, "孩子要提示，但这一题的 " + str(MAX_HINTS) + " 次提示已经用完了。温和地告诉他提示用完啦（不要说“小提示”这几个字），鼓励他继续用是非题来猜，最后逐字问“" + closing + "”", "The child wants a hint, but all " + str(MAX_HINTS) + " hints for this puzzle are used. Kindly say so without the word “Hint”, encourage more yes or no questions, and end with exactly “" + closing + "”")
+              return say(lang, "孩子要提示。" + hint_choice("zh", state, closing) + "。", "The child wants a hint. " + hint_choice("en", state, closing) + ".")
+
+          def answer_rules(lang, state):
+              asked = state["asked"]
+              ex_q = DATA["restate_en"] if lang == "en" else DATA["restate_zh"]
+              # The model copies the example's shape, so the example carries the closing question.
+              closing = (CLOSINGS_EN if lang == "en" else CLOSINGS_ZH)[asked % len(CLOSINGS_EN)]
+              sample = example(lang, asked)
+              if lang == "en":
+                  lines = [
+                      "The child is asking or guessing. The system has already checked that the child did NOT name the answer.",
+                      "Answer from the puzzle card: if it is a yes or no question, start with “Yes” or “No” and you may restate it (if they asked “" + ex_q[0] + "”, say “" + ex_q[1] + " " + closing + "” or “" + ex_q[2] + " " + closing + "”). Mostly true with a clear exception: start with “Partly”. Not on the card and not sure: start with “I'm not sure about that one”. Titles given after death or by later admirers do not count.",
+                      "Only answer and restate. Never explain why, and never say any book, work, event, title, place, person or number from the card.",
+                      "If the child names an answer to guess, it is wrong: start with “No”, say that is not it, and encourage them.",
+                      "If it cannot be answered with yes or no (a name, a year, letters of the name): start with “I can only answer yes or no” and give exactly this example: “" + sample + "”.",
+                      "If they ask for the answer or who it is without giving up, tell them they can say “I give up” to see it.",
+                  ]
+              else:
+                  lines = [
+                      "孩子在提问或猜答案。系统已经核对过：孩子这句话没有说中谜底。",
+                      "按谜底卡回答：能用“是/不是”回答的问题，回复第一个字必须是“是”，或以“不是”开头，后面可以把问题改成陈述句复述一遍（孩子问“" + ex_q[0] + "”就说“" + ex_q[1] + closing + "”或“" + ex_q[2] + closing + "”）；大体对但有明显例外就以“有一部分是”开头；卡上没写到、拿不准就以“这个我也说不准”开头。身份按本人真实做过的事判断，后世追封、尊称不算。",
+                      "只回答和复述，不要解释原因，绝不能说出谜底卡上的书名、作品、事件、称号、地名、人名或数字。",
+                      "如果孩子是直接说出一个答案来猜，那一定猜错了：以“不是”开头，说“不是某某哦”（某某换成孩子猜的答案），再鼓励一句。",
+                      "如果问题不能用是或不是回答（例如问名字、问哪一年、问名字里的字）：以“这个问题我只能回答是或不是哦”开头，再逐字举这个例子：“" + sample + "”。",
+                      "如果孩子要答案或问谜底是谁但没有说放弃：告诉孩子想看答案可以说“我放弃”。",
+                  ]
+              if state["hints"] >= MAX_HINTS:
+                  lines.append("If the child asks for a hint: all " + str(MAX_HINTS) + " hints for this puzzle are used, say so kindly without using the word “Hint”." if lang == "en" else "如果孩子要提示：这一题的 " + str(MAX_HINTS) + " 次提示已经用完了，温和地告诉他，不要说“小提示”这几个字。")
+              else:
+                  if lang == "en":
+                      lines.append("If the child asks for a hint or clue: " + hint_choice("en", state, closing) + ".")
+                  else:
+                      lines.append("如果孩子要提示或线索（包括要大提示、问名字里的字）：" + hint_choice("zh", state, closing) + "。")
+                  if state["streak"] + 1 >= AUTO_HINT_AFTER:
+                      first = unused_hints(state)[0]
+                      lines.append(("If this answer is “No”, add “Hint " + str(unused_hint_numbers(state)[0] + 1) + ":” followed by this hint in English: " + first) if lang == "en" else ("如果这次的回答是“不是”，就在回答后面逐字加一句“小提示：" + first + "。”"))
+              lines.append("If the child talks about copying something dangerous in real life, follow the safety rules first." if lang == "en" else "如果涉及现实中的危险模仿或安全问题，先按安全规则回答。")
+              return lines
+
+          def play(text, lang, state):
+              level = state["level"]
+              item = secret_for(level, state["puzzle"])
+              if is_guess(text, item):
+                  return say(lang, reveal("zh", state, "win"), reveal("en", state, "win"))
+              if matches_any(compact(text), GIVE_UP_CUES):
+                  return say(lang, reveal("zh", state, "giveup"), reveal("en", state, "giveup"))
+              if matches_any(compact(text), HINT_CUES):
+                  return give_hint(lang, state)
+              lines = answer_rules(lang, state)
+              left = MAX_ASK - state["asked"] - 1
+              if left <= 0:
+                  lines.append(("This was the 20th question. First answer it in one sentence by the rules above, then say this exactly, word for word: “" + reveal_words("en", state, "out") + "”") if lang == "en" else ("这是第 20 问。先按上面的规则用一句话回答这一问，然后" + reveal("zh", state, "out")))
+              else:
+                  if left in REMIND_AT:
+                      lines.append(("Also tell the child they have " + str(left) + " questions left.") if lang == "en" else ("再告诉孩子还剩 " + str(left) + " 次提问机会。"))
+                  if lang == "en":
+                      # English replies tend to stop after the answer, so the two-part
+                      # shape goes first where the model cannot miss it.
+                      lines.insert(0, "Your reply must be two parts: first your answer as described below, then exactly this question: “" + CLOSINGS_EN[state["asked"] % len(CLOSINGS_EN)] + "” Never stop after the answer.")
+                      lines.append("Every reply ends with that question.")
+                  else:
+                      lines.append("最后一句必须是以问号结尾的简短问句，例如“" + CLOSINGS_ZH[state["asked"] % len(CLOSINGS_ZH)] + "”，不要用“请继续提问吧”这类陈述句结尾。")
+              return {"route": "play", "node": card_node(level, state["puzzle"]), "direction": head(lang) + "\n".join(lines), "rules": DATA["host_rules"]}
+
+          def follow_up(text, lang, state):
+              # The revealed puzzle's own card node answers the follow-up question.
+              if lang == "en":
+                  body = "The last answer has been revealed and the child is asking about it. Answer in one or two short, child-friendly sentences: use the puzzle card first, and you may add well-established common knowledge you are sure of; if you are not sure, say so. Do not start a new puzzle or say “Puzzle time”. End with exactly “Ready for the next puzzle?”"
+              else:
+                  body = "上一题的答案已经揭晓，孩子在追问和它有关的问题。用一两句适合小朋友的话简短回答：先用谜底卡上的内容，卡上没有的，可以补充你确定的公认常识；拿不准就直说不知道。不要开启新的一题，不要说“谜题来啦”；最后逐字问“准备好挑战下一题了吗？”"
+              return {"route": "follow", "node": card_node(state["level"], state["puzzle"]), "direction": head(lang) + body, "rules": DATA["host_rules"]}
+
+          def matches_any(word, words):
+              for candidate in words:
+                  if candidate in word:
+                      return True
+              return False
+
+          def run(input):
+              text = input["text"].strip()
+              state = analyze(input["messages"])
+              lang = pick_lang(text, state["lang"])
+              word = compact(text)
+              if word in RESTART_WORDS:
+                  return open_round(lang, 1, state["puzzle"] + 1, True)
+              if not state["found"]:
+                  return open_round(lang, 1, state["puzzle"] + 1, True)
+              if state["over"]:
+                  if word in STOP_EXACT or word in DECLINE_EXACT or matches_any(word, STOP_CONTAINS):
+                      return farewell(lang, state, False)
+                  wants_next = word in NEXT_EXACT or matches_any(word, NEXT_CUES)
+                  if not wants_next and state["after"] < MAX_FOLLOW_UPS and matches_any(text.lower(), QUESTION_CUES):
+                      return follow_up(text, lang, state)
+                  level = state["level"]
+                  if state["won"] and level < len(DATA["levels"]):
+                      level += 1
+                  return open_round(lang, level, state["puzzle"] + 1, False)
+              if matches_any(word, RESUME_CUES):
+                  return recap(lang, state)
+              if word in START_WORDS:
+                  if state["asked"] == 0:
+                      return ask_first(lang, state)
+                  return open_round(lang, state["level"], state["puzzle"] + 1, True)
+              if word in STOP_EXACT or matches_any(word, STOP_CONTAINS):
+                  return farewell(lang, state, True)
+              return play(text, lang, state)
+        limits:
+          max_execution_steps: 300000
+          timeout: 500ms
+          max_input_bytes: 262144
+          max_output_bytes: 65536
+      - id: card-l01-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：没有角、边是一条弯弯曲线的平面图形，边上每一点到中心的距离都一样。
+            领域：图形与几何
+            类型：图形
+            含义：由一条弯曲的线围成的平面图形，边上各点到中心一样远。
+            生活例子：硬币、盘子、车轮、钟面的形状
+            是不是一种图形：是
+            是不是一个数：否
+            注意：它没有角，也没有直直的边；它是平的，不是立体的。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：四条边一样长、四个角都是直角的平面图形。
+            领域：图形与几何
+            类型：图形
+            含义：四条边都相等、四个角都是直角的四边形。
+            生活例子：棋盘上的格子、方巾、魔方的一个面、便利贴
+            是不是一种图形：是
+            是不是一个数：否
+            注意：它是一种特殊的长方形；它有四条对称轴。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：由三条线段首尾相连围成的平面图形，有三个角。
+            领域：图形与几何
+            类型：图形
+            含义：由三条边围成、有三个角的平面图形。
+            生活例子：衣架、交通警示牌、屋顶的侧面、切成对半的方形三明治
+            是不是一种图形：是
+            是不是一个数：否
+            注意：它的三个内角加起来是180度；它是边数最少的多边形。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：四个角都是直角、对边一样长的平面图形。
+            领域：图形与几何
+            类型：图形
+            含义：四个角都是直角、两组对边分别相等的四边形。
+            生活例子：门、书本封面、手机屏幕、黑板
+            是不是一种图形：是
+            是不是一个数：否
+            注意：它的长和宽一般不一样长；正方形是它的特殊情况。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：像把圆压扁后得到的平面图形，没有角，边是光滑的曲线。
+            领域：图形与几何
+            类型：图形
+            含义：像把圆压扁后得到的平面图形，边是光滑的曲线。
+            生活例子：鸡蛋从侧面看的轮廓、有些镜子和餐盘的形状
+            是不是一种图形：是
+            是不是一个数：否
+            注意：它没有角；它一个方向长、一个方向短，不像圆那样处处一样宽。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：把圆沿直径切成两半后得到的平面图形，一条边直、一条边弯。
+            领域：图形与几何
+            类型：图形
+            含义：由一段弧和一条直径围成的平面图形，是圆的一半。
+            生活例子：量角器的形状、拱桥的桥洞、切开的橙子片
+            是不是一种图形：是
+            是不是一个数：否
+            注意：它有两个尖尖的拐角；它的一条边是直的，另一条边是弯的。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：有五个尖尖的角、看起来闪闪发光的平面图形，常印在奖励贴纸上。
+            领域：图形与几何
+            类型：图形
+            含义：有五个向外的尖角和五个向里的凹角的平面图形。
+            生活例子：奖励贴纸、魔法棒的顶端、图画里的夜空
+            是不是一种图形：是
+            是不是一个数：否
+            注意：它的外轮廓有十条边和十个顶点；天上真正的恒星是球形的。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：从哪个方向看都是圆的立体图形，表面上每一点到中心的距离都一样。
+            领域：图形与几何
+            类型：图形
+            含义：表面上每一点到中心距离都相等的立体图形。
+            生活例子：弹珠、肥皂泡、珍珠、橙子
+            是不是一种图形：是
+            是不是一个数：否
+            注意：它是立体的，能向任何方向滚动；它没有角，也没有平的面。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：由六个一样大的正方形围成的立体图形，有八个顶点和十二条棱。
+            领域：图形与几何
+            类型：图形
+            含义：六个面都是一样大的正方形的立体图形。
+            生活例子：骰子、魔方、方糖、积木块
+            是不是一种图形：是
+            是不是一个数：否
+            注意：它是一种特殊的长方体；它放在桌上不会滚动。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：表示“一个也没有”的数，比所有正数都小，比所有负数都大。
+            领域：数与运算
+            类型：数
+            含义：表示什么都没有的数，是正数和负数的分界。
+            生活例子：盘子里的饼干全吃光了；比赛还没得分时的比分
+            是不是一种图形：否
+            是不是一个数：是
+            注意：它既不是正数也不是负数；它是偶数；它不能当除数。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：比九多一的数，正好是两只手手指头的个数。
+            领域：数与运算
+            类型：数
+            含义：比九大一的数，是最小的两位数。
+            生活例子：两只手的手指头；两只脚的脚趾头
+            是不是一种图形：否
+            是不是一个数：是
+            注意：它是偶数；它是最小的两位数；它能被2和5整除。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：把一个东西平均分成两份，其中的每一份就是它。
+            领域：数与运算
+            类型：数
+            含义：平均分成两份后的每一份，也就是0.5。
+            生活例子：把苹果切开平均分给两个人，每人分到的那份
+            是不是一种图形：否
+            是不是一个数：是
+            注意：必须是平均分的两份才算；两个它合起来就是一整个。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p12
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：把两个或几个数合起来，求一共是多少的运算，结果叫和。
+            领域：数与运算
+            类型：运算
+            含义：把几个数合并成一个数的运算，结果叫做和。
+            生活例子：三个苹果再放进两个，一共五个；数一数一共有几颗糖
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它的符号像一个小十字；交换两个数的位置，结果不变。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p13
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：从一个数里去掉一部分，求还剩多少的运算，结果叫差。
+            领域：数与运算
+            类型：运算
+            含义：从一个数中去掉另一个数，求剩下多少的运算，结果叫差。
+            生活例子：五块饼干吃掉两块，还剩三块
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它的符号是一条短横线；交换两个数的位置，结果通常会变。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p14
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：用来看时间的工具，表盘上有数字和会转动的指针。
+            领域：测量
+            类型：单位或工具
+            含义：显示时间的工具，常见的有时针、分针和秒针。
+            生活例子：挂在教室墙上、放在床头叫人起床、戴在手腕上
+            是不是一种图形：否
+            是不是一个数：否
+            注意：时针走一圈是12个小时，分针走一圈是1个小时。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p15
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：上面有刻度、用来量长度和画直线的工具。
+            领域：测量
+            类型：单位或工具
+            含义：带有刻度的工具，可以量出物体有多长，也能画直线。
+            生活例子：文具盒里常有它；量一量铅笔有多长
+            是不是一种图形：否
+            是不是一个数：否
+            注意：常见的刻度单位是厘米和毫米；它量的是长度，不是重量。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：由六个长方形围成的立体图形，相对的两个面完全一样，有八个顶点。
+            领域：图形与几何
+            类型：图形
+            含义：六个面都是长方形的立体图形，有时相对的两个面是正方形。
+            生活例子：鞋盒、砖头、冰箱、书本
+            是不是一种图形：是
+            是不是一个数：否
+            注意：正方体是它的特殊情况；它有12条棱和8个顶点。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：上下两个面是一样大的圆、侧面是弯曲面的立体图形。
+            领域：图形与几何
+            类型：图形
+            含义：上下底面是两个相同的圆，侧面展开是长方形的立体图形。
+            生活例子：易拉罐、薯片筒、蜡烛
+            是不是一种图形：是
+            是不是一个数：否
+            注意：它躺着能滚动，立起来不会滚；它有两个平的面和一个弯的面。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：能被2整除的整数，比如0、2、4、6、8。
+            领域：数与运算
+            类型：数
+            含义：能被2整除的整数，个位是0、2、4、6或8。
+            生活例子：一双鞋的只数；两个两个地数：2、4、6、8
+            是不是一种图形：否
+            是不是一个数：是
+            注意：它指一类数，不是某一个数；0也属于它。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：求几个相同的数加起来是多少的简便算法，结果叫积。
+            领域：数与运算
+            类型：运算
+            含义：求几个相同加数的和的简便运算，结果叫做积。
+            生活例子：每盒6个鸡蛋，3盒一共有几个
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它的符号像一个斜着的十字；任何数与0做这种运算，结果都是0。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：直线上两个端点之间的一段，有两个端点，可以量出长度。
+            领域：图形与几何
+            类型：图形
+            含义：直直的一段线，有两个端点，长度是有限的。
+            生活例子：拉直的一段绳子、铅笔的一条边
+            是不是一种图形：是
+            是不是一个数：否
+            注意：它有两个端点；射线只有一个端点，直线没有端点。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：不能被2整除的整数，比如1、3、5、7、9。
+            领域：数与运算
+            类型：数
+            含义：不能被2整除的整数，个位是1、3、5、7或9。
+            生活例子：一只手有5根手指；两个两个分完还剩一个
+            是不是一种图形：否
+            是不是一个数：是
+            注意：它指一类数，不是某一个数；0不属于它。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：由两条一样长的平行短线组成的符号，表示两边的大小相等。
+            领域：数与运算
+            类型：概念
+            含义：表示左右两边一样大的数学符号，写作两条平行短横线。
+            生活例子：算式1加1后面写它再写2；天平两边一样重的时候
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它是一个符号，不是一种运算；它读作“等于”。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：常用的长度单位，1米等于100个它，大约是一个指甲盖的宽度。
+            领域：测量
+            类型：单位或工具
+            含义：测量长度的单位，1米等于100个它，符号是cm。
+            生活例子：量铅笔有多长；尺子上的一大格
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它是长度单位，不是重量单位；1个它等于10毫米。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：把一个数平均分成几份、求每份是多少的运算，结果叫商。
+            领域：数与运算
+            类型：运算
+            含义：平均分东西，或求一个数里有几个另一个数的运算，结果叫商。
+            生活例子：12颗糖平均分给3个小朋友，每人几颗
+            是不是一种图形：否
+            是不是一个数：否
+            注意：不能平均分成0份；分不完剩下的部分叫余数。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：有六条边和六个角的平面图形，蜂巢的格子就是这个形状。
+            领域：图形与几何
+            类型：图形
+            含义：由六条线段围成、有六个角的平面图形。
+            生活例子：蜂巢的格子、螺母、足球上的一些块
+            是不是一种图形：是
+            是不是一个数：否
+            注意：正的它六条边一样长，每个内角都是120度。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：正好是90度的角，像书本、桌子的角那样方方正正。
+            领域：图形与几何
+            类型：图形
+            含义：大小是90度的角，两条边互相垂直。
+            生活例子：书本封面的角、黑板的角、三角尺上最大的角
+            是不是一种图形：是
+            是不是一个数：否
+            注意：它是几何图形但不是封闭图形；它比锐角大、比钝角小。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：把1到9两两相乘的结果排成表或编成口诀，方便背下来快速计算。
+            领域：数与运算
+            类型：单位或工具
+            含义：把1到9之间两个数相乘的结果列出来，帮助记忆计算。
+            生活例子：背“三七二十一”来算3乘7
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它不是运算本身，而是帮忙记住结果的表；中国古代很早就有它。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p12
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：常用的质量单位，等于1000克，一升水大约就这么重。
+            领域：测量
+            类型：单位或工具
+            含义：计量物体有多重的单位，等于1000克，符号是kg。
+            生活例子：称体重、买水果时称重
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它是质量单位，不是长度单位；1吨等于1000个它。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p13
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：平均分东西分不完时剩下的部分，一定比除数小。
+            领域：数与运算
+            类型：数
+            含义：做除法时分不完、剩下的那部分数，它必须比除数小。
+            生活例子：7颗糖平均分给3人，每人2颗，还剩1颗
+            是不是一种图形：否
+            是不是一个数：是
+            注意：正好分完时它是0；它一定比除数小。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p14
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：按年、月、日排好日期的表，可以查今天是几月几日、星期几。
+            领域：测量
+            类型：单位或工具
+            含义：把一年的月份、日期和星期排列出来的表。
+            生活例子：墙上挂的、桌上放的、手机里查日期用的
+            是不是一种图形：否
+            是不是一个数：否
+            注意：一年有12个月；有的月31天，有的30天，二月只有28或29天。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p15
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：常用的时间单位，1个它等于60分钟，一天一夜有24个它。
+            领域：测量
+            类型：单位或工具
+            含义：计量时间的单位，等于60分钟。
+            生活例子：看一场电影大约要两个它
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它是时间单位；钟面上的时针走一大格就是它。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：把一个整体平均分成几份，表示其中一份或几份的数，比如三分之一。
+            领域：数与运算
+            类型：数
+            含义：表示把整体平均分后取其中几份的数，上下两个数中间有横线。
+            生活例子：一块蛋糕切成8份吃掉3份，就是吃了八分之三
+            是不是一种图形：否
+            是不是一个数：是
+            注意：横线下面的叫分母，上面的叫分子；分母不能是0。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：像0.5、3.14这样中间带一个圆点的数，可以表示比1小的部分。
+            领域：数与运算
+            类型：数
+            含义：用一个圆点把整数部分和不足1的部分隔开的数。
+            生活例子：身高1.35米；体温36.5摄氏度
+            是不是一种图形：否
+            是不是一个数：是
+            注意：它不一定比1小，比如12.5也是它；有限（已隐藏）和无限循环（已隐藏）能化成分数，圆周率这样的无限不循环（已隐藏）不能。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：围成一个图形一周的所有边的长度总和。
+            领域：测量
+            类型：概念
+            含义：封闭图形一周边线的总长度。
+            生活例子：绕操场跑一圈的长度；给相框围一圈花边要多长
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它是长度，单位是厘米、米这类；它不是面积。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：物体表面或平面图形的大小，用平方厘米、平方米来计量。
+            领域：测量
+            类型：概念
+            含义：一个面或平面图形所占的大小。
+            生活例子：铺满地板要多少块瓷砖；比较两张纸哪张大
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它不是周长；长方形的它等于长乘宽。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：比较长的长度单位，等于1000米，常用来计量城市之间的距离。
+            领域：测量
+            类型：单位或工具
+            含义：计量长路程的长度单位，1个它等于1000米。
+            生活例子：两座城市之间的距离；马路边的路程指示牌
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它是长度单位；大人步行大约15分钟能走完它。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：两组对边分别平行的四边形，拉一拉会改变形状，容易变形。
+            领域：图形与几何
+            类型：图形
+            含义：两组对边分别平行且相等的四边形。
+            生活例子：伸缩门的格子、楼梯扶手的侧面
+            是不是一种图形：是
+            是不是一个数：否
+            注意：长方形和正方形都是它的特殊情况；它的对角相等。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：只有一组对边平行的四边形，像堤坝的横截面那样。
+            领域：图形与几何
+            类型：图形
+            含义：只有一组对边平行的四边形，平行的两边叫上底和下底。
+            生活例子：堤坝的横截面、手提袋的侧面、沙堆的侧面
+            是不是一种图形：是
+            是不是一个数：否
+            注意：它只有一组对边平行；两条腰相等的叫等腰的它。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：在同一个平面上、永远不会相交的两条直线。
+            领域：图形与几何
+            类型：概念
+            含义：同一平面内永不相交的两条直线，它们之间的距离处处相等。
+            生活例子：铁轨的两条轨道、作业本上的横格线、斑马线
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它说的是两条直线的位置关系；它们之间处处一样宽。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：两条直线相交成直角时的位置关系，就像十字路口那样。
+            领域：图形与几何
+            类型：概念
+            含义：两条直线相交成直角，就说它们是这种关系。
+            生活例子：窗框的横边和竖边、十字路口、旗杆和地面
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它是一种位置关系，不是一种图形；相交的点叫垂足。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：比直角小、大于0度的角，看起来尖尖的。
+            领域：图形与几何
+            类型：图形
+            含义：大于0度、小于90度的角。
+            生活例子：剪刀张开一点点时两刃之间的角；比萨切块尖尖的那一头
+            是不是一种图形：是
+            是不是一个数：否
+            注意：它比直角小；等边三角形的三个角都是它。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：量角的大小的工具，常见的是半圆形，上面刻有0到180度。
+            领域：测量
+            类型：单位或工具
+            含义：用来量角的大小、也能画出指定角度的工具。
+            生活例子：数学课上量三角形的角；画一个30度的角
+            是不是一种图形：否
+            是不是一个数：否
+            注意：常见的是半圆形，也有整圆的；它量出来的单位是度。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：用拨动算珠来计算的传统工具，中国古代就广泛使用。
+            领域：数与运算
+            类型：单位或工具
+            含义：由框、档和算珠组成，靠拨动算珠来加减乘除的计算工具。
+            生活例子：珠心算课；老商店里算账
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它不用电；世界上很多古老文明都有类似的计算工具。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p12
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：一个图形沿一条直线对折后，两边能完全重合的特点。
+            领域：图形与几何
+            类型：概念
+            含义：沿着一条直线对折后，两边完全重合；那条直线就是折痕线。
+            生活例子：蝴蝶的翅膀、人的脸、剪纸窗花
+            是不是一种图形：否
+            是不是一个数：否
+            注意：圆有无数条能对折重合的直线；一般的平行四边形没有这个特点。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p13
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：用长短不同的直条表示数量多少的统计图。
+            领域：统计与概率
+            类型：单位或工具
+            含义：用一样宽、长短不同的直条来表示和比较数量的图。
+            生活例子：比较全班同学最喜欢哪种水果
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它是统计图，不是几何图形；直条越长，数量越多。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p14
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：把几个数加起来再除以个数得到的数，表示一组数据的一般水平。
+            领域：统计与概率
+            类型：数
+            含义：一组数据的总和除以数据的个数所得的数。
+            生活例子：全班数学考试的平均成绩；一周每天的平均气温
+            是不是一种图形：否
+            是不是一个数：是
+            注意：它不一定等于这组数据里的某个数；它可能是小数。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p15
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：二月有29天、全年有366天的年份，一般每四年出现一次。
+            领域：测量
+            类型：概念
+            含义：二月有29天、全年366天的年份。
+            生活例子：2月29日出生的人大约四年才过一次真正的生日
+            是不是一种图形：否
+            是不是一个数：否
+            注意：年份能被4整除但不能被100整除，或能被400整除，就是它。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：大于1、只能被1和它本身整除的整数，比如2、3、5、7。
+            领域：数与运算
+            类型：数
+            含义：大于1、只有1和它本身两个因数的整数。
+            生活例子：2、3、5、7、11、13都是；网上的加密技术会用到很大的它
+            是不是一种图形：否
+            是不是一个数：是
+            注意：1不属于它；2是其中唯一的偶数；它有无穷多个。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：除了1和它本身以外，还有别的因数的整数，比如4、6、8、9。
+            领域：数与运算
+            类型：数
+            含义：大于1、除了1和它本身还有其他因数的整数。
+            生活例子：4、6、8、9、10、12都是
+            是不是一种图形：否
+            是不是一个数：是
+            注意：1既不是它也不是质数；最小的它是4。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：能整除一个整数的数，比如1、2、3、6都能整除6。
+            领域：数与运算
+            类型：数
+            含义：如果a能被b整除，b就是a的它。
+            生活例子：12块饼干能平均分成2、3、4、6份，这些数都是12的它
+            是不是一种图形：否
+            是不是一个数：是
+            注意：它说的是两个数之间的关系；1是所有正整数的它。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：一个数乘整数得到的数，比如3、6、9、12都是3的这种数。
+            领域：数与运算
+            类型：数
+            含义：如果a能被b整除，a就是b的它。
+            生活例子：两个两个地数，数到的都是2的它
+            是不是一种图形：否
+            是不是一个数：是
+            注意：一个数的它有无穷多个；它是相对另一个数来说的。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：表示一个数是另一个数的百分之几的数，用%号表示。
+            领域：数与运算
+            类型：数
+            含义：表示一个数是另一个数百分之几的数，后面带%。
+            生活例子：手机电量显示80%；果汁含量100%
+            是不是一种图形：否
+            是不是一个数：是
+            注意：它可以超过100%；它的后面不带单位名称。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：表示两个比相等的式子，比如2比3等于4比6。
+            领域：数与运算
+            类型：概念
+            含义：表示两个比相等的式子，里面有四个项。
+            生活例子：照片按同样的倍数放大缩小；按固定份量配面粉和糖
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它里面两个外项的积等于两个内项的积。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：连接圆心和圆上任意一点的线段，同一个圆里它都一样长。
+            领域：图形与几何
+            类型：图形
+            含义：从圆心到圆上任意一点的线段，常用字母r表示。
+            生活例子：自行车车轮的一根辐条；用圆规画圆时两脚张开的距离
+            是不是一种图形：是
+            是不是一个数：否
+            注意：它是一条线段，不是封闭图形；它的长度是直径的一半。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：穿过圆心、两端都在圆上的线段，是圆里最长的线段。
+            领域：图形与几何
+            类型：图形
+            含义：通过圆心并且两端都在圆上的线段，常用字母d表示。
+            生活例子：量比萨从这边穿过中心到那边的长度
+            是不是一种图形：是
+            是不是一个数：否
+            注意：它是一条线段，不是封闭图形；它是半径的两倍长。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：物体所占空间的大小，用立方厘米、立方米等单位来计量。
+            领域：测量
+            类型：概念
+            含义：物体占据空间的大小。
+            生活例子：大西瓜比小橘子占的地方大；比较两块积木哪块大
+            是不是一种图形：否
+            是不是一个数：否
+            注意：长方体的它等于长乘宽乘高；它不是面积。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：底面是一个圆、侧面是曲面、顶上有一个尖的立体图形。
+            领域：图形与几何
+            类型：图形
+            含义：有一个圆形底面和一个顶点的立体图形，侧面展开是扇形。
+            生活例子：冰淇淋的蛋卷、生日帽、路上的交通锥
+            是不是一种图形：是
+            是不是一个数：否
+            注意：它的体积是等底等高圆柱的三分之一。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：含有未知数的等式，比如x加3等于5。
+            领域：代数
+            类型：概念
+            含义：含有未知数的等式，求出未知数的值叫解它。
+            生活例子：已知总价和数量求单价；猜猜盒子里有几颗糖
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它一定是等式，也一定含有未知数；等式不一定是它。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：用整个圆表示总数、用扇形大小表示各部分占多少的统计图。
+            领域：统计与概率
+            类型：单位或工具
+            含义：用圆和圆里的扇形表示各部分占总数百分比的统计图。
+            生活例子：一天的时间怎么分配；班里同学喜欢的颜色各占多少
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它是统计图，不是几何图形；所有部分加起来是100%。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p12
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：古罗马人用字母表示数的方法，比如I表示1、V表示5、X表示10。
+            领域：数与运算
+            类型：概念
+            含义：用I、V、X、L、C、D、M等字母组合来记数的方法。
+            生活例子：一些钟表的表盘；书的章节编号
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它没有表示0的符号；IV表示4，是5减1。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p13
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：常用的面积单位，边长1米的正方形面积就是这么大。
+            领域：测量
+            类型：单位或工具
+            含义：面积单位，等于边长1米的正方形的面积，符号是m²。
+            生活例子：房间、教室的地面有多大
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它是面积单位，不是长度单位；它等于10000平方厘米。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p14
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：大于直角、小于平角的角，也就是在90度到180度之间。
+            领域：图形与几何
+            类型：图形
+            含义：大于90度、小于180度的角。
+            生活例子：打开很大的扇子；4点整时时针和分针的夹角
+            是不是一种图形：是
+            是不是一个数：否
+            注意：它比直角大、比平角小；一个三角形里最多只有一个它。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：比0小的数，前面带一个负号，比如零下5摄氏度记作负5。
+            领域：数与运算
+            类型：数
+            含义：小于0的数，写时在前面加负号。
+            生活例子：冬天气温零下10度；电梯的地下二层
+            是不是一种图形：否
+            是不是一个数：是
+            注意：0不是它；它离0越远，数就越小。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：圆的周长和直径的比值，约等于3.14，是一个永远写不完的小数。
+            领域：图形与几何
+            类型：数
+            含义：任何圆的周长除以直径都得到的同一个数，约是3.14159。
+            生活例子：计算车轮转一圈走多远；算圆形花坛的周长
+            是不是一种图形：否
+            是不是一个数：是
+            注意：它是无限不循环小数；祖冲之把它精确到小数点后第七位。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：数轴上一个数到0的距离，所以它永远不会是负数。
+            领域：数与运算
+            类型：概念
+            含义：数轴上表示一个数的点离原点的距离。
+            生活例子：往前走3步和往后走3步，离起点都是3步
+            是不是一种图形：否
+            是不是一个数：是
+            注意：正数的它是本身，负数的它是相反数；写作两条竖线夹住数。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：能写成两个整数相除形式的数，包括整数和分数。
+            领域：数与运算
+            类型：数
+            含义：整数和分数的统称，都能写成两个整数之比。
+            生活例子：3、负2、二分之一、0.25都是
+            是不是一种图形：否
+            是不是一个数：是
+            注意：有限小数和无限循环小数都是它；圆周率不是它。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：规定了原点、正方向和单位长度的直线，可以用点来表示数。
+            领域：数与运算
+            类型：概念
+            含义：有原点、正方向和单位长度的直线，每个数对应线上一个点。
+            生活例子：温度计上的刻度；尺子上的刻度
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它画出来是一条带刻度的直线；右边的数总比左边的大。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：只有符号不同的两个数互为这种数，比如3和负3。
+            领域：数与运算
+            类型：数
+            含义：只有正负号不同的两个数，互为对方的它。
+            生活例子：向东走5米记作5，向西走5米就记作负5
+            是不是一种图形：否
+            是不是一个数：是
+            注意：0的它是0；两个互为它的数加起来等于0。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：乘积是1的两个数互为这种数，比如2和二分之一。
+            领域：数与运算
+            类型：数
+            含义：乘积是1的两个数，互为对方的它。
+            生活例子：把分数的分子和分母交换位置，就得到它
+            是不是一种图形：否
+            是不是一个数：是
+            注意：0没有它；1的它是1。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：把同一个数连续乘好几次的运算，比如求2乘2乘2的结果。
+            领域：数与运算
+            类型：运算
+            含义：求n个相同因数乘积的运算，右上角的小数字表示乘几次。
+            生活例子：细胞一变二、二变四不断分裂；纸对折很多次后的层数
+            是不是一种图形：否
+            是不是一个数：否
+            注意：平方和立方都属于它；它的结果常常增长得非常快。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：把很大或很小的数写成一个数乘10的几次方的简便写法。
+            领域：数与运算
+            类型：概念
+            含义：把数写成a乘10的n次方，a大于等于1且小于10。
+            生活例子：地球到太阳约1.5乘10的8次方千米
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它是一种写数的方法，不是一种新的数。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：用运算符号把数和表示数的字母连起来的式子，比如2a加b。
+            领域：代数
+            类型：概念
+            含义：用运算符号把数和字母连接起来的式子，不含等号。
+            生活例子：每支笔2元，买a支一共花2a元
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它没有等号，所以不是方程；单独一个数或字母也算它。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：只含一个未知数、未知数的次数是1的整式方程，比如2x加1等于7。
+            领域：代数
+            类型：概念
+            含义：只有一个未知数，并且未知数的次数都是1的整式方程。
+            生活例子：已知买3本书花了36元，求每本多少钱
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它只有一个未知数；它有且只有一个解。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：直线上一点和它一旁的部分，只有一个端点，向一方无限延伸。
+            领域：图形与几何
+            类型：图形
+            含义：只有一个端点、向一个方向无限延伸的线。
+            生活例子：手电筒射出的光、激光笔的光束
+            是不是一种图形：是
+            是不是一个数：否
+            注意：它不能量长度；线段有两个端点，它只有一个。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p12
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：两条直线相交时，位置相对、共用一个顶点的两个角，它们总是相等。
+            领域：图形与几何
+            类型：概念
+            含义：两条直线相交形成的、有公共顶点且位置相对的两个角。
+            生活例子：剪刀张开时，两个把手之间的角和两片刀刃之间的角
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它说的是两个角的关系；这两个角一定相等。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p13
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：从角的顶点出发，把一个角分成两个相等部分的射线。
+            领域：图形与几何
+            类型：图形
+            含义：从角的顶点出发、把这个角分成两个相等角的射线。
+            生活例子：把三角形纸片的一个角对折，折痕就在它上面
+            是不是一种图形：是
+            是不是一个数：否
+            注意：它上面的点到角两边的距离相等；三角形的三条它交于一点。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p14
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：两个角加起来正好是180度时，这两个角互为这种角。
+            领域：图形与几何
+            类型：概念
+            含义：和为180度的两个角，互为对方的它。
+            生活例子：一条直线被另一条斜线分成的两个相邻的角
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它说的是两个角的关系；和为90度的叫余角，不是它。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：直角三角形两条直角边的平方和，等于斜边的平方。
+            领域：图形与几何
+            类型：定理或公式
+            含义：直角三角形中，两直角边的平方和等于斜边的平方。
+            生活例子：边长3、4、5的三角形一定有直角；算斜靠墙的梯子能够多高
+            是不是一种图形：否
+            是不是一个数：否
+            注意：中国古代有勾三股四弦五的说法；古希腊毕达哥拉斯学派也证明过它。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：无限不循环的小数，不能写成两个整数之比，比如圆周率。
+            领域：数与运算
+            类型：数
+            含义：无限不循环的小数，不能写成分数。
+            生活例子：正方形对角线和边长的比；圆的周长和直径的比
+            是不是一种图形：否
+            是不是一个数：是
+            注意：它有无穷多个；它和有理数合起来就是实数。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：如果一个数自己乘自己等于a，这个数就叫a的它，比如3和负3都是9的它。
+            领域：数与运算
+            类型：数
+            含义：平方后等于a的数；正数有两个，它们互为相反数。
+            生活例子：知道正方形面积是25，求出边长是5
+            是不是一种图形：否
+            是不是一个数：是
+            注意：在实数范围内负数没有它；0的它是0；算术（已隐藏）只取其中非负的那一个，比如9的算术（已隐藏）只有3。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：有理数和无理数的统称，每一个都能在数轴上找到一个点。
+            领域：数与运算
+            类型：数
+            含义：有理数和无理数合起来的所有数。
+            生活例子：日常测量得到的长度、温度、重量都是它
+            是不是一种图形：否
+            是不是一个数：是
+            注意：它和数轴上的点一一对应；虚数不是它。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：由两条互相垂直、原点重合的数轴组成，用一对数确定平面上点的位置。
+            领域：图形与几何
+            类型：概念
+            含义：两条互相垂直、有公共原点的数轴，横轴叫x轴，纵轴叫y轴。
+            生活例子：电影票上的几排几座；地图上的方格定位
+            是不是一种图形：否
+            是不是一个数：否
+            注意：法国数学家笛卡尔提出了它；点的位置用有序数对表示。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：形状和大小都完全一样、叠在一起能完全重合的两个三角形。
+            领域：图形与几何
+            类型：图形
+            含义：能够完全重合的两个三角形，对应边和对应角都相等。
+            生活例子：同一批做出来的三角形瓷砖；两块一模一样的三角尺
+            是不是一种图形：是
+            是不是一个数：否
+            注意：它说的是两个三角形；形状相同但大小不同的叫相似，不是它。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：有两条边相等的三角形，它的两个底角也相等。
+            领域：图形与几何
+            类型：图形
+            含义：有两条边相等的三角形，相等的两条边叫腰。
+            生活例子：衣架的形状、许多屋顶的侧面
+            是不是一种图形：是
+            是不是一个数：否
+            注意：等边三角形是它的特殊情况；它是轴对称图形。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：三条边都相等的三角形，三个角都是60度。
+            领域：图形与几何
+            类型：图形
+            含义：三条边都相等的三角形，也是一种特殊的等腰三角形。
+            生活例子：交通警示牌、台球开局用的三角框
+            是不是一种图形：是
+            是不是一个数：否
+            注意：它的三个角都是60度；它有三条对称轴。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：把一组数据从小到大排好后，正中间的那个数。
+            领域：统计与概率
+            类型：数
+            含义：数据按大小排序后位于中间的数；个数为偶数时取中间两个的平均。
+            生活例子：五个小朋友按身高排队，站在正中间那个人的身高
+            是不是一种图形：否
+            是不是一个数：是
+            注意：它不受极大或极小数据的影响；它不一定是出现最多的数。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：一组数据中出现次数最多的那个数。
+            领域：统计与概率
+            类型：数
+            含义：一组数据里出现次数最多的数据。
+            生活例子：全班最多人穿的鞋码；最受欢迎的冰淇淋口味
+            是不是一种图形：否
+            是不是一个数：是
+            注意：一组数据的它可能不止一个，也可能没有。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：由两个含两个未知数的一次方程组成的方程组，通常能求出唯一一组解。
+            领域：代数
+            类型：概念
+            含义：含有两个未知数、未知数次数都是1的两个方程合在一起。
+            生活例子：鸡兔同笼：知道头和脚的总数，求鸡和兔各几只
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它有两个未知数；它可能有一组解、无解或无数组解。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：用大于号、小于号等不等号连接的式子，比如x大于3。
+            领域：代数
+            类型：概念
+            含义：用不等号表示大小关系的式子。
+            生活例子：身高不超过1.2米可以免票；限速每小时60千米以内
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它的两边同乘一个负数时，不等号的方向要改变。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p12
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：把一个多项式变成几个整式相乘形式的变形方法。
+            领域：代数
+            类型：运算
+            含义：把一个多项式化成几个整式的积的形式。
+            生活例子：把x的平方减1写成x加1乘x减1
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它和整式乘法正好相反；常用提公因式法和公式法。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p13
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：由三条或更多条线段首尾相连围成的平面图形，比如三角形、五边形。
+            领域：图形与几何
+            类型：图形
+            含义：同一平面内由几条线段首尾顺次相接围成的封闭图形。
+            生活例子：蜂巢的格子、交通标志、足球上的黑白块
+            是不是一种图形：是
+            是不是一个数：否
+            注意：圆不是它；n条边的它内角和是n减2乘180度。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：两个变量之间的一种对应关系，一个量变化时，另一个量随之确定地变化。
+            领域：代数
+            类型：概念
+            含义：对于x的每一个值，y都有唯一确定的值和它对应。
+            生活例子：打车路程越长车费越多；气温随时间变化
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它是一种对应关系，可以用表格、图像或式子表示。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：形如y等于kx加b、k不为0的函数，它的图像是一条直线。
+            领域：代数
+            类型：概念
+            含义：形如y=kx+b、k不等于0的函数，图像是一条直线。
+            生活例子：水龙头匀速放水，桶里的水随时间均匀增加
+            是不是一种图形：否
+            是不是一个数：否
+            注意：b等于0时就是正比例函数；它的图像一定是直线。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：形如y等于k除以x、k不为0的函数，它的图像是双曲线。
+            领域：代数
+            类型：概念
+            含义：形如y=k/x、k不等于0的函数，x和y的乘积不变。
+            生活例子：路程一定时，速度越快用的时间越少
+            是不是一种图形：否
+            是不是一个数：否
+            注意：x不能等于0；它图像的两支永远碰不到坐标轴。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：形如y等于ax平方加bx加c、a不为0的函数，图像是抛物线。
+            领域：代数
+            类型：概念
+            含义：形如y=ax²+bx+c、a不等于0的函数。
+            生活例子：投篮时篮球飞行的路线；喷泉的水流形状
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它的图像是抛物线，a大于0开口向上，a小于0开口向下。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：像投出的篮球在空中划过的弯曲路线，也是二次函数的图像。
+            领域：图形与几何
+            类型：图形
+            含义：平面上到一个定点和一条定直线距离相等的点组成的曲线。
+            生活例子：投篮时篮球的路线；喷泉水流；卫星天线锅的剖面
+            是不是一种图形：是
+            是不是一个数：否
+            注意：它左右对称，有一条对称轴和一个顶点。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：只含一个未知数、未知数最高次数是2的整式方程。
+            领域：代数
+            类型：概念
+            含义：只含一个未知数、最高次数是2的整式方程，一般形式ax²+bx+c=0。
+            生活例子：已知正方形花坛的面积求边长；算抛出的球什么时候落地
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它最多有两个实数根；可以用求根公式来解。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：形状相同、大小可以不同的两个三角形，对应角相等，对应边成比例。
+            领域：图形与几何
+            类型：图形
+            含义：对应角相等、对应边成比例的两个三角形。
+            生活例子：放大后的照片里的三角形；用影子测量大树的高度
+            是不是一种图形：是
+            是不是一个数：否
+            注意：全等三角形是它的特殊情况；它们形状一样，大小不一定一样。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：和圆只有一个公共点的直线，它和过那个点的半径互相垂直。
+            领域：图形与几何
+            类型：图形
+            含义：和圆只有一个公共点的直线，这个点叫切点。
+            生活例子：车轮压在平地上时，地面就像车轮的它
+            是不是一种图形：是
+            是不是一个数：否
+            注意：它和经过切点的半径垂直；从圆外一点能画两条它。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：直角三角形里，一个锐角的对边和斜边的比值。
+            领域：图形与几何
+            类型：概念
+            含义：直角三角形中锐角的对边与斜边之比，是三角函数的一种。
+            生活例子：计算斜坡的高度；声音和交流电的波形常画成它的曲线
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它是三角函数，算出的值在负1到1之间；30度角的它等于二分之一。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：表示一件事情发生的可能有多大的数，在0到1之间。
+            领域：统计与（已隐藏）
+            类型：概念
+            含义：表示随机事件发生可能大小的数，范围是0到1。
+            生活例子：抛硬币正面朝上的机会是二分之一；天气预报说的降雨机会
+            是不是一种图形：否
+            是不是一个数：是
+            注意：一定会发生的事它是1，不可能发生的事它是0。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：衡量一组数据波动大小的量，它越大说明数据越分散。
+            领域：统计与概率
+            类型：数
+            含义：各个数据与平均数的差的平方的平均数。
+            生活例子：比较两个同学谁的考试成绩更稳定
+            是不是一种图形：否
+            是不是一个数：是
+            注意：它越小数据越稳定；它的算术平方根叫标准差。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：把一条线段分成两段，使较长段与全长之比约为0.618的分法，被认为特别好看。
+            领域：图形与几何
+            类型：概念
+            含义：较长部分与全长之比，等于较短部分与较长部分之比的分法。
+            生活例子：一些名画和建筑的构图；舞台上主持人常站的位置
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它对应的比值约为0.618，是无理数；五角星里就藏着它。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p12
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：一个图形绕某一点旋转180度后，能和原来的图形完全重合的特点。
+            领域：图形与几何
+            类型：概念
+            含义：把图形绕一个点转180度后和原图重合，这个点叫对称中心。
+            生活例子：平行四边形、风车的叶片、扑克牌上的一些图案
+            是不是一种图形：否
+            是不是一个数：否
+            注意：平行四边形有这个特点，但一般不是轴对称；圆两种对称都有。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p13
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：从正面、左面和上面观察同一个物体画出的三张图。
+            领域：图形与几何
+            类型：概念
+            含义：主视图、左视图和俯视图三张图的合称，用来表示立体图形。
+            生活例子：工程师画的零件图纸；按图纸搭积木
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它是三张平面图，合起来描述一个立体物体。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：把一些确定的、不同的对象放在一起看成一个整体，比如全班同学。
+            领域：代数
+            类型：概念
+            含义：由一些确定的、互不相同的对象组成的整体，这些对象叫元素。
+            生活例子：一个班的全体同学；所有的偶数
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它里面的元素不能重复，也不讲顺序；什么都没有的叫空集。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：乘方的逆运算，如果10的2次方等于100，那么以10为底100的它就是2。
+            领域：代数
+            类型：运算
+            含义：如果a的x次方等于N，就说x是以a为底N的它。
+            生活例子：声音大小的分贝、溶液酸碱度的pH都用它来计算
+            是不是一种图形：否
+            是不是一个数：是
+            注意：它是乘方的逆运算，算出的结果是一个数；苏格兰数学家纳皮尔发明了它。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：形如y等于a的x次方的函数，a大于0且不等于1，能增长或衰减得非常快。
+            领域：代数
+            类型：概念
+            含义：形如y=a的x次方的函数，a大于0且a不等于1。
+            生活例子：细胞分裂一变二、二变四；存款的复利增长
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它的图像都经过点(0,1)；a大于1时增长越来越快。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：既有大小又有方向的量，常画成一条带箭头的线段。
+            领域：图形与几何
+            类型：概念
+            含义：既有大小又有方向的量，用有向线段表示。
+            生活例子：导航说向北走500米；力和速度都是它
+            是不是一种图形：否
+            是不是一个数：否
+            注意：只有大小没有方向的量不是它；两个它可以相加。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：从第二项起，每一项减去前一项的差都相同的一列数，比如1、3、5、7。
+            领域：代数
+            类型：概念
+            含义：从第二项起，每项与前一项的差都等于同一个常数的数列。
+            生活例子：每周都比上周多存同样多的零花钱
+            是不是一种图形：否
+            是不是一个数：否
+            注意：固定的差叫公差；相传高斯用它快速算出1加到100。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：从第二项起，每一项与前一项的比都相同的一列数，比如1、2、4、8。
+            领域：代数
+            类型：概念
+            含义：从第二项起，每项与前一项的比等于同一个常数的数列。
+            生活例子：细胞分裂1、2、4、8；纸张不断对折后的层数
+            是不是一种图形：否
+            是不是一个数：否
+            注意：固定的比叫公比，公比不能是0；棋盘放麦粒的故事就是它。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：计算从一些东西里选出几个，按顺序或不按顺序各有多少种方法的计数方法。
+            领域：统计与概率
+            类型：概念
+            含义：从n个对象中选出m个，讲顺序的叫排列，不讲顺序的叫组合。
+            生活例子：三件上衣两条裤子有几种穿法；密码锁有多少种可能
+            是不是一种图形：否
+            是不是一个数：否
+            注意：讲顺序和不讲顺序的算法不同；它常常用到阶乘。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：由两支分开的曲线组成，平面上到两个定点距离之差不变的点形成它。
+            领域：图形与几何
+            类型：图形
+            含义：平面上到两个定点距离之差的绝对值为定值的点组成的曲线。
+            生活例子：反比例函数的图像；发电厂冷却塔的侧面轮廓
+            是不是一种图形：是
+            是不是一个数：否
+            注意：它有两支，互相分开不相连；它是圆锥曲线的一种。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：用弧长等于半径时的圆心角作为1个单位来度量角，180度等于π个它。
+            领域：测量
+            类型：单位或工具
+            含义：度量角大小的单位，弧长等于半径的圆心角是1个它。
+            生活例子：物理和工程里计算转动的角度；科学计算器上的RAD模式
+            是不是一种图形：否
+            是不是一个数：否
+            注意：一个周角是2π个它；1个它约是57.3度。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：方差的算术平方根，用来衡量一组数据的分散程度。
+            领域：统计与概率
+            类型：数
+            含义：方差的算术平方根，数值越大数据越分散。
+            生活例子：比较两台机器生产的零件尺寸是否稳定
+            是不是一种图形：否
+            是不是一个数：是
+            注意：它和原来的数据单位相同；它越小数据越集中。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：从1一直乘到n的连乘积，用n后面加感叹号表示，比如3的它是6。
+            领域：数与运算
+            类型：运算
+            含义：所有不大于n的正整数的连乘积，记作n!。
+            生活例子：5个人排成一排有5!种排法，也就是120种
+            是不是一种图形：否
+            是不是一个数：否
+            注意：规定0的它等于1；它增长得非常快，10的它超过三百万。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：只用0和1两个数字、逢二进一的记数方法，电脑内部就用它。
+            领域：数与运算
+            类型：概念
+            含义：用0和1表示所有数、逢二进一的记数方法。
+            生活例子：电脑和手机里的数据；开关的开和关
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它里面的10表示十进制的2；莱布尼茨系统研究过它。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p12
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：三角形中任一边的平方，等于另两边平方和减去这两边与夹角余弦乘积的两倍。
+            领域：图形与几何
+            类型：定理或公式
+            含义：知道三角形两条边和它们的夹角，就能求出第三边的定理。
+            生活例子：测量隔着池塘的两点之间的距离
+            是不是一种图形：否
+            是不是一个数：否
+            注意：夹角是直角时，它就变成勾股定理。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：描述一个函数在某一点变化快慢的量，也就是瞬时变化率。
+            领域：代数
+            类型：概念
+            含义：函数在某一点的瞬时变化率，也是曲线在该点切线的斜率。
+            生活例子：汽车速度表显示的瞬时速度；判断函数哪里增哪里减
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它是微积分的核心概念；牛顿和莱布尼茨各自发明了微积分。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：像3i、1+2i这样带着i的数，i的平方等于负1，这种数不在数轴上。
+            领域：数与运算
+            类型：数
+            含义：形如a+bi、并且b不等于0的数；a等于0时叫纯（已隐藏），比如i、2i。
+            生活例子：日常很难遇到；电学和信号处理里会用到它
+            是不是一种图形：否
+            是不是一个数：是
+            注意：它不是实数，也不在数轴上；只有纯（已隐藏）的平方一定是负数，比如1+i的平方是2i。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：由实数部分和虚数部分组成的数，形如a加bi。
+            领域：数与运算
+            类型：数
+            含义：形如a+bi的数，a和b是实数，i的平方等于负1。
+            生活例子：工程师计算交流电时会用到它
+            是不是一种图形：否
+            是不是一个数：是
+            注意：实数和虚数都属于它；它不能像实数那样比大小；这里不是语法里的意思。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：一个量无限接近某个确定值的过程和结果，是微积分的基础。
+            领域：代数
+            类型：概念
+            含义：变量无限接近某个确定的值，这个值就是它。
+            生活例子：正多边形的边数越来越多，就越来越接近圆
+            是不是一种图形：否
+            是不是一个数：否
+            注意：无限接近不一定真的等于；刘徽的割圆术体现了它的思想。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：先证明第一步成立，再证明每一步成立都能推出下一步成立的证明方法。
+            领域：代数
+            类型：概念
+            含义：先证n等于1时成立，再证由n成立能推出n加1也成立。
+            生活例子：推倒第一块多米诺骨牌，后面的骨牌依次全部倒下
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它是一种证明方法，两个步骤缺一不可。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：给出两个数的和的任意正整数次方展开式的定理。
+            领域：代数
+            类型：定理或公式
+            含义：说明a加b的n次方展开后各项系数的规律。
+            生活例子：计算a加b的平方和立方；统计多次抛硬币的结果
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它的系数可以从杨辉三角里读出来；牛顿推广了它。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：中间高、两边低、左右对称的钟形分布，很多自然数据都符合它。
+            领域：统计与概率
+            类型：概念
+            含义：数据集中在平均数附近、越往两边越少的对称分布。
+            生活例子：一大群同龄人的身高分布；大型考试的成绩分布
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它的图像是钟形曲线；它由平均数和标准差决定。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：把数排成三角形的数表，每个数等于它上方两个数之和。
+            领域：代数
+            类型：概念
+            含义：两条斜边上都是1，中间每个数等于肩上两数之和的三角形数表。
+            生活例子：二项式展开的系数；数一数弹珠台上小球下落的路径
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它是数表，不是几何图形；中国南宋的杨辉和法国的帕斯卡都研究过它。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：把数排成横行竖列的长方形数表，在电脑图像和数据计算中很常用。
+            领域：代数
+            类型：概念
+            含义：按行和列排成的长方形数表。
+            生活例子：电脑游戏里旋转和放大图像；表格里的成绩数据
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它的乘法一般不能交换顺序；行数和列数相同的叫方阵。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：约等于2.718的无理数，在描述自然增长和复利时会自然出现。
+            领域：数与运算
+            类型：数
+            含义：约等于2.71828的无理数，常用字母e表示。
+            生活例子：复利的计算；人口增长和放射性衰变的计算
+            是不是一种图形：否
+            是不是一个数：是
+            注意：它和圆周率一样是无理数，也是超越数；自然对数以它为底。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：从1、1开始，每个数都等于前两个数之和的数列，比如1、1、2、3、5、8。
+            领域：代数
+            类型：概念
+            含义：前两项都是1，从第三项起每项等于前两项之和的数列。
+            生活例子：向日葵花盘和松果鳞片的螺旋数
+            是不是一种图形：否
+            是不是一个数：否
+            注意：后项与前项的比越来越接近1.618；它源于一个兔子繁殖问题。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：先假设要证明的结论不成立，推出矛盾，从而说明结论成立的证明方法。
+            领域：代数
+            类型：概念
+            含义：假设结论不成立，推出矛盾，从而证明原结论成立。
+            生活例子：证明根号2是无理数；证明质数有无穷多个
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它是一种证明方法，几何和代数中都常用。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p12
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：比任何数都大、没有尽头的概念，符号像一个横着的8。
+            领域：数与运算
+            类型：概念
+            含义：比任何给定的数都大的概念，符号是∞。
+            生活例子：自然数一个接一个，永远数不完
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它不是一个真正的数，不能像普通数那样计算。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：高等数学里求曲线下方面积等累积量的运算，和求导数互为逆运算。
+            领域：代数
+            类型：运算
+            含义：把无数个极小部分加起来求总量的运算，比如求曲线下的面积。
+            生活例子：根据速度变化算出汽车走的总路程；计算不规则图形的面积
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它在数学里不是指游戏得分；牛顿和莱布尼茨建立了它的理论。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：把e、i、π、1和0这五个重要的数连在一个等式里，被称为最美的数学公式。
+            领域：数与运算
+            类型：定理或公式
+            含义：e的iπ次方加1等于0，把五个最基本的常数连在一起。
+            生活例子：日常很难遇到；电学和信号处理会用到相关公式
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它由瑞士数学家欧拉发现；式子里有加法、乘法和乘方。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：说n大于2时，x的n次方加y的n次方等于z的n次方没有正整数解的定理。
+            领域：数与运算
+            类型：定理或公式
+            含义：n大于2时，x的n次方加y的n次方等于z的n次方没有正整数解。
+            生活例子：日常很难遇到；它是数论里著名的难题
+            是不是一种图形：否
+            是不是一个数：否
+            注意：费马在书页边写下它却没留证明；1994年怀尔斯完成了证明。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：猜想每个大于2的偶数都能写成两个质数之和，至今还没有被证明。
+            领域：数与运算
+            类型：概念
+            含义：任何大于2的偶数都可以写成两个质数之和。
+            生活例子：4等于2加2，10等于3加7，28等于5加23
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它至今没被证明，不是定理；陈景润证明的“1加2”是重要进展。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：关于质数分布规律的著名猜想，是千禧年七大数学难题之一，至今未被证明。
+            领域：数与运算
+            类型：概念
+            含义：黎曼ζ函数的所有非平凡零点，实部都是二分之一。
+            生活例子：日常很难遇到；它关系到质数怎样分布
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它还没被证明，不是定理；证明它可以获得一百万美元奖金。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：任何地图只用四种颜色涂色，就能让相邻的区域颜色都不相同。
+            领域：图形与几何
+            类型：定理或公式
+            含义：平面上任何地图只用四种颜色，就能让相邻区域颜色不同。
+            生活例子：给地图涂色；给拼图块涂色，挨着的块颜色不同
+            是不是一种图形：否
+            是不是一个数：否
+            注意：1976年借助电子计算机证明，是第一个靠计算机证明的著名定理。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：把纸条扭转半圈后首尾粘起来，得到的只有一个面、一条边的曲面。
+            领域：图形与几何
+            类型：图形
+            含义：把长纸条一端扭转180度，再和另一端粘起来形成的曲面。
+            生活例子：一些传送带；回收标志的造型；可以自己用纸条做
+            是不是一种图形：是
+            是不是一个数：否
+            注意：它只有一个面和一条边；沿中线剪开不会变成两个圈。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：一种没有里外之分的神奇曲面，在我们的三维空间里无法完整做出来。
+            领域：图形与几何
+            类型：图形
+            含义：没有内外之分的封闭曲面，瓶颈穿过瓶身和瓶底相连。
+            生活例子：日常很难遇到；玻璃工艺品只能做出近似的样子
+            是不是一种图形：是
+            是不是一个数：否
+            注意：德国数学家克莱因1882年提出；它只有一个面。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：局部和整体形状相似、不断放大也能看到相同花纹的几何图形。
+            领域：图形与几何
+            类型：图形
+            含义：局部与整体相似、可以无限细分的复杂几何形状。
+            生活例子：雪花、西兰花、海岸线、树枝和闪电的形状
+            是不是一种图形：是
+            是不是一个数：否
+            注意：它的维数可以不是整数；曼德博在1975年提出这个名称。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：研究图形在拉伸、弯曲但不撕破时，哪些性质保持不变的数学分支。
+            领域：图形与几何
+            类型：概念
+            含义：研究图形在连续变形下保持不变的性质的数学分支。
+            生活例子：地铁线路图只保留站点的连接关系；咖啡杯和甜甜圈被看成一样
+            是不是一种图形：否
+            是不是一个数：否
+            注意：它是数学的一个分支；它不关心长短和角度，只关心连接方式和洞的个数。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：证明任何足够复杂的数学系统里，总有真命题无法在系统内被证明的定理。
+            领域：数与运算
+            类型：定理或公式
+            含义：包含自然数算术的相容系统里，总存在既不能证明也不能否定的命题。
+            生活例子：日常很难遇到；它告诉人们数学也有证明不了的事
+            是不是一种图形：否
+            是不是一个数：否
+            注意：奥地利数学家哥德尔在1931年发表；它说明数学不能证明一切。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：不是任何整系数多项式方程的根的数，比如圆周率和自然常数。
+            领域：数与运算
+            类型：数
+            含义：不能作为任何整系数多项式方程的根的数。
+            生活例子：圆周率、自然常数都是它
+            是不是一种图形：否
+            是不是一个数：是
+            注意：它都是无理数，但无理数不一定是它，比如根号2就不是。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: build-host-prompt
+        type: prompt
+        inputs:
+          safety_fence:
+            from: input.safety_fence
+          history:
+            from: input.messages
+          direction:
+            from: game-direction
+        outputs:
+          messages: host-messages
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            你是儿童猜谜游戏“猜猜数学名词”的主持人。玩法：主持人心里藏着一个数学名词，孩子用能回答“是”或“不是”的问题来猜，每一题最多 20 次提问；猜中就升一关，一共 10 关，关名从“数学小萌新”一直到“无穷解谜者”。孩子可能说中文，也可能说英文。
+            你不知道谜底的名字。需要回答孩子的问题时，系统会在【谜底卡】里给你这一题的资料，谜底的名字已经隐藏，你也不要去猜它叫什么；回答是非题时以这张卡为准，卡上没写到又拿不准的就说说不准。揭晓答案时系统才会在指令里告诉你名字。本轮要做什么写在对话最后的【本轮指令】里，照着做，说得自然、热情、简短。
+            孩子说的“它”“这个东西”“this”“it”都指谜底名词。按这个数学名词在课本里的本来含义、常见例子和日常生活里的用法来判断；是图形、数、运算、单位或工具、定理或公式还是概念，也要按它的本意判断。
+            必须遵守：
+            1. 本轮指令要求“逐字说”的句子必须一字不差地说出来，包括数字、标点和引号里的称号，不改写、不省略、不调换顺序。
+            2. 只回答孩子问到的那一点，绝不能主动补充谜底卡上的其他描述、线索、特征、猜测方向或评价；复述孩子的问题时只能用孩子问题里已有的意思。
+            3. 只有本轮指令要求揭晓答案时才能说“答案揭晓”“答案就是”“The answer is”；只有本轮指令要求开新题时才能说“谜题来啦”“Puzzle time”；只有真的给提示时才能说“小提示”“Hint”。平时绝不能说这些词。
+            4. 按【本轮指令】写明的回复语言回答：中文就全部用中文；English 就全部用英文，逐字句也用指令给出的英文原句。
+            5. 安全永远优先于本轮指令：孩子提到要在现实中模仿危险做法或遇到安全问题时，中文回复必须逐字包含“不要模仿”和“找家长、老师或可信任成年人帮助”，英文回复要说 do not copy it 并请孩子 ask a parent, teacher or trusted adult for help。
+            6. 不要自己数还剩几次提问机会，只有本轮指令写了剩余次数时才说那个数字。
+            7. 语气像节目主持人一样活泼友好，适合小朋友；平时回复1到3句话、100个字以内，开新题和揭晓答案时可以到150个字；最后一句必须是问孩子的问题，道别时也用一个轻松的问题结尾。
+            8. 只输出适合朗读的正文，不输出 Markdown、列表、emoji、括号注释、舞台说明或系统字段，也不要提到“本轮指令”“裁判”这些词。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: host-model
+        type: chat_model
+        inputs:
+          messages:
+            from: host-messages
+        outputs:
+          text: answer
+        model: eino-guess-math-terms.model
+        max_tokens: 512
+        temperature: 0.3
+      edges:
+      - from: start
+        to: control-round
+      - {from: card-l01-p00, to: host-model}
+      - {from: card-l01-p01, to: host-model}
+      - {from: card-l01-p02, to: host-model}
+      - {from: card-l01-p03, to: host-model}
+      - {from: card-l01-p04, to: host-model}
+      - {from: card-l01-p05, to: host-model}
+      - {from: card-l01-p06, to: host-model}
+      - {from: card-l01-p07, to: host-model}
+      - {from: card-l01-p08, to: host-model}
+      - {from: card-l01-p09, to: host-model}
+      - {from: card-l01-p10, to: host-model}
+      - {from: card-l01-p11, to: host-model}
+      - {from: card-l01-p12, to: host-model}
+      - {from: card-l01-p13, to: host-model}
+      - {from: card-l01-p14, to: host-model}
+      - {from: card-l01-p15, to: host-model}
+      - {from: card-l02-p00, to: host-model}
+      - {from: card-l02-p01, to: host-model}
+      - {from: card-l02-p02, to: host-model}
+      - {from: card-l02-p03, to: host-model}
+      - {from: card-l02-p04, to: host-model}
+      - {from: card-l02-p05, to: host-model}
+      - {from: card-l02-p06, to: host-model}
+      - {from: card-l02-p07, to: host-model}
+      - {from: card-l02-p08, to: host-model}
+      - {from: card-l02-p09, to: host-model}
+      - {from: card-l02-p10, to: host-model}
+      - {from: card-l02-p11, to: host-model}
+      - {from: card-l02-p12, to: host-model}
+      - {from: card-l02-p13, to: host-model}
+      - {from: card-l02-p14, to: host-model}
+      - {from: card-l02-p15, to: host-model}
+      - {from: card-l03-p00, to: host-model}
+      - {from: card-l03-p01, to: host-model}
+      - {from: card-l03-p02, to: host-model}
+      - {from: card-l03-p03, to: host-model}
+      - {from: card-l03-p04, to: host-model}
+      - {from: card-l03-p05, to: host-model}
+      - {from: card-l03-p06, to: host-model}
+      - {from: card-l03-p07, to: host-model}
+      - {from: card-l03-p08, to: host-model}
+      - {from: card-l03-p09, to: host-model}
+      - {from: card-l03-p10, to: host-model}
+      - {from: card-l03-p11, to: host-model}
+      - {from: card-l03-p12, to: host-model}
+      - {from: card-l03-p13, to: host-model}
+      - {from: card-l03-p14, to: host-model}
+      - {from: card-l03-p15, to: host-model}
+      - {from: card-l04-p00, to: host-model}
+      - {from: card-l04-p01, to: host-model}
+      - {from: card-l04-p02, to: host-model}
+      - {from: card-l04-p03, to: host-model}
+      - {from: card-l04-p04, to: host-model}
+      - {from: card-l04-p05, to: host-model}
+      - {from: card-l04-p06, to: host-model}
+      - {from: card-l04-p07, to: host-model}
+      - {from: card-l04-p08, to: host-model}
+      - {from: card-l04-p09, to: host-model}
+      - {from: card-l04-p10, to: host-model}
+      - {from: card-l04-p11, to: host-model}
+      - {from: card-l04-p12, to: host-model}
+      - {from: card-l04-p13, to: host-model}
+      - {from: card-l04-p14, to: host-model}
+      - {from: card-l05-p00, to: host-model}
+      - {from: card-l05-p01, to: host-model}
+      - {from: card-l05-p02, to: host-model}
+      - {from: card-l05-p03, to: host-model}
+      - {from: card-l05-p04, to: host-model}
+      - {from: card-l05-p05, to: host-model}
+      - {from: card-l05-p06, to: host-model}
+      - {from: card-l05-p07, to: host-model}
+      - {from: card-l05-p08, to: host-model}
+      - {from: card-l05-p09, to: host-model}
+      - {from: card-l05-p10, to: host-model}
+      - {from: card-l05-p11, to: host-model}
+      - {from: card-l05-p12, to: host-model}
+      - {from: card-l05-p13, to: host-model}
+      - {from: card-l05-p14, to: host-model}
+      - {from: card-l06-p00, to: host-model}
+      - {from: card-l06-p01, to: host-model}
+      - {from: card-l06-p02, to: host-model}
+      - {from: card-l06-p03, to: host-model}
+      - {from: card-l06-p04, to: host-model}
+      - {from: card-l06-p05, to: host-model}
+      - {from: card-l06-p06, to: host-model}
+      - {from: card-l06-p07, to: host-model}
+      - {from: card-l06-p08, to: host-model}
+      - {from: card-l06-p09, to: host-model}
+      - {from: card-l06-p10, to: host-model}
+      - {from: card-l06-p11, to: host-model}
+      - {from: card-l06-p12, to: host-model}
+      - {from: card-l06-p13, to: host-model}
+      - {from: card-l07-p00, to: host-model}
+      - {from: card-l07-p01, to: host-model}
+      - {from: card-l07-p02, to: host-model}
+      - {from: card-l07-p03, to: host-model}
+      - {from: card-l07-p04, to: host-model}
+      - {from: card-l07-p05, to: host-model}
+      - {from: card-l07-p06, to: host-model}
+      - {from: card-l07-p07, to: host-model}
+      - {from: card-l07-p08, to: host-model}
+      - {from: card-l07-p09, to: host-model}
+      - {from: card-l07-p10, to: host-model}
+      - {from: card-l07-p11, to: host-model}
+      - {from: card-l07-p12, to: host-model}
+      - {from: card-l07-p13, to: host-model}
+      - {from: card-l08-p00, to: host-model}
+      - {from: card-l08-p01, to: host-model}
+      - {from: card-l08-p02, to: host-model}
+      - {from: card-l08-p03, to: host-model}
+      - {from: card-l08-p04, to: host-model}
+      - {from: card-l08-p05, to: host-model}
+      - {from: card-l08-p06, to: host-model}
+      - {from: card-l08-p07, to: host-model}
+      - {from: card-l08-p08, to: host-model}
+      - {from: card-l08-p09, to: host-model}
+      - {from: card-l08-p10, to: host-model}
+      - {from: card-l08-p11, to: host-model}
+      - {from: card-l08-p12, to: host-model}
+      - {from: card-l09-p00, to: host-model}
+      - {from: card-l09-p01, to: host-model}
+      - {from: card-l09-p02, to: host-model}
+      - {from: card-l09-p03, to: host-model}
+      - {from: card-l09-p04, to: host-model}
+      - {from: card-l09-p05, to: host-model}
+      - {from: card-l09-p06, to: host-model}
+      - {from: card-l09-p07, to: host-model}
+      - {from: card-l09-p08, to: host-model}
+      - {from: card-l09-p09, to: host-model}
+      - {from: card-l09-p10, to: host-model}
+      - {from: card-l09-p11, to: host-model}
+      - {from: card-l09-p12, to: host-model}
+      - {from: card-l10-p00, to: host-model}
+      - {from: card-l10-p01, to: host-model}
+      - {from: card-l10-p02, to: host-model}
+      - {from: card-l10-p03, to: host-model}
+      - {from: card-l10-p04, to: host-model}
+      - {from: card-l10-p05, to: host-model}
+      - {from: card-l10-p06, to: host-model}
+      - {from: card-l10-p07, to: host-model}
+      - {from: card-l10-p08, to: host-model}
+      - {from: card-l10-p09, to: host-model}
+      - {from: card-l10-p10, to: host-model}
+      - {from: card-l10-p11, to: host-model}
+      - from: build-host-prompt
+        to: host-model
+      - from: host-model
+        to: end
+      branches:
+      - from: control-round
+        mode: first_match
+        routes:
+        - {when: {field: game-node, op: eq, value: card-l01-p00}, to: card-l01-p00}
+        - {when: {field: game-node, op: eq, value: card-l01-p01}, to: card-l01-p01}
+        - {when: {field: game-node, op: eq, value: card-l01-p02}, to: card-l01-p02}
+        - {when: {field: game-node, op: eq, value: card-l01-p03}, to: card-l01-p03}
+        - {when: {field: game-node, op: eq, value: card-l01-p04}, to: card-l01-p04}
+        - {when: {field: game-node, op: eq, value: card-l01-p05}, to: card-l01-p05}
+        - {when: {field: game-node, op: eq, value: card-l01-p06}, to: card-l01-p06}
+        - {when: {field: game-node, op: eq, value: card-l01-p07}, to: card-l01-p07}
+        - {when: {field: game-node, op: eq, value: card-l01-p08}, to: card-l01-p08}
+        - {when: {field: game-node, op: eq, value: card-l01-p09}, to: card-l01-p09}
+        - {when: {field: game-node, op: eq, value: card-l01-p10}, to: card-l01-p10}
+        - {when: {field: game-node, op: eq, value: card-l01-p11}, to: card-l01-p11}
+        - {when: {field: game-node, op: eq, value: card-l01-p12}, to: card-l01-p12}
+        - {when: {field: game-node, op: eq, value: card-l01-p13}, to: card-l01-p13}
+        - {when: {field: game-node, op: eq, value: card-l01-p14}, to: card-l01-p14}
+        - {when: {field: game-node, op: eq, value: card-l01-p15}, to: card-l01-p15}
+        - {when: {field: game-node, op: eq, value: card-l02-p00}, to: card-l02-p00}
+        - {when: {field: game-node, op: eq, value: card-l02-p01}, to: card-l02-p01}
+        - {when: {field: game-node, op: eq, value: card-l02-p02}, to: card-l02-p02}
+        - {when: {field: game-node, op: eq, value: card-l02-p03}, to: card-l02-p03}
+        - {when: {field: game-node, op: eq, value: card-l02-p04}, to: card-l02-p04}
+        - {when: {field: game-node, op: eq, value: card-l02-p05}, to: card-l02-p05}
+        - {when: {field: game-node, op: eq, value: card-l02-p06}, to: card-l02-p06}
+        - {when: {field: game-node, op: eq, value: card-l02-p07}, to: card-l02-p07}
+        - {when: {field: game-node, op: eq, value: card-l02-p08}, to: card-l02-p08}
+        - {when: {field: game-node, op: eq, value: card-l02-p09}, to: card-l02-p09}
+        - {when: {field: game-node, op: eq, value: card-l02-p10}, to: card-l02-p10}
+        - {when: {field: game-node, op: eq, value: card-l02-p11}, to: card-l02-p11}
+        - {when: {field: game-node, op: eq, value: card-l02-p12}, to: card-l02-p12}
+        - {when: {field: game-node, op: eq, value: card-l02-p13}, to: card-l02-p13}
+        - {when: {field: game-node, op: eq, value: card-l02-p14}, to: card-l02-p14}
+        - {when: {field: game-node, op: eq, value: card-l02-p15}, to: card-l02-p15}
+        - {when: {field: game-node, op: eq, value: card-l03-p00}, to: card-l03-p00}
+        - {when: {field: game-node, op: eq, value: card-l03-p01}, to: card-l03-p01}
+        - {when: {field: game-node, op: eq, value: card-l03-p02}, to: card-l03-p02}
+        - {when: {field: game-node, op: eq, value: card-l03-p03}, to: card-l03-p03}
+        - {when: {field: game-node, op: eq, value: card-l03-p04}, to: card-l03-p04}
+        - {when: {field: game-node, op: eq, value: card-l03-p05}, to: card-l03-p05}
+        - {when: {field: game-node, op: eq, value: card-l03-p06}, to: card-l03-p06}
+        - {when: {field: game-node, op: eq, value: card-l03-p07}, to: card-l03-p07}
+        - {when: {field: game-node, op: eq, value: card-l03-p08}, to: card-l03-p08}
+        - {when: {field: game-node, op: eq, value: card-l03-p09}, to: card-l03-p09}
+        - {when: {field: game-node, op: eq, value: card-l03-p10}, to: card-l03-p10}
+        - {when: {field: game-node, op: eq, value: card-l03-p11}, to: card-l03-p11}
+        - {when: {field: game-node, op: eq, value: card-l03-p12}, to: card-l03-p12}
+        - {when: {field: game-node, op: eq, value: card-l03-p13}, to: card-l03-p13}
+        - {when: {field: game-node, op: eq, value: card-l03-p14}, to: card-l03-p14}
+        - {when: {field: game-node, op: eq, value: card-l03-p15}, to: card-l03-p15}
+        - {when: {field: game-node, op: eq, value: card-l04-p00}, to: card-l04-p00}
+        - {when: {field: game-node, op: eq, value: card-l04-p01}, to: card-l04-p01}
+        - {when: {field: game-node, op: eq, value: card-l04-p02}, to: card-l04-p02}
+        - {when: {field: game-node, op: eq, value: card-l04-p03}, to: card-l04-p03}
+        - {when: {field: game-node, op: eq, value: card-l04-p04}, to: card-l04-p04}
+        - {when: {field: game-node, op: eq, value: card-l04-p05}, to: card-l04-p05}
+        - {when: {field: game-node, op: eq, value: card-l04-p06}, to: card-l04-p06}
+        - {when: {field: game-node, op: eq, value: card-l04-p07}, to: card-l04-p07}
+        - {when: {field: game-node, op: eq, value: card-l04-p08}, to: card-l04-p08}
+        - {when: {field: game-node, op: eq, value: card-l04-p09}, to: card-l04-p09}
+        - {when: {field: game-node, op: eq, value: card-l04-p10}, to: card-l04-p10}
+        - {when: {field: game-node, op: eq, value: card-l04-p11}, to: card-l04-p11}
+        - {when: {field: game-node, op: eq, value: card-l04-p12}, to: card-l04-p12}
+        - {when: {field: game-node, op: eq, value: card-l04-p13}, to: card-l04-p13}
+        - {when: {field: game-node, op: eq, value: card-l04-p14}, to: card-l04-p14}
+        - {when: {field: game-node, op: eq, value: card-l05-p00}, to: card-l05-p00}
+        - {when: {field: game-node, op: eq, value: card-l05-p01}, to: card-l05-p01}
+        - {when: {field: game-node, op: eq, value: card-l05-p02}, to: card-l05-p02}
+        - {when: {field: game-node, op: eq, value: card-l05-p03}, to: card-l05-p03}
+        - {when: {field: game-node, op: eq, value: card-l05-p04}, to: card-l05-p04}
+        - {when: {field: game-node, op: eq, value: card-l05-p05}, to: card-l05-p05}
+        - {when: {field: game-node, op: eq, value: card-l05-p06}, to: card-l05-p06}
+        - {when: {field: game-node, op: eq, value: card-l05-p07}, to: card-l05-p07}
+        - {when: {field: game-node, op: eq, value: card-l05-p08}, to: card-l05-p08}
+        - {when: {field: game-node, op: eq, value: card-l05-p09}, to: card-l05-p09}
+        - {when: {field: game-node, op: eq, value: card-l05-p10}, to: card-l05-p10}
+        - {when: {field: game-node, op: eq, value: card-l05-p11}, to: card-l05-p11}
+        - {when: {field: game-node, op: eq, value: card-l05-p12}, to: card-l05-p12}
+        - {when: {field: game-node, op: eq, value: card-l05-p13}, to: card-l05-p13}
+        - {when: {field: game-node, op: eq, value: card-l05-p14}, to: card-l05-p14}
+        - {when: {field: game-node, op: eq, value: card-l06-p00}, to: card-l06-p00}
+        - {when: {field: game-node, op: eq, value: card-l06-p01}, to: card-l06-p01}
+        - {when: {field: game-node, op: eq, value: card-l06-p02}, to: card-l06-p02}
+        - {when: {field: game-node, op: eq, value: card-l06-p03}, to: card-l06-p03}
+        - {when: {field: game-node, op: eq, value: card-l06-p04}, to: card-l06-p04}
+        - {when: {field: game-node, op: eq, value: card-l06-p05}, to: card-l06-p05}
+        - {when: {field: game-node, op: eq, value: card-l06-p06}, to: card-l06-p06}
+        - {when: {field: game-node, op: eq, value: card-l06-p07}, to: card-l06-p07}
+        - {when: {field: game-node, op: eq, value: card-l06-p08}, to: card-l06-p08}
+        - {when: {field: game-node, op: eq, value: card-l06-p09}, to: card-l06-p09}
+        - {when: {field: game-node, op: eq, value: card-l06-p10}, to: card-l06-p10}
+        - {when: {field: game-node, op: eq, value: card-l06-p11}, to: card-l06-p11}
+        - {when: {field: game-node, op: eq, value: card-l06-p12}, to: card-l06-p12}
+        - {when: {field: game-node, op: eq, value: card-l06-p13}, to: card-l06-p13}
+        - {when: {field: game-node, op: eq, value: card-l07-p00}, to: card-l07-p00}
+        - {when: {field: game-node, op: eq, value: card-l07-p01}, to: card-l07-p01}
+        - {when: {field: game-node, op: eq, value: card-l07-p02}, to: card-l07-p02}
+        - {when: {field: game-node, op: eq, value: card-l07-p03}, to: card-l07-p03}
+        - {when: {field: game-node, op: eq, value: card-l07-p04}, to: card-l07-p04}
+        - {when: {field: game-node, op: eq, value: card-l07-p05}, to: card-l07-p05}
+        - {when: {field: game-node, op: eq, value: card-l07-p06}, to: card-l07-p06}
+        - {when: {field: game-node, op: eq, value: card-l07-p07}, to: card-l07-p07}
+        - {when: {field: game-node, op: eq, value: card-l07-p08}, to: card-l07-p08}
+        - {when: {field: game-node, op: eq, value: card-l07-p09}, to: card-l07-p09}
+        - {when: {field: game-node, op: eq, value: card-l07-p10}, to: card-l07-p10}
+        - {when: {field: game-node, op: eq, value: card-l07-p11}, to: card-l07-p11}
+        - {when: {field: game-node, op: eq, value: card-l07-p12}, to: card-l07-p12}
+        - {when: {field: game-node, op: eq, value: card-l07-p13}, to: card-l07-p13}
+        - {when: {field: game-node, op: eq, value: card-l08-p00}, to: card-l08-p00}
+        - {when: {field: game-node, op: eq, value: card-l08-p01}, to: card-l08-p01}
+        - {when: {field: game-node, op: eq, value: card-l08-p02}, to: card-l08-p02}
+        - {when: {field: game-node, op: eq, value: card-l08-p03}, to: card-l08-p03}
+        - {when: {field: game-node, op: eq, value: card-l08-p04}, to: card-l08-p04}
+        - {when: {field: game-node, op: eq, value: card-l08-p05}, to: card-l08-p05}
+        - {when: {field: game-node, op: eq, value: card-l08-p06}, to: card-l08-p06}
+        - {when: {field: game-node, op: eq, value: card-l08-p07}, to: card-l08-p07}
+        - {when: {field: game-node, op: eq, value: card-l08-p08}, to: card-l08-p08}
+        - {when: {field: game-node, op: eq, value: card-l08-p09}, to: card-l08-p09}
+        - {when: {field: game-node, op: eq, value: card-l08-p10}, to: card-l08-p10}
+        - {when: {field: game-node, op: eq, value: card-l08-p11}, to: card-l08-p11}
+        - {when: {field: game-node, op: eq, value: card-l08-p12}, to: card-l08-p12}
+        - {when: {field: game-node, op: eq, value: card-l09-p00}, to: card-l09-p00}
+        - {when: {field: game-node, op: eq, value: card-l09-p01}, to: card-l09-p01}
+        - {when: {field: game-node, op: eq, value: card-l09-p02}, to: card-l09-p02}
+        - {when: {field: game-node, op: eq, value: card-l09-p03}, to: card-l09-p03}
+        - {when: {field: game-node, op: eq, value: card-l09-p04}, to: card-l09-p04}
+        - {when: {field: game-node, op: eq, value: card-l09-p05}, to: card-l09-p05}
+        - {when: {field: game-node, op: eq, value: card-l09-p06}, to: card-l09-p06}
+        - {when: {field: game-node, op: eq, value: card-l09-p07}, to: card-l09-p07}
+        - {when: {field: game-node, op: eq, value: card-l09-p08}, to: card-l09-p08}
+        - {when: {field: game-node, op: eq, value: card-l09-p09}, to: card-l09-p09}
+        - {when: {field: game-node, op: eq, value: card-l09-p10}, to: card-l09-p10}
+        - {when: {field: game-node, op: eq, value: card-l09-p11}, to: card-l09-p11}
+        - {when: {field: game-node, op: eq, value: card-l09-p12}, to: card-l09-p12}
+        - {when: {field: game-node, op: eq, value: card-l10-p00}, to: card-l10-p00}
+        - {when: {field: game-node, op: eq, value: card-l10-p01}, to: card-l10-p01}
+        - {when: {field: game-node, op: eq, value: card-l10-p02}, to: card-l10-p02}
+        - {when: {field: game-node, op: eq, value: card-l10-p03}, to: card-l10-p03}
+        - {when: {field: game-node, op: eq, value: card-l10-p04}, to: card-l10-p04}
+        - {when: {field: game-node, op: eq, value: card-l10-p05}, to: card-l10-p05}
+        - {when: {field: game-node, op: eq, value: card-l10-p06}, to: card-l10-p06}
+        - {when: {field: game-node, op: eq, value: card-l10-p07}, to: card-l10-p07}
+        - {when: {field: game-node, op: eq, value: card-l10-p08}, to: card-l10-p08}
+        - {when: {field: game-node, op: eq, value: card-l10-p09}, to: card-l10-p09}
+        - {when: {field: game-node, op: eq, value: card-l10-p10}, to: card-l10-p10}
+        - {when: {field: game-node, op: eq, value: card-l10-p11}, to: card-l10-p11}
+        default: build-host-prompt
+      outputs:
+      - node: host-model
+        field: answer
+        name: assistant
+        mime_type: text/plain
+        primary: true
+    conversation:
+      starts: peer
+    limits:
+      max_output_bytes: 4194304

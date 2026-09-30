@@ -1,0 +1,4341 @@
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata:
+  id: eino-guess-inventions-discoveries
+spec:
+  driver: eino
+  toolkit:
+    tool_ids: []
+  eino:
+    voice_adapter:
+      asr_model: asr
+      default_voice: eino-guess-inventions-discoveries.host
+    graph:
+      name: guess-inventions-discoveries-eino
+      compile:
+        node_trigger_mode: any_predecessor
+        max_run_steps: 12
+      state:
+        fields:
+        - name: game-route
+          type: string
+          merge: replace
+        - name: game-direction
+          type: string
+          merge: replace
+        - name: game-node
+          type: string
+          merge: replace
+        - name: host-rules
+          type: string
+          merge: replace
+        - name: host-messages
+          type: messages
+          merge: replace
+        - name: answer
+          type: string
+          merge: replace
+      nodes:
+      - id: control-round
+        type: script
+        inputs:
+          text:
+            from: input.text
+          messages:
+            from: input.messages
+        outputs:
+          route: game-route
+          node: game-node
+          direction: game-direction
+          rules: host-rules
+        language: starlark
+        entrypoint: run
+        source: |
+          # Generated from workflows/guess-inventions-discoveries/puzzles.json by scripts/guess/generate.py.
+          # Eino keeps no hidden state between turns, so every turn rebuilds the game
+          # from the spoken History: the latest "谜题来啦"/"Puzzle time" opening names
+          # the level and the puzzle number, and (level, puzzle) picks the secret.
+          # Each turn makes one model call: this script either writes the host's
+          # instruction for build-host-prompt, or activates the current puzzle's card
+          # node, whose card has the name removed so the host cannot say it.
+          DATA = {"subject_zh": "一项发明或发现", "subject_en": "an invention or discovery", "examples_zh": ["它是一项发明吗？", "它和交通有关吗？", "它是一百年以内出现的吗？", "它能用手摸到吗？"], "examples_en": ["Is it an invention?", "Is it related to transport?", "Did it appear within the last 100 years?", "Can you touch it with your hands?"], "restate_zh": ["它和交通有关吗？", "是，它和交通有关。", "不是，它和交通无关。"], "restate_en": ["Is it related to transport?", "Yes, it is related to transport.", "No, it is not related to transport."], "host_rules": "你是儿童猜谜游戏“猜猜发明与发现”的主持人。玩法：主持人心里藏着一项发明或发现，孩子用能回答“是”或“不是”的问题来猜，每一题最多 20 次提问；猜中就升一关，一共 10 关，关名从“发明小萌新”一直到“文明解码者”。孩子可能说中文，也可能说英文。\n你不知道谜底的名字。需要回答孩子的问题时，系统会在【谜底卡】里给你这一题的资料，谜底的名字已经隐藏，你也不要去猜它叫什么；回答是非题时以这张卡为准，卡上没写到又拿不准的就说说不准。揭晓答案时系统才会在指令里告诉你名字。本轮要做什么写在对话最后的【本轮指令】里，照着做，说得自然、热情、简短。\n孩子说的“它”“这个东西”“this”“it”都指谜底这项发明或发现。是发明还是发现、出现的年代、用途和发明者都按谜底卡上的公认说法判断；卡上写着说法不一时，问到“是某一个人发明的吗”不要直接说“是”，以“有一部分是”开头；卡上写着不详时，问到具体是哪个人就以“这个我也说不准”开头。\n必须遵守：\n1. 本轮指令要求“逐字说”的句子必须一字不差地说出来，包括数字、标点和引号里的称号，不改写、不省略、不调换顺序。\n2. 只回答孩子问到的那一点，绝不能主动补充谜底卡上的其他描述、线索、特征、猜测方向或评价；复述孩子的问题时只能用孩子问题里已有的意思。\n3. 只有本轮指令要求揭晓答案时才能说“答案揭晓”“答案就是”“The answer is”；只有本轮指令要求开新题时才能说“谜题来啦”“Puzzle time”；只有真的给提示时才能说“小提示”“Hint”。平时绝不能说这些词。\n4. 按【本轮指令】写明的回复语言回答：中文就全部用中文；English 就全部用英文，逐字句也用指令给出的英文原句。\n5. 安全永远优先于本轮指令：孩子提到要在现实中模仿危险做法或遇到安全问题时，中文回复必须逐字包含“不要模仿”和“找家长、老师或可信任成年人帮助”，英文回复要说 do not copy it 并请孩子 ask a parent, teacher or trusted adult for help。\n6. 不要自己数还剩几次提问机会，只有本轮指令写了剩余次数时才说那个数字。\n7. 语气像节目主持人一样活泼友好，适合小朋友；平时回复1到3句话、100个字以内，开新题和揭晓答案时可以到150个字；最后一句必须是问孩子的问题，道别时也用一个轻松的问题结尾。\n8. 只输出适合朗读的正文，不输出 Markdown、列表、emoji、括号注释、舞台说明或系统字段，也不要提到“本轮指令”“裁判”这些词。", "levels": [{"title_zh": "发明小萌新", "title_en": "Invention Rookie", "step": 7, "offset": 0, "items": [{"zh": "轮子", "en": "wheel", "aliases": ["车轮"], "profile": "圆形、能绕着中间的轴转动的部件，让车子和很多机器能滚着前进。", "hints": ["它是一项很古老的发明", "它的形状是圆的", "它能让东西滚着前进"]}, {"zh": "电灯", "en": "light bulb", "aliases": ["电灯泡", "灯泡", "白炽灯"], "profile": "通电后会发光的灯，让人们在夜晚也能像白天一样看书、工作。", "hints": ["它要用电", "它和光有关", "它常挂在天花板上"]}, {"zh": "电视", "en": "television", "aliases": ["电视机", "TV"], "profile": "能接收节目信号、把声音和活动的画面同时放出来的机器。", "hints": ["它要用电", "它有一块屏幕", "它能播放动画片"]}, {"zh": "牙刷", "en": "toothbrush", "aliases": [], "profile": "一头带着一排排细毛的小刷子，每天早晚用它清洁牙齿。", "hints": ["它是一种日常用品", "它早晚都要用", "它和牙齿有关"]}, {"zh": "电话", "en": "telephone", "aliases": ["固定电话", "座机"], "profile": "能把说话的声音变成电信号传到远方，让相隔很远的人对着说话。", "hints": ["它和声音有关", "它要用电", "它能让远方的人聊天"]}, {"zh": "自行车", "en": "bicycle", "aliases": ["单车", "脚踏车", "bike"], "profile": "两个轮子一前一后，人坐在上面用脚蹬踏板就能骑着前进的交通工具。", "hints": ["它和交通有关", "它靠人的力气前进", "它有两个轮子"]}, {"zh": "汽车", "en": "car", "aliases": ["小汽车", "轿车"], "profile": "靠发动机带动、在马路上跑的交通工具，能载人也能运货。", "hints": ["它是一种交通工具", "它在马路上跑", "它通常有四个轮子"]}, {"zh": "飞机", "en": "airplane", "aliases": ["aeroplane"], "profile": "有翅膀、靠发动机推动在天上飞的交通工具，能载人飞过高山大海。", "hints": ["它是一种交通工具", "它比汽车跑得快", "它能飞上天"]}, {"zh": "火车", "en": "train", "aliases": ["列车"], "profile": "由车头拉着一节节车厢、沿着铁轨行驶的交通工具，能运很多人和货物。", "hints": ["它是一种交通工具", "它特别长", "它只在铁轨上跑"]}, {"zh": "冰箱", "en": "refrigerator", "aliases": ["电冰箱", "fridge"], "profile": "能让里面一直保持低温的柜子，把食物放进去就不容易变坏。", "hints": ["它要用电", "它常放在厨房里", "它里面总是很冷"]}, {"zh": "雨伞", "en": "umbrella", "aliases": ["伞"], "profile": "下雨时撑开挡雨、晴天还能遮太阳的工具，不用时可以收起来。", "hints": ["它是一种日常用品", "它可以收起来", "它和下雨天有关"]}, {"zh": "手机", "en": "mobile phone", "aliases": ["移动电话", "智能手机", "cell phone", "cellphone"], "profile": "可以随身带着走、不用电线就能打电话的小机器，现在还能拍照上网。", "hints": ["它要用电", "它可以装进口袋", "它能随时和别人通话"]}, {"zh": "红绿灯", "en": "traffic light", "aliases": ["交通信号灯", "信号灯"], "profile": "路口用红、黄、绿三种颜色的灯指挥车辆和行人，红灯停，绿灯行。", "hints": ["它和交通有关", "它会变颜色", "它常站在路口"]}, {"zh": "剪刀", "en": "scissors", "aliases": ["剪子"], "profile": "两片刀刃交叉装在一起、一开一合就能剪开纸和布的工具。", "hints": ["它是一种工具", "它能一开一合", "它能把纸分成两半"]}, {"zh": "风筝", "en": "kite", "aliases": ["纸鸢"], "profile": "用竹条和纸或布扎成、拴着长线借着风力飞上天空的玩具。", "hints": ["它是一种玩具", "它喜欢有风的天气", "它会拖着一根长线"]}, {"zh": "电脑", "en": "computer", "aliases": ["计算机", "电子计算机"], "profile": "能按程序飞快计算、存储资料的电子机器，可以用来学习、画画和上网。", "hints": ["它要用电", "它有一块屏幕", "它算数特别快"]}]}, {"title_zh": "好奇小工匠", "title_en": "Curious Tinkerer", "step": 7, "offset": 0, "items": [{"zh": "铅笔", "en": "pencil", "aliases": [], "profile": "用木头包着一根细细的笔芯做成的笔，写错了还能用橡皮擦掉。", "hints": ["它是一种文具", "它能写字", "它用久了要削一削"]}, {"zh": "眼镜", "en": "glasses", "aliases": ["eyeglasses", "spectacles"], "profile": "戴在眼睛前面的两片镜片，能帮看不清楚的人看得更清晰。", "hints": ["它是一种日常用品", "它是戴在身上的", "它常架在鼻梁上"]}, {"zh": "筷子", "en": "chopsticks", "aliases": [], "profile": "两根一样长的细棍，一只手就能夹起饭菜，是东亚常用的餐具。", "hints": ["它是一种餐具", "它细细长长的", "它总是两根一起用"]}, {"zh": "肥皂", "en": "soap", "aliases": ["香皂"], "profile": "沾水搓一搓就起泡沫、能把手和衣服上的油污洗掉的清洁用品。", "hints": ["它是一种日常用品", "它沾水后滑滑的", "它能搓出很多泡泡"]}, {"zh": "牙膏", "en": "toothpaste", "aliases": [], "profile": "装在软管里的膏状清洁用品，挤在牙刷上刷牙，让牙齿更干净。", "hints": ["它是一种日常用品", "它装在软管里", "它和刷牙有关"]}, {"zh": "洗衣机", "en": "washing machine", "aliases": [], "profile": "放进衣服和水，它就能自动转动把衣服洗干净的家用电器。", "hints": ["它要用电", "它里面会装水", "它干活时会转圈"]}, {"zh": "照相机", "en": "camera", "aliases": ["相机"], "profile": "能把眼前的景象拍下来、变成照片保存的机器。", "hints": ["它和光有关", "它有一个镜头", "它能留住美好的瞬间"]}, {"zh": "空调", "en": "air conditioner", "aliases": ["空调机", "冷气机"], "profile": "用电让屋子里变凉快或变暖和、还能调节湿度的家用电器。", "hints": ["它要用电", "它常挂在墙上", "它夏天特别受欢迎"]}, {"zh": "电影", "en": "movie", "aliases": ["影片", "film"], "profile": "把连续拍下的画面快速放映出来，让画面动起来讲故事的艺术。", "hints": ["它和光有关", "它能讲故事", "它常在大银幕上放"]}, {"zh": "收音机", "en": "radio", "aliases": [], "profile": "能接收空中传来的无线电信号、把它变成声音播放的机器。", "hints": ["它要用电", "它和声音有关", "它能收听广播"]}, {"zh": "电梯", "en": "elevator", "aliases": ["升降机", "lift"], "profile": "装在楼里、像小房间一样上下移动的机器，按一下按钮就能到别的楼层。", "hints": ["它要用电", "它常在高楼里", "它能上上下下"]}, {"zh": "造纸术", "en": "papermaking", "aliases": ["纸", "造纸"], "profile": "把树皮、麻头、破布和旧渔网捣烂做成纸的方法，是中国古代四大发明之一。", "hints": ["它来自中国古代", "它是一种制作方法", "它和写字有关"]}, {"zh": "活字印刷术", "en": "movable type printing", "aliases": ["活字印刷", "印刷术"], "profile": "先刻好一个个单独的字，再按文章排成版来印刷，用完还能拆开重复使用。", "hints": ["它来自中国古代", "它和书有关", "它把字一个个分开刻"]}, {"zh": "二维码", "en": "QR code", "aliases": ["QR码"], "profile": "由许多黑白小方块组成的方形图案，用手机一扫就能读出里面的信息。", "hints": ["它和信息有关", "它是黑白相间的", "它要用手机扫一扫"]}, {"zh": "创可贴", "en": "adhesive bandage", "aliases": ["Band-Aid", "止血贴"], "profile": "中间带一小块干净纱布的小胶布，小伤口贴上它能得到保护。", "hints": ["它和医学有关", "它又小又轻", "它一面是黏黏的"]}, {"zh": "拉链", "en": "zipper", "aliases": ["拉锁", "zip"], "profile": "两排小齿咬合在一起、一拉就能打开或合上，常用在衣服和书包上。", "hints": ["它是一种日常用品", "它常在衣服和书包上", "它一拉就能合上"]}]}, {"title_zh": "点子收集家", "title_en": "Idea Collector", "step": 7, "offset": 0, "items": [{"zh": "手表", "en": "wristwatch", "aliases": ["腕表", "watch"], "profile": "戴在手腕上、随时都能看时间的小钟表。", "hints": ["它是一种日常用品", "它和时间有关", "它戴在手腕上"]}, {"zh": "电风扇", "en": "electric fan", "aliases": ["风扇", "电扇"], "profile": "用电让几片扇叶飞快转动、吹出凉风的家用电器。", "hints": ["它要用电", "它有几片叶片", "它能吹出风来"]}, {"zh": "橡皮", "en": "eraser", "aliases": ["橡皮擦", "rubber"], "profile": "用橡胶或塑料做成的小块文具，能擦掉铅笔写错的字。", "hints": ["它是一种文具", "它软软的", "它能让字消失"]}, {"zh": "气球", "en": "balloon", "aliases": [], "profile": "用薄薄的橡胶做成、吹进气后会鼓起来的小玩具，常用来装饰派对。", "hints": ["它是一种玩具", "它有很多颜色", "它吹气后会变大"]}, {"zh": "手电筒", "en": "flashlight", "aliases": ["手电", "电筒", "torch"], "profile": "装着电池、拿在手里就能照亮前方的小灯。", "hints": ["它和光有关", "它可以拿在手里", "它适合在黑暗里用"]}, {"zh": "摩托车", "en": "motorcycle", "aliases": ["摩托", "机车"], "profile": "有两个轮子、靠发动机带动的交通工具，骑起来比自行车快得多。", "hints": ["它是一种交通工具", "它有发动机", "它通常只有两个轮子"]}, {"zh": "机器人", "en": "robot", "aliases": [], "profile": "能按照程序自动完成各种工作的机器，有的像人，有的像手臂或小车。", "hints": ["它要用电", "它能自动干活", "它有的长得像人"]}, {"zh": "计算器", "en": "calculator", "aliases": [], "profile": "按下数字和符号键，就能马上算出结果的小机器。", "hints": ["它和数学有关", "它有很多按键", "它能帮你算数"]}, {"zh": "算盘", "en": "abacus", "aliases": [], "profile": "用木框串着一颗颗珠子、拨动珠子来计算的古老工具。", "hints": ["它和数学有关", "它很古老", "它上面有很多珠子"]}, {"zh": "烟花", "en": "fireworks", "aliases": ["烟火", "焰火"], "profile": "点燃后飞上天空炸开、放出五颜六色光芒的节日庆祝用品。", "hints": ["它来自中国古代", "它常在节日出现", "它会在夜空里开花"]}, {"zh": "显微镜", "en": "microscope", "aliases": [], "profile": "用几片镜片把很小很小的东西放大许多倍、让人看清的仪器。", "hints": ["它是一种仪器", "它有好几片镜片", "它能看清很小的东西"]}, {"zh": "望远镜", "en": "telescope", "aliases": ["千里镜"], "profile": "用镜片或镜子收集光线、让远处的东西看起来又大又清楚的仪器。", "hints": ["它是一种仪器", "它和光有关", "它能看清很远的东西"]}, {"zh": "微波炉", "en": "microwave oven", "aliases": ["microwave"], "profile": "用微波让食物里的水分子快速振动发热，很快就能把饭菜热好的厨房电器。", "hints": ["它要用电", "它常放在厨房里", "它能很快把饭热好"]}, {"zh": "方便面", "en": "instant noodles", "aliases": ["泡面", "速食面"], "profile": "提前煮熟再弄干的面饼，用开水一泡几分钟就能吃的食品。", "hints": ["它是一种食物", "它做起来很快", "它要用开水泡"]}, {"zh": "地铁", "en": "subway", "aliases": ["地下铁", "metro"], "profile": "大部分在城市地下隧道里行驶的列车，不怕堵车，能快速运送很多乘客。", "hints": ["它是一种交通工具", "它在城市里", "它大多在地下跑"]}, {"zh": "玻璃", "en": "glass", "aliases": [], "profile": "用沙子等原料高温熔化后做成的透明材料，常用来做窗户、杯子和镜片。", "hints": ["它是一种材料", "它大多是透明的", "它摔了容易碎"]}]}, {"title_zh": "发现小达人", "title_en": "Discovery Whiz", "step": 7, "offset": 0, "items": [{"zh": "蒸汽机", "en": "steam engine", "aliases": [], "profile": "烧煤把水烧成蒸汽、用蒸汽推动机器运转的动力机器，带来了工业革命。", "hints": ["它是一种机器", "它和能源有关", "它要把水烧开"]}, {"zh": "互联网", "en": "Internet", "aliases": ["因特网"], "profile": "把全世界的电脑和手机连在一起的巨大网络，让人们能随时传递信息。", "hints": ["它和信息有关", "它把很多设备连在一起", "它能让你上网"]}, {"zh": "丝绸", "en": "silk", "aliases": ["蚕丝"], "profile": "用蚕吐出的丝织成的光滑柔软的布料，古代经丝绸之路运到很远的地方。", "hints": ["它来自中国古代", "它摸起来很光滑", "它和蚕宝宝有关"]}, {"zh": "瓷器", "en": "porcelain", "aliases": ["瓷"], "profile": "用特殊的黏土高温烧成的器物，又白又硬又光滑，英文里它和“中国”是同一个词。", "hints": ["它来自中国古代", "它要用高温烧制", "它常被做成碗和花瓶"]}, {"zh": "塑料", "en": "plastic", "aliases": [], "profile": "用石油等原料人工合成的材料，轻便又能做成各种形状，但很难自然分解。", "hints": ["它是一种材料", "它又轻又便宜", "它很难自然分解"]}, {"zh": "热气球", "en": "hot air balloon", "aliases": [], "profile": "把球囊里的空气加热，让热空气把人和吊篮一起带上天空的飞行器。", "hints": ["它能飞上天", "它下面挂着吊篮", "它靠加热空气升起"]}, {"zh": "魔术贴", "en": "Velcro", "aliases": ["尼龙搭扣", "粘扣带", "hook and loop"], "profile": "一面是小钩子、一面是小绒圈，一按就粘住、一撕就分开的扣子。", "hints": ["它是一种日常用品", "它常用在鞋子上", "它一按就粘住了"]}, {"zh": "圆珠笔", "en": "ballpoint pen", "aliases": ["原子笔"], "profile": "笔尖装着一颗小钢珠，写字时钢珠滚动把油墨带到纸上的笔。", "hints": ["它是一种文具", "它不用蘸墨水", "它的笔尖有颗小珠子"]}, {"zh": "细菌", "en": "bacteria", "aliases": [], "profile": "只有一个细胞、小到要用显微镜才能看见的微小生物，有的有益，有的会让人生病。", "hints": ["它是一项发现", "它非常非常小", "它到处都有"]}, {"zh": "风车", "en": "windmill", "aliases": [], "profile": "靠风吹动大大的叶片转动、用来磨面粉或抽水的机器，荷兰的最有名。", "hints": ["它是一种机器", "它靠风来工作", "它有几片大叶片会转"]}, {"zh": "轮船", "en": "steamship", "aliases": ["汽船", "蒸汽船"], "profile": "用蒸汽机等发动机带动、不用靠风帆和划桨就能航行的大船。", "hints": ["它是一种交通工具", "它在水上行驶", "它不用靠风帆"]}, {"zh": "高铁", "en": "high speed rail", "aliases": ["高速铁路", "高速列车", "bullet train"], "profile": "在专门修建的铁路上，以每小时200公里以上的速度飞驰的列车。", "hints": ["它是一种交通工具", "它要用电", "它跑得特别快"]}, {"zh": "鼠标", "en": "computer mouse", "aliases": ["滑鼠", "mouse"], "profile": "握在手里在桌上移动，就能控制电脑屏幕上箭头的小设备。", "hints": ["它和电脑有关", "它常放在桌子上", "它可以握在手里"]}, {"zh": "疫苗", "en": "vaccine", "aliases": [], "profile": "帮助身体提前认识病菌、学会抵抗它们的医学发明，打了它就不容易得某些病。", "hints": ["它和医学有关", "它能保护身体", "它常要打一针"]}, {"zh": "保温瓶", "en": "vacuum flask", "aliases": ["暖水瓶", "热水瓶", "保温杯", "thermos"], "profile": "瓶胆有两层、中间抽成真空，能让热水长时间保持热、冷饮保持冷的容器。", "hints": ["它是一种日常用品", "它不用电", "它能让水一直热乎乎的"]}]}, {"title_zh": "实验室助手", "title_en": "Lab Assistant", "step": 7, "offset": 0, "items": [{"zh": "电报", "en": "telegraph", "aliases": [], "profile": "用电线把电信号从一个地方传到另一个地方，再翻译成文字的通信方法。", "hints": ["它和通信有关", "它要用电", "它比电话出现得早"]}, {"zh": "盲文", "en": "Braille", "aliases": ["点字", "布莱尔盲文"], "profile": "用纸上凸起的小圆点组成字母，让看不见的人用手指摸着读的文字。", "hints": ["它和文字有关", "它由小圆点组成", "它要用手指去读"]}, {"zh": "邮票", "en": "postage stamp", "aliases": ["stamp"], "profile": "贴在信封上、表示已经付过邮费的小纸片，上面常印着漂亮的图案。", "hints": ["它和通信有关", "它是一张小纸片", "它常贴在信封上"]}, {"zh": "阿拉伯数字", "en": "Arabic numerals", "aliases": ["印度阿拉伯数字"], "profile": "从0到9的十个数字符号，今天全世界都用它们来写数和计算。", "hints": ["它和数学有关", "它一共有十个", "它写数时天天会用到"]}, {"zh": "细胞", "en": "cell", "aliases": [], "profile": "组成生物身体的最小单位，就像盖房子用的一块块砖，要用显微镜才能看见。", "hints": ["它是一项发现", "它和生物有关", "它非常小"]}, {"zh": "人造卫星", "en": "artificial satellite", "aliases": ["卫星", "satellite"], "profile": "被火箭送上太空、绕着地球不停转圈的机器，能帮我们通信、导航和看天气。", "hints": ["它是人造的机器", "它在太空中", "它绕着地球转"]}, {"zh": "听诊器", "en": "stethoscope", "aliases": [], "profile": "医生挂在脖子上、贴在胸口就能听到心跳和呼吸声的医疗工具。", "hints": ["它和医学有关", "它和声音有关", "它常挂在医生脖子上"]}, {"zh": "直升机", "en": "helicopter", "aliases": ["直升飞机"], "profile": "靠头顶的大旋翼转动升空的飞行器，能垂直起降，还能停在空中不动。", "hints": ["它能飞上天", "它能停在半空中", "它头顶有大螺旋桨"]}, {"zh": "地动仪", "en": "seismoscope", "aliases": ["候风地动仪"], "profile": "东汉张衡制造的仪器，能测出远方发生地震的大致方向。", "hints": ["它来自中国古代", "它是一种仪器", "它身上有八条龙"]}, {"zh": "日晷", "en": "sundial", "aliases": [], "profile": "靠太阳照出的影子落在刻度盘上的位置来看时间的古老计时工具。", "hints": ["它很古老", "它和时间有关", "它离不开太阳"]}, {"zh": "条形码", "en": "barcode", "aliases": ["条码"], "profile": "由一组粗细不同的黑白条纹组成，扫描一下就能读出商品信息。", "hints": ["它和信息有关", "它是黑白相间的", "它常印在商品包装上"]}, {"zh": "缝纫机", "en": "sewing machine", "aliases": [], "profile": "用针和线自动把布料缝在一起的机器，做衣服比手工快很多。", "hints": ["它是一种机器", "它和衣服有关", "它用针和线干活"]}, {"zh": "留声机", "en": "phonograph", "aliases": ["唱机"], "profile": "能把声音录下来再放出来的机器，是第一台既能录音又能放音的机器。", "hints": ["它是一种机器", "它和声音有关", "它有一个大喇叭"]}, {"zh": "青霉素", "en": "penicillin", "aliases": ["盘尼西林"], "profile": "从青霉菌里找到的一种药，能杀死让人生病的细菌，救了无数人的生命。", "hints": ["它和医学有关", "它来自一种霉菌", "它能对付细菌"]}, {"zh": "X射线", "en": "X-ray", "aliases": ["X光", "伦琴射线"], "profile": "一种眼睛看不见、能穿透人体的射线，医生用它拍片子，看到身体里的骨头。", "hints": ["它是一项发现", "它眼睛看不见", "它能照出骨头"]}]}, {"title_zh": "灵感工程师", "title_en": "Idea Engineer", "step": 5, "offset": 0, "items": [{"zh": "杂交水稻", "en": "hybrid rice", "aliases": [], "profile": "用两种不同的水稻培育出的新品种，产量高得多，让更多人能吃饱饭。", "hints": ["它和粮食有关", "它来自中国", "它长在稻田里"]}, {"zh": "光合作用", "en": "photosynthesis", "aliases": [], "profile": "绿色植物利用阳光，把二氧化碳和水变成养分并放出氧气的过程。", "hints": ["它是一项发现", "它和植物有关", "它需要阳光"]}, {"zh": "维生素", "en": "vitamin", "aliases": ["维他命"], "profile": "人体需要得很少但不能缺少的一类营养物质，多吃蔬菜水果就能获得很多种。", "hints": ["它和营养有关", "它有很多种", "它藏在蔬菜水果里"]}, {"zh": "电子邮件", "en": "email", "aliases": ["电邮", "e-mail"], "profile": "通过网络发送的信件，几秒钟就能送到世界另一头的人手里。", "hints": ["它和通信有关", "它要通过网络", "它的地址里有个@符号"]}, {"zh": "摩尔斯电码", "en": "Morse code", "aliases": ["莫尔斯电码", "摩斯密码", "摩斯电码"], "profile": "用短的“滴”和长的“答”两种信号组合，来表示字母和数字的编码方法。", "hints": ["它和通信有关", "它是一种编码", "它只有长短两种信号"]}, {"zh": "纸币", "en": "paper money", "aliases": ["钞票", "banknote"], "profile": "用纸印成、代替金属钱币来买东西的钱，世界上最早的出现在中国。", "hints": ["它来自中国古代", "它和买东西有关", "它是用纸做的"]}, {"zh": "触摸屏", "en": "touchscreen", "aliases": ["触屏", "触控屏", "触摸屏幕"], "profile": "用手指直接点、划就能操作的屏幕，手机和平板电脑上都有。", "hints": ["它要用电", "它常在手机上", "它能感觉到手指"]}, {"zh": "人工智能", "en": "artificial intelligence", "aliases": ["AI"], "profile": "让电脑像人一样学习、思考和解决问题的技术，能聊天、认图片和下棋。", "hints": ["它和电脑有关", "它会学习", "它能和人聊天"]}, {"zh": "安全带", "en": "seat belt", "aliases": ["三点式安全带"], "profile": "坐车时系在身上的带子，急刹车或撞车时能把人固定在座位上，保护乘客安全。", "hints": ["它和交通有关", "它能保护人", "它要扣在身上"]}, {"zh": "太阳能电池", "en": "solar cell", "aliases": ["光伏电池", "太阳能电池板", "太阳能板", "solar panel"], "profile": "能把太阳光直接变成电的装置，常铺在屋顶上，也装在卫星上。", "hints": ["它和能源有关", "它离不开阳光", "它能产生电"]}, {"zh": "内燃机", "en": "internal combustion engine", "aliases": ["发动机", "引擎"], "profile": "让燃料在机器内部燃烧、推动活塞做功的动力机器，很多汽车靠它跑。", "hints": ["它是一种机器", "它要烧燃料", "它装在很多汽车里"]}, {"zh": "水泥", "en": "cement", "aliases": ["洋灰", "波特兰水泥"], "profile": "灰色的粉末，加水和沙石搅拌后会慢慢变硬，是盖房子和修路的重要材料。", "hints": ["它是一种材料", "它是灰色的", "它加水后会变硬"]}, {"zh": "隐形眼镜", "en": "contact lens", "aliases": ["角膜接触镜", "contacts"], "profile": "直接贴在眼球表面的小镜片，戴上后别人几乎看不出来，也能帮人看清楚。", "hints": ["它和眼睛有关", "它很薄很小", "它戴上后别人看不出来"]}, {"zh": "麻醉", "en": "anesthesia", "aliases": ["麻醉术", "麻醉药"], "profile": "做手术前让病人暂时失去痛觉或睡着的医学方法，让手术不再疼。", "hints": ["它和医学有关", "它和手术有关", "它让人不觉得疼"]}]}, {"title_zh": "科学探险家", "title_en": "Science Adventurer", "step": 5, "offset": 0, "items": [{"zh": "日心说", "en": "heliocentrism", "aliases": ["太阳中心说", "地动说"], "profile": "认为太阳位于中心、地球和其他行星都绕着太阳转的学说。", "hints": ["它是一种学说", "它和天文有关", "它讲的是地球怎么运动"]}, {"zh": "元素周期表", "en": "periodic table", "aliases": ["周期表", "化学元素周期表"], "profile": "把所有化学元素按规律排成的一张表，同一列的元素性质相似。", "hints": ["它和化学有关", "它是一张表", "它有很多行和列"]}, {"zh": "血型", "en": "blood type", "aliases": ["ABO血型"], "profile": "按照血液里红细胞表面的不同物质给人分成的类型，常见的有A、B、AB和O型。", "hints": ["它是一项发现", "它和医学有关", "它分成好几种类型"]}, {"zh": "集成电路", "en": "integrated circuit", "aliases": ["芯片", "微芯片", "IC", "chip"], "profile": "把成千上万个微小元件做在一小块硅片上的电路，是电脑和手机的“大脑”。", "hints": ["它要用电", "它非常小", "它藏在手机和电脑里"]}, {"zh": "3D打印", "en": "3D printing", "aliases": ["三维打印", "增材制造"], "profile": "像一层一层堆积木一样，把电脑里设计的形状直接“打印”成实物的技术。", "hints": ["它是一种技术", "它要用电脑设计", "它能做出立体的东西"]}, {"zh": "蓝牙", "en": "Bluetooth", "aliases": [], "profile": "让手机、耳机、音箱等设备在近距离内不用电线就能互相传送数据的技术。", "hints": ["它和通信有关", "它不用电线", "它常用来连耳机"]}, {"zh": "磁悬浮列车", "en": "maglev train", "aliases": ["磁浮列车", "磁悬浮", "maglev"], "profile": "利用磁力让车身浮在轨道上方、不接触轨道高速行驶的列车。", "hints": ["它是一种交通工具", "它和磁有关", "它开起来是浮着的"]}, {"zh": "不锈钢", "en": "stainless steel", "aliases": [], "profile": "加入铬等元素、不容易生锈的钢，常用来做锅、勺子和水槽。", "hints": ["它是一种材料", "它是金属", "它不容易生锈"]}, {"zh": "尼龙", "en": "nylon", "aliases": ["锦纶"], "profile": "第一种完全人工合成的纤维，结实又有弹性，常用来做袜子、绳子和牙刷毛。", "hints": ["它是一种材料", "它是人造的", "它常用来做袜子"]}, {"zh": "甲骨文", "en": "oracle bone script", "aliases": [], "profile": "刻在龟甲和兽骨上的古老汉字，是目前已知最早的成体系的中国文字。", "hints": ["它和文字有关", "它来自中国古代", "它刻在骨头上"]}, {"zh": "青蒿素", "en": "artemisinin", "aliases": [], "profile": "从植物青蒿里提取出的药物，能有效治疗疟疾，挽救了全世界很多人的生命。", "hints": ["它和医学有关", "它来自中国", "它来自一种植物"]}, {"zh": "巴氏杀菌法", "en": "pasteurization", "aliases": ["巴氏消毒法", "巴斯德消毒法"], "profile": "把牛奶等食物加热到一定温度并保持一会儿，杀死其中有害细菌的方法。", "hints": ["它是一种方法", "它和食物有关", "它常用在牛奶上"]}, {"zh": "天王星", "en": "Uranus", "aliases": [], "profile": "太阳系的第七颗行星，是第一颗用望远镜发现的行星，躺着绕太阳转。", "hints": ["它是一项发现", "它在太空中", "它是一颗行星"]}, {"zh": "血液循环", "en": "blood circulation", "aliases": [], "profile": "心脏像水泵一样把血液压出去，血液在血管里流遍全身再流回心脏的过程。", "hints": ["它是一项发现", "它和身体有关", "它和心脏有关"]}]}, {"title_zh": "专利鉴定师", "title_en": "Patent Expert", "step": 7, "offset": 0, "items": [{"zh": "晶体管", "en": "transistor", "aliases": [], "profile": "用半导体材料做成的微小电子开关，能控制和放大电流，是现代电子设备的基础。", "hints": ["它要用电", "它是一种电子元件", "它现在小到看不见"]}, {"zh": "万维网", "en": "World Wide Web", "aliases": ["WWW", "Web"], "profile": "通过网址和链接把全世界的网页连在一起的信息系统，让人能用浏览器浏览网页。", "hints": ["它和信息有关", "它和上网有关", "它由很多网页组成"]}, {"zh": "二进制", "en": "binary", "aliases": ["二进制数", "二进位制"], "profile": "只用0和1两个数字来表示所有数的记数方法，电脑里的信息都用它来存储。", "hints": ["它和数学有关", "它和电脑有关", "它只用两个数字"]}, {"zh": "DNA双螺旋结构", "en": "DNA double helix", "aliases": ["DNA双螺旋", "双螺旋结构", "double helix"], "profile": "DNA分子像一架扭转的梯子，由两条链互相缠绕成螺旋形，里面藏着生物的遗传信息。", "hints": ["它是一项发现", "它和生物有关", "它的形状是螺旋形"]}, {"zh": "遗传定律", "en": "laws of inheritance", "aliases": ["孟德尔遗传定律", "孟德尔定律", "遗传规律"], "profile": "父母的特征怎样传给孩子的规律，是一位科学家通过种豌豆发现的。", "hints": ["它是一种科学规律", "它和生物有关", "它和豌豆有关"]}, {"zh": "大陆漂移说", "en": "continental drift", "aliases": ["大陆漂移", "大陆漂移学说"], "profile": "认为地球上的大陆原来连在一起、后来慢慢漂移分开的学说。", "hints": ["它是一种学说", "它和地理有关", "它和世界地图有关"]}, {"zh": "阿司匹林", "en": "aspirin", "aliases": ["乙酰水杨酸"], "profile": "一种常见的药，能退烧、止痛，最早的灵感来自柳树皮。", "hints": ["它和医学有关", "它是一种药", "它的灵感来自一种树"]}, {"zh": "楔形文字", "en": "cuneiform", "aliases": ["钉头字"], "profile": "古代两河流域的人用芦苇笔在泥板上压出的文字，笔画像一个个钉子或楔子。", "hints": ["它和文字有关", "它非常古老", "它写在泥板上"]}, {"zh": "钢筋混凝土", "en": "reinforced concrete", "aliases": ["钢筋水泥"], "profile": "在混凝土里放进钢筋做成的建筑材料，又耐压又耐拉，高楼大桥都离不开它。", "hints": ["它是一种材料", "它里面藏着金属", "它是盖高楼用的"]}, {"zh": "胰岛素", "en": "insulin", "aliases": [], "profile": "人体胰腺分泌的一种激素，帮助身体利用糖分，也是治疗糖尿病的重要药物。", "hints": ["它和医学有关", "它和糖有关", "它人体里本来就有"]}, {"zh": "锂离子电池", "en": "lithium ion battery", "aliases": ["锂电池", "lithium battery"], "profile": "靠锂离子在正负极之间来回移动来储存电能的可充电电池，手机里都有它。", "hints": ["它和能源有关", "它能反复充电", "它藏在手机里"]}, {"zh": "数字零", "en": "zero", "aliases": ["零"], "profile": "表示“没有”的数字，也用来占位，比如10和100里的它，让记数和计算变得简单。", "hints": ["它和数学有关", "它是一个数字", "它表示什么都没有"]}, {"zh": "滑翔机", "en": "glider", "aliases": [], "profile": "没有发动机、靠翅膀借助气流在空中滑翔的飞行器。", "hints": ["它能飞上天", "它有翅膀", "它没有发动机"]}]}, {"title_zh": "发明大师", "title_en": "Master Inventor", "step": 7, "offset": 0, "items": [{"zh": "喷气发动机", "en": "jet engine", "aliases": ["喷气式发动机", "涡轮喷气发动机"], "profile": "把空气吸进来和燃料一起燃烧，再向后高速喷出气体来推动飞机的发动机。", "hints": ["它是一种机器", "它和飞机有关", "它向后喷出气体"]}, {"zh": "CT扫描", "en": "CT scan", "aliases": ["CT", "计算机断层扫描"], "profile": "用X射线从很多角度给身体拍照，再用电脑合成出身体内部切面图像的检查方法。", "hints": ["它和医学有关", "它要用到电脑", "它能看到身体内部"]}, {"zh": "心电图", "en": "electrocardiogram", "aliases": ["ECG", "EKG"], "profile": "把心脏跳动时产生的微弱电信号记录下来画成的波形图，用来检查心脏。", "hints": ["它和医学有关", "它是一张图", "它和心脏有关"]}, {"zh": "图灵机", "en": "Turing machine", "aliases": [], "profile": "一种想象出来的计算模型，用一条无限长的纸带和读写头来说明计算是怎么回事。", "hints": ["它和电脑有关", "它是一种理论", "它有一条长长的纸带"]}, {"zh": "海王星", "en": "Neptune", "aliases": [], "profile": "太阳系离太阳最远的行星，是先用数学算出位置、再用望远镜找到的。", "hints": ["它是一项发现", "它在太空中", "它是用数学算出来的"]}, {"zh": "开普勒定律", "en": "Kepler's laws", "aliases": ["行星运动定律", "开普勒三定律"], "profile": "描述行星怎样绕太阳运动的三条规律，比如行星的轨道是椭圆形的。", "hints": ["它是一种科学规律", "它和天文有关", "它和行星轨道有关"]}, {"zh": "质量守恒定律", "en": "law of conservation of mass", "aliases": ["物质不灭定律"], "profile": "化学反应前后，参加反应的物质总质量保持不变的规律。", "hints": ["它是一种科学规律", "它和化学有关", "它和轻重有关"]}, {"zh": "浑天仪", "en": "armillary sphere", "aliases": ["浑仪"], "profile": "用许多圆环代表天空中的各种圆圈，用来观测和演示天体运行的古代仪器。", "hints": ["它来自古代", "它和天文有关", "它由很多圆环组成"]}, {"zh": "闪存", "en": "flash memory", "aliases": ["快闪存储器", "闪存芯片"], "profile": "断电后也能保存资料的存储芯片，U盘、手机和存储卡里都用它。", "hints": ["它和电脑有关", "它能保存资料", "它断电后也不会忘"]}, {"zh": "传真机", "en": "fax machine", "aliases": ["传真", "fax"], "profile": "能通过电话线把纸上的文字和图片传到远方、再打印出来的机器。", "hints": ["它是一种机器", "它和通信有关", "它能把纸上的内容传走"]}, {"zh": "腓尼基字母", "en": "Phoenician alphabet", "aliases": ["腓尼基文字"], "profile": "古代地中海东岸的人使用的22个字母，希腊字母和英文字母都从它发展而来。", "hints": ["它和文字有关", "它非常古老", "它是很多字母的祖先"]}, {"zh": "哈雷彗星", "en": "Halley's Comet", "aliases": [], "profile": "每隔大约76年回到地球附近一次的明亮彗星，是第一颗被算出回归周期的彗星。", "hints": ["它是一项发现", "它在太空中", "它会拖着一条尾巴"]}, {"zh": "外科消毒法", "en": "antiseptic surgery", "aliases": ["外科消毒", "抗菌手术法"], "profile": "手术时用消毒药水清洁伤口、器械和双手来杀死细菌的方法，让手术变得安全。", "hints": ["它是一种方法", "它和医学有关", "它和细菌有关"]}]}, {"title_zh": "文明解码者", "title_en": "Civilization Decoder", "step": 7, "offset": 0, "items": [{"zh": "水运仪象台", "en": "astronomical clock tower", "aliases": [], "profile": "北宋苏颂等人建造的大型天文仪器，用水力推动，能观测天象又能自动报时。", "hints": ["它来自中国古代", "它和天文有关", "它靠水力转动"]}, {"zh": "分析机", "en": "Analytical Engine", "aliases": ["巴贝奇分析机"], "profile": "英国人巴贝奇设计的机械计算机，能按穿孔卡片上的指令计算，被看作现代电脑的祖先。", "hints": ["它是一种机器", "它和计算有关", "它一直没有造完"]}, {"zh": "计算尺", "en": "slide rule", "aliases": [], "profile": "由几把刻有对数刻度的尺子组成，拉动中间那把尺就能做乘除运算的工具。", "hints": ["它和数学有关", "它是一种工具", "它可以左右滑动"]}, {"zh": "傅科摆", "en": "Foucault pendulum", "aliases": [], "profile": "用一根很长的绳子吊着重锤的摆，摆动的方向会慢慢转动，证明了地球在自转。", "hints": ["它是一个装置", "它会来回摆动", "它和地球自转有关"]}, {"zh": "双名法", "en": "binomial nomenclature", "aliases": ["二名法"], "profile": "给每种生物起一个由属名和种名组成的拉丁文学名的方法，全世界通用。", "hints": ["它是一种方法", "它和生物有关", "它和起名字有关"]}, {"zh": "石墨烯", "en": "graphene", "aliases": [], "profile": "由碳原子排成蜂窝状、只有一个原子那么厚的材料，又薄又坚固，导电性很好。", "hints": ["它是一种材料", "它非常非常薄", "它和铅笔芯有关系"]}, {"zh": "船闸", "en": "canal lock", "aliases": [], "profile": "在水位高低不同的河道上，用闸门和闸室把船一级一级升高或降低的设施。", "hints": ["它和交通有关", "它建在水上", "它能让船升高降低"]}, {"zh": "硫化橡胶", "en": "vulcanized rubber", "aliases": [], "profile": "把天然橡胶和硫黄一起加热做成的橡胶，不怕冷热，结实又有弹性，能做轮胎。", "hints": ["它是一种材料", "它很有弹性", "它常用来做轮胎"]}, {"zh": "聚合酶链式反应", "en": "polymerase chain reaction", "aliases": ["PCR"], "profile": "在试管里把一小段DNA快速复制成千上万份的技术，常用于医学检测和科学研究。", "hints": ["它是一种技术", "它和生物有关", "它能大量复制东西"]}, {"zh": "系外行星", "en": "exoplanet", "aliases": ["太阳系外行星"], "profile": "在太阳系以外、绕着其他恒星转的行星，科学家已经找到了几千颗。", "hints": ["它是一项发现", "它在太空中", "它离太阳系很远"]}, {"zh": "珍妮纺纱机", "en": "spinning jenny", "aliases": ["珍妮机"], "profile": "一个人摇动就能同时纺出好多根纱线的机器，是英国工业革命开始的标志之一。", "hints": ["它是一种机器", "它和纺织有关", "它来自工业革命时期"]}, {"zh": "指南车", "en": "south pointing chariot", "aliases": ["司南车"], "profile": "车上站着一个伸手指向南方的小木人，不管车怎么转弯，小木人都一直指着南方。", "hints": ["它来自中国古代", "它有轮子", "它上面站着一个小木人"]}]}]}
+          MAX_ASK = 20
+          MAX_HINTS = 3
+          AUTO_HINT_AFTER = 5
+          SPACES = [" ", "　", "\t", "\n", "\r"]
+          DIGITS = {"0": 0, "1": 1, "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8, "9": 9, "０": 0, "１": 1, "２": 2, "３": 3, "４": 4, "５": 5, "６": 6, "７": 7, "８": 8, "９": 9}
+          CN_NUM = {"零": 0, "〇": 0, "一": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9}
+          DROP = " \t\n\r　。，,.!！?？、~～…\"'“”‘’:：;；()（）《》「」·•・-"
+          LATIN = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+          RESTART_WORDS = ["从头开始", "重新开始", "从第一关开始", "restart", "startover", "请从指定中文开场开始"]
+          START_WORDS = ["开始", "开始吧", "开始游戏", "start", "letsstart", "startgame", "letsplay"]
+          RESUME_CUES = ["继续上次", "continuewhere", "leftoff"]
+          STOP_CONTAINS = ["不玩了", "不想玩", "结束游戏", "退出游戏", "stopplaying", "dontwanttoplay"]
+          STOP_EXACT = ["结束", "再见", "拜拜", "退出", "stop", "bye", "goodbye", "quit"]
+          NEXT_CUES = ["下一题", "下一个", "再来", "开始", "继续", "准备好", "好的", "好啊", "好呀", "可以", "来吧", "next", "another", "ready", "letsgo", "sure", "okay", "yes"]
+          NEXT_EXACT = ["好", "嗯", "行", "要", "ok", "yeah", "yep"]
+          QUESTION_CUES = ["？", "?", "吗", "什么", "哪", "谁", "为什么", "怎么", "多少", "几", "what", "who", "when", "where", "why", "how", "which"]
+          MAX_FOLLOW_UPS = 2
+          REMIND_AT = [10, 5, 3, 2, 1]
+          CLOSINGS_ZH = ["你的下一个问题是什么？", "接下来你想问什么呢？", "你还想问点什么？", "要不要直接猜一猜答案？"]
+          CLOSINGS_EN = ["What's your next question?", "What would you like to ask next?", "What else do you want to know?", "Do you want to take a guess?"]
+          HINT_CUES = ["提示", "线索", "帮帮我", "帮我一下", "猜不到", "猜不出", "想不出", "太难了", "hint", "clue", "helpme", "imstuck"]
+          ANSWER_REQUEST_CUES = ["告诉我答案", "答案是什么", "直接告诉我", "到底是谁", "到底是什么", "你说答案", "tellmetheanswer", "whatistheanswer", "justtellme", "whoisit", "whatisit"]
+          GIVE_UP_CUES = ["我放弃", "放弃了", "不猜了", "认输", "猜不出来了", "igiveup", "giveup"]
+          # What may surround the secret's name in a guess such as “是孔子吗” or “Is it Confucius?”.
+          GUESS_FILLERS = ["是不是", "我猜是", "我猜", "我觉得是", "我觉得", "答案是", "谜底是", "应该是", "会不会是", "难道是", "那就是", "就是", "是", "吗", "呀", "啊", "呢", "吧", "嘛", "他", "她", "它", "这个人", "这个成语", "这个故事", "的故事", "成语", "故事", "这个", "这种", "那个", "一只", "一头", "一条", "一种", "一个", "一位", "一匹", "一块", "一座", "一颗", "一台", "一辆", "一件", "一项", "一本", "一张", "theansweris", "isit", "itis", "iguess", "ithink", "maybe", "is", "it", "the", "an", "a"]
+          DECLINE_EXACT = ["不要", "不想", "不了", "不用了", "先不了", "no", "nope", "notnow", "nothanks"]
+
+          def compact(text):
+              out = []
+              for ch in text.lower().codepoints():
+                  if ch in DROP:
+                      continue
+                  out.append(ch)
+              return "".join(out)
+
+          def has_cjk(text):
+              for ch in text.codepoints():
+                  code = ord(ch)
+                  if code >= 19968 and code <= 40959:
+                      return True
+              return False
+
+          def has_latin(text):
+              for ch in text.codepoints():
+                  if ch in LATIN:
+                      return True
+              return False
+
+          def pick_lang(text, previous):
+              if has_cjk(text):
+                  return "zh"
+              if has_latin(text):
+                  return "en"
+              if previous != "":
+                  return previous
+              return "zh"
+
+          def read_int(chars, start):
+              i = start
+              for ch in chars[start:]:
+                  if ch in SPACES:
+                      i += 1
+                  else:
+                      break
+              value = 0
+              count = 0
+              for ch in chars[i:]:
+                  if ch in DIGITS:
+                      value = value * 10 + DIGITS[ch]
+                      count += 1
+                  else:
+                      break
+              if count > 0:
+                  return [value, i + count]
+              seq = []
+              for ch in chars[i:]:
+                  if ch in CN_NUM or ch == "十":
+                      seq.append(ch)
+                  else:
+                      break
+              if len(seq) == 0:
+                  return [-1, i]
+              if "十" in seq:
+                  pos = seq.index("十")
+                  tens = 1
+                  if pos > 0:
+                      tens = CN_NUM.get(seq[pos - 1], 1)
+                  ones = 0
+                  if pos + 1 < len(seq):
+                      ones = CN_NUM.get(seq[pos + 1], 0)
+                  return [tens * 10 + ones, i + len(seq)]
+              return [CN_NUM[seq[0]], i + len(seq)]
+
+          def numbers_after(content, prefix, suffix):
+              found = []
+              chars = list(content.codepoints())
+              pchars = list(prefix.codepoints())
+              schars = list(suffix.codepoints())
+              plen = len(pchars)
+              for i in range(len(chars)):
+                  if chars[i:i + plen] != pchars:
+                      continue
+                  got = read_int(chars, i + plen)
+                  if got[0] < 0:
+                      continue
+                  j = got[1]
+                  for ch in chars[j:]:
+                      if ch in SPACES:
+                          j += 1
+                      else:
+                          break
+                  if len(schars) == 0 or chars[j:j + len(schars)] == schars:
+                      found.append(got[0])
+              return found
+
+          def round_info(content):
+              low = content.lower()
+              levels = []
+              puzzles = []
+              if "谜题来啦" in content:
+                  levels = numbers_after(content, "第", "关")
+                  puzzles = numbers_after(content, "第", "题")
+              elif "puzzle time" in low:
+                  levels = numbers_after(low, "level", "")
+                  puzzles = numbers_after(low, "puzzle", "")
+              if len(levels) == 0 or len(puzzles) == 0:
+                  return None
+              return [min(max(levels[0], 1), len(DATA["levels"])), max(puzzles[0], 1)]
+
+          def secret_index(level, puzzle):
+              lv = DATA["levels"][level - 1]
+              return (lv["offset"] + (puzzle - 1) * lv["step"]) % len(lv["items"])
+
+          def secret_for(level, puzzle):
+              return DATA["levels"][level - 1]["items"][secret_index(level, puzzle)]
+
+          def two(n):
+              return ("0" + str(n)) if n < 10 else str(n)
+
+          def card_node(level, puzzle):
+              # Each puzzle has its own prompt node holding only its background card;
+              # the branch after this script activates exactly that one.
+              return "card-l" + two(level) + "-p" + two(secret_index(level, puzzle))
+
+          def names_of(item):
+              return [item["zh"], item["en"]] + item["aliases"]
+
+          def mentions(text, item):
+              low = text.lower()
+              for name in names_of(item):
+                  if name != "" and name.lower() in low:
+                      return True
+              return False
+
+          def revealed(content, item):
+              low = content.lower()
+              cue = "答案就是" in content or "答案揭晓" in content or "the answer is" in low or "the answer was" in low
+              return cue and mentions(content, item)
+
+          def won_cue(content):
+              return "猜对啦" in content or "you got it" in content.lower()
+
+          def starts_no(content):
+              low = content.strip().lower()
+              if content.strip().startswith("不是"):
+                  return True
+              for head in ["no,", "no.", "no!", "no ", "nope"]:
+                  if low.startswith(head):
+                      return True
+              return low == "no"
+
+          def counts_as_question(text):
+              # Only questions and guesses use up the 20 chances; asking for a hint or
+              # for the answer, giving up, and game commands do not.
+              word = compact(text)
+              if word in START_WORDS or word in RESTART_WORDS or word in STOP_EXACT:
+                  return False
+              return not (matches_any(word, HINT_CUES) or matches_any(word, ANSWER_REQUEST_CUES) or matches_any(word, GIVE_UP_CUES) or matches_any(word, RESUME_CUES) or matches_any(word, STOP_CONTAINS))
+
+          def analyze(messages):
+              history = list(messages)
+              if len(history) > 0 and history[-1].get("role", "") == "user":
+                  history = history[:-1]
+              state = {"found": False, "level": 1, "puzzle": 0, "asked": 0, "hints": 0, "streak": 0, "over": False, "won": False, "after": 0, "lang": "", "start": -1, "said": ""}
+              for message in reversed(history):
+                  if message.get("role", "") == "user":
+                      content = message.get("content", "")
+                      if has_cjk(content):
+                          state["lang"] = "zh"
+                          break
+                      if has_latin(content):
+                          state["lang"] = "en"
+                          break
+              start = -1
+              for i in range(len(history)):
+                  if history[i].get("role", "") == "user":
+                      continue
+                  content = history[i].get("content", "")
+                  if "谜题来啦" not in content and "puzzle time" not in content.lower():
+                      continue
+                  info = round_info(content)
+                  if info != None:
+                      start = i
+                      state["level"] = info[0]
+                      state["puzzle"] = info[1]
+              if start < 0:
+                  return state
+              state["found"] = True
+              state["start"] = start
+              item = secret_for(state["level"], state["puzzle"])
+              for message in history[start + 1:]:
+                  content = message.get("content", "")
+                  if message.get("role", "") == "user":
+                      if counts_as_question(content):
+                          state["asked"] += 1
+                      continue
+                  if state["over"]:
+                      state["after"] += 1
+                      continue
+                  state["said"] += content + "\n"
+                  if revealed(content, item):
+                      state["over"] = True
+                      state["won"] = won_cue(content)
+                      continue
+                  if "小提示" in content or "hint:" in content.lower():
+                      state["hints"] += 1
+                      state["streak"] = 0
+                  elif starts_no(content):
+                      state["streak"] += 1
+                  else:
+                      state["streak"] = 0
+              return state
+
+          def title(level, lang):
+              lv = DATA["levels"][level - 1]
+              return lv["title_en"] if lang == "en" else lv["title_zh"]
+
+          def example(lang, index):
+              examples = DATA["examples_en"] if lang == "en" else DATA["examples_zh"]
+              return examples[index % len(examples)]
+
+          def head(lang):
+              if lang == "en":
+                  return "【回复语言：English】整条回复只用英文，逐字句也用下面给出的英文原句。"
+              return "【回复语言：中文】"
+
+          def open_lead(lang, level, puzzle, full):
+              # The marker sentence always comes first: History keeps only the spoken
+              # prefix of a reply the child talks over, and the marker carries the state.
+              if lang == "en":
+                  marker = "Puzzle time! Level " + str(level) + ", " + title(level, lang) + ", puzzle " + str(puzzle) + "."
+                  if full:
+                      return [marker, "I'm thinking of " + DATA["subject_en"] + ". You have 20 questions, and I can only answer yes or no. What's your first question?"]
+                  return [marker, "I've got a new one in mind, and you have 20 questions again. What's your first question?"]
+              marker = "谜题来啦！第 " + str(level) + " 关“" + title(level, lang) + "”，第 " + str(puzzle) + " 题。"
+              if full:
+                  return [marker, "我心里已经藏好了" + DATA["subject_zh"] + "，你有 20 次提问机会，只能问我用“是”或“不是”回答的问题。你的第一个问题是什么？"]
+              return [marker, "我又想好了" + DATA["subject_zh"] + "，还是 20 次提问机会。你的第一个问题是什么？"]
+
+          def open_round(lang, level, puzzle, full):
+              lead = open_lead(lang, level, puzzle, full)
+              if lang == "en":
+                  body = "Start a new puzzle. Say this whole paragraph exactly, word for word, beginning with “Puzzle time”, and add nothing before or after it: “" + lead[0] + " " + lead[1] + "”"
+              else:
+                  body = "本轮开启新的一题。从“谜题来啦”开始，逐字说出下面这一整段话，一字不改，前后都不要添加别的内容：“" + lead[0] + lead[1] + "”"
+              return {"route": "open", "node": "", "direction": head(lang) + body, "rules": ""}
+
+          def say(lang, zh, en):
+              return {"route": "say", "node": "", "direction": head(lang) + (en if lang == "en" else zh), "rules": ""}
+
+          def recap(lang, state):
+              level = state["level"]
+              left = MAX_ASK - state["asked"]
+              zh = "孩子想接着玩上次的题。逐字说“我们接着玩第 " + str(level) + " 关“" + title(level, "zh") + "”的第 " + str(state["puzzle"]) + " 题，你已经问了 " + str(state["asked"]) + " 次，还剩 " + str(left) + " 次机会。”然后用一个问题请孩子继续提问，不要透露任何关于谜底的信息。"
+              en = "The child wants to continue the last puzzle. Say exactly: “Let's keep going with Level " + str(level) + ", " + title(level, "en") + ", puzzle " + str(state["puzzle"]) + ". You've asked " + str(state["asked"]) + " questions and have " + str(left) + " left.” Then ask the child for the next question, without revealing anything about the answer."
+              return say(lang, zh, en)
+
+          def ask_first(lang, state):
+              zh = "孩子说要开始，但这一题已经开始了。逐字说“我们已经开始啦！”再用一句话提醒玩法：只能问能用“是”或“不是”回答的问题，例如“" + example("zh", 0) + "”。最后问孩子第一个问题是什么。"
+              en = "The child asked to start, but this puzzle has already started. Say exactly “We've already started!” and remind them in one sentence to ask yes or no questions, for example “" + example("en", 0) + "”. Then ask for their first question."
+              return say(lang, zh, en)
+
+          def farewell(lang, state, midround):
+              level = state["level"]
+              if midround:
+                  zh_keep = "这一题先帮你留着，下次说“继续上次的内容”就能接着猜"
+                  en_keep = "this puzzle will wait for them, and next time they can say “continue where we left off”"
+              else:
+                  zh_keep = "下次说“开始”就能接着挑战"
+                  en_keep = "next time they can say “start” to keep playing"
+              zh = "孩子想先不玩了。用一两句话温暖地道别，告诉孩子现在在第 " + str(level) + " 关“" + title(level, "zh") + "”，" + zh_keep + "，最后用一个轻松的问题结尾，例如“下次再来挑战好吗？”。不要开启新的一题，不要说出任何谜底。"
+              en = "The child wants to stop for now. Say a warm goodbye in one or two sentences, tell them they are at Level " + str(level) + ", " + title(level, "en") + ", and that " + en_keep + ". End with a light question such as “See you next time?”. Do not start a new puzzle or reveal any answer."
+              return say(lang, zh, en)
+
+          def is_guess(text, item):
+              word = compact(text)
+              for name in sorted([compact(n) for n in names_of(item) if n != ""], key=len, reverse=True):
+                  if name == "" or name not in word:
+                      continue
+                  rest = word.replace(name, "")
+                  # Longest first, so "an" is not cut down to a stray "n" by "a".
+                  for filler in sorted(GUESS_FILLERS, key=len, reverse=True):
+                      rest = rest.replace(filler, "")
+                  return rest == ""
+              return False
+
+          def reveal(lang, state, reason):
+              # The whole reveal is our own text, so the host reads it verbatim instead of
+              # composing it (a composed reveal tends to stop after its first sentence).
+              if lang == "en":
+                  return "Say this whole paragraph exactly, word for word, adding nothing: “" + reveal_words(lang, state, reason) + "”"
+              return "逐字说出下面这一整段话，一字不改：“" + reveal_words(lang, state, reason) + "”"
+
+          def reveal_words(lang, state, reason):
+              level = state["level"]
+              item = secret_for(level, state["puzzle"])
+              top = level >= len(DATA["levels"])
+              if lang == "en":
+                  if reason == "win":
+                      lead = "You got it! The answer is " + item["en"] + "!"
+                      tail = ("Amazing, you're already at the top level, Level " + str(level) + ": " + title(level, lang) + "! Ready for the next puzzle?") if top else ("Congratulations, you've reached Level " + str(level + 1) + ": " + title(level + 1, lang) + "! Ready for the next puzzle?")
+                  else:
+                      lead = ("No worries! The answer is " + item["en"] + "!") if reason == "giveup" else ("That was your 20th question! The answer is " + item["en"] + "!")
+                      tail = "You're still at Level " + str(level) + ", " + title(level, lang) + ". Want to try another puzzle?"
+                  return lead + " " + tail
+              if reason == "win":
+                  lead = "猜对啦！答案就是" + item["zh"] + "！"
+                  tail = ("太厉害了，你已经是最高的第 " + str(level) + " 关“" + title(level, lang) + "”！准备好挑战下一题了吗？") if top else ("恭喜你升到第 " + str(level + 1) + " 关，获得“" + title(level + 1, lang) + "”称号！准备好挑战下一题了吗？")
+              else:
+                  lead = ("没关系，答案揭晓：" + item["zh"] + "！") if reason == "giveup" else ("20 次机会用完啦，答案揭晓：" + item["zh"] + "！")
+                  tail = "你还在第 " + str(level) + " 关“" + title(level, lang) + "”，要不要再来一题？"
+              return lead + item["profile"] + tail
+
+          def unused_hint_numbers(state):
+              # A hint is used when History holds its exact Chinese text or, for an
+              # English game where the hint is translated, its number ("Hint 2:").
+              hints = secret_for(state["level"], state["puzzle"])["hints"]
+              low = state["said"].lower()
+              left = [i for i in range(len(hints)) if hints[i] not in state["said"] and ("hint " + str(i + 1)) not in low]
+              return left if len(left) > 0 else [len(hints) - 1]
+
+          def unused_hints(state):
+              hints = secret_for(state["level"], state["puzzle"])["hints"]
+              return [hints[i] for i in unused_hint_numbers(state)]
+
+          def hint_choice(lang, state, closing):
+              # Prewritten hints cannot know what the child has already found out, so the
+              # host picks, among the unused ones, one that tells the child something new.
+              options = unused_hints(state)
+              if lang == "en":
+                  # The number, not the translated text, tells later turns which hint was used.
+                  number = unused_hint_numbers(state)[0] + 1
+                  return "reply with ONE sentence that joins the hint and the question, and nothing else: “Hint " + str(number) + ": <this hint translated into English>, so " + closing[0].lower() + closing[1:] + "” — add no other clue. The hint to translate: " + options[0]
+              if len(options) == 1:
+                  return "逐字说“小提示：" + options[0] + "。" + closing + "”，不要补充别的线索"
+              return "从下面几条提示里挑一条孩子还不知道的（不要和前面已经问出来的答案重复），逐字说“小提示：所选的那条。" + closing + "”，不要补充别的线索：" + " / ".join(options)
+
+          def give_hint(lang, state):
+              closing = (CLOSINGS_EN if lang == "en" else CLOSINGS_ZH)[state["asked"] % len(CLOSINGS_EN)]
+              if state["hints"] >= MAX_HINTS:
+                  return say(lang, "孩子要提示，但这一题的 " + str(MAX_HINTS) + " 次提示已经用完了。温和地告诉他提示用完啦（不要说“小提示”这几个字），鼓励他继续用是非题来猜，最后逐字问“" + closing + "”", "The child wants a hint, but all " + str(MAX_HINTS) + " hints for this puzzle are used. Kindly say so without the word “Hint”, encourage more yes or no questions, and end with exactly “" + closing + "”")
+              return say(lang, "孩子要提示。" + hint_choice("zh", state, closing) + "。", "The child wants a hint. " + hint_choice("en", state, closing) + ".")
+
+          def answer_rules(lang, state):
+              asked = state["asked"]
+              ex_q = DATA["restate_en"] if lang == "en" else DATA["restate_zh"]
+              # The model copies the example's shape, so the example carries the closing question.
+              closing = (CLOSINGS_EN if lang == "en" else CLOSINGS_ZH)[asked % len(CLOSINGS_EN)]
+              sample = example(lang, asked)
+              if lang == "en":
+                  lines = [
+                      "The child is asking or guessing. The system has already checked that the child did NOT name the answer.",
+                      "Answer from the puzzle card: if it is a yes or no question, start with “Yes” or “No” and you may restate it (if they asked “" + ex_q[0] + "”, say “" + ex_q[1] + " " + closing + "” or “" + ex_q[2] + " " + closing + "”). Mostly true with a clear exception: start with “Partly”. Not on the card and not sure: start with “I'm not sure about that one”. Titles given after death or by later admirers do not count.",
+                      "Only answer and restate. Never explain why, and never say any book, work, event, title, place, person or number from the card.",
+                      "If the child names an answer to guess, it is wrong: start with “No”, say that is not it, and encourage them.",
+                      "If it cannot be answered with yes or no (a name, a year, letters of the name): start with “I can only answer yes or no” and give exactly this example: “" + sample + "”.",
+                      "If they ask for the answer or who it is without giving up, tell them they can say “I give up” to see it.",
+                  ]
+              else:
+                  lines = [
+                      "孩子在提问或猜答案。系统已经核对过：孩子这句话没有说中谜底。",
+                      "按谜底卡回答：能用“是/不是”回答的问题，回复第一个字必须是“是”，或以“不是”开头，后面可以把问题改成陈述句复述一遍（孩子问“" + ex_q[0] + "”就说“" + ex_q[1] + closing + "”或“" + ex_q[2] + closing + "”）；大体对但有明显例外就以“有一部分是”开头；卡上没写到、拿不准就以“这个我也说不准”开头。身份按本人真实做过的事判断，后世追封、尊称不算。",
+                      "只回答和复述，不要解释原因，绝不能说出谜底卡上的书名、作品、事件、称号、地名、人名或数字。",
+                      "如果孩子是直接说出一个答案来猜，那一定猜错了：以“不是”开头，说“不是某某哦”（某某换成孩子猜的答案），再鼓励一句。",
+                      "如果问题不能用是或不是回答（例如问名字、问哪一年、问名字里的字）：以“这个问题我只能回答是或不是哦”开头，再逐字举这个例子：“" + sample + "”。",
+                      "如果孩子要答案或问谜底是谁但没有说放弃：告诉孩子想看答案可以说“我放弃”。",
+                  ]
+              if state["hints"] >= MAX_HINTS:
+                  lines.append("If the child asks for a hint: all " + str(MAX_HINTS) + " hints for this puzzle are used, say so kindly without using the word “Hint”." if lang == "en" else "如果孩子要提示：这一题的 " + str(MAX_HINTS) + " 次提示已经用完了，温和地告诉他，不要说“小提示”这几个字。")
+              else:
+                  if lang == "en":
+                      lines.append("If the child asks for a hint or clue: " + hint_choice("en", state, closing) + ".")
+                  else:
+                      lines.append("如果孩子要提示或线索（包括要大提示、问名字里的字）：" + hint_choice("zh", state, closing) + "。")
+                  if state["streak"] + 1 >= AUTO_HINT_AFTER:
+                      first = unused_hints(state)[0]
+                      lines.append(("If this answer is “No”, add “Hint " + str(unused_hint_numbers(state)[0] + 1) + ":” followed by this hint in English: " + first) if lang == "en" else ("如果这次的回答是“不是”，就在回答后面逐字加一句“小提示：" + first + "。”"))
+              lines.append("If the child talks about copying something dangerous in real life, follow the safety rules first." if lang == "en" else "如果涉及现实中的危险模仿或安全问题，先按安全规则回答。")
+              return lines
+
+          def play(text, lang, state):
+              level = state["level"]
+              item = secret_for(level, state["puzzle"])
+              if is_guess(text, item):
+                  return say(lang, reveal("zh", state, "win"), reveal("en", state, "win"))
+              if matches_any(compact(text), GIVE_UP_CUES):
+                  return say(lang, reveal("zh", state, "giveup"), reveal("en", state, "giveup"))
+              if matches_any(compact(text), HINT_CUES):
+                  return give_hint(lang, state)
+              lines = answer_rules(lang, state)
+              left = MAX_ASK - state["asked"] - 1
+              if left <= 0:
+                  lines.append(("This was the 20th question. First answer it in one sentence by the rules above, then say this exactly, word for word: “" + reveal_words("en", state, "out") + "”") if lang == "en" else ("这是第 20 问。先按上面的规则用一句话回答这一问，然后" + reveal("zh", state, "out")))
+              else:
+                  if left in REMIND_AT:
+                      lines.append(("Also tell the child they have " + str(left) + " questions left.") if lang == "en" else ("再告诉孩子还剩 " + str(left) + " 次提问机会。"))
+                  if lang == "en":
+                      # English replies tend to stop after the answer, so the two-part
+                      # shape goes first where the model cannot miss it.
+                      lines.insert(0, "Your reply must be two parts: first your answer as described below, then exactly this question: “" + CLOSINGS_EN[state["asked"] % len(CLOSINGS_EN)] + "” Never stop after the answer.")
+                      lines.append("Every reply ends with that question.")
+                  else:
+                      lines.append("最后一句必须是以问号结尾的简短问句，例如“" + CLOSINGS_ZH[state["asked"] % len(CLOSINGS_ZH)] + "”，不要用“请继续提问吧”这类陈述句结尾。")
+              return {"route": "play", "node": card_node(level, state["puzzle"]), "direction": head(lang) + "\n".join(lines), "rules": DATA["host_rules"]}
+
+          def follow_up(text, lang, state):
+              # The revealed puzzle's own card node answers the follow-up question.
+              if lang == "en":
+                  body = "The last answer has been revealed and the child is asking about it. Answer in one or two short, child-friendly sentences: use the puzzle card first, and you may add well-established common knowledge you are sure of; if you are not sure, say so. Do not start a new puzzle or say “Puzzle time”. End with exactly “Ready for the next puzzle?”"
+              else:
+                  body = "上一题的答案已经揭晓，孩子在追问和它有关的问题。用一两句适合小朋友的话简短回答：先用谜底卡上的内容，卡上没有的，可以补充你确定的公认常识；拿不准就直说不知道。不要开启新的一题，不要说“谜题来啦”；最后逐字问“准备好挑战下一题了吗？”"
+              return {"route": "follow", "node": card_node(state["level"], state["puzzle"]), "direction": head(lang) + body, "rules": DATA["host_rules"]}
+
+          def matches_any(word, words):
+              for candidate in words:
+                  if candidate in word:
+                      return True
+              return False
+
+          def run(input):
+              text = input["text"].strip()
+              state = analyze(input["messages"])
+              lang = pick_lang(text, state["lang"])
+              word = compact(text)
+              if word in RESTART_WORDS:
+                  return open_round(lang, 1, state["puzzle"] + 1, True)
+              if not state["found"]:
+                  return open_round(lang, 1, state["puzzle"] + 1, True)
+              if state["over"]:
+                  if word in STOP_EXACT or word in DECLINE_EXACT or matches_any(word, STOP_CONTAINS):
+                      return farewell(lang, state, False)
+                  wants_next = word in NEXT_EXACT or matches_any(word, NEXT_CUES)
+                  if not wants_next and state["after"] < MAX_FOLLOW_UPS and matches_any(text.lower(), QUESTION_CUES):
+                      return follow_up(text, lang, state)
+                  level = state["level"]
+                  if state["won"] and level < len(DATA["levels"]):
+                      level += 1
+                  return open_round(lang, level, state["puzzle"] + 1, False)
+              if matches_any(word, RESUME_CUES):
+                  return recap(lang, state)
+              if word in START_WORDS:
+                  if state["asked"] == 0:
+                      return ask_first(lang, state)
+                  return open_round(lang, state["level"], state["puzzle"] + 1, True)
+              if word in STOP_EXACT or matches_any(word, STOP_CONTAINS):
+                  return farewell(lang, state, True)
+              return play(text, lang, state)
+        limits:
+          max_execution_steps: 300000
+          timeout: 500ms
+          max_input_bytes: 262144
+          max_output_bytes: 65536
+      - id: card-l01-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：圆形、能绕着中间的轴转动的部件，让车子和很多机器能滚着前进。
+            发明还是发现：发明
+            大约什么时候：约公元前3500年，距今5000多年，是很古老的发明
+            领域：交通
+            谁发明或发现：不详，一般认为最早出现在古代美索不达米亚（今伊拉克一带）
+            有什么用：装在车子、推车和很多机器上，让东西滚着前进，更省力
+            能不能直接看见或摸到：能，是看得见摸得着的实物
+            注意：它是圆形的，本身不用电；自行车、汽车、火车上都有它
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：通电后会发光的灯，让人们在夜晚也能像白天一样看书、工作。
+            发明还是发现：发明
+            大约什么时候：1879年前后（19世纪），距今约150年
+            领域：生活用品（照明）
+            谁发明或发现：说法不一：英国的斯旺和美国的爱迪生都做出了实用的
+            有什么用：用电来照明，天黑后照亮房间和街道
+            能不能直接看见或摸到：能，是看得见摸得着的物品
+            注意：它要用电才能亮；爱迪生不是第一个做它的人，但让它变得耐用实用
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：能接收节目信号、把声音和活动的画面同时放出来的机器。
+            发明还是发现：发明
+            大约什么时候：20世纪20年代，距今约100年
+            领域：通信
+            谁发明或发现：说法不一：英国的贝尔德和美国的法恩斯沃思都是重要发明者
+            有什么用：在家里看新闻、动画片和各种节目
+            能不能直接看见或摸到：能，是看得见摸得着的机器
+            注意：它要用电；早期的只能放黑白画面
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：一头带着一排排细毛的小刷子，每天早晚用它清洁牙齿。
+            发明还是发现：发明
+            大约什么时候：说法不一：中国古代就有，英国约1780年开始大批生产
+            领域：生活用品
+            谁发明或发现：说法不一：中国古人很早就用，英国的阿迪斯让它普及
+            有什么用：刷牙，清洁牙齿，保护牙齿健康
+            能不能直接看见或摸到：能，是看得见摸得着的日常用品
+            注意：普通的不用电，电动的只是其中一种；刷牙时通常配牙膏
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：能把说话的声音变成电信号传到远方，让相隔很远的人对着说话。
+            发明还是发现：发明
+            大约什么时候：1876年（19世纪），距今约150年
+            领域：通信
+            谁发明或发现：说法不一：一般认为是在美国的贝尔，意大利的梅乌奇等人也做过
+            有什么用：让不在一起的人通过声音聊天
+            能不能直接看见或摸到：能，是看得见摸得着的机器
+            注意：它要用电；最早的要用电线连起来，和手机不一样
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：两个轮子一前一后，人坐在上面用脚蹬踏板就能骑着前进的交通工具。
+            发明还是发现：发明
+            大约什么时候：1817年出现最早的，19世纪80年代变成现在的样子
+            领域：交通
+            谁发明或发现：说法不一：德国的德莱斯1817年造出早期的，后人不断改进
+            有什么用：代步、运动和锻炼身体
+            能不能直接看见或摸到：能，是看得见摸得着的交通工具
+            注意：普通的不烧油也不用电，靠人力；最早的没有踏板，要用脚蹬地走
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：靠发动机带动、在马路上跑的交通工具，能载人也能运货。
+            发明还是发现：发明
+            大约什么时候：1886年（19世纪），距今约140年
+            领域：交通
+            谁发明或发现：一般认为是德国的本茨，同一时期德国的戴姆勒也造出了
+            有什么用：载人、运货，出远门更方便
+            能不能直接看见或摸到：能，是看得见摸得着的交通工具
+            注意：最早的一辆只有三个轮子；现在有烧油的，也有用电的
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：有翅膀、靠发动机推动在天上飞的交通工具，能载人飞过高山大海。
+            发明还是发现：发明
+            大约什么时候：1903年（20世纪初），距今120多年
+            领域：交通
+            谁发明或发现：美国的莱特兄弟，第一次让有动力的它飞上天
+            有什么用：载人和货物在天上快速到达远方
+            能不能直接看见或摸到：能，是看得见摸得着的交通工具
+            注意：第一次飞行只飞了12秒左右；它比汽车晚发明
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：由车头拉着一节节车厢、沿着铁轨行驶的交通工具，能运很多人和货物。
+            发明还是发现：发明
+            大约什么时候：1804年第一台蒸汽机车问世（19世纪初）
+            领域：交通
+            谁发明或发现：英国的特里维西克造出第一台，英国的斯蒂芬孙让它真正实用
+            有什么用：在铁轨上运送大量乘客和货物
+            能不能直接看见或摸到：能，是看得见摸得着的交通工具
+            注意：最早靠烧煤产生的蒸汽推动，现在很多用电；它必须在铁轨上跑
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：能让里面一直保持低温的柜子，把食物放进去就不容易变坏。
+            发明还是发现：发明
+            大约什么时候：19世纪出现制冷机器，家用的在20世纪初出现
+            领域：生活用品
+            谁发明或发现：说法不一，很多人先后改进，美国人珀金斯1834年造出早期制冷机
+            有什么用：冷藏和冷冻食物，让食物保存得更久
+            能不能直接看见或摸到：能，是看得见摸得着的家用电器
+            注意：它要用电；它不但能冷藏，冷冻室里还能结冰
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：下雨时撑开挡雨、晴天还能遮太阳的工具，不用时可以收起来。
+            发明还是发现：发明
+            大约什么时候：很古老，几千年前古代中国、埃及等地就有
+            领域：生活用品
+            谁发明或发现：不详，中国民间相传是鲁班的妻子发明的
+            有什么用：挡雨、遮太阳
+            能不能直接看见或摸到：能，是看得见摸得着的日常用品
+            注意：它不用电；最早的可能是用来遮太阳的
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：可以随身带着走、不用电线就能打电话的小机器，现在还能拍照上网。
+            发明还是发现：发明
+            大约什么时候：1973年打出第一通电话（20世纪70年代），距今50多年
+            领域：通信
+            谁发明或发现：美国的马丁·库珀，常被称为它的发明者
+            有什么用：随时随地打电话、发消息，现在还能拍照、上网
+            能不能直接看见或摸到：能，是看得见摸得着的物品
+            注意：它要用电；最早的又大又重，像一块砖头
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p12
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：路口用红、黄、绿三种颜色的灯指挥车辆和行人，红灯停，绿灯行。
+            发明还是发现：发明
+            大约什么时候：1868年第一次出现在英国伦敦（19世纪）
+            领域：交通
+            谁发明或发现：英国的铁路工程师奈特设计了第一盏
+            有什么用：指挥车辆和行人有秩序地通过路口，保障安全
+            能不能直接看见或摸到：能，路口就能看见
+            注意：第一盏不是用电，而是用煤气点亮的；现在的要用电
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p13
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：两片刀刃交叉装在一起、一开一合就能剪开纸和布的工具。
+            发明还是发现：发明
+            大约什么时候：很古老，约3500年前已有，带转轴的约2000年前出现
+            领域：生活用品
+            谁发明或发现：不详，古埃及和古罗马都有很早的
+            有什么用：剪纸、剪布、剪头发
+            能不能直接看见或摸到：能，是看得见摸得着的工具
+            注意：它不用电；刃口锋利，小朋友要用圆头的并注意安全
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p14
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：用竹条和纸或布扎成、拴着长线借着风力飞上天空的玩具。
+            发明还是发现：发明
+            大约什么时候：2000多年前的古代中国
+            领域：生活用品（玩具）
+            谁发明或发现：不详，中国相传墨子用木头做过会飞的鸟
+            有什么用：放着玩，也是一种运动和民间艺术
+            能不能直接看见或摸到：能，是看得见摸得着的玩具
+            注意：它要靠风才能飞，没有发动机；它最早发明于中国
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p15
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：能按程序飞快计算、存储资料的电子机器，可以用来学习、画画和上网。
+            发明还是发现：发明
+            大约什么时候：20世纪40年代，1946年造出一台很有名的早期大型机器
+            领域：计算与信息
+            谁发明或发现：说法不一，很多科学家都有贡献，1946年美国的埃尼阿克很有名
+            有什么用：计算、写字、画画、看视频、上网、玩游戏
+            能不能直接看见或摸到：能，是看得见摸得着的机器
+            注意：它要用电；早期的有一间屋子那么大，现在的能放在桌上
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：用木头包着一根细细的笔芯做成的笔，写错了还能用橡皮擦掉。
+            发明还是发现：发明
+            大约什么时候：16世纪出现，1795年有了现在这种笔芯的做法
+            领域：生活用品（文具）
+            谁发明或发现：说法不一；法国的孔泰发明了用石墨和黏土做笔芯的方法
+            有什么用：写字、画画
+            能不能直接看见或摸到：能，是看得见摸得着的文具
+            注意：笔芯里没有铅，而是石墨加黏土；它写的字能擦掉
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：戴在眼睛前面的两片镜片，能帮看不清楚的人看得更清晰。
+            发明还是发现：发明
+            大约什么时候：约1286年（13世纪），距今700多年
+            领域：生活用品、医学
+            谁发明或发现：不详，最早出现在意大利
+            有什么用：帮助近视、远视或老花的人看清楚；墨镜能挡阳光
+            能不能直接看见或摸到：能，是看得见摸得着的物品
+            注意：它不用电；最早的没有挂在耳朵上的腿，要用手扶着
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：两根一样长的细棍，一只手就能夹起饭菜，是东亚常用的餐具。
+            发明还是发现：发明
+            大约什么时候：很古老，至少3000多年前的中国就有
+            领域：生活用品（餐具）
+            谁发明或发现：不详，是中国古人发明的
+            有什么用：夹菜、吃饭
+            能不能直接看见或摸到：能，是看得见摸得着的餐具
+            注意：古代叫“箸”；中国、日本、韩国等地都常用
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：沾水搓一搓就起泡沫、能把手和衣服上的油污洗掉的清洁用品。
+            发明还是发现：发明
+            大约什么时候：很古老，约公元前2800年的古巴比伦已有
+            领域：生活用品
+            谁发明或发现：不详，古巴比伦人很早就会用油脂和草木灰做
+            有什么用：洗手、洗澡、洗衣服，去掉油污和细菌
+            能不能直接看见或摸到：能，是看得见摸得着的日常用品
+            注意：它不能吃；中国古代常用皂角洗东西，和它不完全一样
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：装在软管里的膏状清洁用品，挤在牙刷上刷牙，让牙齿更干净。
+            发明还是发现：发明
+            大约什么时候：古埃及已有洁牙粉，装在软管里的在1890年前后出现
+            领域：生活用品
+            谁发明或发现：说法不一；美国的牙医谢菲尔德最早把它装进软管
+            有什么用：配合牙刷清洁牙齿，预防蛀牙
+            能不能直接看见或摸到：能，是看得见摸得着的日常用品
+            注意：它不能吞下去；古代人用盐、草药粉末等洁牙
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：放进衣服和水，它就能自动转动把衣服洗干净的家用电器。
+            发明还是发现：发明
+            大约什么时候：手摇的在18世纪出现，用电的在1908年前后出现
+            领域：生活用品
+            谁发明或发现：说法不一，很多人先后改进，没有公认的唯一发明者
+            有什么用：自动洗衣服，节省时间和力气
+            能不能直接看见或摸到：能，是看得见摸得着的家用电器
+            注意：现在的要用电，早期的靠手摇；有的还能把衣服甩干
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：能把眼前的景象拍下来、变成照片保存的机器。
+            发明还是发现：发明
+            大约什么时候：1826年前后拍出第一张照片，1839年公布实用的照相方法
+            领域：生活用品（记录影像）
+            谁发明或发现：法国的尼埃普拍出第一张照片，法国的达盖尔发明实用照相法
+            有什么用：拍照片，记录人和风景
+            能不能直接看见或摸到：能，是看得见摸得着的机器
+            注意：第一张照片要曝光好几个小时；现在手机里也有它的功能
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：用电让屋子里变凉快或变暖和、还能调节湿度的家用电器。
+            发明还是发现：发明
+            大约什么时候：1902年（20世纪初），距今120多年
+            领域：生活用品
+            谁发明或发现：美国的开利，最早是为了帮印刷厂控制空气湿度
+            有什么用：夏天制冷、冬天制热，让屋里更舒服
+            能不能直接看见或摸到：能，是看得见摸得着的家用电器
+            注意：它必须用电才能工作；最早不是为了让人凉快而发明的
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：把连续拍下的画面快速放映出来，让画面动起来讲故事的艺术。
+            发明还是发现：发明
+            大约什么时候：1895年（19世纪末），距今约130年
+            领域：娱乐与艺术
+            谁发明或发现：说法不一：法国的卢米埃尔兄弟1895年第一次公开售票放映
+            有什么用：讲故事、娱乐，也能记录历史
+            能不能直接看见或摸到：能看见画面，但画面本身摸不到
+            注意：最早的没有声音也没有颜色；它常在影院的大银幕上放映
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：能接收空中传来的无线电信号、把它变成声音播放的机器。
+            发明还是发现：发明
+            大约什么时候：19世纪90年代出现无线电通信，20世纪20年代开始广播节目
+            领域：通信
+            谁发明或发现：说法不一：意大利的马可尼最有名，特斯拉、波波夫等也有贡献
+            有什么用：收听新闻、音乐、天气预报等广播节目
+            能不能直接看见或摸到：能，是看得见摸得着的机器
+            注意：它要用电；它只能听声音，没有画面，信号不用电线就能传来
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：装在楼里、像小房间一样上下移动的机器，按一下按钮就能到别的楼层。
+            发明还是发现：发明
+            大约什么时候：1852年发明安全装置，1857年第一部载客的投入使用
+            领域：交通
+            谁发明或发现：说法不一，更早就有类似的机器，美国的奥的斯让它变得安全
+            有什么用：在高楼里把人和货物送上送下
+            能不能直接看见或摸到：能，是看得见摸得着的机器
+            注意：它要用电；奥的斯的贡献是加上绳子断了也不会掉下去的安全装置
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：把树皮、麻头、破布和旧渔网捣烂做成（已隐藏）的方法，是中国古代四大发明之一。
+            发明还是发现：发明
+            大约什么时候：西汉已有早期的，东汉公元105年前后被大大改进
+            领域：文字与书写、材料
+            谁发明或发现：东汉的蔡伦改进了它，但更早的西汉已经有了
+            有什么用：做出便宜好用的书写材料，用来写字、印书、画画
+            能不能直接看见或摸到：它是一种制作方法，做出来的东西能看见摸到
+            注意：它是中国古代四大发明之一；蔡伦是改进者，不是最早的发明者
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p12
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：先刻好一个个单独的字，再按文章排成版来印刷，用完还能拆开重复使用。
+            发明还是发现：发明
+            大约什么时候：北宋，约1040年代，距今约1000年
+            领域：文字与书写
+            谁发明或发现：北宋的平民毕昇，用胶泥做成一个个字块
+            有什么用：让印书更快、更省材料，知识传播得更广
+            能不能直接看见或摸到：它是一种方法，用到的字块能看见摸到
+            注意：属于中国古代四大发明之一；最早的字块是用胶泥烧成的，不是金属
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p13
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：由许多黑白小方块组成的方形图案，用手机一扫就能读出里面的信息。
+            发明还是发现：发明
+            大约什么时候：1994年（20世纪90年代），距今30多年
+            领域：计算与信息
+            谁发明或发现：日本电装公司的工程师原昌宏和他的团队
+            有什么用：扫码付款、打开网页、登记信息
+            能不能直接看见或摸到：能看见，印在纸上或显示在屏幕上
+            注意：它能装的信息比条形码多；最早是为了管理汽车零件
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p14
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：中间带一小块干净纱布的小胶布，小伤口贴上它能得到保护。
+            发明还是发现：发明
+            大约什么时候：1920年（20世纪），距今100多年
+            领域：医学
+            谁发明或发现：美国的迪克森，为常在厨房划伤手的妻子发明
+            有什么用：保护小伤口，防止弄脏
+            能不能直接看见或摸到：能，是看得见摸得着的物品
+            注意：它只适合小伤口，伤口大要找大人和医生；它一面有胶能粘住
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p15
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：两排小齿咬合在一起、一拉就能打开或合上，常用在衣服和书包上。
+            发明还是发现：发明
+            大约什么时候：1893年出现早期的，1913年改进成现在的样子
+            领域：生活用品
+            谁发明或发现：美国的贾德森发明早期的，松德巴克1913年把它改进成现在的样子
+            有什么用：快速打开、合上衣服、书包和鞋子
+            能不能直接看见或摸到：能，是看得见摸得着的物品
+            注意：它不用电；早期的常用在靴子上
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：戴在手腕上、随时都能看时间的小钟表。
+            发明还是发现：发明
+            大约什么时候：19世纪初出现，20世纪初流行起来
+            领域：生活用品
+            谁发明或发现：说法不一，1810年前后钟表匠宝玑为一位王后做过一块
+            有什么用：随时看时间；现在有的还能计步、打电话
+            能不能直接看见或摸到：能，是看得见摸得着的物品
+            注意：早期多给女士戴，男士多用怀表；有的靠电池，有的要上发条
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：用电让几片扇叶飞快转动、吹出凉风的家用电器。
+            发明还是发现：发明
+            大约什么时候：1882年（19世纪），距今约140年
+            领域：生活用品
+            谁发明或发现：美国的工程师惠勒
+            有什么用：吹风纳凉，让空气流动起来
+            能不能直接看见或摸到：能，是看得见摸得着的家用电器
+            注意：它要用电；它不能让空气变冷，只是让风吹得人觉得凉快
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：用橡胶或塑料做成的小块文具，能擦掉铅笔写错的字。
+            发明还是发现：发明
+            大约什么时候：1770年（18世纪），距今250多年
+            领域：生活用品（文具）
+            谁发明或发现：说法不一：1770年英国的普里斯特利和奈恩都发现橡胶能擦字
+            有什么用：擦掉铅笔写错的字和画错的线
+            能不能直接看见或摸到：能，是看得见摸得着的文具
+            注意：以前人们用面包屑擦铅笔字；它通常擦不掉圆珠笔写的字
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：用薄薄的橡胶做成、吹进气后会鼓起来的小玩具，常用来装饰派对。
+            发明还是发现：发明
+            大约什么时候：1824年做出第一个橡胶的，距今约200年
+            领域：生活用品（玩具）
+            谁发明或发现：英国科学家法拉第，最早是为了做氢气实验
+            有什么用：玩耍、装饰派对，科学家也用来做实验
+            能不能直接看见或摸到：能，是看得见摸得着的玩具
+            注意：装了氦气的能飘起来；被扎破会砰地一声爆掉
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：装着电池、拿在手里就能照亮前方的小灯。
+            发明还是发现：发明
+            大约什么时候：1899年（19世纪末），距今120多年
+            领域：生活用品（照明）
+            谁发明或发现：英国发明家米塞尔，在美国申请了专利
+            有什么用：在黑暗的地方照明，走夜路、停电时用
+            能不能直接看见或摸到：能，是看得见摸得着的物品
+            注意：它靠电池供电，不用插电线；它比电灯晚发明
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：有两个轮子、靠发动机带动的交通工具，骑起来比自行车快得多。
+            发明还是发现：发明
+            大约什么时候：1885年（19世纪），距今约140年
+            领域：交通
+            谁发明或发现：说法不一：1885年德国的戴姆勒和迈巴赫造出装汽油发动机的
+            有什么用：代步、送快递、运动比赛
+            能不能直接看见或摸到：能，是看得见摸得着的交通工具
+            注意：它比本茨的汽车还早一年出现；现在也有用电的
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：能按照程序自动完成各种工作的机器，有的像人，有的像手臂或小车。
+            发明还是发现：发明
+            大约什么时候：这个词1920年出现，第一台工业用的在1961年投入使用
+            领域：计算与信息
+            谁发明或发现：说法不一，美国的德沃尔和恩格尔伯格造出第一台工业用的
+            有什么用：在工厂装配、打扫卫生、探索太空和海底
+            能不能直接看见或摸到：能，是看得见摸得着的机器
+            注意：它要用电；不是所有的都长得像人
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：按下数字和符号键，就能马上算出结果的小机器。
+            发明还是发现：发明
+            大约什么时候：1642年出现机械的，电子的在20世纪60年代出现
+            领域：计算与信息
+            谁发明或发现：说法不一；法国的帕斯卡19岁时就造出了用齿轮计算的机器
+            有什么用：做加减乘除等计算
+            能不能直接看见或摸到：能，是看得见摸得着的物品
+            注意：早期的靠齿轮转动，不用电；它和电脑不一样，主要用来算数
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：用木框串着一颗颗珠子、拨动珠子来计算的古老工具。
+            发明还是发现：发明
+            大约什么时候：中国东汉已有“珠算”的记载，明朝时广泛流行
+            领域：计算与信息
+            谁发明或发现：不详；中国、古罗马等地都有各自的计数工具
+            有什么用：加减乘除等计算，古代商人和账房常用
+            能不能直接看见或摸到：能，是看得见摸得着的工具
+            注意：它不用电；中国珠算2013年被列入联合国人类非物质文化遗产
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：点燃后飞上天空炸开、放出五颜六色光芒的节日庆祝用品。
+            发明还是发现：发明
+            大约什么时候：约1000多年前，中国唐宋时期
+            领域：生活用品（节日庆祝）
+            谁发明或发现：不详，是中国古人发明的，里面用到了火药
+            有什么用：节日和庆典时燃放，增加热闹的气氛
+            能不能直接看见或摸到：能看见，但点燃后很危险，不能用手碰
+            注意：只能由大人在安全的地方燃放，小朋友不要自己玩；颜色来自不同金属
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：用几片镜片把很小很小的东西放大许多倍、让人看清的仪器。
+            发明还是发现：发明
+            大约什么时候：约1590年前后（16世纪末），距今400多年
+            领域：科学仪器
+            谁发明或发现：说法不一，一般认为是荷兰的眼镜匠詹森父子
+            有什么用：观察细胞、细菌等肉眼看不见的小东西
+            能不能直接看见或摸到：能，是看得见摸得着的仪器
+            注意：它看的是很小的东西，不是远处的星星；列文虎克用它发现了细菌
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：用镜片或镜子收集光线、让远处的东西看起来又大又清楚的仪器。
+            发明还是发现：发明
+            大约什么时候：1608年（17世纪初），距今400多年
+            领域：科学仪器
+            谁发明或发现：荷兰的利伯希最早申请专利，意大利的伽利略改进后用来看星空
+            有什么用：看远处的风景，观察月亮、行星和星星
+            能不能直接看见或摸到：能，是看得见摸得着的仪器
+            注意：伽利略不是它的发明者，但他用它发现了木星的卫星
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p12
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：用微波让食物里的水分子快速振动发热，很快就能把饭菜热好的厨房电器。
+            发明还是发现：发明
+            大约什么时候：1945年（20世纪），距今约80年
+            领域：生活用品
+            谁发明或发现：美国工程师斯宾塞，他发现口袋里的巧克力被微波融化了
+            有什么用：加热、解冻食物
+            能不能直接看见或摸到：能，是看得见摸得着的厨房电器
+            注意：它要用电；金属餐具不能放进去；它来自一次意外的发现
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p13
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：提前煮熟再弄干的面饼，用开水一泡几分钟就能吃的食品。
+            发明还是发现：发明
+            大约什么时候：1958年（20世纪），距今60多年
+            领域：农业与食品
+            谁发明或发现：在日本创业的安藤百福
+            有什么用：让人很快吃上热面条，方便外出和应急
+            能不能直接看见或摸到：能，是看得见摸得着的食品
+            注意：它不适合天天当饭吃；杯装的在1971年出现
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p14
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：大部分在城市地下隧道里行驶的列车，不怕堵车，能快速运送很多乘客。
+            发明还是发现：发明
+            大约什么时候：1863年，世界上第一条在英国伦敦开通
+            领域：交通
+            谁发明或发现：不是一个人发明的，英国的皮尔逊最早提出修建的想法
+            有什么用：在城市里快速运送大量乘客
+            能不能直接看见或摸到：能，是看得见摸得着的交通工具
+            注意：世界上第一条用的是烧煤的蒸汽火车头；现在大多用电
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p15
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：用沙子等原料高温熔化后做成的透明材料，常用来做窗户、杯子和镜片。
+            发明还是发现：发明
+            大约什么时候：很古老，约公元前2500年的美索不达米亚已有
+            领域：材料
+            谁发明或发现：不详，古代美索不达米亚和埃及的人很早就会做
+            有什么用：做窗户、杯子、镜子、眼镜片和灯泡
+            能不能直接看见或摸到：能，是看得见摸得着的材料
+            注意：它的主要原料是沙子；摔碎了很锋利，要请大人处理
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：烧煤把水烧成蒸汽、用蒸汽推动机器运转的动力机器，带来了工业革命。
+            发明还是发现：发明
+            大约什么时候：1712年出现早期的，1769年后被大大改进（18世纪）
+            领域：能源
+            谁发明或发现：说法不一：英国的纽科门造出早期的，英国的瓦特大大改进了它
+            有什么用：带动火车、轮船和工厂里的机器
+            能不能直接看见或摸到：能，是看得见摸得着的机器
+            注意：瓦特不是第一个发明它的人，而是让它变得高效；它推动了工业革命
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：把全世界的电脑和手机连在一起的巨大网络，让人们能随时传递信息。
+            发明还是发现：发明
+            大约什么时候：1969年出现雏形，20世纪90年代走进千家万户
+            领域：计算与信息
+            谁发明或发现：不是一个人发明的；美国的瑟夫和卡恩设计了它的通信规则
+            有什么用：发消息、看新闻、查资料、视频聊天、网上学习
+            能不能直接看见或摸到：整个网络看不见摸不着，只能看到连接它的设备和线缆
+            注意：它和万维网不是一回事，万维网只是它上面的一种服务
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：用蚕吐出的丝织成的光滑柔软的布料，古代经（已隐藏）之路运到很远的地方。
+            发明还是发现：发明
+            大约什么时候：很古老，约5000年前的中国已有
+            领域：材料
+            谁发明或发现：不详，中国相传是黄帝的妻子嫘祖教人养蚕缫丝
+            有什么用：做衣服、围巾，也能用来画画和写字
+            能不能直接看见或摸到：能，是看得见摸得着的布料
+            注意：它是中国发明的；它来自动物蚕，不是来自植物
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：用特殊的黏土高温烧成的器物，又白又硬又光滑，英文里它和“中国”是同一个词。
+            发明还是发现：发明
+            大约什么时候：东汉时成熟，距今约1800多年
+            领域：材料
+            谁发明或发现：不详，是中国古代工匠发明的
+            有什么用：做碗、盘子、花瓶和艺术品
+            能不能直接看见或摸到：能，是看得见摸得着的器物
+            注意：它比陶器烧的温度更高、更坚硬；江西景德镇以它闻名
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：用石油等原料人工合成的材料，轻便又能做成各种形状，但很难自然分解。
+            发明还是发现：发明
+            大约什么时候：19世纪60年代出现早期的，1907年出现完全人工合成的
+            领域：材料
+            谁发明或发现：说法不一；在美国的贝克兰1907年发明了第一种全合成的
+            有什么用：做玩具、瓶子、袋子、文具和各种零件
+            能不能直接看见或摸到：能，是看得见摸得着的材料
+            注意：它大多来自石油；乱扔会污染环境，要回收利用
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：把球囊里的空气加热，让热空气把人和吊篮一起带上天空的飞行器。
+            发明还是发现：发明
+            大约什么时候：1783年（18世纪），比飞机早100多年
+            领域：交通
+            谁发明或发现：法国的蒙戈尔菲耶兄弟
+            有什么用：载人飞上天空，用来观光、比赛和科学观测
+            能不能直接看见或摸到：能，是看得见摸得着的飞行器
+            注意：第一次载的乘客是一只羊、一只鸭子和一只公鸡；它没有翅膀
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：一面是小钩子、一面是小绒圈，一按就粘住、一撕就分开的扣子。
+            发明还是发现：发明
+            大约什么时候：1948年想到，1955年申请专利（20世纪）
+            领域：生活用品
+            谁发明或发现：瑞士的德梅斯特拉尔，受粘在狗毛上的带刺草籽启发
+            有什么用：代替扣子和鞋带，粘住鞋子、衣服和书包
+            能不能直接看见或摸到：能，是看得见摸得着的物品
+            注意：它是模仿植物种子发明的；撕开时会发出“嘶啦”声
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：笔尖装着一颗小钢珠，写字时钢珠滚动把油墨带到纸上的笔。
+            发明还是发现：发明
+            大约什么时候：1938年申请专利（20世纪），距今80多年
+            领域：生活用品（文具）
+            谁发明或发现：一般认为是匈牙利的比罗，更早也有人申请过类似专利
+            有什么用：写字、画画，不用蘸墨水
+            能不能直接看见或摸到：能，是看得见摸得着的文具
+            注意：它写的字很难用橡皮擦掉；笔尖的小钢珠是关键
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：只有一个细胞、小到要用显微镜才能看见的微小生物，有的有益，有的会让人生病。
+            发明还是发现：发现
+            大约什么时候：1676年前后（17世纪），距今约350年
+            领域：生物、医学
+            谁发明或发现：荷兰的列文虎克，用自己磨的镜片做成显微镜看到的
+            有什么用：知道了它，人们才学会勤洗手、消毒来预防疾病
+            能不能直接看见或摸到：不能直接看见，要用显微镜才能看到
+            注意：不是所有的都有害，酸奶里就有有益的；它是活的生物
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：靠风吹动大大的叶片转动、用来磨面粉或抽水的机器，荷兰的最有名。
+            发明还是发现：发明
+            大约什么时候：约公元9世纪，距今1000多年
+            领域：能源
+            谁发明或发现：不详，一般认为最早出现在古代波斯（今伊朗一带）
+            有什么用：用风力磨面粉、抽水；现代风力发电机就是从它发展来的
+            能不能直接看见或摸到：能，是看得见摸得着的机器
+            注意：它不烧煤也不烧油，靠的是风；这里指大型机器，不是纸做的玩具
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：用蒸汽机等发动机带动、不用靠风帆和划桨就能航行的大船。
+            发明还是发现：发明
+            大约什么时候：1807年第一艘实用的开始航行（19世纪初）
+            领域：交通
+            谁发明或发现：说法不一；美国的富尔顿造出第一艘有商业价值的
+            有什么用：在江河湖海上运送乘客和货物
+            能不能直接看见或摸到：能，是看得见摸得着的交通工具
+            注意：早期的靠两侧的大轮子划水；它不靠风也能开
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：在专门修建的铁路上，以每小时200公里以上的速度飞驰的列车。
+            发明还是发现：发明
+            大约什么时候：1964年，日本的新干线第一次开通
+            领域：交通
+            谁发明或发现：不是一个人发明的，日本的工程师们建成了第一条
+            有什么用：让人在城市之间又快又稳地出行
+            能不能直接看见或摸到：能，是看得见摸得着的交通工具
+            注意：它大多用电，不烧煤也不烧油；中国拥有世界上最长的线路网
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p12
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：握在手里在桌上移动，就能控制电脑屏幕上箭头的小设备。
+            发明还是发现：发明
+            大约什么时候：1964年前后（20世纪60年代），距今约60年
+            领域：计算与信息
+            谁发明或发现：美国的恩格尔巴特
+            有什么用：点击、拖动，操作电脑
+            能不能直接看见或摸到：能，是看得见摸得着的设备
+            注意：第一个是用木头做的外壳；它因为拖着一根像尾巴的线而得名
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p13
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：帮助身体提前认识病菌、学会抵抗它们的医学发明，打了它就不容易得某些病。
+            发明还是发现：发明
+            大约什么时候：1796年（18世纪末），第一种用来预防天花
+            领域：医学
+            谁发明或发现：英国医生詹纳，他用牛痘来预防天花
+            有什么用：预防传染病，保护大家的健康
+            能不能直接看见或摸到：能，是装在小瓶里的药液，常用打针或口服的方式
+            注意：中国古代已有种人痘预防天花的方法；靠它人类消灭了天花
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p14
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：瓶胆有两层、中间抽成真空，能让热水长时间保持热、冷饮保持冷的容器。
+            发明还是发现：发明
+            大约什么时候：1892年（19世纪末），距今130多年
+            领域：生活用品
+            谁发明或发现：英国科学家杜瓦，最早是为了在实验室保存低温物质
+            有什么用：保存热水、热汤或冰饮
+            能不能直接看见或摸到：能，是看得见摸得着的日常用品
+            注意：它不用电也能保温，靠真空层挡住热量；它也能保冷
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：用电线把电信号从一个地方传到另一个地方，再翻译成文字的通信方法。
+            发明还是发现：发明
+            大约什么时候：1837年前后出现（19世纪），比电话早
+            领域：通信
+            谁发明或发现：说法不一：美国的莫尔斯和英国的库克、惠斯通都有重要贡献
+            有什么用：快速把消息传到很远的地方
+            能不能直接看见或摸到：它是一种通信方法，发报机和电线能看见摸到
+            注意：它要用电；它只能传滴滴答答的电码，不能直接传说话的声音
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：用纸上凸起的小圆点组成字母，让看不见的人用手指摸着读的文字。
+            发明还是发现：发明
+            大约什么时候：1824年（19世纪），距今约200年
+            领域：文字与书写
+            谁发明或发现：法国的布莱尔，他自己看不见，发明时只有15岁
+            有什么用：帮助盲人阅读和写字
+            能不能直接看见或摸到：能，凸起的小点能摸到，也能看见
+            注意：它是用手摸着读的；每个字符最多由6个点排列组成
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：贴在信封上、表示已经付过邮费的小纸片，上面常印着漂亮的图案。
+            发明还是发现：发明
+            大约什么时候：1840年，世界上第一枚在英国发行
+            领域：通信
+            谁发明或发现：英国的希尔提出了这个办法
+            有什么用：付邮费，让信件能寄出去；也有很多人收藏
+            能不能直接看见或摸到：能，是看得见摸得着的小纸片
+            注意：第一枚是黑色的，叫“黑便士”；集邮是很多人的爱好
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：从0到9的十个数字符号，今天全世界都用它们来写数和计算。
+            发明还是发现：发明
+            大约什么时候：约1500年前（公元5到6世纪）在古印度形成
+            领域：计算与信息
+            谁发明或发现：古代印度人发明，阿拉伯人把它们传到了欧洲
+            有什么用：写数、计算，比罗马数字方便得多
+            能不能直接看见或摸到：它们是符号，写出来能看见
+            注意：它们不是阿拉伯人发明的，而是古印度人；因阿拉伯人传播才得名
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：组成生物身体的最小单位，就像盖房子用的一块块砖，要用显微镜才能看见。
+            发明还是发现：发现
+            大约什么时候：1665年（17世纪），距今约360年
+            领域：生物
+            谁发明或发现：英国的胡克，他用显微镜看软木薄片时发现并起了名字
+            有什么用：让人们知道所有生物都由它组成，是学习生物的基础
+            能不能直接看见或摸到：大多数不能直接看见，要用显微镜才看得清
+            注意：胡克当时看到的其实是死去的植物的外壁；人体约由几十万亿个它组成
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：被火箭送上太空、绕着地球不停转圈的机器，能帮我们通信、导航和看天气。
+            发明还是发现：发明
+            大约什么时候：1957年发射第一颗（20世纪），距今约70年
+            领域：通信、航天
+            谁发明或发现：由很多科学家共同研制，第一颗由苏联发射
+            有什么用：传电视信号、导航、预报天气、观察地球
+            能不能直接看见或摸到：一般看不见，有的在夜空中像一个移动的小亮点
+            注意：它是人造的，不是月亮那样天然的天体；中国第一颗叫东方红一号
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：医生挂在脖子上、贴在胸口就能听到心跳和呼吸声的医疗工具。
+            发明还是发现：发明
+            大约什么时候：1816年（19世纪），距今200多年
+            领域：医学
+            谁发明或发现：法国医生雷奈克，最早用一个卷起来的纸筒来听
+            有什么用：帮医生听心脏、肺部的声音来检查身体
+            能不能直接看见或摸到：能，是看得见摸得着的医疗工具
+            注意：它不用电；最早的是一根木头管子，只能用一只耳朵听
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：靠头顶的大旋翼转动升空的飞行器，能垂直起降，还能停在空中不动。
+            发明还是发现：发明
+            大约什么时候：1907年首次载人离地，1939年出现实用的
+            领域：交通
+            谁发明或发现：说法不一；俄裔美国人西科斯基造出第一架实用的
+            有什么用：救援、运输、送病人去医院、森林灭火
+            能不能直接看见或摸到：能，是看得见摸得着的飞行器
+            注意：它不需要跑道；达·芬奇500多年前就画过类似的设计图
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：东汉张衡制造的仪器，能测出远方发生地震的大致方向。
+            发明还是发现：发明
+            大约什么时候：公元132年，东汉时期，距今约1900年
+            领域：科学仪器
+            谁发明或发现：东汉的科学家张衡
+            有什么用：感知远方的地震，并指出地震发生的大致方向
+            能不能直接看见或摸到：原物早已失传，现在看到的是后人的复原模型
+            注意：它不能预测地震，只能在地震后测出方向；外面有八条龙和八只蟾蜍
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：靠太阳照出的影子落在刻度盘上的位置来看时间的古老计时工具。
+            发明还是发现：发明
+            大约什么时候：很古老，约3500年前的古埃及已有
+            领域：科学仪器（计时）
+            谁发明或发现：不详，古埃及、古巴比伦和中国古代都有使用
+            有什么用：白天根据影子判断时间
+            能不能直接看见或摸到：能，是看得见摸得着的器具
+            注意：它阴天和晚上不能用；它不用电也不用上发条
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：由一组粗细不同的黑白条纹组成，扫描一下就能读出商品信息。
+            发明还是发现：发明
+            大约什么时候：1952年获得专利，1974年第一次在超市扫描商品
+            领域：计算与信息
+            谁发明或发现：美国的伍德兰和西尔弗
+            有什么用：超市收银、图书管理、快递跟踪
+            能不能直接看见或摸到：能看见，常印在商品包装上
+            注意：第一件被扫描的商品是一包口香糖；它比二维码早，存的信息少
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：用针和线自动把布料缝在一起的机器，做衣服比手工快很多。
+            发明还是发现：发明
+            大约什么时候：19世纪，1846年出现著名的专利，距今约180年
+            领域：生活用品
+            谁发明或发现：说法不一：法国的蒂莫尼耶、美国的豪和胜家都有重要贡献
+            有什么用：缝制衣服、被子和各种布制品
+            能不能直接看见或摸到：能，是看得见摸得着的机器
+            注意：老式的用脚踩带动，不用电；现在的大多用电
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p12
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：能把声音录下来再放出来的机器，是第一台既能录音又能放音的机器。
+            发明还是发现：发明
+            大约什么时候：1877年（19世纪），距今约150年
+            领域：通信（声音记录）
+            谁发明或发现：美国的爱迪生
+            有什么用：录下声音并播放，后来用来听唱片里的音乐
+            能不能直接看见或摸到：能，是看得见摸得着的机器
+            注意：爱迪生录的第一句话是一首儿歌；早期的不用电，靠手摇
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p13
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：从青霉菌里找到的一种药，能杀死让人生病的细菌，救了无数人的生命。
+            发明还是发现：发现
+            大约什么时候：1928年发现，20世纪40年代开始大量生产
+            领域：医学
+            谁发明或发现：英国的弗莱明发现，弗洛里和钱恩让它能大量生产
+            有什么用：治疗细菌引起的感染
+            能不能直接看见或摸到：能，做成的药能看见，但要医生开才能用
+            注意：它是弗莱明培养细菌时意外发现的；它对病毒没有用
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p14
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：一种眼睛看不见、能穿透人体的射线，医生用它拍片子，看到身体里的骨头。
+            发明还是发现：发现
+            大约什么时候：1895年（19世纪末），距今约130年
+            领域：医学、科学原理
+            谁发明或发现：德国物理学家伦琴，他因此获得第一个诺贝尔物理学奖
+            有什么用：拍片检查骨头，机场安检查看行李
+            能不能直接看见或摸到：不能，人的眼睛看不见它
+            注意：它有辐射，不能多照；起这个名字是因为当时不知道它是什么
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：用两种不同的水稻培育出的新品种，产量高得多，让更多人能吃饱饭。
+            发明还是发现：发明（培育出的新品种）
+            大约什么时候：1973年培育成功（20世纪），距今50多年
+            领域：农业与食品
+            谁发明或发现：中国的袁隆平和他的团队
+            有什么用：大大提高粮食产量，帮助很多国家的人吃饱饭
+            能不能直接看见或摸到：能，稻子和米饭都能看见摸到
+            注意：袁隆平被称为“（已隐藏）之父”；它也在很多其他国家种植
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：绿色植物利用阳光，把二氧化碳和水变成养分并放出氧气的过程。
+            发明还是发现：发现
+            大约什么时候：18世纪70年代，1779年前后被证实
+            领域：生物、科学原理
+            谁发明或发现：说法不一：英国的普里斯特利和荷兰的英格豪斯都有重要发现
+            有什么用：让人们明白植物怎样制造养分和氧气，对农业很重要
+            能不能直接看见或摸到：不能，它是一个过程，只能看到植物长大、叶子冒气泡
+            注意：它离不开光，植物在黑暗中做不了；它主要在绿色的叶子里进行
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：人体需要得很少但不能缺少的一类营养物质，多吃蔬菜水果就能获得很多种。
+            发明还是发现：发现
+            大约什么时候：19世纪末到20世纪初，1912年得到这个名字
+            领域：医学、农业与食品
+            谁发明或发现：说法不一：荷兰的艾克曼、波兰的丰克等很多科学家都有贡献
+            有什么用：帮人们了解营养，预防因为缺少它而引起的疾病
+            能不能直接看见或摸到：它藏在食物里，一般看不见，做成的药片能看见
+            注意：它有很多种，用A、B、C、D等字母来命名；不能只靠吃药片补充
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：通过网络发送的信件，几秒钟就能送到世界另一头的人手里。
+            发明还是发现：发明
+            大约什么时候：1971年（20世纪），距今50多年
+            领域：通信
+            谁发明或发现：美国的汤姆林森，他第一个用@符号分开用户名和电脑名
+            有什么用：发送文字、图片和文件，学习和工作都常用
+            能不能直接看见或摸到：没有实物，只能在屏幕上看到
+            注意：每个地址中间都有@符号；它不用贴邮票
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：用短的“滴”和长的“答”两种信号组合，来表示字母和数字的编码方法。
+            发明还是发现：发明
+            大约什么时候：19世纪30年代到40年代，距今约180年
+            领域：通信
+            谁发明或发现：美国的莫尔斯和他的助手韦尔
+            有什么用：用电报、灯光或声音传递消息，求救信号SOS就用它
+            能不能直接看见或摸到：它是一种编码，可以用灯光看见、用声音听到
+            注意：SOS是三短、三长、三短；它最早是给电报用的
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：用纸印成、代替金属钱币来买东西的钱，世界上最早的出现在中国。
+            发明还是发现：发明
+            大约什么时候：北宋，1024年前后官府发行“交子”，距今约1000年
+            领域：生活用品、经济
+            谁发明或发现：不详，北宋时四川的商人最早使用，后来由官府发行
+            有什么用：买卖东西，比铜钱轻便好带
+            能不能直接看见或摸到：能，是看得见摸得着的钱
+            注意：中国北宋的“交子”是世界上最早的；现在很多人用手机付款
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：用手指直接点、划就能操作的屏幕，手机和平板电脑上都有。
+            发明还是发现：发明
+            大约什么时候：1965年前后出现（20世纪），距今约60年
+            领域：计算与信息
+            谁发明或发现：说法不一，英国的约翰逊1965年发明了早期的一种
+            有什么用：不用键盘鼠标，用手指就能操作设备
+            能不能直接看见或摸到：能，是看得见摸得着的设备
+            注意：它要用电；最早用在空中交通管制上；戴普通手套时常常不灵
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：让电脑像人一样学习、思考和解决问题的技术，能聊天、认图片和下棋。
+            发明还是发现：发明
+            大约什么时候：1956年正式提出这个名字（20世纪），距今70年
+            领域：计算与信息
+            谁发明或发现：不是一个人发明的，美国的麦卡锡等人在1956年提出了这个名字
+            有什么用：语音助手、翻译、自动驾驶、帮医生看片子
+            能不能直接看见或摸到：它是一种技术，本身看不见摸不着，靠电脑运行
+            注意：英国的图灵更早提出过机器能不能思考的问题；它要靠电脑和电
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：坐车时系在身上的带子，急刹车或撞车时能把人固定在座位上，保护乘客安全。
+            发明还是发现：发明
+            大约什么时候：1959年发明了现在常用的三点式（20世纪）
+            领域：交通
+            谁发明或发现：瑞典的工程师博林发明了三点式
+            有什么用：保护坐车的人，减少交通事故中的伤害
+            能不能直接看见或摸到：能，是看得见摸得着的物品
+            注意：它的专利被免费公开，让所有汽车都能用；坐车时每个人都要系好
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：能把太阳光直接变成电的装置，常铺在屋顶上，也装在卫星上。
+            发明还是发现：发明
+            大约什么时候：1954年造出第一块实用的（20世纪），距今70多年
+            领域：能源
+            谁发明或发现：美国贝尔实验室的蔡平、富勒和皮尔逊
+            有什么用：用太阳光发电，给房子、路灯、卫星和计算器供电
+            能不能直接看见或摸到：能，是看得见摸得着的装置
+            注意：它不烧煤也不烧油，很环保；阴天和晚上发电很少
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：让燃料在机器内部燃烧、推动活塞做功的动力机器，很多汽车靠它跑。
+            发明还是发现：发明
+            大约什么时候：1876年出现实用的四冲程的（19世纪）
+            领域：能源、交通
+            谁发明或发现：说法不一，德国的奥托1876年造出实用的四冲程的
+            有什么用：带动汽车、摩托车、轮船和飞机
+            能不能直接看见或摸到：能，是看得见摸得着的机器
+            注意：它和蒸汽机不同，燃料在机器里面烧；它会排放尾气
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：灰色的粉末，加水和沙石搅拌后会慢慢变硬，是盖房子和修路的重要材料。
+            发明还是发现：发明
+            大约什么时候：1824年现代的获得专利（19世纪）；古罗马已有类似材料
+            领域：材料
+            谁发明或发现：英国的阿斯普丁发明了现代的
+            有什么用：盖房子、修路、建桥和大坝
+            能不能直接看见或摸到：能，是看得见摸得着的材料
+            注意：加水后才会变硬；和沙石、水混合就成了混凝土
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p12
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：直接贴在眼球表面的小镜片，戴上后别人几乎看不出来，也能帮人看清楚。
+            发明还是发现：发明
+            大约什么时候：1888年出现玻璃的，1961年前后出现软的
+            领域：医学、生活用品
+            谁发明或发现：说法不一；德国的菲克做出早期的，捷克的维希特莱发明了软的
+            有什么用：代替框架眼镜，帮近视的人看清楚
+            能不能直接看见或摸到：能，是很薄很小的透明镜片
+            注意：要在医生指导下配戴，小朋友不要自己戴；要保持清洁
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p13
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：做手术前让病人暂时失去痛觉或睡着的医学方法，让手术不再疼。
+            发明还是发现：发明
+            大约什么时候：1846年第一次公开演示，距今约180年；中国东汉相传已有
+            领域：医学
+            谁发明或发现：说法不一：美国的莫顿1846年公开演示，中国相传华佗用过麻沸散
+            有什么用：让病人在手术时不感到疼痛
+            能不能直接看见或摸到：它是一种医学方法，用到的药物能看见
+            注意：只有医生才能使用；手术结束后病人会慢慢醒过来
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：认为太阳位于中心、地球和其他行星都绕着太阳转的学说。
+            发明还是发现：发现（一种科学学说）
+            大约什么时候：1543年正式发表（16世纪），距今约480年
+            领域：天文
+            谁发明或发现：波兰的哥白尼；古希腊的阿里斯塔克斯更早提出过类似想法
+            有什么用：改变了人们对宇宙的认识，推动了近代科学的诞生
+            能不能直接看见或摸到：不能，它是一种科学学说
+            注意：它推翻了“地球是宇宙中心”的看法；今天知道太阳也不是宇宙中心
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：把所有化学元素按规律排成的一张表，同一列的元素性质相似。
+            发明还是发现：发现（发现元素的规律并排成表）
+            大约什么时候：1869年（19世纪），距今约160年
+            领域：科学原理（化学）
+            谁发明或发现：俄国的门捷列夫
+            有什么用：帮助人们认识元素，还预言了当时还没发现的新元素
+            能不能直接看见或摸到：它是一张表，印出来能看见
+            注意：门捷列夫给还没发现的元素留了空位；现在共有118种元素
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：按照血液里红细胞表面的不同物质给人分成的类型，常见的有A、B、AB和O型。
+            发明还是发现：发现
+            大约什么时候：1900年到1901年（20世纪初），距今约125年
+            领域：医学
+            谁发明或发现：奥地利的兰德施泰纳，因此获得诺贝尔奖
+            有什么用：让输血变得安全，救了很多人
+            能不能直接看见或摸到：不能直接看出来，要通过验血才知道
+            注意：它是从父母那里遗传来的；输血前要先检查它
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：把成千上万个微小元件做在一小块硅片上的电路，是电脑和手机的“大脑”。
+            发明还是发现：发明
+            大约什么时候：1958年到1959年（20世纪），距今约70年
+            领域：计算与信息
+            谁发明或发现：说法不一：美国的基尔比和诺伊斯各自独立发明
+            有什么用：让电脑、手机等电子设备变得又小又快
+            能不能直接看见或摸到：能看见摸到外壳，里面的元件太小，要用显微镜看
+            注意：它要用电；基尔比因此获得2000年诺贝尔物理学奖；原料主要是硅
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：像一层一层堆积木一样，把电脑里设计的形状直接“打印”成实物的技术。
+            发明还是发现：发明
+            大约什么时候：1984年到1986年（20世纪80年代），距今约40年
+            领域：计算与信息
+            谁发明或发现：美国的赫尔发明了第一种实用的方法
+            有什么用：制作模型、玩具、零件，甚至医疗用的假牙
+            能不能直接看见或摸到：它是一种技术，打印出来的东西能看见摸到
+            注意：它不是在纸上打印，而是做出立体的东西
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：让手机、耳机、音箱等设备在近距离内不用电线就能互相传送数据的技术。
+            发明还是发现：发明
+            大约什么时候：1994年开始研发（20世纪90年代），距今30多年
+            领域：通信
+            谁发明或发现：荷兰工程师哈特森在瑞典的爱立信公司带头研发
+            有什么用：连接无线耳机、音箱、键盘和手表
+            能不能直接看见或摸到：看不见摸不着，它靠无线电波传送
+            注意：名字来自古代一位北欧国王的绰号；它只能在近距离使用
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：利用磁力让车身浮在轨道上方、不接触轨道高速行驶的列车。
+            发明还是发现：发明
+            大约什么时候：1934年德国人申请专利，1984年第一条商业线路开通
+            领域：交通
+            谁发明或发现：德国的肯佩尔最早申请了专利
+            有什么用：高速、安静地运送乘客
+            能不能直接看见或摸到：能，是看得见摸得着的交通工具
+            注意：它行驶时不接触轨道；中国上海有一条运营的高速线路
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：加入铬等元素、不容易生锈的钢，常用来做锅、勺子和水槽。
+            发明还是发现：发明
+            大约什么时候：1913年（20世纪初），距今100多年
+            领域：材料
+            谁发明或发现：说法不一，英国的布里尔利最有名
+            有什么用：做餐具、厨具、医疗器械和建筑材料
+            能不能直接看见或摸到：能，是看得见摸得着的材料
+            注意：它也是一种钢，并不是完全不会生锈，只是很难生锈
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：第一种完全人工合成的纤维，结实又有弹性，常用来做袜子、绳子和牙刷毛。
+            发明还是发现：发明
+            大约什么时候：1935年（20世纪），距今约90年
+            领域：材料
+            谁发明或发现：美国杜邦公司的化学家卡罗瑟斯
+            有什么用：做衣服、袜子、绳子、渔网和牙刷毛
+            能不能直接看见或摸到：能，是看得见摸得着的材料
+            注意：它是人工合成的，不是从植物或动物身上来的；最早的热门商品是长筒袜
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：刻在龟甲和兽骨上的古老汉字，是目前已知最早的成体系的中国文字。
+            发明还是发现：发现（古人创造的文字，1899年被发现）
+            大约什么时候：商朝时刻写，距今3000多年；1899年被人们发现
+            领域：文字与书写
+            谁发明或发现：文字是商朝人创造的；1899年王懿荣发现并认出它
+            有什么用：让人们了解商朝的历史和汉字的起源
+            能不能直接看见或摸到：能，刻字的龟甲和骨头保存在博物馆里
+            注意：王懿荣发现它和一味叫“龙骨”的中药有关；它是汉字的祖先
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：从植物青蒿里提取出的药物，能有效治疗疟疾，挽救了全世界很多人的生命。
+            发明还是发现：发现
+            大约什么时候：1972年（20世纪），距今50多年
+            领域：医学
+            谁发明或发现：中国的屠呦呦和她的团队，她因此获得2015年诺贝尔奖
+            有什么用：治疗疟疾这种由蚊子传播的疾病
+            能不能直接看见或摸到：能，做成的药能看见，但要医生开才能用
+            注意：灵感来自中国古代医书《肘后备急方》；它来自植物，不是动物
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：把牛奶等食物加热到一定温度并保持一会儿，杀死其中有害细菌的方法。
+            发明还是发现：发明
+            大约什么时候：1864年前后（19世纪），距今160多年
+            领域：农业与食品、医学
+            谁发明或发现：法国科学家巴斯德，最早用来防止酒变酸
+            有什么用：让牛奶、果汁更安全，保存得更久
+            能不能直接看见或摸到：它是一种方法，看不见摸不着
+            注意：它的温度比沸点低，不是把食物煮沸；很多盒装牛奶都用它处理
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p12
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：太阳系的第七颗行星，是第一颗用望远镜发现的行星，躺着绕太阳转。
+            发明还是发现：发现
+            大约什么时候：1781年（18世纪），距今约245年
+            领域：天文
+            谁发明或发现：德国出生的英国天文学家赫歇尔，他原来是一位音乐家
+            有什么用：让人们知道太阳系比想象中大，行星不止六颗
+            能不能直接看见或摸到：肉眼很难看到，要用望远镜；它离地球非常远
+            注意：它是冰巨星，没有能站立的地面；它是躺着自转的
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p13
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：心脏像水泵一样把血液压出去，血液在血管里流遍全身再流回心脏的过程。
+            发明还是发现：发现
+            大约什么时候：1628年正式发表（17世纪），距今约400年
+            领域：医学、生物
+            谁发明或发现：英国医生哈维；更早阿拉伯的伊本·纳菲斯发现过其中一段
+            有什么用：让人们正确认识心脏和血管的作用，推动了医学发展
+            能不能直接看见或摸到：不能直接看见，但能摸到手腕上的脉搏
+            注意：以前人们以为血液会在身体里被用完；推动它的动力是心脏
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：用半导体材料做成的微小电子开关，能控制和放大电流，是现代电子设备的基础。
+            发明还是发现：发明
+            大约什么时候：1947年（20世纪），距今约80年
+            领域：计算与信息
+            谁发明或发现：美国贝尔实验室的巴丁、布拉顿等三位科学家
+            有什么用：代替笨重的电子管，让收音机、电脑变小变快
+            能不能直接看见或摸到：早期的能看见，现在芯片里的太小，看不见
+            注意：它要用电；一块手机芯片里有几十亿个它；三位发明者获得了诺贝尔奖
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：通过网址和链接把全世界的网页连在一起的信息系统，让人能用浏览器浏览网页。
+            发明还是发现：发明
+            大约什么时候：1989年提出，1991年向公众开放
+            领域：计算与信息
+            谁发明或发现：英国的伯纳斯-李，在欧洲核子研究中心工作时发明
+            有什么用：让人们方便地浏览网页、查找资料
+            能不能直接看见或摸到：它是一个信息系统，只能在屏幕上看到网页
+            注意：它不等于互联网，而是互联网上的一种服务；发明者没有为它申请专利
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：只用0和1两个数字来表示所有数的记数方法，电脑里的信息都用它来存储。
+            发明还是发现：发明
+            大约什么时候：1679年前后系统提出，1703年发表（17到18世纪）
+            领域：计算与信息
+            谁发明或发现：德国的莱布尼茨系统地提出，他还注意到它和中国的《易经》相似
+            有什么用：电脑用它来计算和存储所有信息
+            能不能直接看见或摸到：它是一种记数方法，写出来能看见
+            注意：它逢二进一；我们平常用的十进制里的2，用它写作10
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：DNA分子像一架扭转的梯子，由两条链互相缠绕成螺旋形，里面藏着生物的遗传信息。
+            发明还是发现：发现
+            大约什么时候：1953年（20世纪），距今70多年
+            领域：生物
+            谁发明或发现：美国的沃森和英国的克里克提出，富兰克林拍的X射线照片是关键证据
+            有什么用：让人们明白遗传信息怎样储存和复制，推动了基因科学
+            能不能直接看见或摸到：不能直接看见，要用特殊的科学方法才能研究
+            注意：它是一个团队的成果，富兰克林的贡献很重要；它存在于细胞里
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：父母的特征怎样传给孩子的规律，是一位科学家通过种豌豆发现的。
+            发明还是发现：发现
+            大约什么时候：1865年发表（19世纪），1900年才被人们重新发现
+            领域：生物
+            谁发明或发现：奥地利的孟德尔，他用豌豆做了8年实验
+            有什么用：奠定了遗传学的基础，帮助培育更好的农作物
+            能不能直接看见或摸到：不能，它是一种科学规律，只能看到生物表现出的特征
+            注意：它发表时没人重视，孟德尔去世后才被认可；孟德尔被称为遗传学之父
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：认为地球上的大陆原来连在一起、后来慢慢漂移分开的学说。
+            发明还是发现：发现（一种科学学说）
+            大约什么时候：1912年提出（20世纪初），距今100多年
+            领域：科学原理（地理）
+            谁发明或发现：德国的魏格纳，他注意到南美洲和非洲的海岸线能拼在一起
+            有什么用：帮助解释山脉和海洋怎样形成，后来发展成板块构造学说
+            能不能直接看见或摸到：不能，它是一种学说；大陆每年只移动几厘米
+            注意：刚提出时很多人不相信；魏格纳是看着世界地图产生这个想法的
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：一种常见的药，能退烧、止痛，最早的灵感来自柳树皮。
+            发明还是发现：发明
+            大约什么时候：1897年人工合成（19世纪末），距今约130年
+            领域：医学
+            谁发明或发现：说法不一，一般认为是德国的化学家霍夫曼
+            有什么用：退烧、止痛，也用来预防某些心脏疾病
+            能不能直接看见或摸到：能，做成的药片能看见，但要听医生和家长的
+            注意：古人很早就用柳树皮止痛；小朋友不能自己吃药
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：古代两河流域的人用芦苇笔在泥板上压出的文字，笔画像一个个钉子或楔子。
+            发明还是发现：发明
+            大约什么时候：约公元前3200年，距今约5000多年
+            领域：文字与书写
+            谁发明或发现：古代美索不达米亚（两河流域）的苏美尔人
+            有什么用：记录账目、法律和故事，是已知最早的文字之一
+            能不能直接看见或摸到：能，刻字的泥板保存在博物馆里
+            注意：它写在泥板上，不是纸上；它比甲骨文早得多
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：在混凝土里放进钢筋做成的建筑材料，又耐压又耐拉，高楼大桥都离不开它。
+            发明还是发现：发明
+            大约什么时候：19世纪中期，1867年获得专利
+            领域：材料
+            谁发明或发现：说法不一，法国园艺师莫尼耶为做结实的花盆而发明
+            有什么用：建造高楼、桥梁、隧道和大坝
+            能不能直接看见或摸到：能，是看得见摸得着的材料
+            注意：获得专利的人是一位园丁，不是建筑师；钢筋藏在混凝土里面
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：人体胰腺分泌的一种激素，帮助身体利用糖分，也是治疗糖尿病的重要药物。
+            发明还是发现：发现
+            大约什么时候：1921年（20世纪），距今100多年
+            领域：医学
+            谁发明或发现：加拿大的班廷和贝斯特等人
+            有什么用：帮助糖尿病人控制血糖
+            能不能直接看见或摸到：能，做成的药能看见，要在医生指导下使用
+            注意：人体自己就能产生它；班廷等人把专利以1美元卖给大学，让更多人用得起
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：靠锂离子在正负极之间来回移动来储存电能的可充电电池，手机里都有它。
+            发明还是发现：发明
+            大约什么时候：20世纪70到80年代研发，1991年开始出售
+            领域：能源
+            谁发明或发现：古迪纳夫、惠廷厄姆和日本的吉野彰，获2019年诺贝尔化学奖
+            有什么用：给手机、电脑、电动汽车供电
+            能不能直接看见或摸到：能，是看得见摸得着的物品
+            注意：它可以反复充电；不能挤压和刺破，否则可能着火
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：表示“没有”的数字，也用来占位，比如10和100里的它，让记数和计算变得简单。
+            发明还是发现：发明
+            大约什么时候：公元7世纪的印度已把它当作真正的数来计算
+            领域：计算与信息（数学）
+            谁发明或发现：说法不一，印度的婆罗摩笈多最早写下它的运算规则
+            有什么用：表示“没有”和占位，让十进制记数更方便
+            能不能直接看见或摸到：它是一个数字符号，写出来能看见
+            注意：它不是正数也不是负数；任何数乘它结果都是它
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p12
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：没有发动机、靠翅膀借助气流在空中滑翔的飞行器。
+            发明还是发现：发明
+            大约什么时候：19世纪，1853年第一次载人滑翔，1891年起多次成功飞行
+            领域：交通
+            谁发明或发现：英国的凯利造出载人的，德国的李林塔尔完成了两千多次飞行
+            有什么用：运动和训练，也为发明飞机打下了基础
+            能不能直接看见或摸到：能，是看得见摸得着的飞行器
+            注意：它没有发动机；莱特兄弟也先用它练习飞行
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：把空气吸进来和燃料一起燃烧，再向后高速喷出气体来推动飞机的发动机。
+            发明还是发现：发明
+            大约什么时候：1930年获得专利，1937年到1939年第一次试验成功
+            领域：交通、能源
+            谁发明或发现：说法不一：英国的惠特尔和德国的冯·奥海恩各自独立发明
+            有什么用：推动大型客机高速飞行
+            能不能直接看见或摸到：能，大型客机翅膀下挂着的就是
+            注意：它靠向后喷气获得向前的力；它和螺旋桨不一样
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：用X射线从很多角度给身体拍照，再用电脑合成出身体内部切面图像的检查方法。
+            发明还是发现：发明
+            大约什么时候：1971年第一次用于病人（20世纪），距今50多年
+            领域：医学
+            谁发明或发现：英国的豪恩斯菲尔德和美国的科马克，共同获得1979年诺贝尔奖
+            有什么用：帮医生看清身体里面，比普通拍片更清楚
+            能不能直接看见或摸到：它是一种检查方法，用到的机器能看见摸到
+            注意：检查时人要躺着进入一个圆环形的机器；它用的是X射线
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：把心脏跳动时产生的微弱电信号记录下来画成的波形图，用来检查心脏。
+            发明还是发现：发明
+            大约什么时候：1903年发明实用的（20世纪初），距今120多年
+            领域：医学
+            谁发明或发现：荷兰的艾因特霍芬，因此获得1924年诺贝尔奖
+            有什么用：帮医生检查心脏跳得是否正常
+            能不能直接看见或摸到：能，打印出来是一张有波浪线的纸
+            注意：检查时不疼，要在身上贴几个电极；早期的机器重约270公斤
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：一种想象出来的计算模型，用一条无限长的纸带和读写头来说明计算是怎么回事。
+            发明还是发现：发明（一种理论模型）
+            大约什么时候：1936年提出（20世纪），距今约90年
+            领域：计算与信息
+            谁发明或发现：英国的数学家图灵，他被称为计算机科学之父
+            有什么用：奠定了电脑科学的理论基础
+            能不能直接看见或摸到：不能，它是想象出来的模型，不是真正造出来的机器
+            注意：它不是真正的机器；计算机领域的最高奖以图灵的名字命名
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：太阳系离太阳最远的行星，是先用数学算出位置、再用望远镜找到的。
+            发明还是发现：发现
+            大约什么时候：1846年（19世纪），距今180年
+            领域：天文
+            谁发明或发现：法国的勒威耶算出位置，德国的伽勒用望远镜找到
+            有什么用：证明了用数学能预言新天体，被称为“笔尖上发现的行星”
+            能不能直接看见或摸到：肉眼看不到，要用望远镜
+            注意：它是蓝色的冰巨星；伽利略早年曾看到过它，却以为是一颗恒星
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：描述行星怎样绕太阳运动的三条规律，比如行星的轨道是椭圆形的。
+            发明还是发现：发现
+            大约什么时候：1609年和1619年先后发表（17世纪），距今约400年
+            领域：天文
+            谁发明或发现：德国天文学家开普勒，用了老师第谷的观测数据
+            有什么用：为牛顿发现万有引力打下了基础
+            能不能直接看见或摸到：不能，它是一种科学规律
+            注意：它说行星轨道是椭圆，不是正圆；离太阳越近的行星转得越快
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：化学反应前后，参加反应的物质总质量保持不变的规律。
+            发明还是发现：发现
+            大约什么时候：1774年到1789年（18世纪），距今约240年
+            领域：科学原理（化学）
+            谁发明或发现：说法不一：法国的拉瓦锡用实验证明，俄国的罗蒙诺索夫更早提出
+            有什么用：是化学的基本规律，帮助人们准确计算化学反应
+            能不能直接看见或摸到：不能，它是一种科学规律
+            注意：蜡烛燃烧后变轻，是因为生成的气体跑到空气里了，总质量没变
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：用许多圆环代表天空中的各种圆圈，用来观测和演示天体运行的古代仪器。
+            发明还是发现：发明
+            大约什么时候：西汉已有，东汉张衡在公元117年前后造出用水力推动的
+            领域：天文
+            谁发明或发现：说法不一：西汉的落下闳造过，东汉的张衡作了重大改进
+            有什么用：观测星星的位置，演示天体的运行
+            能不能直接看见或摸到：能，南京紫金山天文台等地保存着明代的仿制品
+            注意：古希腊也有类似的仪器；张衡的那一架用水力推动转动
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：断电后也能保存资料的存储芯片，U盘、手机和存储卡里都用它。
+            发明还是发现：发明
+            大约什么时候：1980年前后（20世纪），1984年公开发表
+            领域：计算与信息
+            谁发明或发现：日本东芝公司的工程师舛冈富士雄
+            有什么用：存储照片、视频、文件等资料
+            能不能直接看见或摸到：能看见摸到芯片，但里面的结构非常小
+            注意：断电后资料也不会丢；名字来自擦除资料像相机闪光一样快
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：能通过电话线把纸上的文字和图片传到远方、再打印出来的机器。
+            发明还是发现：发明
+            大约什么时候：1843年获得最早的专利（19世纪），比电话还早
+            领域：通信
+            谁发明或发现：英国的贝恩最早申请了专利
+            有什么用：快速传送文件、图纸和签名
+            能不能直接看见或摸到：能，是看得见摸得着的机器
+            注意：它最早的专利比电话早30多年；现在大多被电子邮件代替了
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：古代地中海东岸的人使用的22个字母，希腊字母和英文字母都从它发展而来。
+            发明还是发现：发明
+            大约什么时候：约公元前1050年前后定型，距今约3000年
+            领域：文字与书写
+            谁发明或发现：古代地中海东岸善于航海经商的腓尼基人
+            有什么用：用很少的符号就能拼写语言，便于商人记账和交流
+            能不能直接看见或摸到：能，刻着它的石碑和器物保存在博物馆里
+            注意：它只有辅音字母，没有元音字母；汉字不是从它发展来的
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：每隔大约76年回到地球附近一次的明亮彗星，是第一颗被算出回归周期的彗星。
+            发明还是发现：发现（发现它会定期回来）
+            大约什么时候：1705年算出它会回来，1758年底它果然回来了
+            领域：天文
+            谁发明或发现：英国天文学家哈雷；中国古代也有很早的观测记录
+            有什么用：证明彗星会按规律绕太阳转，推动了天文学
+            能不能直接看见或摸到：它靠近地球时肉眼能看见，下次约在2061年
+            注意：哈雷没能活着看到它回来；它上次回来是1986年
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p12
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：手术时用消毒药水清洁伤口、器械和双手来杀死细菌的方法，让手术变得安全。
+            发明还是发现：发明
+            大约什么时候：1867年发表（19世纪），距今约160年
+            领域：医学
+            谁发明或发现：英国医生李斯特，他受到巴斯德细菌研究的启发
+            有什么用：大大减少手术后的伤口感染，挽救了很多病人
+            能不能直接看见或摸到：它是一种方法，看不见摸不着
+            注意：李斯特被称为“（已隐藏）之父”；以前的医生做手术前常常不洗手
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：北宋苏颂等人建造的大型天文仪器，用水力推动，能观测天象又能自动报时。
+            发明还是发现：发明
+            大约什么时候：北宋，1088年开始建造，1092年完成
+            领域：天文
+            谁发明或发现：北宋的苏颂和韩公廉等人
+            有什么用：观测星空、演示天体运行，并自动敲钟击鼓报时
+            能不能直接看见或摸到：原物已经失传，现在能看到复原模型
+            注意：它约有三层楼那么高；里面的擒纵装置是后来钟表的关键技术
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：英国人巴贝奇设计的机械计算机，能按穿孔卡片上的指令计算，被看作现代电脑的祖先。
+            发明还是发现：发明（一种设计）
+            大约什么时候：1837年设计（19世纪），距今约190年
+            领域：计算与信息
+            谁发明或发现：英国的巴贝奇设计，洛夫莱斯为它写出了被看作最早的程序
+            有什么用：设想用机器按程序自动计算，启发了后来的电脑
+            能不能直接看见或摸到：它一直没有真正造完，只留下设计图和部分零件
+            注意：它不用电，靠齿轮运转；洛夫莱斯被称为第一位程序员
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：由几把刻有对数刻度的尺子组成，拉动中间那把尺就能做乘除运算的工具。
+            发明还是发现：发明
+            大约什么时候：约1620年到1630年（17世纪），距今约400年
+            领域：计算与信息
+            谁发明或发现：英国的奥特雷德，利用了纳皮尔发明的对数
+            有什么用：在电子计算器出现前，工程师用它快速计算
+            能不能直接看见或摸到：能，是看得见摸得着的工具
+            注意：它不用电；阿波罗登月时宇航员也带着它
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：用一根很长的绳子吊着重锤的摆，摆动的方向会慢慢转动，证明了地球在自转。
+            发明还是发现：发明（一个证明地球自转的实验装置）
+            大约什么时候：1851年（19世纪），距今约175年
+            领域：科学原理
+            谁发明或发现：法国物理学家傅科
+            有什么用：直观地证明地球在自转
+            能不能直接看见或摸到：能，很多科技馆里都有
+            注意：摆动的方向看起来在转，其实是地球在它下面转；最早在巴黎公开展示
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：给每种生物起一个由属名和种名组成的拉丁文学名的方法，全世界通用。
+            发明还是发现：发明
+            大约什么时候：1753年正式推广（18世纪），距今约270年
+            领域：生物
+            谁发明或发现：瑞典的生物学家林奈
+            有什么用：让全世界科学家对同一种生物使用同一个名字
+            能不能直接看见或摸到：不能，它是一种命名方法
+            注意：人的学名是Homo sapiens，意思是智慧的人；学名用拉丁文写
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：由碳原子排成蜂窝状、只有一个原子那么厚的材料，又薄又坚固，导电性很好。
+            发明还是发现：发现（2004年第一次制取出来）
+            大约什么时候：2004年（21世纪），距今20多年
+            领域：材料
+            谁发明或发现：英国曼彻斯特大学的盖姆和诺沃肖洛夫，获2010年诺贝尔奖
+            有什么用：研究更快的芯片、更好的电池和超薄材料
+            能不能直接看见或摸到：单层的太薄，肉眼几乎看不见
+            注意：他们用普通透明胶带从石墨上粘出了它；铅笔芯里就有石墨
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：在水位高低不同的河道上，用闸门和闸室把船一级一级升高或降低的设施。
+            发明还是发现：发明
+            大约什么时候：北宋984年出现较早的双门复闸，距今1000多年
+            领域：交通
+            谁发明或发现：一般认为北宋的乔维岳最早在运河上建造
+            有什么用：让船能通过有落差的河段和水坝
+            能不能直接看见或摸到：能，是看得见摸得着的设施
+            注意：中国长江三峡大坝旁有五级的它；巴拿马运河也用它
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：把天然橡胶和硫黄一起加热做成的橡胶，不怕冷热，结实又有弹性，能做轮胎。
+            发明还是发现：发明
+            大约什么时候：1839年（19世纪），距今约190年
+            领域：材料
+            谁发明或发现：美国的固特异，据说是不小心把混合物掉在热炉子上发现的
+            有什么用：做轮胎、鞋底、橡皮管和各种密封圈
+            能不能直接看见或摸到：能，是看得见摸得着的材料
+            注意：天然橡胶天热会变黏、天冷会变脆，处理后才好用
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：在试管里把一小段DNA快速复制成千上万份的技术，常用于医学检测和科学研究。
+            发明还是发现：发明
+            大约什么时候：1983年（20世纪），距今40多年
+            领域：生物、医学
+            谁发明或发现：美国的穆利斯，获1993年诺贝尔化学奖
+            有什么用：检测疾病、研究基因、鉴定物种
+            能不能直接看见或摸到：它是一种技术，看不见摸不着，用的仪器能看见
+            注意：它像复印机一样一次次加倍复制；做一次要反复升温降温
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：在太阳系以外、绕着其他恒星转的行星，科学家已经找到了几千颗。
+            发明还是发现：发现
+            大约什么时候：1992年首次发现，1995年首次发现绕着普通恒星转的
+            领域：天文
+            谁发明或发现：瑞士的马约尔和奎洛兹等人，获2019年诺贝尔物理学奖
+            有什么用：帮助人们寻找宇宙中可能有生命的星球
+            能不能直接看见或摸到：几乎不能直接看见，大多靠恒星亮度的微小变化发现
+            注意：已确认的超过5000颗；它们离我们都非常遥远
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：一个人摇动就能同时纺出好多根纱线的机器，是英国工业革命开始的标志之一。
+            发明还是发现：发明
+            大约什么时候：1764年前后（18世纪），距今约260年
+            领域：纺织
+            谁发明或发现：英国的纺织工哈格里夫斯
+            有什么用：大大提高纺纱的速度
+            能不能直接看见或摸到：能，是看得见摸得着的机器
+            注意：最早能同时纺8根纱；相传名字来自发明者的女儿，但不一定可靠
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：车上站着一个伸手指向南方的小木人，不管车怎么转弯，小木人都一直指着南方。
+            发明还是发现：发明
+            大约什么时候：相传很早就有，三国时期约公元235年马钧造出
+            领域：科学仪器（机械）
+            谁发明或发现：相传很古老，史书记载三国时的马钧成功造出
+            有什么用：古代用来指示方向，也在皇帝出行的队伍里作仪仗
+            能不能直接看见或摸到：原物已失传，博物馆里有复原模型
+            注意：它不用磁铁，靠齿轮来保持方向，和指南针不同
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: build-host-prompt
+        type: prompt
+        inputs:
+          safety_fence:
+            from: input.safety_fence
+          history:
+            from: input.messages
+          direction:
+            from: game-direction
+        outputs:
+          messages: host-messages
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            你是儿童猜谜游戏“猜猜发明与发现”的主持人。玩法：主持人心里藏着一项发明或发现，孩子用能回答“是”或“不是”的问题来猜，每一题最多 20 次提问；猜中就升一关，一共 10 关，关名从“发明小萌新”一直到“文明解码者”。孩子可能说中文，也可能说英文。
+            你不知道谜底的名字。需要回答孩子的问题时，系统会在【谜底卡】里给你这一题的资料，谜底的名字已经隐藏，你也不要去猜它叫什么；回答是非题时以这张卡为准，卡上没写到又拿不准的就说说不准。揭晓答案时系统才会在指令里告诉你名字。本轮要做什么写在对话最后的【本轮指令】里，照着做，说得自然、热情、简短。
+            孩子说的“它”“这个东西”“this”“it”都指谜底这项发明或发现。是发明还是发现、出现的年代、用途和发明者都按谜底卡上的公认说法判断；卡上写着说法不一时，问到“是某一个人发明的吗”不要直接说“是”，以“有一部分是”开头；卡上写着不详时，问到具体是哪个人就以“这个我也说不准”开头。
+            必须遵守：
+            1. 本轮指令要求“逐字说”的句子必须一字不差地说出来，包括数字、标点和引号里的称号，不改写、不省略、不调换顺序。
+            2. 只回答孩子问到的那一点，绝不能主动补充谜底卡上的其他描述、线索、特征、猜测方向或评价；复述孩子的问题时只能用孩子问题里已有的意思。
+            3. 只有本轮指令要求揭晓答案时才能说“答案揭晓”“答案就是”“The answer is”；只有本轮指令要求开新题时才能说“谜题来啦”“Puzzle time”；只有真的给提示时才能说“小提示”“Hint”。平时绝不能说这些词。
+            4. 按【本轮指令】写明的回复语言回答：中文就全部用中文；English 就全部用英文，逐字句也用指令给出的英文原句。
+            5. 安全永远优先于本轮指令：孩子提到要在现实中模仿危险做法或遇到安全问题时，中文回复必须逐字包含“不要模仿”和“找家长、老师或可信任成年人帮助”，英文回复要说 do not copy it 并请孩子 ask a parent, teacher or trusted adult for help。
+            6. 不要自己数还剩几次提问机会，只有本轮指令写了剩余次数时才说那个数字。
+            7. 语气像节目主持人一样活泼友好，适合小朋友；平时回复1到3句话、100个字以内，开新题和揭晓答案时可以到150个字；最后一句必须是问孩子的问题，道别时也用一个轻松的问题结尾。
+            8. 只输出适合朗读的正文，不输出 Markdown、列表、emoji、括号注释、舞台说明或系统字段，也不要提到“本轮指令”“裁判”这些词。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: host-model
+        type: chat_model
+        inputs:
+          messages:
+            from: host-messages
+        outputs:
+          text: answer
+        model: eino-guess-inventions-discoveries.model
+        max_tokens: 512
+        temperature: 0.3
+      edges:
+      - from: start
+        to: control-round
+      - {from: card-l01-p00, to: host-model}
+      - {from: card-l01-p01, to: host-model}
+      - {from: card-l01-p02, to: host-model}
+      - {from: card-l01-p03, to: host-model}
+      - {from: card-l01-p04, to: host-model}
+      - {from: card-l01-p05, to: host-model}
+      - {from: card-l01-p06, to: host-model}
+      - {from: card-l01-p07, to: host-model}
+      - {from: card-l01-p08, to: host-model}
+      - {from: card-l01-p09, to: host-model}
+      - {from: card-l01-p10, to: host-model}
+      - {from: card-l01-p11, to: host-model}
+      - {from: card-l01-p12, to: host-model}
+      - {from: card-l01-p13, to: host-model}
+      - {from: card-l01-p14, to: host-model}
+      - {from: card-l01-p15, to: host-model}
+      - {from: card-l02-p00, to: host-model}
+      - {from: card-l02-p01, to: host-model}
+      - {from: card-l02-p02, to: host-model}
+      - {from: card-l02-p03, to: host-model}
+      - {from: card-l02-p04, to: host-model}
+      - {from: card-l02-p05, to: host-model}
+      - {from: card-l02-p06, to: host-model}
+      - {from: card-l02-p07, to: host-model}
+      - {from: card-l02-p08, to: host-model}
+      - {from: card-l02-p09, to: host-model}
+      - {from: card-l02-p10, to: host-model}
+      - {from: card-l02-p11, to: host-model}
+      - {from: card-l02-p12, to: host-model}
+      - {from: card-l02-p13, to: host-model}
+      - {from: card-l02-p14, to: host-model}
+      - {from: card-l02-p15, to: host-model}
+      - {from: card-l03-p00, to: host-model}
+      - {from: card-l03-p01, to: host-model}
+      - {from: card-l03-p02, to: host-model}
+      - {from: card-l03-p03, to: host-model}
+      - {from: card-l03-p04, to: host-model}
+      - {from: card-l03-p05, to: host-model}
+      - {from: card-l03-p06, to: host-model}
+      - {from: card-l03-p07, to: host-model}
+      - {from: card-l03-p08, to: host-model}
+      - {from: card-l03-p09, to: host-model}
+      - {from: card-l03-p10, to: host-model}
+      - {from: card-l03-p11, to: host-model}
+      - {from: card-l03-p12, to: host-model}
+      - {from: card-l03-p13, to: host-model}
+      - {from: card-l03-p14, to: host-model}
+      - {from: card-l03-p15, to: host-model}
+      - {from: card-l04-p00, to: host-model}
+      - {from: card-l04-p01, to: host-model}
+      - {from: card-l04-p02, to: host-model}
+      - {from: card-l04-p03, to: host-model}
+      - {from: card-l04-p04, to: host-model}
+      - {from: card-l04-p05, to: host-model}
+      - {from: card-l04-p06, to: host-model}
+      - {from: card-l04-p07, to: host-model}
+      - {from: card-l04-p08, to: host-model}
+      - {from: card-l04-p09, to: host-model}
+      - {from: card-l04-p10, to: host-model}
+      - {from: card-l04-p11, to: host-model}
+      - {from: card-l04-p12, to: host-model}
+      - {from: card-l04-p13, to: host-model}
+      - {from: card-l04-p14, to: host-model}
+      - {from: card-l05-p00, to: host-model}
+      - {from: card-l05-p01, to: host-model}
+      - {from: card-l05-p02, to: host-model}
+      - {from: card-l05-p03, to: host-model}
+      - {from: card-l05-p04, to: host-model}
+      - {from: card-l05-p05, to: host-model}
+      - {from: card-l05-p06, to: host-model}
+      - {from: card-l05-p07, to: host-model}
+      - {from: card-l05-p08, to: host-model}
+      - {from: card-l05-p09, to: host-model}
+      - {from: card-l05-p10, to: host-model}
+      - {from: card-l05-p11, to: host-model}
+      - {from: card-l05-p12, to: host-model}
+      - {from: card-l05-p13, to: host-model}
+      - {from: card-l05-p14, to: host-model}
+      - {from: card-l06-p00, to: host-model}
+      - {from: card-l06-p01, to: host-model}
+      - {from: card-l06-p02, to: host-model}
+      - {from: card-l06-p03, to: host-model}
+      - {from: card-l06-p04, to: host-model}
+      - {from: card-l06-p05, to: host-model}
+      - {from: card-l06-p06, to: host-model}
+      - {from: card-l06-p07, to: host-model}
+      - {from: card-l06-p08, to: host-model}
+      - {from: card-l06-p09, to: host-model}
+      - {from: card-l06-p10, to: host-model}
+      - {from: card-l06-p11, to: host-model}
+      - {from: card-l06-p12, to: host-model}
+      - {from: card-l06-p13, to: host-model}
+      - {from: card-l07-p00, to: host-model}
+      - {from: card-l07-p01, to: host-model}
+      - {from: card-l07-p02, to: host-model}
+      - {from: card-l07-p03, to: host-model}
+      - {from: card-l07-p04, to: host-model}
+      - {from: card-l07-p05, to: host-model}
+      - {from: card-l07-p06, to: host-model}
+      - {from: card-l07-p07, to: host-model}
+      - {from: card-l07-p08, to: host-model}
+      - {from: card-l07-p09, to: host-model}
+      - {from: card-l07-p10, to: host-model}
+      - {from: card-l07-p11, to: host-model}
+      - {from: card-l07-p12, to: host-model}
+      - {from: card-l07-p13, to: host-model}
+      - {from: card-l08-p00, to: host-model}
+      - {from: card-l08-p01, to: host-model}
+      - {from: card-l08-p02, to: host-model}
+      - {from: card-l08-p03, to: host-model}
+      - {from: card-l08-p04, to: host-model}
+      - {from: card-l08-p05, to: host-model}
+      - {from: card-l08-p06, to: host-model}
+      - {from: card-l08-p07, to: host-model}
+      - {from: card-l08-p08, to: host-model}
+      - {from: card-l08-p09, to: host-model}
+      - {from: card-l08-p10, to: host-model}
+      - {from: card-l08-p11, to: host-model}
+      - {from: card-l08-p12, to: host-model}
+      - {from: card-l09-p00, to: host-model}
+      - {from: card-l09-p01, to: host-model}
+      - {from: card-l09-p02, to: host-model}
+      - {from: card-l09-p03, to: host-model}
+      - {from: card-l09-p04, to: host-model}
+      - {from: card-l09-p05, to: host-model}
+      - {from: card-l09-p06, to: host-model}
+      - {from: card-l09-p07, to: host-model}
+      - {from: card-l09-p08, to: host-model}
+      - {from: card-l09-p09, to: host-model}
+      - {from: card-l09-p10, to: host-model}
+      - {from: card-l09-p11, to: host-model}
+      - {from: card-l09-p12, to: host-model}
+      - {from: card-l10-p00, to: host-model}
+      - {from: card-l10-p01, to: host-model}
+      - {from: card-l10-p02, to: host-model}
+      - {from: card-l10-p03, to: host-model}
+      - {from: card-l10-p04, to: host-model}
+      - {from: card-l10-p05, to: host-model}
+      - {from: card-l10-p06, to: host-model}
+      - {from: card-l10-p07, to: host-model}
+      - {from: card-l10-p08, to: host-model}
+      - {from: card-l10-p09, to: host-model}
+      - {from: card-l10-p10, to: host-model}
+      - {from: card-l10-p11, to: host-model}
+      - from: build-host-prompt
+        to: host-model
+      - from: host-model
+        to: end
+      branches:
+      - from: control-round
+        mode: first_match
+        routes:
+        - {when: {field: game-node, op: eq, value: card-l01-p00}, to: card-l01-p00}
+        - {when: {field: game-node, op: eq, value: card-l01-p01}, to: card-l01-p01}
+        - {when: {field: game-node, op: eq, value: card-l01-p02}, to: card-l01-p02}
+        - {when: {field: game-node, op: eq, value: card-l01-p03}, to: card-l01-p03}
+        - {when: {field: game-node, op: eq, value: card-l01-p04}, to: card-l01-p04}
+        - {when: {field: game-node, op: eq, value: card-l01-p05}, to: card-l01-p05}
+        - {when: {field: game-node, op: eq, value: card-l01-p06}, to: card-l01-p06}
+        - {when: {field: game-node, op: eq, value: card-l01-p07}, to: card-l01-p07}
+        - {when: {field: game-node, op: eq, value: card-l01-p08}, to: card-l01-p08}
+        - {when: {field: game-node, op: eq, value: card-l01-p09}, to: card-l01-p09}
+        - {when: {field: game-node, op: eq, value: card-l01-p10}, to: card-l01-p10}
+        - {when: {field: game-node, op: eq, value: card-l01-p11}, to: card-l01-p11}
+        - {when: {field: game-node, op: eq, value: card-l01-p12}, to: card-l01-p12}
+        - {when: {field: game-node, op: eq, value: card-l01-p13}, to: card-l01-p13}
+        - {when: {field: game-node, op: eq, value: card-l01-p14}, to: card-l01-p14}
+        - {when: {field: game-node, op: eq, value: card-l01-p15}, to: card-l01-p15}
+        - {when: {field: game-node, op: eq, value: card-l02-p00}, to: card-l02-p00}
+        - {when: {field: game-node, op: eq, value: card-l02-p01}, to: card-l02-p01}
+        - {when: {field: game-node, op: eq, value: card-l02-p02}, to: card-l02-p02}
+        - {when: {field: game-node, op: eq, value: card-l02-p03}, to: card-l02-p03}
+        - {when: {field: game-node, op: eq, value: card-l02-p04}, to: card-l02-p04}
+        - {when: {field: game-node, op: eq, value: card-l02-p05}, to: card-l02-p05}
+        - {when: {field: game-node, op: eq, value: card-l02-p06}, to: card-l02-p06}
+        - {when: {field: game-node, op: eq, value: card-l02-p07}, to: card-l02-p07}
+        - {when: {field: game-node, op: eq, value: card-l02-p08}, to: card-l02-p08}
+        - {when: {field: game-node, op: eq, value: card-l02-p09}, to: card-l02-p09}
+        - {when: {field: game-node, op: eq, value: card-l02-p10}, to: card-l02-p10}
+        - {when: {field: game-node, op: eq, value: card-l02-p11}, to: card-l02-p11}
+        - {when: {field: game-node, op: eq, value: card-l02-p12}, to: card-l02-p12}
+        - {when: {field: game-node, op: eq, value: card-l02-p13}, to: card-l02-p13}
+        - {when: {field: game-node, op: eq, value: card-l02-p14}, to: card-l02-p14}
+        - {when: {field: game-node, op: eq, value: card-l02-p15}, to: card-l02-p15}
+        - {when: {field: game-node, op: eq, value: card-l03-p00}, to: card-l03-p00}
+        - {when: {field: game-node, op: eq, value: card-l03-p01}, to: card-l03-p01}
+        - {when: {field: game-node, op: eq, value: card-l03-p02}, to: card-l03-p02}
+        - {when: {field: game-node, op: eq, value: card-l03-p03}, to: card-l03-p03}
+        - {when: {field: game-node, op: eq, value: card-l03-p04}, to: card-l03-p04}
+        - {when: {field: game-node, op: eq, value: card-l03-p05}, to: card-l03-p05}
+        - {when: {field: game-node, op: eq, value: card-l03-p06}, to: card-l03-p06}
+        - {when: {field: game-node, op: eq, value: card-l03-p07}, to: card-l03-p07}
+        - {when: {field: game-node, op: eq, value: card-l03-p08}, to: card-l03-p08}
+        - {when: {field: game-node, op: eq, value: card-l03-p09}, to: card-l03-p09}
+        - {when: {field: game-node, op: eq, value: card-l03-p10}, to: card-l03-p10}
+        - {when: {field: game-node, op: eq, value: card-l03-p11}, to: card-l03-p11}
+        - {when: {field: game-node, op: eq, value: card-l03-p12}, to: card-l03-p12}
+        - {when: {field: game-node, op: eq, value: card-l03-p13}, to: card-l03-p13}
+        - {when: {field: game-node, op: eq, value: card-l03-p14}, to: card-l03-p14}
+        - {when: {field: game-node, op: eq, value: card-l03-p15}, to: card-l03-p15}
+        - {when: {field: game-node, op: eq, value: card-l04-p00}, to: card-l04-p00}
+        - {when: {field: game-node, op: eq, value: card-l04-p01}, to: card-l04-p01}
+        - {when: {field: game-node, op: eq, value: card-l04-p02}, to: card-l04-p02}
+        - {when: {field: game-node, op: eq, value: card-l04-p03}, to: card-l04-p03}
+        - {when: {field: game-node, op: eq, value: card-l04-p04}, to: card-l04-p04}
+        - {when: {field: game-node, op: eq, value: card-l04-p05}, to: card-l04-p05}
+        - {when: {field: game-node, op: eq, value: card-l04-p06}, to: card-l04-p06}
+        - {when: {field: game-node, op: eq, value: card-l04-p07}, to: card-l04-p07}
+        - {when: {field: game-node, op: eq, value: card-l04-p08}, to: card-l04-p08}
+        - {when: {field: game-node, op: eq, value: card-l04-p09}, to: card-l04-p09}
+        - {when: {field: game-node, op: eq, value: card-l04-p10}, to: card-l04-p10}
+        - {when: {field: game-node, op: eq, value: card-l04-p11}, to: card-l04-p11}
+        - {when: {field: game-node, op: eq, value: card-l04-p12}, to: card-l04-p12}
+        - {when: {field: game-node, op: eq, value: card-l04-p13}, to: card-l04-p13}
+        - {when: {field: game-node, op: eq, value: card-l04-p14}, to: card-l04-p14}
+        - {when: {field: game-node, op: eq, value: card-l05-p00}, to: card-l05-p00}
+        - {when: {field: game-node, op: eq, value: card-l05-p01}, to: card-l05-p01}
+        - {when: {field: game-node, op: eq, value: card-l05-p02}, to: card-l05-p02}
+        - {when: {field: game-node, op: eq, value: card-l05-p03}, to: card-l05-p03}
+        - {when: {field: game-node, op: eq, value: card-l05-p04}, to: card-l05-p04}
+        - {when: {field: game-node, op: eq, value: card-l05-p05}, to: card-l05-p05}
+        - {when: {field: game-node, op: eq, value: card-l05-p06}, to: card-l05-p06}
+        - {when: {field: game-node, op: eq, value: card-l05-p07}, to: card-l05-p07}
+        - {when: {field: game-node, op: eq, value: card-l05-p08}, to: card-l05-p08}
+        - {when: {field: game-node, op: eq, value: card-l05-p09}, to: card-l05-p09}
+        - {when: {field: game-node, op: eq, value: card-l05-p10}, to: card-l05-p10}
+        - {when: {field: game-node, op: eq, value: card-l05-p11}, to: card-l05-p11}
+        - {when: {field: game-node, op: eq, value: card-l05-p12}, to: card-l05-p12}
+        - {when: {field: game-node, op: eq, value: card-l05-p13}, to: card-l05-p13}
+        - {when: {field: game-node, op: eq, value: card-l05-p14}, to: card-l05-p14}
+        - {when: {field: game-node, op: eq, value: card-l06-p00}, to: card-l06-p00}
+        - {when: {field: game-node, op: eq, value: card-l06-p01}, to: card-l06-p01}
+        - {when: {field: game-node, op: eq, value: card-l06-p02}, to: card-l06-p02}
+        - {when: {field: game-node, op: eq, value: card-l06-p03}, to: card-l06-p03}
+        - {when: {field: game-node, op: eq, value: card-l06-p04}, to: card-l06-p04}
+        - {when: {field: game-node, op: eq, value: card-l06-p05}, to: card-l06-p05}
+        - {when: {field: game-node, op: eq, value: card-l06-p06}, to: card-l06-p06}
+        - {when: {field: game-node, op: eq, value: card-l06-p07}, to: card-l06-p07}
+        - {when: {field: game-node, op: eq, value: card-l06-p08}, to: card-l06-p08}
+        - {when: {field: game-node, op: eq, value: card-l06-p09}, to: card-l06-p09}
+        - {when: {field: game-node, op: eq, value: card-l06-p10}, to: card-l06-p10}
+        - {when: {field: game-node, op: eq, value: card-l06-p11}, to: card-l06-p11}
+        - {when: {field: game-node, op: eq, value: card-l06-p12}, to: card-l06-p12}
+        - {when: {field: game-node, op: eq, value: card-l06-p13}, to: card-l06-p13}
+        - {when: {field: game-node, op: eq, value: card-l07-p00}, to: card-l07-p00}
+        - {when: {field: game-node, op: eq, value: card-l07-p01}, to: card-l07-p01}
+        - {when: {field: game-node, op: eq, value: card-l07-p02}, to: card-l07-p02}
+        - {when: {field: game-node, op: eq, value: card-l07-p03}, to: card-l07-p03}
+        - {when: {field: game-node, op: eq, value: card-l07-p04}, to: card-l07-p04}
+        - {when: {field: game-node, op: eq, value: card-l07-p05}, to: card-l07-p05}
+        - {when: {field: game-node, op: eq, value: card-l07-p06}, to: card-l07-p06}
+        - {when: {field: game-node, op: eq, value: card-l07-p07}, to: card-l07-p07}
+        - {when: {field: game-node, op: eq, value: card-l07-p08}, to: card-l07-p08}
+        - {when: {field: game-node, op: eq, value: card-l07-p09}, to: card-l07-p09}
+        - {when: {field: game-node, op: eq, value: card-l07-p10}, to: card-l07-p10}
+        - {when: {field: game-node, op: eq, value: card-l07-p11}, to: card-l07-p11}
+        - {when: {field: game-node, op: eq, value: card-l07-p12}, to: card-l07-p12}
+        - {when: {field: game-node, op: eq, value: card-l07-p13}, to: card-l07-p13}
+        - {when: {field: game-node, op: eq, value: card-l08-p00}, to: card-l08-p00}
+        - {when: {field: game-node, op: eq, value: card-l08-p01}, to: card-l08-p01}
+        - {when: {field: game-node, op: eq, value: card-l08-p02}, to: card-l08-p02}
+        - {when: {field: game-node, op: eq, value: card-l08-p03}, to: card-l08-p03}
+        - {when: {field: game-node, op: eq, value: card-l08-p04}, to: card-l08-p04}
+        - {when: {field: game-node, op: eq, value: card-l08-p05}, to: card-l08-p05}
+        - {when: {field: game-node, op: eq, value: card-l08-p06}, to: card-l08-p06}
+        - {when: {field: game-node, op: eq, value: card-l08-p07}, to: card-l08-p07}
+        - {when: {field: game-node, op: eq, value: card-l08-p08}, to: card-l08-p08}
+        - {when: {field: game-node, op: eq, value: card-l08-p09}, to: card-l08-p09}
+        - {when: {field: game-node, op: eq, value: card-l08-p10}, to: card-l08-p10}
+        - {when: {field: game-node, op: eq, value: card-l08-p11}, to: card-l08-p11}
+        - {when: {field: game-node, op: eq, value: card-l08-p12}, to: card-l08-p12}
+        - {when: {field: game-node, op: eq, value: card-l09-p00}, to: card-l09-p00}
+        - {when: {field: game-node, op: eq, value: card-l09-p01}, to: card-l09-p01}
+        - {when: {field: game-node, op: eq, value: card-l09-p02}, to: card-l09-p02}
+        - {when: {field: game-node, op: eq, value: card-l09-p03}, to: card-l09-p03}
+        - {when: {field: game-node, op: eq, value: card-l09-p04}, to: card-l09-p04}
+        - {when: {field: game-node, op: eq, value: card-l09-p05}, to: card-l09-p05}
+        - {when: {field: game-node, op: eq, value: card-l09-p06}, to: card-l09-p06}
+        - {when: {field: game-node, op: eq, value: card-l09-p07}, to: card-l09-p07}
+        - {when: {field: game-node, op: eq, value: card-l09-p08}, to: card-l09-p08}
+        - {when: {field: game-node, op: eq, value: card-l09-p09}, to: card-l09-p09}
+        - {when: {field: game-node, op: eq, value: card-l09-p10}, to: card-l09-p10}
+        - {when: {field: game-node, op: eq, value: card-l09-p11}, to: card-l09-p11}
+        - {when: {field: game-node, op: eq, value: card-l09-p12}, to: card-l09-p12}
+        - {when: {field: game-node, op: eq, value: card-l10-p00}, to: card-l10-p00}
+        - {when: {field: game-node, op: eq, value: card-l10-p01}, to: card-l10-p01}
+        - {when: {field: game-node, op: eq, value: card-l10-p02}, to: card-l10-p02}
+        - {when: {field: game-node, op: eq, value: card-l10-p03}, to: card-l10-p03}
+        - {when: {field: game-node, op: eq, value: card-l10-p04}, to: card-l10-p04}
+        - {when: {field: game-node, op: eq, value: card-l10-p05}, to: card-l10-p05}
+        - {when: {field: game-node, op: eq, value: card-l10-p06}, to: card-l10-p06}
+        - {when: {field: game-node, op: eq, value: card-l10-p07}, to: card-l10-p07}
+        - {when: {field: game-node, op: eq, value: card-l10-p08}, to: card-l10-p08}
+        - {when: {field: game-node, op: eq, value: card-l10-p09}, to: card-l10-p09}
+        - {when: {field: game-node, op: eq, value: card-l10-p10}, to: card-l10-p10}
+        - {when: {field: game-node, op: eq, value: card-l10-p11}, to: card-l10-p11}
+        default: build-host-prompt
+      outputs:
+      - node: host-model
+        field: answer
+        name: assistant
+        mime_type: text/plain
+        primary: true
+    conversation:
+      starts: peer
+    limits:
+      max_output_bytes: 4194304

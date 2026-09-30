@@ -96,7 +96,12 @@ transition_count=0
 for package in workflows/story-* workflows/figure-*; do
 	test -d "$package" || continue
 	raid="${package#workflows/}"
-	for engine in eino flowcraft eino.multi-role flowcraft.multi-role; do
+	# Figure raids ship only the Eino multi-role implementation.
+	case "$package" in
+	workflows/figure-*) engines='eino.multi-role' ;;
+	*) engines='eino flowcraft eino.multi-role flowcraft.multi-role' ;;
+	esac
+	for engine in $engines; do
 		case "$engine" in *.multi-role) continuation='故事自然推进' ;; *) continuation='并紧接新章开场' ;; esac
 		grep -F "$continuation" "$package/$engine.yaml" >/dev/null || {
 			printf 'story Workflow lacks chapter-opening continuation: %s/%s.yaml\n' "$package" "$engine" >&2

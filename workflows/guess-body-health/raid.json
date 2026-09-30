@@ -1,0 +1,114 @@
+{
+  "schema": "raids.raid/v1alpha1",
+  "id": "guess-body-health",
+  "category": "guess",
+  "region": "global",
+  "title": {
+    "zh-CN": "猜猜身体与健康",
+    "en": "Guess the Body and Health Word"
+  },
+  "summary": {
+    "zh-CN": "主持人心里藏着一个和身体健康有关的名词，孩子用是非题来猜，猜中就升一关，从“身体小萌新”一路挑战到“生命奥秘大师”。",
+    "en": "The host hides a word about the body and health; the child guesses with yes-or-no questions and levels up from Body Rookie to Life Mystery Master."
+  },
+  "rating": {
+    "age": [
+      "preschool",
+      "child",
+      "teen"
+    ],
+    "scheme": "raids-age-v2",
+    "content": []
+  },
+  "tags": [
+    "guess",
+    "body",
+    "health",
+    "biology",
+    "yes-no",
+    "levels"
+  ],
+  "language": [
+    "zh-CN",
+    "en"
+  ],
+  "implementations": {
+    "eino": {
+      "file": "eino.yaml",
+      "workflow_id": "eino-guess-body-health",
+      "driver": "eino",
+      "input": [
+        "text",
+        "realtime"
+      ],
+      "parameters": {
+        "models": {
+          "eino-guess-body-health.model": {
+            "kind": "llm",
+            "role": "host",
+            "description": "Chat model that speaks every host turn from the nameless puzzle card; needs streaming Chinese and English output"
+          }
+        },
+        "voices": {
+          "eino-guess-body-health.host": {
+            "role": "host",
+            "language": "zh-CN",
+            "description": "Quiz host voice"
+          }
+        }
+      }
+    }
+  },
+  "tester": {
+    "file": "test.yaml",
+    "workflow_id": "guess-body-health-test",
+    "driver": "eino",
+    "parameters": {
+      "models": {
+        "guess-body-health-test.model": {
+          "kind": "llm",
+          "role": "judge",
+          "description": "Chat model that generates every turn; needs streaming Chinese output"
+        }
+      }
+    },
+    "route": {
+      "responses": 10,
+      "checkpoints": [
+        "opening",
+        "yes-answer",
+        "ask-answer",
+        "big-hint",
+        "no-answer",
+        "win",
+        "next-round",
+        "english",
+        "give-up",
+        "resume"
+      ]
+    }
+  },
+  "tests": [
+    {
+      "file": "tests/giztest/smoke/guess-body-health.eino.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "eino"
+      ]
+    },
+    {
+      "file": "tests/giztest/quality/guess-body-health.eino.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "eino"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/guess-body-health.eino.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "eino"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,114 @@
+{
+  "schema": "raids.raid/v1alpha1",
+  "id": "guess-physics-terms",
+  "category": "guess",
+  "region": "global",
+  "title": {
+    "zh-CN": "猜猜物理名词",
+    "en": "Guess the Physics Word"
+  },
+  "summary": {
+    "zh-CN": "主持人心里藏着一个物理学名词，孩子用是非题来猜，猜中就升一关，从“物理小白”一路挑战到“宇宙解谜者”。",
+    "en": "The host hides a physics word; the child guesses with yes-or-no questions and levels up from Physics Rookie to Cosmic Puzzle Solver."
+  },
+  "rating": {
+    "age": [
+      "preschool",
+      "child",
+      "teen"
+    ],
+    "scheme": "raids-age-v2",
+    "content": []
+  },
+  "tags": [
+    "guess",
+    "physics",
+    "science",
+    "terms",
+    "yes-no",
+    "levels"
+  ],
+  "language": [
+    "zh-CN",
+    "en"
+  ],
+  "implementations": {
+    "eino": {
+      "file": "eino.yaml",
+      "workflow_id": "eino-guess-physics-terms",
+      "driver": "eino",
+      "input": [
+        "text",
+        "realtime"
+      ],
+      "parameters": {
+        "models": {
+          "eino-guess-physics-terms.model": {
+            "kind": "llm",
+            "role": "host",
+            "description": "Chat model that speaks every host turn from the nameless puzzle card; needs streaming Chinese and English output"
+          }
+        },
+        "voices": {
+          "eino-guess-physics-terms.host": {
+            "role": "host",
+            "language": "zh-CN",
+            "description": "Quiz host voice"
+          }
+        }
+      }
+    }
+  },
+  "tester": {
+    "file": "test.yaml",
+    "workflow_id": "guess-physics-terms-test",
+    "driver": "eino",
+    "parameters": {
+      "models": {
+        "guess-physics-terms-test.model": {
+          "kind": "llm",
+          "role": "judge",
+          "description": "Chat model that generates every turn; needs streaming Chinese output"
+        }
+      }
+    },
+    "route": {
+      "responses": 10,
+      "checkpoints": [
+        "opening",
+        "yes-answer",
+        "ask-answer",
+        "big-hint",
+        "no-answer",
+        "win",
+        "next-round",
+        "english",
+        "give-up",
+        "resume"
+      ]
+    }
+  },
+  "tests": [
+    {
+      "file": "tests/giztest/smoke/guess-physics-terms.eino.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "eino"
+      ]
+    },
+    {
+      "file": "tests/giztest/quality/guess-physics-terms.eino.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "eino"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/guess-physics-terms.eino.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "eino"
+      ]
+    }
+  ]
+}

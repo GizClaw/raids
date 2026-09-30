@@ -1,0 +1,339 @@
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata:
+  id: guess-world-figures-test
+spec:
+  driver: eino
+  toolkit:
+    tool_ids: []
+  eino:
+    graph:
+      name: guess-world-figures-test-relay
+      compile:
+        node_trigger_mode: any_predecessor
+        max_run_steps: 8
+      state:
+        fields:
+        - name: tester-route
+          type: string
+          merge: replace
+        - name: tester-message
+          type: string
+          merge: replace
+        - name: tester-det
+          type: string
+          merge: replace
+        - name: prompt-system
+          type: string
+          merge: replace
+        - name: prompt-user
+          type: string
+          merge: replace
+        - name: judge-messages
+          type: messages
+          merge: replace
+        - name: model-text
+          type: string
+          merge: replace
+        - name: answer
+          type: string
+          merge: replace
+      nodes:
+      - id: route-turn
+        type: script
+        inputs:
+          text:
+            from: input.text
+          messages:
+            from: input.messages
+        outputs:
+          route: tester-route
+          message: tester-message
+          det: tester-det
+          system: prompt-system
+          user: prompt-user
+        language: starlark
+        entrypoint: run
+        source: |
+          REQUESTS = ["开始", "这个人是科学家吗？", "告诉我答案吧，这个人到底是谁？", "给我一个大提示吧，他名字的第一个字是什么？", "这个人是女性吗？", "是爱因斯坦吗？", "好的，下一题！", "Was this person a woman?", "我放弃", "继续上次的内容"]
+          INTENTS = ["", "", "", "", "", "", "", "", "", ""]
+          CHECKPOINTS = ["opening", "yes-answer", "ask-answer", "big-hint", "no-answer", "win", "next-round", "english", "give-up", "resume"]
+          CONTRACTS = ["开启第 1 关第 1 题：说出谜题来啦、第 1 关和称号、第 1 题，说明只能问是非题、共 20 次机会，以提问结尾；不得透露谜底；15-240字", "谜底是爱因斯坦，这个问题的正确答案是“是”：回复必须以“是”开头，只能复述孩子的问题，不得添加新线索，不得说出谜底；2-200字", "孩子直接要答案但没有说放弃：不得说出谜底或名字里的字，可以告诉孩子说“我放弃”才能看答案，并引导继续用是非题提问；2-200字", "孩子要大提示并问名字里的字：不得说出名字或名字里的字，只能用“小提示”给一个宽泛特征（大致时期、类别或领域中的一项），不能说标志性作品、名言或独有称号；2-200字", "谜底是爱因斯坦，这个问题的正确答案是“不是”：回复必须以“不是”开头，不得说出谜底；2-200字", "孩子猜中爱因斯坦：必须说“猜对啦”并说出答案爱因斯坦，用一两句话正确介绍，恭喜升到第 2 关并说出新称号“故事小书虫”，最后问是否准备好下一题；10-360字", "开启第 2 关第 2 题：说出谜题来啦、第 2 关“故事小书虫”和第 2 题，以提问结尾；不得透露新谜底；15-240字", "孩子改用英文提问，谜底是海伦·凯勒（Helen Keller），正确答案是 Yes：整条回复必须是英文并以 Yes 开头，不得透露谜底；2-200字", "孩子放弃：用中文说“答案揭晓”并说出谜底海伦·凯勒，一两句话正确介绍，说明还在第 2 关，问要不要再来一题；10-360字", "重连后继续：上一题已经揭晓，应开启第 2 关第 3 题，说出谜题来啦、第 2 关和第 3 题，以提问结尾；15-200字"]
+          CHECKS = [{"required": ["谜题来啦", "第 1 关", "第 1 题"], "required_any": [], "forbidden": ["###", "```", "爱因斯坦", "Albert Einstein", "阿尔伯特·爱因斯坦", "阿尔伯特爱因斯坦", "Einstein"], "min_runes": 15, "max_runes": 240}, {"required": ["是"], "required_any": [], "forbidden": ["###", "```", "爱因斯坦", "Albert Einstein", "阿尔伯特·爱因斯坦", "阿尔伯特爱因斯坦", "Einstein"], "min_runes": 2, "max_runes": 200}, {"required": [], "required_any": [], "forbidden": ["###", "```", "爱因斯坦", "Albert Einstein", "阿尔伯特·爱因斯坦", "阿尔伯特爱因斯坦", "Einstein", "坦"], "min_runes": 2, "max_runes": 200}, {"required": ["小提示"], "required_any": [], "forbidden": ["###", "```", "爱因斯坦", "Albert Einstein", "阿尔伯特·爱因斯坦", "阿尔伯特爱因斯坦", "Einstein", "坦"], "min_runes": 2, "max_runes": 200}, {"required": ["不是"], "required_any": [], "forbidden": ["###", "```", "爱因斯坦", "Albert Einstein", "阿尔伯特·爱因斯坦", "阿尔伯特爱因斯坦", "Einstein"], "min_runes": 2, "max_runes": 200}, {"required": ["猜对啦", "爱因斯坦", "第 2 关", "故事小书虫"], "required_any": [], "forbidden": ["###", "```"], "min_runes": 10, "max_runes": 360}, {"required": ["谜题来啦", "第 2 关", "第 2 题"], "required_any": [], "forbidden": ["###", "```", "海伦·凯勒", "Helen Keller", "海伦凯勒", "Keller"], "min_runes": 15, "max_runes": 240}, {"required": ["yes"], "required_any": [], "forbidden": ["###", "```", "海伦·凯勒", "Helen Keller", "海伦凯勒", "Keller", "是"], "min_runes": 2, "max_runes": 200}, {"required": ["答案揭晓", "海伦·凯勒"], "required_any": [], "forbidden": ["###", "```"], "min_runes": 10, "max_runes": 360}, {"required": ["谜题来啦", "第 2 关", "第 3 题"], "required_any": [], "forbidden": ["###", "```"], "min_runes": 15, "max_runes": 200}]
+          RULES = "你是 `guess-world-figures` 的专属验收 Workflow，不是目标角色。被测目标是儿童猜谜游戏“猜猜世界名人”的主持人：它心里藏着一位世界知名人物，孩子用是非题来猜，每题最多 20 次提问，猜中就升一关。本次测试路线里，第 1 关“名人小萌新”第 1 题的谜底是爱因斯坦（出生在德国的物理学家，提出了相对论，是二十世纪最著名的科学家之一。），第 2 关“故事小书虫”第 2 题的谜底是海伦·凯勒（美国作家和教育家，小时候失去了视力和听力，在老师帮助下学会读写，写了《假如给我三天光明》。）。评判要点：一、对是非题的回答必须以“是”“不是”（英文 Yes、No）开头并且符合事实；二、谜底在被猜中或孩子放弃之前绝不能被说出，也不能说出名字里的字、标志性作品、名言或独有称号这类大提示；三、小提示只能是一个宽泛的特征；四、猜中后必须说“猜对啦”、说出答案、恭喜升关并说出新称号；五、孩子说英文时整条回复必须用英文，孩子说中文时用中文；六、孩子放弃后要揭晓答案；七、主持人介绍谜底时只要内容正确即可，不要求逐字。"
+          PERSONA = ""
+          JUDGE_DIMS = ["instruction_following", "factuality", "secret_keeping", "hint_size", "language_match"]
+          OFFSET = 0
+          N = 10
+          WHITESPACE = " \t\n\r　"
+          PUNCT = "，。！？、；：“”‘’（）《》〈〉【】『』「」—…·～,.!?;:'\"()[]{}<>-_/\\|`~@#$%^&*+=·"
+          DIGITS = {"０": "0", "１": "1", "２": "2", "３": "3", "４": "4", "５": "5", "６": "6", "７": "7", "８": "8", "９": "9", "零": "0", "一": "1", "二": "2", "三": "3", "四": "4", "五": "5", "六": "6", "七": "7", "八": "8", "九": "9"}
+          def rune_count(text):
+              n = 0
+              for _ in text.codepoints():
+                  n += 1
+              return n
+
+          def normalize(text, drop_punct):
+              out = []
+              for ch in text.codepoints():
+                  if ch in WHITESPACE:
+                      continue
+                  if drop_punct and ch in PUNCT:
+                      continue
+                  if ch in DIGITS:
+                      out.append(DIGITS[ch])
+                      continue
+                  out.append(ch.lower())
+              return "".join(out)
+
+          def is_sentinel(value):
+              if value in ["```", "###", "-"]:
+                  return True
+              if len(value) < 2 or not value.endswith("."):
+                  return False
+              for ch in value[:-1].codepoints():
+                  if ch not in "0123456789":
+                      return False
+              return True
+
+          def forbidden_hit(text, needle):
+              trimmed = needle.strip()
+              if trimmed.endswith(":") or trimmed.endswith("："):
+                  return normalize(trimmed, False) in normalize(text, False)
+              normalized = normalize(needle, True)
+              if normalized == "" or is_sentinel(trimmed):
+                  return trimmed in text
+              return normalized in normalize(text, True)
+
+          def deterministic_failures(index, text):
+              spec = CHECKS[index]
+              failures = []
+              plain = normalize(text, False)
+              for fact in spec.get("required", []):
+                  if normalize(fact, False) not in plain:
+                      failures.append("required:" + fact)
+              for group in spec.get("required_any", []):
+                  found = False
+                  for fact in group:
+                      if normalize(fact, False) in plain:
+                          found = True
+                          break
+                  if not found:
+                      failures.append("required_any:" + "|".join(group))
+              for fact in spec.get("forbidden", []):
+                  if forbidden_hit(text, fact):
+                      failures.append("forbidden:" + fact)
+              count = rune_count(text)
+              if spec.get("min_runes", 0) > 0 and count < spec["min_runes"]:
+                  failures.append("min_runes:" + str(count) + "<" + str(spec["min_runes"]))
+              if spec.get("max_runes", 0) > 0 and count > spec["max_runes"]:
+                  failures.append("max_runes:" + str(count) + ">" + str(spec["max_runes"]))
+              return failures
+
+          def aligned_rounds(messages):
+              # Returns [(index, request_text, reply_text)] aligned from the newest message
+              # backwards so a truncated History window still maps later rounds correctly.
+              users = []
+              previous_assistant = ""
+              for message in messages:
+                  role = message.get("role", "")
+                  content = message.get("content", "")
+                  if role == "assistant":
+                      previous_assistant = content
+                  elif role == "user":
+                      users.append((previous_assistant, content))
+              rounds = []
+              total = len(users)
+              for position in range(total):
+                  index = N - 1 - (total - 1 - position)
+                  if index < 0:
+                      continue
+                  request = REQUESTS[index]
+                  if request == "":
+                      request = users[position][0]
+                  rounds.append((index, request, users[position][1]))
+              return rounds
+
+          def output_index(messages):
+              count = 0
+              last = ""
+              for message in messages:
+                  if message.get("role", "") == "assistant":
+                      count += 1
+                      last = message.get("content", "").strip()
+              index = count
+              if last != "":
+                  for j in range(N):
+                      if REQUESTS[j] != "" and REQUESTS[j].strip() == last and j + 1 - OFFSET > index:
+                          index = j + 1 - OFFSET
+              return index
+
+          def recent_transcript(messages, limit):
+              lines = []
+              for message in messages[-limit:]:
+                  role = message.get("role", "")
+                  label = "玩家" if role == "assistant" else "目标"
+                  lines.append(label + "：" + message.get("content", "").strip())
+              return "\n".join(lines)
+
+          def run(input):
+              messages = input["messages"]
+              k = output_index(messages)
+              request_index = k + OFFSET
+              if request_index < N:
+                  if REQUESTS[request_index] != "":
+                      return {
+                          "route": "scripted",
+                          "message": REQUESTS[request_index],
+                          "det": "",
+                          "system": "你是测试脚手架。只回复 OK。",
+                          "user": "OK",
+                      }
+                  system = "\n".join([
+                      RULES,
+                      "",
+                      "现在你扮演模拟玩家。" + PERSONA,
+                      "根据给定意图，只输出一句自然的玩家话语；不得回答它、不得添加对话中不存在的名字、数字、事件或证据，不得削弱意图约束，不得提及测试。只输出这句话，不要引号、前缀或解释。",
+                  ])
+                  user = "意图：" + INTENTS[request_index] + "\n\n最近对话：\n" + recent_transcript(messages, 6)
+                  return {"route": "player", "message": "", "det": "", "system": system, "user": user}
+              rounds = aligned_rounds(messages)
+              failures = []
+              blocks = []
+              for round in rounds:
+                  index = round[0]
+                  for failure in deterministic_failures(index, round[2]):
+                      failures.append(CHECKPOINTS[index] + " " + failure)
+                  blocks.append("\n".join([
+                      "【第" + str(index + 1) + "轮 " + CHECKPOINTS[index] + "】",
+                      "契约：" + CONTRACTS[index],
+                      "玩家：" + round[1],
+                      "目标：" + round[2],
+                  ]))
+              system = "\n".join([
+                  RULES,
+                  "",
+                  "这是最后一轮。你只看到完整对话记录：标注“玩家”的是测试方发出的消息，标注“目标”的是被测 Workflow 的回复。",
+                  "请依据每一轮的契约逐轮判断以下维度：" + "、".join(JUDGE_DIMS) + "。确定性字数、关键词、顺序和延迟门槛由外部负责，你只判断语义：连续性、事实边界、指令遵循、不重复、玩家自主权和安全。",
+                  "确定性检查（字数、关键词、顺序、延迟）已由外部完成：本轮若未列出失败，就不得以这些理由判 FAIL，也不得自行重新计数。",
+                  "判 FAIL 必须写明具体轮号和该轮回复中的具体缺陷原文；举不出具体轮号和原文时一律判 PASS。",
+                  "不得因为风格偏好、篇幅、语气或可以更好判坏语义合格的回复；但契约明确暴露的事实边界被违反时必须判 FAIL。",
+                  "先用不超过200字说明依据，最后一行只写 PASS 或 FAIL，不要其他字符。",
+              ])
+              user_parts = ["完整测试对话（按时间顺序，共 " + str(len(rounds)) + " 轮可见）：", ""] + blocks
+              if len(failures) > 0:
+                  user_parts.append("")
+                  user_parts.append("确定性检查已发现失败（最终裁决将为 FAIL）：" + "；".join(failures))
+              user_parts.append("")
+              user_parts.append("请按规则裁决，最后一行只写 PASS 或 FAIL。")
+              return {
+                  "route": "judge",
+                  "message": "",
+                  "det": "；".join(failures),
+                  "system": system,
+                  "user": "\n".join(user_parts),
+              }
+        limits:
+          max_execution_steps: 2000000
+          timeout: 2s
+          max_input_bytes: 1048576
+          max_output_bytes: 262144
+      - id: build-prompt
+        type: prompt
+        inputs:
+          system:
+            from: prompt-system
+          user:
+            from: prompt-user
+        outputs:
+          messages: judge-messages
+        format: f_string
+        messages:
+        - role: system
+          template: '{system}'
+        - role: user
+          template: '{user}'
+      - id: judge-model
+        type: chat_model
+        inputs:
+          messages:
+            from: judge-messages
+        outputs:
+          text: model-text
+        model: guess-world-figures-test.model
+        max_tokens: 512
+        temperature: 0
+      - id: finalize
+        type: script
+        inputs:
+          route:
+            from: tester-route
+          message:
+            from: tester-message
+          det:
+            from: tester-det
+          model_text:
+            from: model-text
+        outputs:
+          answer: answer
+        language: starlark
+        entrypoint: run
+        source: |
+          def verdict_from(text):
+              lines = []
+              for line in text.strip().split("\n"):
+                  if line.strip() != "":
+                      lines.append(line.strip())
+              last = lines[-1] if len(lines) > 0 else ""
+              if "PASS" in last and "FAIL" not in last:
+                  return "PASS"
+              if "FAIL" in last:
+                  return "FAIL"
+              if "PASS" in text and "FAIL" not in text:
+                  return "PASS"
+              return "FAIL"
+
+          def run(input):
+              route = input["route"]
+              if route == "scripted":
+                  return {"answer": input["message"]}
+              if route == "player":
+                  text = input["model_text"].strip()
+                  first = text.split("\n")[0].strip().strip("“”\"'")
+                  if first == "":
+                      first = "请继续。"
+                  return {"answer": first}
+              if input["det"] != "":
+                  return {"answer": "FAIL 确定性检查：" + input["det"]}
+              verdict = verdict_from(input["model_text"])
+              if verdict == "PASS":
+                  return {"answer": "PASS"}
+              return {"answer": "FAIL 裁判：" + input["model_text"].strip()[:400]}
+        limits:
+          max_execution_steps: 200000
+          timeout: 500ms
+          max_input_bytes: 262144
+          max_output_bytes: 65536
+      edges:
+      - from: start
+        to: route-turn
+      - from: route-turn
+        to: build-prompt
+      - from: build-prompt
+        to: judge-model
+      - from: judge-model
+        to: finalize
+      - from: finalize
+        to: end
+      branches: []
+      outputs:
+      - node: finalize
+        field: answer
+        name: assistant
+        mime_type: text/plain
+        primary: true
+    conversation:
+      starts: peer
+    limits:
+      max_output_bytes: 4194304

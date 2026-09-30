@@ -536,11 +536,17 @@ def check_file(file, tier, workflow_aliases):
             check('keepalive' not in step['id'] or rpc(step).get('method') == 'server.run.status', f'{file}: invalid setup keepalive')
 
 
+# Figure raids ship one Eino multi-role implementation; every other realtime raid
+# checks its original Flowcraft and Eino clients. Returns the clients checked.
 def check_realtime(file, manifest, raid):
     capabilities = tts_capabilities(raid)
-    for engine in ('flowcraft', 'eino'):
-        smoke = [s for s in steps(load_yaml(f'tests/giztest/smoke/{raid}.{engine}.giztest.yaml')) if s.get('client') == engine]
-        check('realtime' in manifest['implementations'][engine]['input'], f'{file}: {engine} lacks realtime capability')
+    keys = ['eino-multi-role'] if raid.startswith('figure-') else ['flowcraft', 'eino']
+    for key in keys:
+        engine = key.replace('-', '_')
+        implementation = manifest['implementations'][key]
+        smoke = [s for s in steps(load_yaml(f"tests/giztest/smoke/{raid}.{stem(implementation['file'])}.giztest.yaml"))
+                 if s.get('client') == engine]
+        check('realtime' in implementation['input'], f'{file}: {engine} lacks realtime capability')
         check(any(rpc(s).get('method') == 'server.workspace.create' and
                   'WORKSPACE_INPUT_MODE_REALTIME' in json.dumps(rpc(s).get('request', {}).get('parameters')) for s in smoke),
               f'{file}: {engine} lacks realtime Workspace')
@@ -552,8 +558,10 @@ def check_realtime(file, manifest, raid):
               f'{file}: {engine} lacks complete realtime response')
         check(first is not None and stream(first).get('completion') == 'first_response' and stream(first).get('first_text_timeout') == '2s' and
               (not capability or stream(first).get('first_audio_timeout') == '3s'), f'{file}: {engine} lacks realtime latency gates')
-    eino = load_yaml(f'workflows/{raid}/eino.yaml')['spec']['eino']
+    eino_key = 'eino-multi-role' if raid.startswith('figure-') else 'eino'
+    eino = load_yaml(f"workflows/{raid}/{manifest['implementations'][eino_key]['file']}")['spec']['eino']
     check((eino.get('voice_adapter') or {}).get('asr_model') == 'asr', f'{file}: missing Eino realtime ASR binding')
+    return len(keys)
 
 
 def validate():
@@ -585,16 +593,15 @@ def validate():
         registered = [f'tests/giztest/{t}/{raid}.{impl}.giztest.yaml' for t in raid_tiers(raid) for impl in inventory(raid)]
         check(sorted(t['file'] for t in manifest['tests']) == sorted(registered), f'{file}: tier registration mismatch')
         if REALTIME_RAID.match(raid):
-            check_realtime(file, manifest, raid)
-            realtime_count += 2
+            realtime_count += check_realtime(file, manifest, raid)
         implementations = manifest['implementations']
         for t in manifest['tests']:
             names = t.get('implementations') or []
             check(t['file'].split('/')[2:3] == [t.get('tier')] and len(names) == 1 and names[0] in implementations and
                   t['file'] == f"tests/giztest/{t.get('tier')}/{raid}.{stem(implementations[names[0]]['file'])}.giztest.yaml",
                   f'{file}: implementation registration mismatch')
-    check(realtime_count == 102, f'expected 102 original story/adventure/figure/learn RealTime clients, found {realtime_count}')
-    print(f'validated {realtime_count} original RealTime clients with ASR and audio response gates')
+    check(realtime_count == 112, f'expected 112 story/adventure/figure/learn RealTime clients, found {realtime_count}')
+    print(f'validated {realtime_count} RealTime clients with ASR and audio response gates')
     for prefix in ('story', 'adventure', 'figure'):
         for engine in ('flowcraft', 'eino'):
             for file in sorted(glob.glob(f'workflows/{prefix}-*/{engine}.multi-role.yaml')):

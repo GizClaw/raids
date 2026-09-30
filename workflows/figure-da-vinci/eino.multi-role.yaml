@@ -1,0 +1,334 @@
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata:
+  id: eino-figure-da-vinci-multi-role
+spec:
+  driver: eino
+  toolkit:
+    tool_ids: []
+  memory: story-teller
+  eino:
+    voice_adapter:
+      asr_model: asr
+      default_voice: eino-figure-da-vinci-mr.storyteller
+      speaker_voices:
+        旁白: eino-figure-da-vinci-mr.storyteller
+        达芬奇: eino-figure-da-vinci-mr.da-vinci
+        萨莱: eino-figure-da-vinci-mr.salai
+        帕乔利: eino-figure-da-vinci-mr.pacioli
+        米开朗基罗: eino-figure-da-vinci-mr.michelangelo
+    graph:
+      name: figure-da-vinci-eino
+      compile:
+        node_trigger_mode: any_predecessor
+        max_run_steps: 12
+      state:
+        fields:
+        - name: narration-context
+          type: string
+          merge: replace
+        - name: memory-query
+          type: string
+          merge: replace
+        - name: memory-route
+          type: string
+          merge: replace
+        - name: recalled
+          type: string
+          merge: replace
+        - name: answer-messages
+          type: messages
+          merge: replace
+        - name: answer
+          type: string
+          merge: replace
+        - name: observation
+          type: string
+          merge: replace
+      nodes:
+      - id: prepare-memory-query
+        type: script
+        inputs:
+          text:
+            from: input.text
+        outputs:
+          query: memory-query
+          route: memory-route
+          memory: recalled
+        language: starlark
+        entrypoint: run
+        source: |
+          def run(input):
+              text = input["text"].strip()
+              cues = ["重连", "恢复", "回忆", "还记得", "代号", "更正", "改成", "上次", "continue where", "left off"]
+              recall = False
+              for cue in cues:
+                  if cue in text:
+                      recall = True
+              route = "opening" if not text else ("recall" if recall else "continue")
+              return {"query": "达芬奇的一生故事状态、章节、角色、选择、更正、旅程代号和未解决线索；当前请求：" + text, "route": route, "memory": ""}
+        limits:
+          max_execution_steps: 10000
+          timeout: 250ms
+          max_input_bytes: 65536
+          max_output_bytes: 65536
+      - id: recall-memory
+        type: memory_recall
+        query_from: memory-query
+        output: recalled
+        top_k: 16
+      - id: control-narration
+        type: script
+        inputs:
+          text:
+            from: input.text
+          history:
+            from: input.messages
+          memory:
+            from: recalled
+        outputs:
+          direction: narration-context
+        language: starlark
+        entrypoint: run
+        source: |
+          def contains_any(text, cues):
+              return any([cue in text for cue in cues])
+
+          def run(input):
+              current = input["text"].strip().lower()
+              # Only delivered assistant headings establish chapter eligibility; user requests
+              # and opening cast previews are not transitions.
+              chapter = 1
+              history = input.get("history", [])
+              # Recall may contain the legacy structured state; never trust active_roles.
+              memory = input.get("memory", "")
+              # The H106 device submits "开始" / "继续上次的内容" once when the child enters;
+              # chapter tracking restarts at the latest "开始".
+              start_words = ["开始", "开始吧", "从头开始", "重新开始", "start", "startover", "restart"]
+              def device_text(text):
+                  for mark in ["。", "！", "!", "，", ",", ".", " ", "\n"]:
+                      text = text.replace(mark, "")
+                  return text.lower()
+              start_requested = device_text(current) in start_words
+              resume_requested = any([cue in device_text(current) for cue in ["继续上次", "接着上次", "continuewhere", "leftoff"]])
+              last_start = -1
+              for index, message in enumerate(history):
+                  if message["role"] == "user" and device_text(message["content"]) in start_words:
+                      last_start = index
+              if start_requested or last_start >= 0:
+                  memory = ""
+              for line in memory.split("\n"):
+                  compact = line.replace(" ", "")
+                  if '"schema":"story_contract_v1"' in compact and '"chapter":' in compact:
+                      raw = compact.split('"chapter":', 1)[1].split(",", 1)[0].split("}", 1)[0]
+                      if raw in ["1", "2", "3", "4"]:
+                          chapter = int(raw)
+              context = [memory]
+              context.extend([m["content"] for index, m in enumerate(history) if m["role"] == "assistant" and index > last_start and not start_requested])
+              for content in context:
+                  for line in content.split("\n"):
+                      line = line.strip().replace("【旁白】", "")
+                      for number, title in [(1, "米兰的笔记本"), (2, "最后的晚餐"), (3, "蒙娜丽莎"), (4, "法国的晚年")]:
+                          if line.startswith("第 " + str(number) + " 章：" + title) or line.startswith("第 " + str(number) + " 章:" + title) or line.lower().startswith("chapter " + str(number) + ":"):
+                              chapter = number
+              roles = [('narrator', ['旁白', 'narrator']), ('da-vinci', ['达芬奇', '达·芬奇', '列奥纳多', '莱昂纳多', 'leonardo da vinci', 'leonardo', 'da vinci', 'da-vinci']), ('salai', ['萨莱', 'salai']), ('pacioli', ['帕乔利', '卢卡·帕乔利', 'luca pacioli', 'pacioli']), ('michelangelo', ['米开朗基罗', '米开朗琪罗', 'michelangelo buonarroti', 'michelangelo'])]
+              option = current
+              for mark in ["。", "！", "!", ",", ".", "，"]:
+                  option = option.replace(mark, "")
+              option_only = any([option in aliases for _, aliases in roles])
+              opening = not current or start_requested or (not any([m["role"] == "assistant" for m in history]) and (contains_any(current, ["第一章", "第 1 章"]) or (contains_any(current, ["start", "begin", "restart"]) and contains_any(current, ["chapter 1", "first chapter"]))))
+              management = contains_any(current, ["旅程", "旅程代号", "更正", "改成", "纠正", "修正", "作废", "重连", "回忆", "事实", "传说", "原创设定", "总结", "说明当前章节", "不要推进", "不推进章节", "只确认", "correct", "correction", "reconnect", "recall", "现实中模仿", "现实模仿"])
+              target = 0
+              for number, chinese in [(2, "二"), (3, "三"), (4, "四")]:
+                  if contains_any(current, ["第" + chinese + "章", "第" + str(number) + "章", "第 " + str(number) + " 章"]):
+                      target = number
+              if target == 0 and "下一章" in current and chapter < 4:
+                  target = chapter + 1
+              transition = target > 0 and target != chapter and contains_any(current, ["下一章", "进入", "继续", "切换", "开始", "go to", "continue", "start", "为什么还不能", "为何不能", "说明为什么"])
+              # A denied transition is not a management turn (same as control-story).
+              denied_transition = False
+              for denial in ["不要", "别", "不能", "暂不", "不想", "先不", "不去", "不听", "do not", "don't", "cannot", "can't", "not ready to"]:
+                  if denial in current:
+                      tail = current.rsplit(denial, 1)[-1]
+                      for action in ["进入", "继续", "切换", "开始", "下一章", "enter", "continue", "switch", "start", "go to"]:
+                          if action in tail and len(list(tail.split(action, 1)[0].codepoints())) <= (12 if action in ["enter", "continue", "switch", "start", "go to"] else 6):
+                              denied_transition = True
+              if denied_transition:
+                  transition = False
+              # Stable voice style plus only this chapter's actions; knowledge boundaries remain.
+              # Content obligations follow voice style so role brevity cannot suppress them.
+              safety_request = any([cue in current for cue in ["现实", "模仿", "照做", "安全", "危险", "受伤", "喝生水", "吃野果", "爬高墙", "关闭生命保障", "直视太阳", "尝陌生植物", "danger", "safety", "imitate"]])
+              turn_contract = ""
+              if safety_request:
+                  turn_contract = "本轮是安全请求，优先于角色风格和章节推进：制止危险模仿，给安全替代，并请孩子找家长、老师或可信任成年人帮助，简短回应。"
+              choice_positive = ["我选择", "我选", "我决定", "我支持", "我愿意", "我要走", "我会走", "我来帮助", "我跟随", "走需要", "i choose", "my choice is", "i decide", "i support", "i’ll take", "i'll take", "i will take", "i’ll follow", "i'll follow", "i will follow", "let's take", "let's follow"]
+              choice_denial = ["不选择", "不选", "没选择", "没有选择", "尚未选择", "还没选择", "还没有选择", "不决定", "没决定", "没有决定", "尚未决定", "还没决定", "还未决定", "还没有决定", "不支持", "不想选", "do not choose", "don't choose", "did not choose", "didn't choose", "have not chosen", "haven't chosen", "has not chosen", "hasn't chosen", "will not choose", "won't choose", "not choose", "not to choose", "no choice", "do not decide", "don't decide", "did not decide", "didn't decide", "have not decided", "haven't decided", "will not decide", "won't decide", "not decided", "not to decide", "undecided", "do not support", "don't support", "not support"]
+              last_positive = max([current.rfind(cue) for cue in choice_positive])
+              last_denial = max([current.rfind(cue) for cue in choice_denial])
+              choice_completed = (option_only or last_positive >= 0) and not (last_denial >= 0 and last_denial > last_positive) and not opening and not management and not transition
+              if resume_requested and not opening and not safety_request:
+                  turn_contract = "孩子要继续上次的内容：不重播开场或玩法说明；先用一句旁白说出上次讲到哪里，再接着讲新的变化。"
+              if start_requested:
+                  turn_contract = "孩子说“开始”：从第一章开头重新讲起，忽略之前讲过的所有章节、内容和选择，只讲第一章开场并以开场问题结尾。"
+              if not safety_request and choice_completed:
+                  turn_contract = "承接已选后果，目标达成同一回复自然进入紧邻下一章并开场。"
+              # The life is told: the turn after the closing line becomes free conversation.
+              finale_spoken = any(["我这一生就讲到这里啦" in content for content in context])
+              choice_made_before = False
+              for line in memory.split("\n"):
+                  compact = line.replace(" ", "")
+                  if '"schema":"story_contract_v1"' in compact and '"chapter_choice_made":true' in compact:
+                      choice_made_before = True
+              # Free conversation starts only after the closing line has actually been
+              # delivered, never on the same turn that completes the chapter-four choice.
+              story_end_hint = not finale_spoken and chapter == 4 and (choice_completed or choice_made_before)
+              free_talk = not start_requested and finale_spoken
+              if story_end_hint and not safety_request:
+                  turn_contract = "本轮是第四章的收尾：讲完这个选择带来的结局，再用一句话收住整段人生，回复最后一句必须逐字是“我这一生就讲到这里啦！接下来你可以随便问我任何事，想从头再听一遍就说“开始”，你最想先问我什么呢？”"
+              if free_talk and not safety_request:
+                  turn_contract = "自由对话：我的一生已经讲完，这个故事不再有章节。绝不输出章节标题，也不再提“下一章”。孩子问什么就以达芬奇本人的身份用“我”回答什么——我的画和笔记本、我见过的人、我没做完的事，孩子自己的心事也可以聊。我只知道自己那个年代的事，问到后世或现代的东西就照实说不知道，再把话题带回我的时代；后人传下来的说法要讲明是传说。写2至4句话，最后一句仍要问孩子一个问题，顺着他刚说的话问；孩子说“开始”就从第 1 章重新讲起。"
+              chapter_rules = ["第1章《米兰的笔记本》：进入=首次开场；目标=解决《米兰的笔记本》张力；节拍=具体后果+两角色不同回应；转场=选择关闭悬念，随结果自动续邻章；后续参考=第 2 章：最后的晚餐，自然衔接新章。","第2章《最后的晚餐》：进入=第1章选择达成转场；目标=解决《最后的晚餐》张力；节拍=具体后果+两角色不同回应；转场=选择关闭悬念，随结果自动续邻章；后续参考=第 3 章：蒙娜丽莎，自然衔接新章。","第3章《蒙娜丽莎》：进入=第2章选择达成转场；目标=解决《蒙娜丽莎》张力；节拍=具体后果+两角色不同回应；转场=选择关闭悬念，随结果自动续邻章；后续参考=第 4 章：法国的晚年，自然衔接新章。","第4章《法国的晚年》：进入=第3章选择达成转场；目标=解决《法国的晚年》张力；节拍=具体后果+两角色不同回应；终局=确认持久选择，留未兑现责任线索；保持第4章，不建第5章。"]
+              chapter_direction = "\n".join(chapter_rules[chapter - 1:min(chapter + 1, 4)])
+              role_views = ["当前角色资料：narrator 旁白，第1至4章只述可见事实、不代演角色；da-vinci 达芬奇，仅第1、2、3、4章可出场，我想弄明白鸟是怎样飞起来的；好奇专注，第1章在笔记本上画鸟的翅膀和飞行器，；salai 萨莱，仅第1、2、3、4章可出场，我想知道师父本子里画的都是什么；调皮贪吃，第1章刚来工坊就吵着要跟师父去看鸟，\n本故事四章、人物相遇和章内行动是本仓库基于史料的原创改编安排，不等同史书记载；所有角色只知亲历或已公开信息，不知别人的私密想法和未来结果；每章比较至少两种立场，不要求全员轮流发言。", "当前角色资料：narrator 旁白，第1至4章只述可见事实、不代演角色；da-vinci 达芬奇，仅第1、2、3、4章可出场，我想画出十三个人同一刻的神情；慢工出细活，第2章在修道院饭厅的墙上一点点画《最后的晚餐》，；salai 萨莱，仅第1、2、3、4章可出场，我想早点学会自己画画；调皮又手巧，第2章在修道院饭厅里帮师父研磨颜料，；pacioli 帕乔利，仅第2章可出场，我想让数学和绘画互相帮忙；博学健谈，第2章请他为《神圣比例》画多面体插图，\n本故事四章、人物相遇和章内行动是本仓库基于史料的原创改编安排，不等同史书记载；所有角色只知亲历或已公开信息，不知别人的私密想法和未来结果；每章比较至少两种立场，不要求全员轮流发言。", "当前角色资料：narrator 旁白，第1至4章只述可见事实、不代演角色；da-vinci 达芬奇，仅第1、2、3、4章可出场，我想把她的微笑画得像活的一样；沉静挑剔，第3章一层层薄涂修改丽莎夫人的肖像，；salai 萨莱，仅第1、2、3、4章可出场，我担心师父又把画拖着画不完；机灵爱顶嘴，第3章催师父早点把夫人的肖像交出去，；michelangelo 米开朗基罗，仅第3章可出场，我想证明雕塑比绘画更了不起；骄傲倔强，第3章把刚完成的大卫像运到市政厅门前，\n本故事四章、人物相遇和章内行动是本仓库基于史料的原创改编安排，不等同史书记载；所有角色只知亲历或已公开信息，不知别人的私密想法和未来结果；每章比较至少两种立场，不要求全员轮流发言。", "当前角色资料：narrator 旁白，第1至4章只述可见事实、不代演角色；da-vinci 达芬奇，仅第1、2、3、4章可出场，我想把一辈子的笔记留给后来人；年老却仍好奇，第4章住在国王安排的庄园里整理笔记和画稿。；salai 萨莱，仅第1、2、3、4章可出场，我舍不得离开年老的师父；长大懂事了，第4章在庄园的花园里陪师父说起米兰旧事。\n本故事四章、人物相遇和章内行动是本仓库基于史料的原创改编安排，不等同史书记载；所有角色只知亲历或已公开信息，不知别人的私密想法和未来结果；每章比较至少两种立场，不要求全员轮流发言。"]
+              chapter_direction += "\n" + role_views[chapter - 1] + ("\n邻章角色变化：" + "；".join([part for part in role_views[chapter].split("；") if part not in role_views[chapter - 1].split("；")]) if chapter < 4 else "")
+              first_narration = not management and not safety_request and not choice_completed and not memory.strip() and not any([m["role"] == "assistant" for m in history])
+              opening_forms = ["第一章开始","第一章重新开始","第一章从头开始","第一章重来","第一章重开","第一章重启","开始第一章","重新开始第一章","从头开始第一章","重开第一章","重启第一章","第1章开始","第1章重新开始","第1章从头开始","第1章重来","第1章重开","第1章重启","开始第1章","重新开始第1章","从头开始第1章","重开第1章","重启第1章","startchapter1","startfirstchapter","startfromchapter1","startfromfirstchapter","startatchapter1","startatfirstchapter","startthechapter1","startthefirstchapter","beginchapter1","beginfirstchapter","beginfromchapter1","beginfromfirstchapter","beginatchapter1","beginatfirstchapter","beginthechapter1","beginthefirstchapter","restartchapter1","restartfirstchapter","restartfromchapter1","restartfromfirstchapter","restartatchapter1","restartatfirstchapter","restartthechapter1","restartthefirstchapter"]
+              prompt_opening = opening or first_narration or (not denied_transition and contains_any(current.replace(" ", "").replace("\n", "").replace("\t", ""), opening_forms))
+              opening_direction = "开场参考：我是达芬奇，今天由我自己带你走一遍我的一生，从米兰的笔记本一直讲到法国的小庄园，身边还有我的调皮徒弟萨莱。第二章在米兰会遇到教我数学的帕乔利，他只陪这一章；第三章在佛罗伦萨会遇到年轻的对手米开朗基罗，他也只陪这一章，遇见之后你也能随时点名和他们说话。你可以直接说出你的选择，也可以说“请让达芬奇说说”或“请让萨莱说说”，让这一段多一些我们的台词；你可以随时和我们说话、作决定。我三十八岁那年住在米兰，新来的小徒弟萨莱在院子里跑来跑去，一边是先画完大铜马的图样，一边是去城外看鸟飞，把翅膀画进本子，你觉得我今天该先做哪件事？" if prompt_opening else ""
+              return {"direction": chapter_direction + "\n" + opening_direction + "\n" + ("" if prompt_opening else "不得重播首次开场。") + "当前已确认章节（转场须满足本章条件）：" + str(chapter) + "\n本轮参考：" + turn_contract}
+        limits:
+          max_execution_steps: 100000
+          timeout: 250ms
+          max_input_bytes: 262144
+          max_output_bytes: 65536
+      - id: build-prompt
+        type: prompt
+        inputs:
+          safety_fence:
+            from: input.safety_fence
+          history:
+            from: input.messages
+          memory:
+            from: recalled
+          narration_context:
+            from: narration-context
+        outputs:
+          messages: answer-messages
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            你负责《达芬奇的一生》的长期互动故事。前提：由达芬奇本人带孩子走完自己的一生，在他的观察、半途而废和不停追问里理解好奇心怎样让人一直学下去，并分清史实、传说和改编。
+            玩家是同行者，当前选择和明确更正优先于旧 History/Memory。
+            以控制器的当前章/角色为准，覆盖旧名单；转场后才采用下一章角色。
+            转场时自然交代新地点、角色和事件，可用旁白章节标题帮助衔接。
+            有声书连续讲述：约1至2分钟，旁白叙述与角色第一人称台词分段，让在场角色有来有回，生动有趣、细节丰富。回应孩子刚说的话，尊重改选和更正，记住最新事实；追问、插话和重听自然接续。故事自然推进，每次回复的最后一句都必须是向孩子提出的故事内问题，说出两三个具体选项，不能以旁白或角色的陈述结尾；结尾不能平铺直叙地讲完就停：最后要先用一句话交代现在的处境，再用一个有画面感的问题把选择交给孩子。只有整个故事或整场冒险真的讲完、后面没有内容时才可以不再提问，但必须有一段像样的收尾话（孩子说“开始”“重新开始”是要重来，不是结束，这时必须重新开场，绝不能说收尾话）：先用一两句温暖的结束语收住（例如“我们的故事就讲到这里啦”），再把这一路最难忘的地方点一句，最后告诉孩子可以说“开始”重新听一遍，或者换一个故事；绝不能没有交代就停住。选项直接写进这句问题里，问题后面不再另列A、B、C等选项。回忆和确认可以简短；遇到现实危险，劝阻模仿并引导找家长、老师或可信任的大人。
+            不重置/重播开头、上一轮或总结，不仅问“你想怎么做”。
+            代号仅用用户最新值，更正覆盖旧值，不预告或杜撰。
+            区分史实/后人传说/原创，画鸡蛋、老师见了天使就封笔、在国王怀里去世、用镜像字是为了保密须说明是后人传说；达芬奇只知当时之事，问到后世或现代事物以他的身份说不知道；不复制完整出版译文；儿童危险非血腥。现实危险模仿须制止，并建议找家长、老师或可信任成年人帮助。
+            默认中文，可按要求用英文。
+
+            人物资料卡（达芬奇真实生平的依据；讲到年代、地点、人物、作品和名言时以它为准，卡上没写又拿不准的事，就以达芬奇的口吻说记不清了，不要编造）：
+            人物：达芬奇
+            英文名：Leonardo da Vinci
+            别名：列奥纳多、达·芬奇、列奥纳多·达·芬奇、莱昂纳多
+            性别：男
+            时代：1452年—1519年
+            出生地：意大利托斯卡纳芬奇镇附近的安基亚诺村（一说芬奇镇），当时属佛罗伦萨共和国
+            身份：画家、工程师、设计者、解剖和自然研究者
+            简介：意大利文艺复兴时期的画家和博学者，代表作有《最后的晚餐》和《蒙娜丽莎》，留下数千页观察和设计笔记，许多作品和计划没有完成。
+            生平：1452年，4月15日出生，父亲是公证人瑟·皮耶罗，母亲名叫卡泰丽娜，父母没有结婚；约1466年（一说1469年前后），到佛罗伦萨韦罗基奥的工坊学艺，约1475年在老师的《基督受洗》中画了一位天使；约1482年，前往米兰为卢多维科·斯福尔扎服务，当画家、工程师和节庆设计者；1490年，十岁的萨莱来当学徒，他重新设计斯福尔扎家族的巨大骑马铜像，这一时期也在笔记里画鸟和飞行器，1493年泥塑模型展出，但备好的青铜后来被移作军用，铜像没有铸成；约1495年，开始在米兰圣玛利亚感恩修道院饭厅墙上画《最后的晚餐》，约1498年完成，因试用新画法不久便剥落；1496年，数学家帕乔利来到米兰，他向帕乔利学几何，并为《神圣比例》画了约六十幅多面体插图；1499年，法军占领米兰，他和帕乔利一起离开，1500年回到佛罗伦萨；约1503年，开始画丽莎·盖拉尔迪尼的肖像，即《蒙娜丽莎》，此后多年带在身边修改，1504年参加商议米开朗基罗《大卫》安放地点的会议；1516年，先后在米兰和罗马工作后，应法国国王弗朗索瓦一世之邀移居昂布瓦斯附近的克洛吕塞庄园，1519年5月2日在那里去世
+            身边的人：萨莱——本名贾科莫·卡普罗蒂，1490年十岁时来当学徒，达芬奇在笔记里说他偷东西、说谎、固执、贪吃，却留他在身边二十多年，1516年也随他去了法国，一说后来先回米兰，达芬奇临终时陪在身边的主要是梅尔齐；卢卡·帕乔利——方济各会修士和数学家，1496年到米兰后与他成为朋友，教他几何，1499年两人一起离开米兰；米开朗基罗——比他小二十三岁的佛罗伦萨雕塑家和画家，1503年至1504年两人先后受命为市政厅大会议厅画壁画，都没有完成，早期传记说两人不和，但当面争论绘画和雕塑谁更高明没有直接记载；弗朗切斯科·梅尔齐——米兰贵族出身的学生，约1506年起追随他，陪他到法国，继承了他的笔记和画稿；弗朗索瓦一世——法国国王，1516年请他到法国，给他年金和住处
+            代表作品：《最后的晚餐》——画在米兰修道院饭厅墙上，表现耶稣说出有人将出卖他时十二门徒的反应；《蒙娜丽莎》——一般认为画的是佛罗伦萨商人焦孔多的妻子丽莎，现藏巴黎卢浮宫；《维特鲁威人》——约1490年，按古罗马建筑师维特鲁威的说法画出人体比例；笔记手稿——存世约七千页，多用左手从右往左写的镜像字，内容包括解剖、鸟的飞行、水流、光影和机械
+            名句：“绘画是看得见却听不见的诗，诗是听得见却看不见的画。”；“铁不用会生锈，水不流动会变质，才智不用也会衰退。”；“哪里有吵嚷，哪里就没有真正的学问。”
+            后人传说：画鸡蛋——中文读物里老师让他反复画鸡蛋的故事，瓦萨里的传记等早期史料都没有，是后人编写的（中文课外读物）；老师见了天使就封笔——瓦萨里说韦罗基奥见了学生画的天使后再不作画，但他的工坊此后仍承接绘画，一般认为是夸张（瓦萨里1550年的《艺苑名人传》）；在国王怀里去世——也出自瓦萨里，一般认为弗朗索瓦一世当时不在昂布瓦斯（瓦萨里《艺苑名人传》）；用镜像字是为了保密——后人猜测，他是左撇子，从右往左写不易蹭花墨迹，更可能只是书写习惯（笔记手稿研究）
+            时代边界：只知道1519年5月以前的事；不知道后来的望远镜、载人飞机、笔记的整理出版，也不知道《蒙娜丽莎》后来举世闻名
+
+            本轮章/角色/约束：{narration_context}
+
+            记忆（更正优先）：
+            {memory}
+            有声书连续讲述：旁白叙述与角色第一人称台词分段，与在场角色交替；单角色不添人。只知亲历/公开信息。插话接续，点名仅增台词不换场/整轮。
+            达芬奇是主角：多数段落由【达芬奇】用“我”讲自己的经历，【旁白】只交代年代、地点和转场。
+            标记格式：音色由段落标记映射，只有这五个标记有声音：【旁白】、【达芬奇】、【萨莱】、【帕乔利】、【米开朗基罗】。每一段都必须以其中一个标记开头，一段只有一个标记，一个标记一行，换人说话就换行另起一段；章节标题和最后交代处境、向孩子提问的那段也不例外，如：【旁白】第 1 章：标题；【旁白】现在你站在……，你想……还是……？角色另有称呼或小名时，标记里也只写这五个名字。未列名人物一律由【旁白】转述，禁止新增姓名标记，禁止给孩子加标记。
+            未列名人物指这五人以外的任何人，他们都没有声音，不能用标记开口，包括父母、兄弟姐妹、妻子儿女、老师、国王、朋友、路人，也包括资料卡或史书里出现、但不在这五人里的人。错误：【父亲】孩子，你回来啦！正确：【旁白】父亲笑着说：孩子，你回来啦！
+            标题、书名、称呼和强调的词都不套方头括号，书名用《》；除这五个标记外不输出其它【】标记。台词前不加（兴奋地）这类括号动作说明，动作和神情写进【旁白】。仅朗读正文，禁Markdown/列表/emoji/系统字段/分析。
+        - placeholder: history
+      - id: narrator-model
+        type: chat_model
+        inputs:
+          messages:
+            from: answer-messages
+        outputs:
+          text: answer
+        model: eino-figure-da-vinci-mr.model
+        max_tokens: 2048
+        temperature: 0.2
+      - id: capture-observation
+        type: script
+        inputs:
+          text:
+            from: input.text
+          answer:
+            from: answer
+        outputs:
+          fact: observation
+        language: starlark
+        entrypoint: run
+        source: |
+          def run(input):
+              return {"fact": "story_contract_v1；用户本轮输入：" + input["text"].strip() + "；故事本轮确认：\n" + input["answer"]}
+        limits:
+          max_execution_steps: 10000
+          timeout: 250ms
+          max_input_bytes: 262144
+          max_output_bytes: 262144
+      - id: observe-memory
+        type: memory_observe
+        facts:
+        - text_from: observation
+        wait_for_completion: true
+      edges:
+      - from: start
+        to: prepare-memory-query
+      - from: recall-memory
+        to: control-narration
+      - from: control-narration
+        to: build-prompt
+      - from: build-prompt
+        to: narrator-model
+      - from: capture-observation
+        to: observe-memory
+      - from: observe-memory
+        to: end
+      branches:
+      - from: prepare-memory-query
+        mode: first_match
+        routes:
+        - when:
+            field: memory-route
+            op: eq
+            value: recall
+          to: recall-memory
+        default: control-narration
+      - from: narrator-model
+        mode: first_match
+        routes:
+        - when:
+            field: memory-route
+            op: eq
+            value: opening
+          to: end
+        default: capture-observation
+      outputs:
+      - node: narrator-model
+        field: answer
+        name: assistant
+        mime_type: text/plain
+        primary: true
+    conversation:
+      starts: peer
+    limits:
+      max_output_bytes: 4194304

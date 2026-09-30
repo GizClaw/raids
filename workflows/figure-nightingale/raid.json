@@ -1,0 +1,155 @@
+{
+  "schema": "raids.raid/v1alpha1",
+  "id": "figure-nightingale",
+  "category": "figure",
+  "title": {
+    "zh-CN": "南丁格尔的一生",
+    "en": "A Life with Florence Nightingale"
+  },
+  "summary": {
+    "zh-CN": "由南丁格尔本人带孩子走完她的一生，从庄园花园到战地医院和统计图表，并分清史实、传说与改编。",
+    "en": "Walk through the life of Florence Nightingale with the nurse herself, telling history, legend, and adaptation apart."
+  },
+  "rating": {
+    "age": [
+      "child",
+      "teen"
+    ],
+    "scheme": "raids-age-v2",
+    "content": [
+      "historical-hardship"
+    ]
+  },
+  "tags": [
+    "historical-figure",
+    "nursing",
+    "biography"
+  ],
+  "language": [
+    "zh-CN"
+  ],
+  "implementations": {
+    "eino-multi-role": {
+      "file": "eino.multi-role.yaml",
+      "workflow_id": "eino-figure-nightingale-multi-role",
+      "driver": "eino",
+      "input": [
+        "text",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "story-teller"
+      },
+      "parameters": {
+        "models": {
+          "eino-figure-nightingale-mr.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        },
+        "voices": {
+          "eino-figure-nightingale-mr.storyteller": {
+            "role": "storyteller",
+            "language": "zh-CN",
+            "description": "旁白：连续剧本段落音色"
+          },
+          "eino-figure-nightingale-mr.nightingale": {
+            "role": "nightingale",
+            "language": "zh-CN",
+            "description": "南丁格尔：连续剧本段落音色"
+          },
+          "eino-figure-nightingale-mr.selina": {
+            "role": "selina",
+            "language": "zh-CN",
+            "description": "塞利娜：连续剧本段落音色"
+          },
+          "eino-figure-nightingale-mr.soyer": {
+            "role": "soyer",
+            "language": "zh-CN",
+            "description": "索耶：连续剧本段落音色"
+          },
+          "eino-figure-nightingale-mr.farr": {
+            "role": "farr",
+            "language": "zh-CN",
+            "description": "法尔：连续剧本段落音色"
+          }
+        }
+      }
+    }
+  },
+  "testers": {
+    "multi-role": {
+      "file": "test.multi-role.yaml",
+      "workflow_id": "figure-nightingale-test-multi-role",
+      "driver": "eino",
+      "parameters": {
+        "models": {
+          "figure-nightingale-test.model": {
+            "kind": "llm",
+            "role": "judge",
+            "description": "Chat model that generates every turn; needs streaming Chinese output"
+          }
+        }
+      },
+      "route": {
+        "responses": 16,
+        "checkpoints": [
+          "response-1",
+          "response-2",
+          "response-3",
+          "response-4",
+          "response-5",
+          "response-6",
+          "response-7",
+          "response-8",
+          "response-9",
+          "response-10",
+          "response-11",
+          "response-12",
+          "response-13",
+          "response-14",
+          "response-15",
+          "response-16"
+        ],
+        "milestones": [
+          8,
+          16
+        ],
+        "reload_before": 9,
+        "chapters": [
+          "花园里的决定",
+          "学当护士",
+          "提灯女士",
+          "会说话的图表"
+        ]
+      },
+      "implementations": [
+        "eino-multi-role"
+      ]
+    }
+  },
+  "tests": [
+    {
+      "file": "tests/giztest/smoke/figure-nightingale.eino.multi-role.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "eino-multi-role"
+      ]
+    },
+    {
+      "file": "tests/giztest/quality/figure-nightingale.eino.multi-role.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "eino-multi-role"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/figure-nightingale.eino.multi-role.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "eino-multi-role"
+      ]
+    }
+  ]
+}

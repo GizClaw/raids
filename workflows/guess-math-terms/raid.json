@@ -1,0 +1,114 @@
+{
+  "schema": "raids.raid/v1alpha1",
+  "id": "guess-math-terms",
+  "category": "guess",
+  "region": "global",
+  "title": {
+    "zh-CN": "猜猜数学名词",
+    "en": "Guess the Math Word"
+  },
+  "summary": {
+    "zh-CN": "主持人心里藏着一个数学名词，孩子用是非题来猜，猜中就升一关，从“数学小萌新”一路挑战到“无穷解谜者”。",
+    "en": "The host hides a math word; the child guesses with yes-or-no questions and levels up from Math Sprout to Infinity Puzzle Solver."
+  },
+  "rating": {
+    "age": [
+      "preschool",
+      "child",
+      "teen"
+    ],
+    "scheme": "raids-age-v2",
+    "content": []
+  },
+  "tags": [
+    "guess",
+    "math",
+    "numbers",
+    "shapes",
+    "yes-no",
+    "levels"
+  ],
+  "language": [
+    "zh-CN",
+    "en"
+  ],
+  "implementations": {
+    "eino": {
+      "file": "eino.yaml",
+      "workflow_id": "eino-guess-math-terms",
+      "driver": "eino",
+      "input": [
+        "text",
+        "realtime"
+      ],
+      "parameters": {
+        "models": {
+          "eino-guess-math-terms.model": {
+            "kind": "llm",
+            "role": "host",
+            "description": "Chat model that speaks every host turn from the nameless puzzle card; needs streaming Chinese and English output"
+          }
+        },
+        "voices": {
+          "eino-guess-math-terms.host": {
+            "role": "host",
+            "language": "zh-CN",
+            "description": "Quiz host voice"
+          }
+        }
+      }
+    }
+  },
+  "tester": {
+    "file": "test.yaml",
+    "workflow_id": "guess-math-terms-test",
+    "driver": "eino",
+    "parameters": {
+      "models": {
+        "guess-math-terms-test.model": {
+          "kind": "llm",
+          "role": "judge",
+          "description": "Chat model that generates every turn; needs streaming Chinese output"
+        }
+      }
+    },
+    "route": {
+      "responses": 10,
+      "checkpoints": [
+        "opening",
+        "yes-answer",
+        "ask-answer",
+        "big-hint",
+        "no-answer",
+        "win",
+        "next-round",
+        "english",
+        "give-up",
+        "resume"
+      ]
+    }
+  },
+  "tests": [
+    {
+      "file": "tests/giztest/smoke/guess-math-terms.eino.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "eino"
+      ]
+    },
+    {
+      "file": "tests/giztest/quality/guess-math-terms.eino.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "eino"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/guess-math-terms.eino.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "eino"
+      ]
+    }
+  ]
+}

@@ -132,7 +132,8 @@ def document(raid, suffix, impl):
     }
     turns = []
     if story:
-        first, second = chapters(raid)[:2]
+        # Multi-role files never name chapters; figure raids have no original eino.yaml.
+        first, second = (None, None) if multi_role else chapters(raid)[:2]
         # Original stories speak the heading; multi-role narration weaves it in and may
         # preview later chapters, so only a chapter 2 heading means it skipped the opening.
         opening = question({**markers, 'not_contains': ['【', '】'] + NEXT_CHAPTER_HEADING}) if multi_role else question({'contains_all': ['第 1 章', first]})

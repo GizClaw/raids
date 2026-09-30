@@ -12,6 +12,8 @@ printf '%s\n' \
   'Unit test (offline; no network, no credentials):' \
   '  test-unit-resources    validate applyable Resources and Giztest documents with GizClaw' \
   '  test-unit-learn        regenerate learn-* raids and fail on committed-output drift' \
+  '  test-unit-guess        regenerate guess-* raids, check drift, and replay game-state scenarios' \
+  '  test-unit-figure       regenerate figure-* raids and fail on committed-output drift' \
   '  test-unit-voices       check catalog-wide Voice invariants (MiniMax synthesis model)' \
   '' \
   'Integration test (live deployment):' \

@@ -1,0 +1,114 @@
+{
+  "schema": "raids.raid/v1alpha1",
+  "id": "guess-chemistry-terms",
+  "category": "guess",
+  "region": "global",
+  "title": {
+    "zh-CN": "猜猜化学名词",
+    "en": "Guess the Chemistry Word"
+  },
+  "summary": {
+    "zh-CN": "主持人心里藏着一个化学名词，孩子用是非题来猜，猜中就升一关，从“化学萌新”一路挑战到“万物解谜者”。",
+    "en": "The host hides a chemistry word; the child guesses with yes-or-no questions and levels up from Chemistry Newbie to Master of Matter."
+  },
+  "rating": {
+    "age": [
+      "preschool",
+      "child",
+      "teen"
+    ],
+    "scheme": "raids-age-v2",
+    "content": []
+  },
+  "tags": [
+    "guess",
+    "chemistry",
+    "science",
+    "terms",
+    "yes-no",
+    "levels"
+  ],
+  "language": [
+    "zh-CN",
+    "en"
+  ],
+  "implementations": {
+    "eino": {
+      "file": "eino.yaml",
+      "workflow_id": "eino-guess-chemistry-terms",
+      "driver": "eino",
+      "input": [
+        "text",
+        "realtime"
+      ],
+      "parameters": {
+        "models": {
+          "eino-guess-chemistry-terms.model": {
+            "kind": "llm",
+            "role": "host",
+            "description": "Chat model that speaks every host turn from the nameless puzzle card; needs streaming Chinese and English output"
+          }
+        },
+        "voices": {
+          "eino-guess-chemistry-terms.host": {
+            "role": "host",
+            "language": "zh-CN",
+            "description": "Quiz host voice"
+          }
+        }
+      }
+    }
+  },
+  "tester": {
+    "file": "test.yaml",
+    "workflow_id": "guess-chemistry-terms-test",
+    "driver": "eino",
+    "parameters": {
+      "models": {
+        "guess-chemistry-terms-test.model": {
+          "kind": "llm",
+          "role": "judge",
+          "description": "Chat model that generates every turn; needs streaming Chinese output"
+        }
+      }
+    },
+    "route": {
+      "responses": 10,
+      "checkpoints": [
+        "opening",
+        "yes-answer",
+        "ask-answer",
+        "big-hint",
+        "no-answer",
+        "win",
+        "next-round",
+        "english",
+        "give-up",
+        "resume"
+      ]
+    }
+  },
+  "tests": [
+    {
+      "file": "tests/giztest/smoke/guess-chemistry-terms.eino.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "eino"
+      ]
+    },
+    {
+      "file": "tests/giztest/quality/guess-chemistry-terms.eino.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "eino"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/guess-chemistry-terms.eino.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "eino"
+      ]
+    }
+  ]
+}

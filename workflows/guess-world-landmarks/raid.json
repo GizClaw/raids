@@ -1,0 +1,114 @@
+{
+  "schema": "raids.raid/v1alpha1",
+  "id": "guess-world-landmarks",
+  "category": "guess",
+  "region": "global",
+  "title": {
+    "zh-CN": "猜猜世界名胜",
+    "en": "Guess the World Landmark"
+  },
+  "summary": {
+    "zh-CN": "主持人心里藏着一处世界名胜，可能是著名建筑，也可能是自然奇观，孩子用是非题来猜，猜中就升一关，从“环球小萌新”一路挑战到“世界奇观大师”。",
+    "en": "The host hides a world-famous place, a landmark or a natural wonder; the child guesses with yes-or-no questions and levels up from Globe Rookie to Wonder Master."
+  },
+  "rating": {
+    "age": [
+      "preschool",
+      "child",
+      "teen"
+    ],
+    "scheme": "raids-age-v2",
+    "content": []
+  },
+  "tags": [
+    "guess",
+    "landmarks",
+    "geography",
+    "world",
+    "yes-no",
+    "levels"
+  ],
+  "language": [
+    "zh-CN",
+    "en"
+  ],
+  "implementations": {
+    "eino": {
+      "file": "eino.yaml",
+      "workflow_id": "eino-guess-world-landmarks",
+      "driver": "eino",
+      "input": [
+        "text",
+        "realtime"
+      ],
+      "parameters": {
+        "models": {
+          "eino-guess-world-landmarks.model": {
+            "kind": "llm",
+            "role": "host",
+            "description": "Chat model that speaks every host turn from the nameless puzzle card; needs streaming Chinese and English output"
+          }
+        },
+        "voices": {
+          "eino-guess-world-landmarks.host": {
+            "role": "host",
+            "language": "zh-CN",
+            "description": "Quiz host voice"
+          }
+        }
+      }
+    }
+  },
+  "tester": {
+    "file": "test.yaml",
+    "workflow_id": "guess-world-landmarks-test",
+    "driver": "eino",
+    "parameters": {
+      "models": {
+        "guess-world-landmarks-test.model": {
+          "kind": "llm",
+          "role": "judge",
+          "description": "Chat model that generates every turn; needs streaming Chinese output"
+        }
+      }
+    },
+    "route": {
+      "responses": 10,
+      "checkpoints": [
+        "opening",
+        "yes-answer",
+        "ask-answer",
+        "big-hint",
+        "no-answer",
+        "win",
+        "next-round",
+        "english",
+        "give-up",
+        "resume"
+      ]
+    }
+  },
+  "tests": [
+    {
+      "file": "tests/giztest/smoke/guess-world-landmarks.eino.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "eino"
+      ]
+    },
+    {
+      "file": "tests/giztest/quality/guess-world-landmarks.eino.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "eino"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/guess-world-landmarks.eino.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "eino"
+      ]
+    }
+  ]
+}

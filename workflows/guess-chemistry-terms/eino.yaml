@@ -1,0 +1,4341 @@
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata:
+  id: eino-guess-chemistry-terms
+spec:
+  driver: eino
+  toolkit:
+    tool_ids: []
+  eino:
+    voice_adapter:
+      asr_model: asr
+      default_voice: eino-guess-chemistry-terms.host
+    graph:
+      name: guess-chemistry-terms-eino
+      compile:
+        node_trigger_mode: any_predecessor
+        max_run_steps: 12
+      state:
+        fields:
+        - name: game-route
+          type: string
+          merge: replace
+        - name: game-direction
+          type: string
+          merge: replace
+        - name: game-node
+          type: string
+          merge: replace
+        - name: host-rules
+          type: string
+          merge: replace
+        - name: host-messages
+          type: messages
+          merge: replace
+        - name: answer
+          type: string
+          merge: replace
+      nodes:
+      - id: control-round
+        type: script
+        inputs:
+          text:
+            from: input.text
+          messages:
+            from: input.messages
+        outputs:
+          route: game-route
+          node: game-node
+          direction: game-direction
+          rules: host-rules
+        language: starlark
+        entrypoint: run
+        source: |
+          # Generated from workflows/guess-chemistry-terms/puzzles.json by scripts/guess/generate.py.
+          # Eino keeps no hidden state between turns, so every turn rebuilds the game
+          # from the spoken History: the latest "谜题来啦"/"Puzzle time" opening names
+          # the level and the puzzle number, and (level, puzzle) picks the secret.
+          # Each turn makes one model call: this script either writes the host's
+          # instruction for build-host-prompt, or activates the current puzzle's card
+          # node, whose card has the name removed so the host cannot say it.
+          DATA = {"subject_zh": "一个化学名词", "subject_en": "a chemistry word", "examples_zh": ["它是一种元素吗？", "它是气体吗？", "它在厨房里能找到吗？", "它和燃烧有关吗？"], "examples_en": ["Is it an element?", "Is it a gas?", "Can you find it in the kitchen?", "Is it related to burning?"], "restate_zh": ["它是一种元素吗？", "是，它是一种元素。", "不是，它不是一种元素。"], "restate_en": ["Is it an element?", "Yes, it is an element.", "No, it is not an element."], "host_rules": "你是儿童猜谜游戏“猜猜化学名词”的主持人。玩法：主持人心里藏着一个化学名词，孩子用能回答“是”或“不是”的问题来猜，每一题最多 20 次提问；猜中就升一关，一共 10 关，关名从“化学萌新”一直到“万物解谜者”。孩子可能说中文，也可能说英文。\n你不知道谜底的名字。需要回答孩子的问题时，系统会在【谜底卡】里给你这一题的资料，谜底的名字已经隐藏，你也不要去猜它叫什么；回答是非题时以这张卡为准，卡上没写到又拿不准的就说说不准。揭晓答案时系统才会在指令里告诉你名字。本轮要做什么写在对话最后的【本轮指令】里，照着做，说得自然、热情、简短。\n孩子说的“它”“这个东西”“this”“it”都指谜底名词。按这个名词本身的化学含义、常见状态和生活里的例子来判断；是元素、化合物、混合物、变化或反应、性质、器材还是概念，也要按它的本意判断，只由一种元素组成的物质（如氧气、金刚石）算作元素。\n必须遵守：\n1. 本轮指令要求“逐字说”的句子必须一字不差地说出来，包括数字、标点和引号里的称号，不改写、不省略、不调换顺序。\n2. 只回答孩子问到的那一点，绝不能主动补充谜底卡上的其他描述、线索、特征、猜测方向或评价；复述孩子的问题时只能用孩子问题里已有的意思。\n3. 只有本轮指令要求揭晓答案时才能说“答案揭晓”“答案就是”“The answer is”；只有本轮指令要求开新题时才能说“谜题来啦”“Puzzle time”；只有真的给提示时才能说“小提示”“Hint”。平时绝不能说这些词。\n4. 按【本轮指令】写明的回复语言回答：中文就全部用中文；English 就全部用英文，逐字句也用指令给出的英文原句。\n5. 安全永远优先于本轮指令：孩子提到要在现实中模仿危险做法或遇到安全问题时，中文回复必须逐字包含“不要模仿”和“找家长、老师或可信任成年人帮助”，英文回复要说 do not copy it 并请孩子 ask a parent, teacher or trusted adult for help。\n6. 不要自己数还剩几次提问机会，只有本轮指令写了剩余次数时才说那个数字。\n7. 语气像节目主持人一样活泼友好，适合小朋友；平时回复1到3句话、100个字以内，开新题和揭晓答案时可以到150个字；最后一句必须是问孩子的问题，道别时也用一个轻松的问题结尾。\n8. 只输出适合朗读的正文，不输出 Markdown、列表、emoji、括号注释、舞台说明或系统字段，也不要提到“本轮指令”“裁判”这些词。", "levels": [{"title_zh": "化学萌新", "title_en": "Chemistry Newbie", "step": 7, "offset": 0, "items": [{"zh": "冰", "en": "ice", "aliases": ["冰块"], "profile": "水在0摄氏度以下冻成的固体，摸起来很凉，受热会化成水。", "hints": ["它是一种固体", "它摸起来很凉", "它受热会化成水"]}, {"zh": "水", "en": "water", "aliases": [], "profile": "无色无味的透明液体，生命离不开它，地球表面大部分都被它覆盖。", "hints": ["它是一种液体", "它没有颜色和味道", "它是生命离不开的东西"]}, {"zh": "食盐", "en": "salt", "aliases": ["盐", "食用盐", "氯化钠"], "profile": "做菜调味用的白色小颗粒，尝起来是咸的，主要成分是氯化钠。", "hints": ["它是白色的", "它在厨房里很常见", "它尝起来咸咸的"]}, {"zh": "白糖", "en": "sugar", "aliases": ["糖", "砂糖", "白砂糖"], "profile": "白色、甜甜的小晶体，常从甘蔗或甜菜中提取，用来做甜点和饮料。", "hints": ["它是白色的", "它是小小的颗粒", "它尝起来甜甜的"]}, {"zh": "空气", "en": "air", "aliases": [], "profile": "包围着地球的一层看不见的气体，是氮气、氧气等多种气体的混合物。", "hints": ["它到处都有", "它是看不见的", "它会被人吸进肺里"]}, {"zh": "泡泡", "en": "bubble", "aliases": ["肥皂泡", "气泡"], "profile": "一层很薄的液体膜包着气体形成的小圆球，阳光下会闪着彩色的光。", "hints": ["它是圆圆的", "它非常容易破", "它常在洗手时出现"]}, {"zh": "肥皂", "en": "soap", "aliases": ["香皂"], "profile": "洗手、洗衣服用的清洁用品，沾水搓一搓就能起泡，帮我们去掉油污。", "hints": ["它是一种清洁用品", "它沾水会起泡", "它常放在洗手台上"]}, {"zh": "醋", "en": "vinegar", "aliases": ["食醋", "白醋"], "profile": "酸溜溜的液体调味品，里面的酸味来自乙酸，拌菜、做菜时常用到。", "hints": ["它是一种液体", "它在厨房里很常见", "它尝起来酸酸的"]}, {"zh": "食用油", "en": "cooking oil", "aliases": ["油"], "profile": "炒菜煎蛋用的液体，多从花生、大豆、橄榄等植物中得到，会浮在水面上。", "hints": ["它是一种液体", "它摸起来滑滑的", "它会浮在水面上"]}, {"zh": "牛奶", "en": "milk", "aliases": [], "profile": "奶牛产出的白色饮品，含有蛋白质和钙，是水、脂肪等混在一起的混合物。", "hints": ["它是一种液体", "它是白色的", "它常常在早餐时喝"]}, {"zh": "汽水", "en": "soda", "aliases": ["碳酸饮料", "气泡水"], "profile": "溶有很多二氧化碳的饮料，打开瓶盖会咕嘟咕嘟冒出气泡。", "hints": ["它是一种液体", "它是一种饮料", "它打开时会咕嘟冒泡"]}, {"zh": "蜡烛", "en": "candle", "aliases": [], "profile": "用石蜡做成、中间有一根烛芯的照明用品，点燃后会慢慢变短。", "hints": ["它是一种固体", "它能发光", "它常插在生日蛋糕上"]}, {"zh": "沙子", "en": "sand", "aliases": ["沙", "沙粒"], "profile": "由细小岩石颗粒组成的松散固体，海滩上到处都是，还是做玻璃的原料。", "hints": ["它是一种固体", "它由很多小颗粒组成", "它在海滩上到处都是"]}, {"zh": "塑料", "en": "plastic", "aliases": [], "profile": "轻便、耐用、能做成各种形状的人造材料，玩具、瓶子和袋子常用它做。", "hints": ["它是一种材料", "它是人造的", "它常用来做瓶子和玩具"]}, {"zh": "玻璃", "en": "glass", "aliases": [], "profile": "透明又坚硬的材料，主要用沙子里的二氧化硅做成，窗户和杯子常用它。", "hints": ["它是一种材料", "它是透明的", "它常用来做窗户"]}, {"zh": "黄金", "en": "gold", "aliases": ["金子"], "profile": "金黄色、闪闪发亮的贵重金属，不容易生锈，常用来做首饰和金币。", "hints": ["它是一种金属", "它是黄色的", "它非常贵重"]}]}, {"title_zh": "泡泡学徒", "title_en": "Bubble Apprentice", "step": 7, "offset": 0, "items": [{"zh": "铁", "en": "iron", "aliases": [], "profile": "银灰色的常见金属，用途非常广，在潮湿的空气里容易生锈。", "hints": ["它是一种金属", "它很坚硬", "它在潮湿处容易生锈"]}, {"zh": "燃烧", "en": "burning", "aliases": ["着火"], "profile": "可燃物和氧气发生的剧烈反应，会发光、放热，比如木柴烧起来。", "hints": ["它是一种变化", "它会发光发热", "它需要氧气"]}, {"zh": "溶解", "en": "dissolving", "aliases": ["溶化"], "profile": "一种物质均匀分散到另一种物质里的过程，比如糖放进水里就不见了。", "hints": ["它是一个过程", "它常发生在水里", "它能让糖在水里消失"]}, {"zh": "铁锈", "en": "rust", "aliases": ["锈"], "profile": "铁在潮湿空气里生成的红褐色物质，疏松易掉，主要成分是氧化铁。", "hints": ["它是一种固体", "它是红褐色的", "它常长在旧钉子上"]}, {"zh": "铜", "en": "copper", "aliases": [], "profile": "紫红色的金属，导电本领很强，电线里常用它，放久了会长出绿色的锈。", "hints": ["它是一种金属", "它是紫红色的", "它常用来做电线"]}, {"zh": "二氧化碳", "en": "carbon dioxide", "aliases": ["CO2"], "profile": "无色无味的气体，人和动物呼出它，植物吸收它来制造养分。", "hints": ["它是一种气体", "它看不见", "它会被人呼出来"]}, {"zh": "水蒸气", "en": "water vapor", "aliases": ["蒸汽", "水汽"], "profile": "水变成的气体，看不见摸不着，烧开水时看到的白气是它遇冷变成的小水滴。", "hints": ["它是一种气体", "它看不见", "它是水受热变成的"]}, {"zh": "氧气", "en": "oxygen", "aliases": ["氧"], "profile": "无色无味的气体，约占空气体积的五分之一，人和动物呼吸都离不开它。", "hints": ["它是一种气体", "它看不见", "它能帮助东西燃烧"]}, {"zh": "小苏打", "en": "baking soda", "aliases": ["碳酸氢钠"], "profile": "白色粉末，做面包、馒头时能让面团蓬松，和醋混合会冒出很多气泡。", "hints": ["它是白色粉末", "它常在厨房里出现", "它遇到醋会冒泡"]}, {"zh": "酒精", "en": "alcohol", "aliases": ["乙醇"], "profile": "无色、有特殊气味、很容易燃烧的液体，医院常用它来消毒。", "hints": ["它是一种液体", "它有特殊的气味", "它常用来消毒"]}, {"zh": "淀粉", "en": "starch", "aliases": [], "profile": "大米、土豆、面粉里含量很多的营养物质，遇到碘酒会变成蓝色。", "hints": ["它是白色粉末", "它是一种营养物质", "它遇到碘酒会变蓝"]}, {"zh": "石油", "en": "petroleum", "aliases": ["原油"], "profile": "埋在地下的黑褐色黏稠液体，被称为工业的血液，能炼出汽油和塑料原料。", "hints": ["它是一种液体", "它藏在地下深处", "它能提炼出汽油"]}, {"zh": "天然气", "en": "natural gas", "aliases": [], "profile": "埋藏在地下的可燃气体，主要成分是甲烷，很多家庭用它烧水做饭。", "hints": ["它是一种气体", "它藏在地下", "它能用来做饭"]}, {"zh": "木炭", "en": "charcoal", "aliases": ["炭"], "profile": "木头变成的黑色固体，疏松多孔，能燃烧，烧烤时常用它。", "hints": ["它是黑色的", "它是一种燃料", "它常用来烧烤"]}, {"zh": "煤", "en": "coal", "aliases": ["煤炭"], "profile": "埋在地下的黑色块状燃料，由古代植物经过漫长时间变成。", "hints": ["它是一种固体", "它是黑色的", "它从地下挖出来"]}, {"zh": "银", "en": "silver", "aliases": ["白银", "银子"], "profile": "白亮闪闪的贵重金属，导电本领在所有金属中最强，常用来做首饰和餐具。", "hints": ["它是一种金属", "它是白亮的颜色", "它常用来做首饰"]}]}, {"title_zh": "试管小助手", "title_en": "Test Tube Helper", "step": 7, "offset": 0, "items": [{"zh": "烧杯", "en": "beaker", "aliases": [], "profile": "实验室里常用的玻璃杯形容器，外壁有刻度，用来盛放和配制液体。", "hints": ["它是一种实验器材", "它是玻璃做的", "它长得像一个杯子"]}, {"zh": "试管", "en": "test tube", "aliases": [], "profile": "细长的玻璃管，一头封闭、一头开口，做少量试剂反应时最常用。", "hints": ["它是一种实验器材", "它是细长的", "它一头封闭一头开口"]}, {"zh": "酒精灯", "en": "alcohol lamp", "aliases": [], "profile": "实验室里用来加热的灯，里面装着酒精作燃料，要用灯帽盖灭。", "hints": ["它是一种实验器材", "它能用来加热", "它要用帽子盖灭"]}, {"zh": "滴管", "en": "dropper", "aliases": ["胶头滴管"], "profile": "一头带橡胶头的细玻璃管，捏一捏就能吸取和滴加少量液体。", "hints": ["它是一种实验器材", "它有一个软软的头", "它能一滴一滴加液体"]}, {"zh": "漏斗", "en": "funnel", "aliases": [], "profile": "上面宽、下面细的锥形器材，能把液体倒进小口瓶，过滤时也要用它。", "hints": ["它是一种器材", "它上宽下窄", "它能帮液体倒进小口瓶"]}, {"zh": "过滤", "en": "filtration", "aliases": [], "profile": "让液体流经滤纸等有小孔的东西，把不溶的固体分离出来的方法。", "hints": ["它是一种分离的方法", "它能让泥水变清", "它常常要用到滤纸"]}, {"zh": "生锈", "en": "rusting", "aliases": ["锈蚀"], "profile": "铁等金属和空气中的氧气、水慢慢反应，表面长出锈的过程。", "hints": ["它是一种变化", "它进行得很慢", "它常发生在潮湿的铁上"]}, {"zh": "发酵", "en": "fermentation", "aliases": [], "profile": "酵母菌等微生物分解食物中糖等物质的过程，面包变松软、酸奶变酸都靠它。", "hints": ["它是一种变化", "它离不开微生物", "它能让面团变得松软"]}, {"zh": "氢气", "en": "hydrogen", "aliases": ["氢"], "profile": "最轻的气体，无色无味，燃烧后只生成水，被看作清洁的能源。", "hints": ["它是一种气体", "它非常轻", "它燃烧后只生成水"]}, {"zh": "氮气", "en": "nitrogen", "aliases": ["氮"], "profile": "空气里最多的气体，约占空气体积的五分之四，无色无味，不容易发生反应。", "hints": ["它是一种气体", "它不容易发生反应", "它常被充进零食袋"]}, {"zh": "氦气", "en": "helium", "aliases": ["氦"], "profile": "比空气轻得多的气体，不会燃烧，常用来充飘在空中的气球。", "hints": ["它是一种气体", "它比空气轻", "它能让气球飘起来"]}, {"zh": "铝", "en": "aluminium", "aliases": ["aluminum"], "profile": "银白色的轻金属，是地壳里含量最多的金属，常用来做易拉罐。", "hints": ["它是一种金属", "它很轻", "它常用来做易拉罐"]}, {"zh": "钢", "en": "steel", "aliases": [], "profile": "铁里加入少量碳等元素制成的合金，比纯铁更坚硬，桥梁和汽车都离不开它。", "hints": ["它是一种材料", "它非常坚硬", "它主要由铁做成"]}, {"zh": "碘酒", "en": "iodine tincture", "aliases": ["碘酊"], "profile": "碘溶解在酒精里形成的棕色药液，常用来给小伤口周围消毒。", "hints": ["它是一种液体", "它是棕色的", "它能用来检验淀粉"]}, {"zh": "金刚石", "en": "diamond", "aliases": ["钻石"], "profile": "天然存在的最坚硬的物质，由碳原子组成，打磨后就是亮晶晶的钻石。", "hints": ["它是一种固体", "它非常坚硬", "它能做成宝石"]}, {"zh": "石墨", "en": "graphite", "aliases": [], "profile": "深灰色、软软滑滑的固体，由碳原子组成，铅笔芯主要就是用它做的。", "hints": ["它是深灰色的", "它摸起来滑滑的", "它能做铅笔芯"]}]}, {"title_zh": "烧杯探险家", "title_en": "Beaker Explorer", "step": 7, "offset": 0, "items": [{"zh": "化学变化", "en": "chemical change", "aliases": ["化学反应"], "profile": "有新物质生成的变化，比如木头燃烧、铁生锈、食物变质。", "hints": ["它是一种变化", "它和新物质有关", "它包括燃烧和生锈"]}, {"zh": "物理变化", "en": "physical change", "aliases": [], "profile": "没有新物质生成的变化，只是形状或状态改变，比如冰化成水、纸被撕碎。", "hints": ["它是一种变化", "它常常只改变形状", "它包括冰化成水"]}, {"zh": "石灰水", "en": "limewater", "aliases": ["澄清石灰水"], "profile": "氢氧化钙溶在水里形成的无色溶液，遇到二氧化碳会变浑浊。", "hints": ["它是一种液体", "它在实验室里常用", "它遇到二氧化碳会变浑"]}, {"zh": "干冰", "en": "dry ice", "aliases": [], "profile": "固态的二氧化碳，温度极低，会直接变成气体，舞台上的白色烟雾常用它制造。", "hints": ["它是白色固体", "它非常非常冷", "它会直接变成气体"]}, {"zh": "活性炭", "en": "activated carbon", "aliases": [], "profile": "黑色多孔的物质，表面有无数小孔，能吸附异味和颜色，冰箱除味包里常用。", "hints": ["它是黑色的", "它有很多小孔", "它能吸走难闻的气味"]}, {"zh": "酸雨", "en": "acid rain", "aliases": [], "profile": "溶进了污染气体、酸性较强的雨，会腐蚀建筑，伤害森林和湖泊里的生物。", "hints": ["它和天气有关", "它和空气污染有关", "它会腐蚀石头雕像"]}, {"zh": "水垢", "en": "limescale", "aliases": [], "profile": "烧水壶内壁上积起的白色硬块，主要成分是碳酸钙等，用醋可以去除。", "hints": ["它是白色的", "它硬硬的", "它常长在烧水壶里"]}, {"zh": "结晶", "en": "crystallization", "aliases": [], "profile": "物质从溶液中析出，形成有规则形状晶体的过程，海水晒盐就是例子。", "hints": ["它是一个过程", "它和溶液有关", "它能让海水里析出盐"]}, {"zh": "灭火器", "en": "fire extinguisher", "aliases": [], "profile": "扑灭初起火灾的器材，喷出的干粉、泡沫或二氧化碳能隔绝空气让火熄灭。", "hints": ["它是一种器材", "它常是红色的", "它能让火熄灭"]}, {"zh": "陶瓷", "en": "ceramics", "aliases": ["瓷器"], "profile": "用黏土等原料经过高温烧制成的材料，碗、盘子和花瓶常用它做。", "hints": ["它是一种材料", "它坚硬但容易碎", "它常用来做碗盘"]}, {"zh": "石灰石", "en": "limestone", "aliases": [], "profile": "一种常见的岩石，主要成分是碳酸钙，可用来建房子和生产水泥。", "hints": ["它是一种岩石", "它可以用来建房子", "它主要含碳酸钙"]}, {"zh": "食用碱", "en": "sodium carbonate", "aliases": ["纯碱", "苏打", "碳酸钠"], "profile": "白色粉末，化学名碳酸钠，做面食时能中和酸味，水溶液呈碱性。", "hints": ["它是白色粉末", "它在厨房里常见", "它的水溶液显碱性"]}, {"zh": "橡胶", "en": "rubber", "aliases": [], "profile": "有弹性、能拉长又能缩回的材料，天然的来自一种树的乳白色汁液。", "hints": ["它是一种材料", "它很有弹性", "它能用来做轮胎"]}, {"zh": "干燥剂", "en": "desiccant", "aliases": [], "profile": "能吸收水分、让东西保持干燥的物质，零食袋里的小纸包常装着它。", "hints": ["它常装在小纸包里", "它能吸收水分", "它常在零食袋里出现"]}, {"zh": "可燃性", "en": "flammability", "aliases": [], "profile": "物质能够燃烧的性质，木头、纸和酒精都有，石头和沙子没有。", "hints": ["它是一种性质", "它和火有关", "它是纸和木头都有的"]}]}, {"title_zh": "元素侦探", "title_en": "Element Detective", "step": 7, "offset": 0, "items": [{"zh": "原子", "en": "atom", "aliases": [], "profile": "构成物质的一种极小微粒，中心有带正电的核，外面有电子在运动。", "hints": ["它属于微观世界", "它小到看不见", "它在化学变化中不能再分"]}, {"zh": "分子", "en": "molecule", "aliases": [], "profile": "由原子结合成的微粒，是保持很多物质化学性质的最小粒子，比如水就由它构成。", "hints": ["它属于微观世界", "它由原子组成", "它总是在不停地运动"]}, {"zh": "单质", "en": "elementary substance", "aliases": [], "profile": "只由一种元素组成的纯净物，比如氧气、铁和金刚石。", "hints": ["它是一个概念", "它和元素有关", "它包括铁和氧气"]}, {"zh": "纯净物", "en": "pure substance", "aliases": [], "profile": "只由一种物质组成的物质，有固定的组成，比如蒸馏水和氧气。", "hints": ["它是一个概念", "它和混合物相反", "它包括蒸馏水"]}, {"zh": "元素周期表", "en": "periodic table", "aliases": ["周期表"], "profile": "把所有化学元素按原子序数排列成的表格，门捷列夫最早编出了它。", "hints": ["它是一张表格", "它按一定规律排列", "它常挂在化学教室墙上"]}, {"zh": "化学式", "en": "chemical formula", "aliases": [], "profile": "用元素符号和数字表示物质组成的式子，比如水写作H2O。", "hints": ["它是一种写法", "它由字母和数字组成", "它能表示物质由什么组成"]}, {"zh": "硫", "en": "sulfur", "aliases": ["硫黄", "硫磺"], "profile": "淡黄色的非金属固体，火山口附近常能见到，生产橡胶轮胎时也会用到它。", "hints": ["它是一种非金属", "它是淡黄色的", "它常出现在火山口"]}, {"zh": "钙", "en": "calcium", "aliases": [], "profile": "人体里含量最多的金属元素，骨骼和牙齿里有很多，牛奶里也富含它。", "hints": ["它是一种元素", "它和骨骼有关", "它在牛奶里很多"]}, {"zh": "汞", "en": "mercury", "aliases": ["水银"], "profile": "常温下唯一的液态金属，银白色，老式体温计里的银色液体就是它。", "hints": ["它是一种金属", "它有毒", "它在老式体温计里"]}, {"zh": "臭氧", "en": "ozone", "aliases": [], "profile": "由三个氧原子组成分子的淡蓝色气体，高空中的它能挡住太阳的大部分紫外线。", "hints": ["它是一种气体", "它在高空很重要", "它能阻挡紫外线"]}, {"zh": "一氧化碳", "en": "carbon monoxide", "aliases": [], "profile": "一种无色无味的有毒气体，很难被察觉，家里常装报警器来防范它。", "hints": ["它是一种气体", "它有毒", "它比二氧化碳少一个原子"]}, {"zh": "甲烷", "en": "methane", "aliases": [], "profile": "最简单的有机物，无色无味的可燃气体，是天然气的主要成分。", "hints": ["它是一种气体", "它能燃烧", "它是天然气的主要成分"]}, {"zh": "量筒", "en": "graduated cylinder", "aliases": [], "profile": "带有刻度的细长玻璃筒，用来量取一定体积的液体。", "hints": ["它是一种实验器材", "它上面有刻度", "它用来量液体体积"]}, {"zh": "蒸馏", "en": "distillation", "aliases": [], "profile": "把液体加热变成蒸气，再冷凝成液体来提纯的方法，能得到很纯的水。", "hints": ["它是一种分离方法", "它需要加热", "它能得到很纯的水"]}, {"zh": "挥发性", "en": "volatility", "aliases": [], "profile": "物质容易从液体变成气体跑到空气里的性质，酒精和香水的这种性质就很强。", "hints": ["它是一种性质", "它常和气味有关", "它让香水的香味散开"]}]}, {"title_zh": "分子观察员", "title_en": "Molecule Watcher", "step": 5, "offset": 0, "items": [{"zh": "离子", "en": "ion", "aliases": [], "profile": "带电的原子或原子团，比如食盐就是由带电的钠和氯微粒构成的。", "hints": ["它属于微观世界", "它带电", "它由原子得失电子形成"]}, {"zh": "化合价", "en": "valence", "aliases": [], "profile": "表示一种元素的原子和其他原子化合时数目关系的数值，有正有负。", "hints": ["它是一个数值", "它有正有负", "它能帮忙写化学式"]}, {"zh": "化学方程式", "en": "chemical equation", "aliases": [], "profile": "用化学式表示化学反应的式子，左边写反应物，右边写生成物。", "hints": ["它是一种写法", "它表示一个反应", "它要两边配平"]}, {"zh": "质量守恒定律", "en": "law of conservation of mass", "aliases": ["质量守恒"], "profile": "化学反应前后，参加反应的各物质质量总和等于生成的各物质质量总和。", "hints": ["它是一条定律", "它和称量有关", "它说反应前后总量不变"]}, {"zh": "相对原子质量", "en": "relative atomic mass", "aliases": ["原子量"], "profile": "以一种碳原子质量的十二分之一为标准，其他原子质量跟它相比得到的值。", "hints": ["它是一个数值", "它和原子有关", "它印在周期表每一格里"]}, {"zh": "氧化物", "en": "oxide", "aliases": [], "profile": "由两种元素组成、其中一种是氧元素的化合物，比如水和二氧化碳。", "hints": ["它是一类化合物", "它由两种元素组成", "它包括水和二氧化碳"]}, {"zh": "有机物", "en": "organic compound", "aliases": ["有机化合物"], "profile": "含碳化合物中的一大类，糖、淀粉、蛋白质、塑料都属于它。", "hints": ["它是一类物质", "它们都含碳", "它包括糖和塑料"]}, {"zh": "合金", "en": "alloy", "aliases": [], "profile": "金属中加入其他金属或非金属熔合成的物质，比如钢和黄铜。", "hints": ["它是一类材料", "它和金属有关", "它包括钢"]}, {"zh": "稀有气体", "en": "noble gas", "aliases": ["惰性气体"], "profile": "氦、氖、氩等化学性质很稳定的一类气体，常用来做霓虹灯和保护气。", "hints": ["它是一类气体", "它们性质很稳定", "它能让霓虹灯发光"]}, {"zh": "着火点", "en": "ignition point", "aliases": ["燃点"], "profile": "可燃物达到燃烧所需要的最低温度，不同物质各不相同。", "hints": ["它是一个温度", "它和燃烧有关", "它每种物质都不一样"]}, {"zh": "托盘天平", "en": "balance", "aliases": ["天平"], "profile": "称量物体质量的器材，左边放物体，右边放砝码，能精确到0.1克。", "hints": ["它是一种实验器材", "它用来称东西", "它要用到砝码"]}, {"zh": "生石灰", "en": "quicklime", "aliases": ["氧化钙"], "profile": "白色块状固体，学名氧化钙，遇水会放出大量的热，常用作食品干燥剂。", "hints": ["它是白色固体", "它能吸收水分", "它遇水会发热"]}, {"zh": "分解反应", "en": "decomposition reaction", "aliases": [], "profile": "一种物质生成两种或两种以上其他物质的反应，比如水通电变成氢气和氧气。", "hints": ["它是一种反应", "它是一变多", "它能把水变成两种气体"]}, {"zh": "腐蚀性", "en": "corrosiveness", "aliases": [], "profile": "物质能损坏其他物质或伤害皮肤的性质，强酸和强碱都有这种性质。", "hints": ["它是一种性质", "它很危险", "它会损坏皮肤和金属"]}]}, {"title_zh": "反应魔法师", "title_en": "Reaction Wizard", "step": 5, "offset": 0, "items": [{"zh": "盐酸", "en": "hydrochloric acid", "aliases": ["氢氯酸"], "profile": "氯化氢气体溶在水里形成的强酸，人的胃液里就有少量它帮助消化。", "hints": ["它是一种液体", "它是一种酸", "它在胃液里也有"]}, {"zh": "氢氧化钠", "en": "sodium hydroxide", "aliases": ["烧碱", "火碱", "苛性钠"], "profile": "白色固体，是一种强碱，腐蚀性很强，工业上用于造纸、纺织等。", "hints": ["它是白色固体", "它是一种碱", "它腐蚀性很强"]}, {"zh": "中和反应", "en": "neutralization", "aliases": ["中和"], "profile": "酸和碱互相作用生成盐和水的反应，用熟石灰改良酸性土壤就用到它。", "hints": ["它是一种反应", "它和酸碱有关", "它会生成水"]}, {"zh": "酸碱度", "en": "pH", "aliases": ["pH值"], "profile": "表示溶液酸碱程度的数值，范围一般是0到14，7是中性。", "hints": ["它是一个数值", "它和酸碱有关", "它等于七时是中性"]}, {"zh": "指示剂", "en": "indicator", "aliases": ["酸碱指示剂"], "profile": "遇到酸或碱会变色的物质，能帮我们判断溶液的酸碱性。", "hints": ["它是一类物质", "它会变颜色", "它能判断酸碱性"]}, {"zh": "石蕊", "en": "litmus", "aliases": [], "profile": "从地衣中提取的紫色染料，遇酸变红、遇碱变蓝，常用作指示剂。", "hints": ["它和颜色有关", "它来自地衣", "它遇酸会变红"]}, {"zh": "酚酞", "en": "phenolphthalein", "aliases": [], "profile": "一种常用酸碱指示剂，遇碱变红，遇酸和中性溶液不变色。", "hints": ["它和颜色有关", "它平时是无色的", "它遇碱会变红"]}, {"zh": "溶液", "en": "solution", "aliases": [], "profile": "一种或几种物质分散到另一种物质里形成的均一、稳定的混合物，比如糖水。", "hints": ["它是一类混合物", "它很均匀又稳定", "它包括糖水和盐水"]}, {"zh": "饱和溶液", "en": "saturated solution", "aliases": [], "profile": "在一定温度下，一定量溶剂里不能再继续溶解某种溶质的溶液。", "hints": ["它是一种溶液", "它和温度有关", "它再也溶不下更多了"]}, {"zh": "催化剂", "en": "catalyst", "aliases": ["触媒"], "profile": "能改变化学反应快慢、而自身质量和化学性质在反应前后不变的物质。", "hints": ["它和反应有关", "它反应前后不变", "它能让反应变快"]}, {"zh": "置换反应", "en": "displacement reaction", "aliases": [], "profile": "一种单质和一种化合物反应，生成另一种单质和另一种化合物的反应。", "hints": ["它是一种反应", "它和单质有关", "它能让铁钉表面变红"]}, {"zh": "复分解反应", "en": "double displacement reaction", "aliases": [], "profile": "两种化合物互相交换成分，生成另外两种化合物的反应。", "hints": ["它是一种反应", "它和两种化合物有关", "它是互相交换成分"]}, {"zh": "硬水", "en": "hard water", "aliases": [], "profile": "含有较多钙、镁化合物的水，烧开后容易结水垢，用肥皂洗东西泡沫少。", "hints": ["它是一种液体", "它看起来很普通", "它容易结出水垢"]}, {"zh": "溶解度", "en": "solubility", "aliases": [], "profile": "一定温度下，某物质在100克溶剂里最多能溶解的质量。", "hints": ["它是一个数值", "它和温度有关", "它说明最多能溶多少"]}]}, {"title_zh": "化学工程师", "title_en": "Chemical Engineer", "step": 7, "offset": 0, "items": [{"zh": "摩尔", "en": "mole", "aliases": [], "profile": "化学里表示物质的量的单位，一份里约含6.02乘10的23次方个微粒。", "hints": ["它是一个单位", "它和数量有关", "它和一个很大的常数有关"]}, {"zh": "氧化还原反应", "en": "redox reaction", "aliases": ["氧化还原"], "profile": "有电子转移的化学反应，一种物质失去电子被氧化，另一种得到电子被还原。", "hints": ["它是一种反应", "它和电子转移有关", "它让化合价发生变化"]}, {"zh": "电解质", "en": "electrolyte", "aliases": [], "profile": "在水溶液里或熔化状态下能导电的化合物，比如氯化钠。", "hints": ["它是一类化合物", "它和导电有关", "它常出现在运动饮料里"]}, {"zh": "电解", "en": "electrolysis", "aliases": [], "profile": "让电流通过溶液或熔化的物质，使它发生化学变化的过程，能把水分成氢气和氧气。", "hints": ["它是一个过程", "它需要用电", "它能把水分成两种气体"]}, {"zh": "原电池", "en": "galvanic cell", "aliases": [], "profile": "把化学能转化为电能的装置，身边的干电池就是它的一种。", "hints": ["它是一种装置", "它和电有关", "它把化学能变成电能"]}, {"zh": "胶体", "en": "colloid", "aliases": [], "profile": "分散质粒子大小在1到100纳米之间的分散系，光照时能看到一条光亮的通路。", "hints": ["它是一类混合物", "它的粒子大小适中", "它能让光照出一条亮路"]}, {"zh": "同素异形体", "en": "allotrope", "aliases": [], "profile": "同一种元素形成的不同单质，比如金刚石、石墨和碳60都由碳组成。", "hints": ["它是一个概念", "它和单质有关", "它包括金刚石和石墨"]}, {"zh": "化学平衡", "en": "chemical equilibrium", "aliases": [], "profile": "可逆反应中正反应和逆反应速率相等，各物质浓度不再改变的状态。", "hints": ["它是一种状态", "它和可逆反应有关", "它看起来静止其实在变"]}, {"zh": "反应速率", "en": "reaction rate", "aliases": ["化学反应速率"], "profile": "衡量化学反应进行快慢的量，常用单位时间里浓度的变化来表示。", "hints": ["它是一个物理量", "它和快慢有关", "它会受温度影响"]}, {"zh": "氧化性", "en": "oxidizing property", "aliases": [], "profile": "物质在反应中得到电子的能力，氧气、氯气的这种性质都很强。", "hints": ["它是一种性质", "它和电子有关", "它是抢电子的本领"]}, {"zh": "高分子", "en": "polymer", "aliases": ["高分子化合物", "聚合物"], "profile": "相对分子质量很大、由许多小单元连接成长链的化合物，塑料和蛋白质都是。", "hints": ["它是一类化合物", "它的分子非常大", "它包括塑料"]}, {"zh": "硅", "en": "silicon", "aliases": [], "profile": "地壳里含量第二多的元素，是制造电脑芯片和太阳能电池板的重要材料。", "hints": ["它是一种元素", "它是半导体", "它能做电脑芯片"]}, {"zh": "化学键", "en": "chemical bond", "aliases": [], "profile": "分子或晶体中相邻原子之间强烈的相互作用，像把原子连在一起的手。", "hints": ["它属于微观世界", "它和原子相连有关", "它在反应中会断开"]}]}, {"title_zh": "化学大师", "title_en": "Chemistry Master", "step": 7, "offset": 0, "items": [{"zh": "离子键", "en": "ionic bond", "aliases": [], "profile": "带相反电荷的离子之间通过静电作用形成的化学键，食盐里就有。", "hints": ["它属于微观世界", "它和正负电荷有关", "它把食盐里的微粒连住"]}, {"zh": "共价键", "en": "covalent bond", "aliases": [], "profile": "原子之间通过共用电子对形成的化学键，水和氧气分子里都有。", "hints": ["它属于微观世界", "它和共享电子有关", "它连住水分子里的原子"]}, {"zh": "氢键", "en": "hydrogen bond", "aliases": [], "profile": "分子之间的一种特殊作用力，让水的沸点变高、冰能浮在水面上。", "hints": ["它是一种作用力", "它和水的性质有关", "它让冰能浮在水面"]}, {"zh": "电负性", "en": "electronegativity", "aliases": [], "profile": "原子在化合物中吸引电子能力的大小，氟的这种能力最强。", "hints": ["它是一种性质", "它和吸引电子有关", "它在氟身上最大"]}, {"zh": "同分异构体", "en": "isomer", "aliases": ["同分异构"], "profile": "分子式相同但结构不同的化合物，就像同样的积木拼出不同的形状。", "hints": ["它是一个概念", "它和分子结构有关", "它像同样积木拼出不同形状"]}, {"zh": "官能团", "en": "functional group", "aliases": [], "profile": "决定有机物主要化学性质的原子或原子团，比如乙醇里的羟基。", "hints": ["它属于微观世界", "它和有机物有关", "它决定物质的性质"]}, {"zh": "勒夏特列原理", "en": "Le Chatelier's principle", "aliases": ["勒沙特列原理", "平衡移动原理"], "profile": "改变平衡的一个条件时，平衡会向减弱这种改变的方向移动的规律。", "hints": ["它是一条规律", "它和化学平衡有关", "它讲平衡会对抗变化"]}, {"zh": "活化能", "en": "activation energy", "aliases": [], "profile": "让普通分子变成能发生反应的活化分子所需要的能量，像翻过一座小山。", "hints": ["它是一种能量", "它和反应能否开始有关", "它能被催化剂降低"]}, {"zh": "滴定", "en": "titration", "aliases": [], "profile": "把已知浓度的溶液一滴一滴加入待测溶液，测出未知浓度的实验方法。", "hints": ["它是一种实验方法", "它能测出浓度", "它要一滴一滴地加"]}, {"zh": "容量瓶", "en": "volumetric flask", "aliases": [], "profile": "细长颈、梨形瓶身的玻璃瓶，瓶颈有刻度线，用来准确配制一定浓度的溶液。", "hints": ["它是一种实验器材", "它有细长的脖子", "它只有一条刻度线"]}, {"zh": "阿伏伽德罗常数", "en": "Avogadro constant", "aliases": ["阿伏加德罗常数"], "profile": "1摩尔物质中所含微粒的数目，约为6.02乘10的23次方。", "hints": ["它是一个数", "它非常非常大", "它和摩尔有关"]}, {"zh": "酯化反应", "en": "esterification", "aliases": [], "profile": "酸和醇反应生成酯和水的反应，很多水果的香味就来自酯类物质。", "hints": ["它是一种反应", "它和有机物有关", "它的产物常有水果香"]}, {"zh": "电子云", "en": "electron cloud", "aliases": [], "profile": "用小黑点的疏密表示电子在原子核外出现概率的图像，看起来像一团云雾。", "hints": ["它属于微观世界", "它和电子有关", "它看起来像一团雾"]}]}, {"title_zh": "万物解谜者", "title_en": "Master of Matter", "step": 7, "offset": 0, "items": [{"zh": "手性", "en": "chirality", "aliases": [], "profile": "分子和它的镜像不能完全重合的性质，就像左手和右手一样。", "hints": ["它是一种性质", "它和镜子有关", "它像左手和右手"]}, {"zh": "杂化轨道", "en": "hybrid orbital", "aliases": ["轨道杂化"], "profile": "原子成键时，能量相近的几个原子轨道混合重组形成的新轨道。", "hints": ["它属于微观世界", "它和原子轨道有关", "它能解释分子的形状"]}, {"zh": "吉布斯自由能", "en": "Gibbs free energy", "aliases": ["自由能"], "profile": "判断化学反应能否自发进行的热力学量，它减小的反应能自发进行。", "hints": ["它是一个物理量", "它和能量有关", "它能判断反应能否自发"]}, {"zh": "焓", "en": "enthalpy", "aliases": [], "profile": "描述物质系统能量的热力学量，化学反应放热还是吸热常用它的变化来表示。", "hints": ["它是一个物理量", "它和热有关", "它变小时反应会放热"]}, {"zh": "配位化合物", "en": "coordination compound", "aliases": ["配合物", "络合物"], "profile": "中心金属原子或离子与周围分子或离子以配位键结合成的化合物，血红素就是一例。", "hints": ["它是一类化合物", "它的中心常是金属", "它存在于血液里"]}, {"zh": "芳香性", "en": "aromaticity", "aliases": [], "profile": "苯等环状分子特别稳定的性质，名字里有香字，但不一定真的很香。", "hints": ["它是一种性质", "它和环状分子有关", "它的名字听起来很香"]}, {"zh": "范德华力", "en": "van der Waals force", "aliases": [], "profile": "分子之间普遍存在的一种较弱的吸引力，壁虎能在墙上爬就和它有关。", "hints": ["它是一种作用力", "它存在于分子之间", "它帮壁虎爬墙"]}, {"zh": "富勒烯", "en": "fullerene", "aliases": ["足球烯", "碳60"], "profile": "由碳原子组成的笼状分子，最有名的一种像足球，由60个碳原子构成。", "hints": ["它由碳组成", "它是空心的", "它长得像足球"]}, {"zh": "石墨烯", "en": "graphene", "aliases": [], "profile": "只有一层碳原子厚的神奇材料，又薄又坚固，导电性极好。", "hints": ["它是一种材料", "它只有一层原子厚", "它可以从铅笔芯里剥出"]}, {"zh": "色谱法", "en": "chromatography", "aliases": ["层析法", "色谱"], "profile": "利用不同物质在两种相里移动快慢不同，把混合物分开的方法。", "hints": ["它是一种分离方法", "它和颜色有关", "它能把墨水分成多种颜色"]}, {"zh": "质谱仪", "en": "mass spectrometer", "aliases": ["质谱"], "profile": "把分子或原子变成离子，再按质量大小分开并测量的精密仪器。", "hints": ["它是一种仪器", "它和离子有关", "它能称出分子的质量"]}, {"zh": "路易斯酸", "en": "Lewis acid", "aliases": [], "profile": "能接受电子对的物质，这个定义比平时说的酸范围更广。", "hints": ["它是一个概念", "它和电子对有关", "它比平常说的酸更广"]}]}]}
+          MAX_ASK = 20
+          MAX_HINTS = 3
+          AUTO_HINT_AFTER = 5
+          SPACES = [" ", "　", "\t", "\n", "\r"]
+          DIGITS = {"0": 0, "1": 1, "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8, "9": 9, "０": 0, "１": 1, "２": 2, "３": 3, "４": 4, "５": 5, "６": 6, "７": 7, "８": 8, "９": 9}
+          CN_NUM = {"零": 0, "〇": 0, "一": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9}
+          DROP = " \t\n\r　。，,.!！?？、~～…\"'“”‘’:：;；()（）《》「」·•・-"
+          LATIN = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+          RESTART_WORDS = ["从头开始", "重新开始", "从第一关开始", "restart", "startover", "请从指定中文开场开始"]
+          START_WORDS = ["开始", "开始吧", "开始游戏", "start", "letsstart", "startgame", "letsplay"]
+          RESUME_CUES = ["继续上次", "continuewhere", "leftoff"]
+          STOP_CONTAINS = ["不玩了", "不想玩", "结束游戏", "退出游戏", "stopplaying", "dontwanttoplay"]
+          STOP_EXACT = ["结束", "再见", "拜拜", "退出", "stop", "bye", "goodbye", "quit"]
+          NEXT_CUES = ["下一题", "下一个", "再来", "开始", "继续", "准备好", "好的", "好啊", "好呀", "可以", "来吧", "next", "another", "ready", "letsgo", "sure", "okay", "yes"]
+          NEXT_EXACT = ["好", "嗯", "行", "要", "ok", "yeah", "yep"]
+          QUESTION_CUES = ["？", "?", "吗", "什么", "哪", "谁", "为什么", "怎么", "多少", "几", "what", "who", "when", "where", "why", "how", "which"]
+          MAX_FOLLOW_UPS = 2
+          REMIND_AT = [10, 5, 3, 2, 1]
+          CLOSINGS_ZH = ["你的下一个问题是什么？", "接下来你想问什么呢？", "你还想问点什么？", "要不要直接猜一猜答案？"]
+          CLOSINGS_EN = ["What's your next question?", "What would you like to ask next?", "What else do you want to know?", "Do you want to take a guess?"]
+          HINT_CUES = ["提示", "线索", "帮帮我", "帮我一下", "猜不到", "猜不出", "想不出", "太难了", "hint", "clue", "helpme", "imstuck"]
+          ANSWER_REQUEST_CUES = ["告诉我答案", "答案是什么", "直接告诉我", "到底是谁", "到底是什么", "你说答案", "tellmetheanswer", "whatistheanswer", "justtellme", "whoisit", "whatisit"]
+          GIVE_UP_CUES = ["我放弃", "放弃了", "不猜了", "认输", "猜不出来了", "igiveup", "giveup"]
+          # What may surround the secret's name in a guess such as “是孔子吗” or “Is it Confucius?”.
+          GUESS_FILLERS = ["是不是", "我猜是", "我猜", "我觉得是", "我觉得", "答案是", "谜底是", "应该是", "会不会是", "难道是", "那就是", "就是", "是", "吗", "呀", "啊", "呢", "吧", "嘛", "他", "她", "它", "这个人", "这个成语", "这个故事", "的故事", "成语", "故事", "这个", "这种", "那个", "一只", "一头", "一条", "一种", "一个", "一位", "一匹", "一块", "一座", "一颗", "一台", "一辆", "一件", "一项", "一本", "一张", "theansweris", "isit", "itis", "iguess", "ithink", "maybe", "is", "it", "the", "an", "a"]
+          DECLINE_EXACT = ["不要", "不想", "不了", "不用了", "先不了", "no", "nope", "notnow", "nothanks"]
+
+          def compact(text):
+              out = []
+              for ch in text.lower().codepoints():
+                  if ch in DROP:
+                      continue
+                  out.append(ch)
+              return "".join(out)
+
+          def has_cjk(text):
+              for ch in text.codepoints():
+                  code = ord(ch)
+                  if code >= 19968 and code <= 40959:
+                      return True
+              return False
+
+          def has_latin(text):
+              for ch in text.codepoints():
+                  if ch in LATIN:
+                      return True
+              return False
+
+          def pick_lang(text, previous):
+              if has_cjk(text):
+                  return "zh"
+              if has_latin(text):
+                  return "en"
+              if previous != "":
+                  return previous
+              return "zh"
+
+          def read_int(chars, start):
+              i = start
+              for ch in chars[start:]:
+                  if ch in SPACES:
+                      i += 1
+                  else:
+                      break
+              value = 0
+              count = 0
+              for ch in chars[i:]:
+                  if ch in DIGITS:
+                      value = value * 10 + DIGITS[ch]
+                      count += 1
+                  else:
+                      break
+              if count > 0:
+                  return [value, i + count]
+              seq = []
+              for ch in chars[i:]:
+                  if ch in CN_NUM or ch == "十":
+                      seq.append(ch)
+                  else:
+                      break
+              if len(seq) == 0:
+                  return [-1, i]
+              if "十" in seq:
+                  pos = seq.index("十")
+                  tens = 1
+                  if pos > 0:
+                      tens = CN_NUM.get(seq[pos - 1], 1)
+                  ones = 0
+                  if pos + 1 < len(seq):
+                      ones = CN_NUM.get(seq[pos + 1], 0)
+                  return [tens * 10 + ones, i + len(seq)]
+              return [CN_NUM[seq[0]], i + len(seq)]
+
+          def numbers_after(content, prefix, suffix):
+              found = []
+              chars = list(content.codepoints())
+              pchars = list(prefix.codepoints())
+              schars = list(suffix.codepoints())
+              plen = len(pchars)
+              for i in range(len(chars)):
+                  if chars[i:i + plen] != pchars:
+                      continue
+                  got = read_int(chars, i + plen)
+                  if got[0] < 0:
+                      continue
+                  j = got[1]
+                  for ch in chars[j:]:
+                      if ch in SPACES:
+                          j += 1
+                      else:
+                          break
+                  if len(schars) == 0 or chars[j:j + len(schars)] == schars:
+                      found.append(got[0])
+              return found
+
+          def round_info(content):
+              low = content.lower()
+              levels = []
+              puzzles = []
+              if "谜题来啦" in content:
+                  levels = numbers_after(content, "第", "关")
+                  puzzles = numbers_after(content, "第", "题")
+              elif "puzzle time" in low:
+                  levels = numbers_after(low, "level", "")
+                  puzzles = numbers_after(low, "puzzle", "")
+              if len(levels) == 0 or len(puzzles) == 0:
+                  return None
+              return [min(max(levels[0], 1), len(DATA["levels"])), max(puzzles[0], 1)]
+
+          def secret_index(level, puzzle):
+              lv = DATA["levels"][level - 1]
+              return (lv["offset"] + (puzzle - 1) * lv["step"]) % len(lv["items"])
+
+          def secret_for(level, puzzle):
+              return DATA["levels"][level - 1]["items"][secret_index(level, puzzle)]
+
+          def two(n):
+              return ("0" + str(n)) if n < 10 else str(n)
+
+          def card_node(level, puzzle):
+              # Each puzzle has its own prompt node holding only its background card;
+              # the branch after this script activates exactly that one.
+              return "card-l" + two(level) + "-p" + two(secret_index(level, puzzle))
+
+          def names_of(item):
+              return [item["zh"], item["en"]] + item["aliases"]
+
+          def mentions(text, item):
+              low = text.lower()
+              for name in names_of(item):
+                  if name != "" and name.lower() in low:
+                      return True
+              return False
+
+          def revealed(content, item):
+              low = content.lower()
+              cue = "答案就是" in content or "答案揭晓" in content or "the answer is" in low or "the answer was" in low
+              return cue and mentions(content, item)
+
+          def won_cue(content):
+              return "猜对啦" in content or "you got it" in content.lower()
+
+          def starts_no(content):
+              low = content.strip().lower()
+              if content.strip().startswith("不是"):
+                  return True
+              for head in ["no,", "no.", "no!", "no ", "nope"]:
+                  if low.startswith(head):
+                      return True
+              return low == "no"
+
+          def counts_as_question(text):
+              # Only questions and guesses use up the 20 chances; asking for a hint or
+              # for the answer, giving up, and game commands do not.
+              word = compact(text)
+              if word in START_WORDS or word in RESTART_WORDS or word in STOP_EXACT:
+                  return False
+              return not (matches_any(word, HINT_CUES) or matches_any(word, ANSWER_REQUEST_CUES) or matches_any(word, GIVE_UP_CUES) or matches_any(word, RESUME_CUES) or matches_any(word, STOP_CONTAINS))
+
+          def analyze(messages):
+              history = list(messages)
+              if len(history) > 0 and history[-1].get("role", "") == "user":
+                  history = history[:-1]
+              state = {"found": False, "level": 1, "puzzle": 0, "asked": 0, "hints": 0, "streak": 0, "over": False, "won": False, "after": 0, "lang": "", "start": -1, "said": ""}
+              for message in reversed(history):
+                  if message.get("role", "") == "user":
+                      content = message.get("content", "")
+                      if has_cjk(content):
+                          state["lang"] = "zh"
+                          break
+                      if has_latin(content):
+                          state["lang"] = "en"
+                          break
+              start = -1
+              for i in range(len(history)):
+                  if history[i].get("role", "") == "user":
+                      continue
+                  content = history[i].get("content", "")
+                  if "谜题来啦" not in content and "puzzle time" not in content.lower():
+                      continue
+                  info = round_info(content)
+                  if info != None:
+                      start = i
+                      state["level"] = info[0]
+                      state["puzzle"] = info[1]
+              if start < 0:
+                  return state
+              state["found"] = True
+              state["start"] = start
+              item = secret_for(state["level"], state["puzzle"])
+              for message in history[start + 1:]:
+                  content = message.get("content", "")
+                  if message.get("role", "") == "user":
+                      if counts_as_question(content):
+                          state["asked"] += 1
+                      continue
+                  if state["over"]:
+                      state["after"] += 1
+                      continue
+                  state["said"] += content + "\n"
+                  if revealed(content, item):
+                      state["over"] = True
+                      state["won"] = won_cue(content)
+                      continue
+                  if "小提示" in content or "hint:" in content.lower():
+                      state["hints"] += 1
+                      state["streak"] = 0
+                  elif starts_no(content):
+                      state["streak"] += 1
+                  else:
+                      state["streak"] = 0
+              return state
+
+          def title(level, lang):
+              lv = DATA["levels"][level - 1]
+              return lv["title_en"] if lang == "en" else lv["title_zh"]
+
+          def example(lang, index):
+              examples = DATA["examples_en"] if lang == "en" else DATA["examples_zh"]
+              return examples[index % len(examples)]
+
+          def head(lang):
+              if lang == "en":
+                  return "【回复语言：English】整条回复只用英文，逐字句也用下面给出的英文原句。"
+              return "【回复语言：中文】"
+
+          def open_lead(lang, level, puzzle, full):
+              # The marker sentence always comes first: History keeps only the spoken
+              # prefix of a reply the child talks over, and the marker carries the state.
+              if lang == "en":
+                  marker = "Puzzle time! Level " + str(level) + ", " + title(level, lang) + ", puzzle " + str(puzzle) + "."
+                  if full:
+                      return [marker, "I'm thinking of " + DATA["subject_en"] + ". You have 20 questions, and I can only answer yes or no. What's your first question?"]
+                  return [marker, "I've got a new one in mind, and you have 20 questions again. What's your first question?"]
+              marker = "谜题来啦！第 " + str(level) + " 关“" + title(level, lang) + "”，第 " + str(puzzle) + " 题。"
+              if full:
+                  return [marker, "我心里已经藏好了" + DATA["subject_zh"] + "，你有 20 次提问机会，只能问我用“是”或“不是”回答的问题。你的第一个问题是什么？"]
+              return [marker, "我又想好了" + DATA["subject_zh"] + "，还是 20 次提问机会。你的第一个问题是什么？"]
+
+          def open_round(lang, level, puzzle, full):
+              lead = open_lead(lang, level, puzzle, full)
+              if lang == "en":
+                  body = "Start a new puzzle. Say this whole paragraph exactly, word for word, beginning with “Puzzle time”, and add nothing before or after it: “" + lead[0] + " " + lead[1] + "”"
+              else:
+                  body = "本轮开启新的一题。从“谜题来啦”开始，逐字说出下面这一整段话，一字不改，前后都不要添加别的内容：“" + lead[0] + lead[1] + "”"
+              return {"route": "open", "node": "", "direction": head(lang) + body, "rules": ""}
+
+          def say(lang, zh, en):
+              return {"route": "say", "node": "", "direction": head(lang) + (en if lang == "en" else zh), "rules": ""}
+
+          def recap(lang, state):
+              level = state["level"]
+              left = MAX_ASK - state["asked"]
+              zh = "孩子想接着玩上次的题。逐字说“我们接着玩第 " + str(level) + " 关“" + title(level, "zh") + "”的第 " + str(state["puzzle"]) + " 题，你已经问了 " + str(state["asked"]) + " 次，还剩 " + str(left) + " 次机会。”然后用一个问题请孩子继续提问，不要透露任何关于谜底的信息。"
+              en = "The child wants to continue the last puzzle. Say exactly: “Let's keep going with Level " + str(level) + ", " + title(level, "en") + ", puzzle " + str(state["puzzle"]) + ". You've asked " + str(state["asked"]) + " questions and have " + str(left) + " left.” Then ask the child for the next question, without revealing anything about the answer."
+              return say(lang, zh, en)
+
+          def ask_first(lang, state):
+              zh = "孩子说要开始，但这一题已经开始了。逐字说“我们已经开始啦！”再用一句话提醒玩法：只能问能用“是”或“不是”回答的问题，例如“" + example("zh", 0) + "”。最后问孩子第一个问题是什么。"
+              en = "The child asked to start, but this puzzle has already started. Say exactly “We've already started!” and remind them in one sentence to ask yes or no questions, for example “" + example("en", 0) + "”. Then ask for their first question."
+              return say(lang, zh, en)
+
+          def farewell(lang, state, midround):
+              level = state["level"]
+              if midround:
+                  zh_keep = "这一题先帮你留着，下次说“继续上次的内容”就能接着猜"
+                  en_keep = "this puzzle will wait for them, and next time they can say “continue where we left off”"
+              else:
+                  zh_keep = "下次说“开始”就能接着挑战"
+                  en_keep = "next time they can say “start” to keep playing"
+              zh = "孩子想先不玩了。用一两句话温暖地道别，告诉孩子现在在第 " + str(level) + " 关“" + title(level, "zh") + "”，" + zh_keep + "，最后用一个轻松的问题结尾，例如“下次再来挑战好吗？”。不要开启新的一题，不要说出任何谜底。"
+              en = "The child wants to stop for now. Say a warm goodbye in one or two sentences, tell them they are at Level " + str(level) + ", " + title(level, "en") + ", and that " + en_keep + ". End with a light question such as “See you next time?”. Do not start a new puzzle or reveal any answer."
+              return say(lang, zh, en)
+
+          def is_guess(text, item):
+              word = compact(text)
+              for name in sorted([compact(n) for n in names_of(item) if n != ""], key=len, reverse=True):
+                  if name == "" or name not in word:
+                      continue
+                  rest = word.replace(name, "")
+                  # Longest first, so "an" is not cut down to a stray "n" by "a".
+                  for filler in sorted(GUESS_FILLERS, key=len, reverse=True):
+                      rest = rest.replace(filler, "")
+                  return rest == ""
+              return False
+
+          def reveal(lang, state, reason):
+              # The whole reveal is our own text, so the host reads it verbatim instead of
+              # composing it (a composed reveal tends to stop after its first sentence).
+              if lang == "en":
+                  return "Say this whole paragraph exactly, word for word, adding nothing: “" + reveal_words(lang, state, reason) + "”"
+              return "逐字说出下面这一整段话，一字不改：“" + reveal_words(lang, state, reason) + "”"
+
+          def reveal_words(lang, state, reason):
+              level = state["level"]
+              item = secret_for(level, state["puzzle"])
+              top = level >= len(DATA["levels"])
+              if lang == "en":
+                  if reason == "win":
+                      lead = "You got it! The answer is " + item["en"] + "!"
+                      tail = ("Amazing, you're already at the top level, Level " + str(level) + ": " + title(level, lang) + "! Ready for the next puzzle?") if top else ("Congratulations, you've reached Level " + str(level + 1) + ": " + title(level + 1, lang) + "! Ready for the next puzzle?")
+                  else:
+                      lead = ("No worries! The answer is " + item["en"] + "!") if reason == "giveup" else ("That was your 20th question! The answer is " + item["en"] + "!")
+                      tail = "You're still at Level " + str(level) + ", " + title(level, lang) + ". Want to try another puzzle?"
+                  return lead + " " + tail
+              if reason == "win":
+                  lead = "猜对啦！答案就是" + item["zh"] + "！"
+                  tail = ("太厉害了，你已经是最高的第 " + str(level) + " 关“" + title(level, lang) + "”！准备好挑战下一题了吗？") if top else ("恭喜你升到第 " + str(level + 1) + " 关，获得“" + title(level + 1, lang) + "”称号！准备好挑战下一题了吗？")
+              else:
+                  lead = ("没关系，答案揭晓：" + item["zh"] + "！") if reason == "giveup" else ("20 次机会用完啦，答案揭晓：" + item["zh"] + "！")
+                  tail = "你还在第 " + str(level) + " 关“" + title(level, lang) + "”，要不要再来一题？"
+              return lead + item["profile"] + tail
+
+          def unused_hint_numbers(state):
+              # A hint is used when History holds its exact Chinese text or, for an
+              # English game where the hint is translated, its number ("Hint 2:").
+              hints = secret_for(state["level"], state["puzzle"])["hints"]
+              low = state["said"].lower()
+              left = [i for i in range(len(hints)) if hints[i] not in state["said"] and ("hint " + str(i + 1)) not in low]
+              return left if len(left) > 0 else [len(hints) - 1]
+
+          def unused_hints(state):
+              hints = secret_for(state["level"], state["puzzle"])["hints"]
+              return [hints[i] for i in unused_hint_numbers(state)]
+
+          def hint_choice(lang, state, closing):
+              # Prewritten hints cannot know what the child has already found out, so the
+              # host picks, among the unused ones, one that tells the child something new.
+              options = unused_hints(state)
+              if lang == "en":
+                  # The number, not the translated text, tells later turns which hint was used.
+                  number = unused_hint_numbers(state)[0] + 1
+                  return "reply with ONE sentence that joins the hint and the question, and nothing else: “Hint " + str(number) + ": <this hint translated into English>, so " + closing[0].lower() + closing[1:] + "” — add no other clue. The hint to translate: " + options[0]
+              if len(options) == 1:
+                  return "逐字说“小提示：" + options[0] + "。" + closing + "”，不要补充别的线索"
+              return "从下面几条提示里挑一条孩子还不知道的（不要和前面已经问出来的答案重复），逐字说“小提示：所选的那条。" + closing + "”，不要补充别的线索：" + " / ".join(options)
+
+          def give_hint(lang, state):
+              closing = (CLOSINGS_EN if lang == "en" else CLOSINGS_ZH)[state["asked"] % len(CLOSINGS_EN)]
+              if state["hints"] >= MAX_HINTS:
+                  return say(lang, "孩子要提示，但这一题的 " + str(MAX_HINTS) + " 次提示已经用完了。温和地告诉他提示用完啦（不要说“小提示”这几个字），鼓励他继续用是非题来猜，最后逐字问“" + closing + "”", "The child wants a hint, but all " + str(MAX_HINTS) + " hints for this puzzle are used. Kindly say so without the word “Hint”, encourage more yes or no questions, and end with exactly “" + closing + "”")
+              return say(lang, "孩子要提示。" + hint_choice("zh", state, closing) + "。", "The child wants a hint. " + hint_choice("en", state, closing) + ".")
+
+          def answer_rules(lang, state):
+              asked = state["asked"]
+              ex_q = DATA["restate_en"] if lang == "en" else DATA["restate_zh"]
+              # The model copies the example's shape, so the example carries the closing question.
+              closing = (CLOSINGS_EN if lang == "en" else CLOSINGS_ZH)[asked % len(CLOSINGS_EN)]
+              sample = example(lang, asked)
+              if lang == "en":
+                  lines = [
+                      "The child is asking or guessing. The system has already checked that the child did NOT name the answer.",
+                      "Answer from the puzzle card: if it is a yes or no question, start with “Yes” or “No” and you may restate it (if they asked “" + ex_q[0] + "”, say “" + ex_q[1] + " " + closing + "” or “" + ex_q[2] + " " + closing + "”). Mostly true with a clear exception: start with “Partly”. Not on the card and not sure: start with “I'm not sure about that one”. Titles given after death or by later admirers do not count.",
+                      "Only answer and restate. Never explain why, and never say any book, work, event, title, place, person or number from the card.",
+                      "If the child names an answer to guess, it is wrong: start with “No”, say that is not it, and encourage them.",
+                      "If it cannot be answered with yes or no (a name, a year, letters of the name): start with “I can only answer yes or no” and give exactly this example: “" + sample + "”.",
+                      "If they ask for the answer or who it is without giving up, tell them they can say “I give up” to see it.",
+                  ]
+              else:
+                  lines = [
+                      "孩子在提问或猜答案。系统已经核对过：孩子这句话没有说中谜底。",
+                      "按谜底卡回答：能用“是/不是”回答的问题，回复第一个字必须是“是”，或以“不是”开头，后面可以把问题改成陈述句复述一遍（孩子问“" + ex_q[0] + "”就说“" + ex_q[1] + closing + "”或“" + ex_q[2] + closing + "”）；大体对但有明显例外就以“有一部分是”开头；卡上没写到、拿不准就以“这个我也说不准”开头。身份按本人真实做过的事判断，后世追封、尊称不算。",
+                      "只回答和复述，不要解释原因，绝不能说出谜底卡上的书名、作品、事件、称号、地名、人名或数字。",
+                      "如果孩子是直接说出一个答案来猜，那一定猜错了：以“不是”开头，说“不是某某哦”（某某换成孩子猜的答案），再鼓励一句。",
+                      "如果问题不能用是或不是回答（例如问名字、问哪一年、问名字里的字）：以“这个问题我只能回答是或不是哦”开头，再逐字举这个例子：“" + sample + "”。",
+                      "如果孩子要答案或问谜底是谁但没有说放弃：告诉孩子想看答案可以说“我放弃”。",
+                  ]
+              if state["hints"] >= MAX_HINTS:
+                  lines.append("If the child asks for a hint: all " + str(MAX_HINTS) + " hints for this puzzle are used, say so kindly without using the word “Hint”." if lang == "en" else "如果孩子要提示：这一题的 " + str(MAX_HINTS) + " 次提示已经用完了，温和地告诉他，不要说“小提示”这几个字。")
+              else:
+                  if lang == "en":
+                      lines.append("If the child asks for a hint or clue: " + hint_choice("en", state, closing) + ".")
+                  else:
+                      lines.append("如果孩子要提示或线索（包括要大提示、问名字里的字）：" + hint_choice("zh", state, closing) + "。")
+                  if state["streak"] + 1 >= AUTO_HINT_AFTER:
+                      first = unused_hints(state)[0]
+                      lines.append(("If this answer is “No”, add “Hint " + str(unused_hint_numbers(state)[0] + 1) + ":” followed by this hint in English: " + first) if lang == "en" else ("如果这次的回答是“不是”，就在回答后面逐字加一句“小提示：" + first + "。”"))
+              lines.append("If the child talks about copying something dangerous in real life, follow the safety rules first." if lang == "en" else "如果涉及现实中的危险模仿或安全问题，先按安全规则回答。")
+              return lines
+
+          def play(text, lang, state):
+              level = state["level"]
+              item = secret_for(level, state["puzzle"])
+              if is_guess(text, item):
+                  return say(lang, reveal("zh", state, "win"), reveal("en", state, "win"))
+              if matches_any(compact(text), GIVE_UP_CUES):
+                  return say(lang, reveal("zh", state, "giveup"), reveal("en", state, "giveup"))
+              if matches_any(compact(text), HINT_CUES):
+                  return give_hint(lang, state)
+              lines = answer_rules(lang, state)
+              left = MAX_ASK - state["asked"] - 1
+              if left <= 0:
+                  lines.append(("This was the 20th question. First answer it in one sentence by the rules above, then say this exactly, word for word: “" + reveal_words("en", state, "out") + "”") if lang == "en" else ("这是第 20 问。先按上面的规则用一句话回答这一问，然后" + reveal("zh", state, "out")))
+              else:
+                  if left in REMIND_AT:
+                      lines.append(("Also tell the child they have " + str(left) + " questions left.") if lang == "en" else ("再告诉孩子还剩 " + str(left) + " 次提问机会。"))
+                  if lang == "en":
+                      # English replies tend to stop after the answer, so the two-part
+                      # shape goes first where the model cannot miss it.
+                      lines.insert(0, "Your reply must be two parts: first your answer as described below, then exactly this question: “" + CLOSINGS_EN[state["asked"] % len(CLOSINGS_EN)] + "” Never stop after the answer.")
+                      lines.append("Every reply ends with that question.")
+                  else:
+                      lines.append("最后一句必须是以问号结尾的简短问句，例如“" + CLOSINGS_ZH[state["asked"] % len(CLOSINGS_ZH)] + "”，不要用“请继续提问吧”这类陈述句结尾。")
+              return {"route": "play", "node": card_node(level, state["puzzle"]), "direction": head(lang) + "\n".join(lines), "rules": DATA["host_rules"]}
+
+          def follow_up(text, lang, state):
+              # The revealed puzzle's own card node answers the follow-up question.
+              if lang == "en":
+                  body = "The last answer has been revealed and the child is asking about it. Answer in one or two short, child-friendly sentences: use the puzzle card first, and you may add well-established common knowledge you are sure of; if you are not sure, say so. Do not start a new puzzle or say “Puzzle time”. End with exactly “Ready for the next puzzle?”"
+              else:
+                  body = "上一题的答案已经揭晓，孩子在追问和它有关的问题。用一两句适合小朋友的话简短回答：先用谜底卡上的内容，卡上没有的，可以补充你确定的公认常识；拿不准就直说不知道。不要开启新的一题，不要说“谜题来啦”；最后逐字问“准备好挑战下一题了吗？”"
+              return {"route": "follow", "node": card_node(state["level"], state["puzzle"]), "direction": head(lang) + body, "rules": DATA["host_rules"]}
+
+          def matches_any(word, words):
+              for candidate in words:
+                  if candidate in word:
+                      return True
+              return False
+
+          def run(input):
+              text = input["text"].strip()
+              state = analyze(input["messages"])
+              lang = pick_lang(text, state["lang"])
+              word = compact(text)
+              if word in RESTART_WORDS:
+                  return open_round(lang, 1, state["puzzle"] + 1, True)
+              if not state["found"]:
+                  return open_round(lang, 1, state["puzzle"] + 1, True)
+              if state["over"]:
+                  if word in STOP_EXACT or word in DECLINE_EXACT or matches_any(word, STOP_CONTAINS):
+                      return farewell(lang, state, False)
+                  wants_next = word in NEXT_EXACT or matches_any(word, NEXT_CUES)
+                  if not wants_next and state["after"] < MAX_FOLLOW_UPS and matches_any(text.lower(), QUESTION_CUES):
+                      return follow_up(text, lang, state)
+                  level = state["level"]
+                  if state["won"] and level < len(DATA["levels"]):
+                      level += 1
+                  return open_round(lang, level, state["puzzle"] + 1, False)
+              if matches_any(word, RESUME_CUES):
+                  return recap(lang, state)
+              if word in START_WORDS:
+                  if state["asked"] == 0:
+                      return ask_first(lang, state)
+                  return open_round(lang, state["level"], state["puzzle"] + 1, True)
+              if word in STOP_EXACT or matches_any(word, STOP_CONTAINS):
+                  return farewell(lang, state, True)
+              return play(text, lang, state)
+        limits:
+          max_execution_steps: 300000
+          timeout: 500ms
+          max_input_bytes: 262144
+          max_output_bytes: 65536
+      - id: card-l01-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：水在0摄氏度以下冻成的固体，摸起来很凉，受热会化成水。
+            类型：化合物
+            常见状态：固体
+            含义：水凝固后形成的透明固体，和水是同一种物质。
+            能否直接看见：能
+            生活例子：冷饮里的小方块；冬天冻住的河面
+            是不是一种元素：否
+            注意：它和水是同一种物质，只是状态不同；它比水轻，能浮在水上。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：无色无味的透明液体，生命离不开它，地球表面大部分都被它覆盖。
+            类型：化合物
+            常见状态：液体
+            含义：由氢和氧两种元素组成的化合物，纯净时无色无味。
+            能否直接看见：能
+            生活例子：每天喝的饮品；天上下的雨；江河湖海
+            是不是一种元素：否
+            注意：它由氢、氧两种元素组成，不是元素；在0摄氏度以下会结冰。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：做菜调味用的白色小颗粒，尝起来是咸的，主要成分是（已隐藏）。
+            类型：化合物
+            常见状态：固体
+            含义：厨房里的咸味调料，主要成分是由钠和氯组成的化合物。
+            能否直接看见：能
+            生活例子：做菜时放一点；海水晒干后能得到它
+            是不是一种元素：否
+            注意：它是咸的，不是甜的；它能溶解在水里。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：白色、甜甜的小晶体，常从甘蔗或甜菜中提取，用来做甜点和饮料。
+            类型：化合物
+            常见状态：固体
+            含义：从甘蔗或甜菜里提取的白色甜味晶体。
+            能否直接看见：能
+            生活例子：做蛋糕、泡甜饮料时放一点
+            是不是一种元素：否
+            注意：它是甜的，不是咸的；它很容易溶解在水里；吃多了对牙齿不好。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：包围着地球的一层看不见的气体，是氮气、氧气等多种气体的混合物。
+            类型：混合物
+            常见状态：气体
+            含义：地球周围多种气体混在一起形成的，主要是氮气和氧气。
+            能否直接看见：不能，它无色透明，但刮风时能感觉到
+            生活例子：人每时每刻都要呼吸它；刮风时能感觉到它流动
+            是不是一种元素：否
+            注意：它是混合物，不是一种单一的气体；其中氮气最多，约占五分之四。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：一层很薄的液体膜包着气体形成的小圆球，阳光下会闪着彩色的光。
+            类型：混合物
+            常见状态：不适用
+            含义：一层很薄的液体膜包住气体形成的小圆球。
+            能否直接看见：能
+            生活例子：小朋友用小圈吹出来玩；洗手时搓出来
+            是不是一种元素：否
+            注意：它很轻、很容易破；表面的彩色是光形成的，不是颜料。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：洗手、洗衣服用的清洁用品，沾水搓一搓就能起泡，帮我们去掉油污。
+            类型：混合物
+            常见状态：固体
+            含义：一种能去掉油污和脏东西的清洁用品，沾水搓会起泡。
+            能否直接看见：能
+            生活例子：饭前便后洗手；洗衣服
+            是不是一种元素：否
+            注意：它不能吃，也不要弄进眼睛里；它能帮油污和水混在一起被冲走。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：酸溜溜的液体调味品，里面的酸味来自乙酸，拌菜、做菜时常用到。
+            类型：混合物
+            常见状态：液体
+            含义：含有乙酸的酸味调味品，用粮食或水果发酵制成。
+            能否直接看见：能
+            生活例子：拌凉菜；做酸甜口味的菜
+            是不是一种元素：否
+            注意：它尝起来是酸的；它和小苏打混合会冒出大量气泡。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：炒菜煎蛋用的液体，多从花生、大豆、橄榄等植物中得到，会浮在水面上。
+            类型：混合物
+            常见状态：液体
+            含义：从植物种子或动物脂肪中得到的做饭用的液体。
+            能否直接看见：能
+            生活例子：炒菜、煎鸡蛋、炸薯条时要用
+            是不是一种元素：否
+            注意：它不溶于水，会浮在水面上；它能燃烧，要远离火。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：奶牛产出的白色饮品，含有蛋白质和钙，是水、脂肪等混在一起的混合物。
+            类型：混合物
+            常见状态：液体
+            含义：奶牛分泌的白色液体，由水、蛋白质、脂肪等混合而成。
+            能否直接看见：能
+            生活例子：早餐喝的一杯白色饮品；做酸奶和奶酪的原料
+            是不是一种元素：否
+            注意：它是混合物，不是纯净物；它含钙，对骨骼有好处。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：溶有很多二氧化碳的饮料，打开瓶盖会咕嘟咕嘟冒出气泡。
+            类型：混合物
+            常见状态：液体
+            含义：溶进了大量二氧化碳气体的饮料，喝起来有刺刺的感觉。
+            能否直接看见：能
+            生活例子：可乐和各种冒泡的饮料
+            是不是一种元素：否
+            注意：里面的气泡是二氧化碳；它常含很多糖，不宜多喝。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：用石蜡做成、中间有一根烛芯的照明用品，点燃后会慢慢变短。
+            类型：混合物
+            常见状态：固体
+            含义：由石蜡和烛芯做成的照明物品，点着后能发光发热。
+            能否直接看见：能
+            生活例子：生日蛋糕上插的；停电时用来照明
+            是不是一种元素：否
+            注意：点着时它既有熔化又有燃烧；点它要有大人在旁边。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p12
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：由细小岩石颗粒组成的松散固体，海滩上到处都是，还是做玻璃的原料。
+            类型：混合物
+            常见状态：固体
+            含义：岩石经过风吹水冲变成的细小颗粒，主要成分是二氧化硅。
+            能否直接看见：能
+            生活例子：海滩上；小朋友堆城堡玩的地方
+            是不是一种元素：否
+            注意：它是混合物；它不溶于水，能用过滤的方法和水分开。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p13
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：轻便、耐用、能做成各种形状的人造材料，玩具、瓶子和袋子常用它做。
+            类型：混合物
+            常见状态：固体
+            含义：人工合成的高分子材料，能做成各种形状。
+            能否直接看见：能
+            生活例子：玩具积木；饮料瓶；购物袋
+            是不是一种元素：否
+            注意：它很难自然分解，乱扔会污染环境；它一般不导电。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p14
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：透明又坚硬的材料，主要用沙子里的二氧化硅做成，窗户和杯子常用它。
+            类型：混合物
+            常见状态：固体
+            含义：一种透明坚硬的材料，主要原料是含二氧化硅的沙子。
+            能否直接看见：能，虽然透明，但能看到
+            生活例子：窗户；杯子；眼镜片
+            是不是一种元素：否
+            注意：它容易碎，碎片很锋利，不要用手捡；它不导电。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l01-p15
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：金黄色、闪闪发亮的贵重金属，不容易生锈，常用来做首饰和金币。
+            类型：元素
+            常见状态：固体
+            含义：一种金黄色、很贵重的金属元素，化学符号是Au。
+            能否直接看见：能
+            生活例子：金项链、金戒指等首饰
+            是不是一种元素：是
+            注意：它是金属，很软，能打成很薄的片；它非常稳定，不会生锈。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：银灰色的常见金属，用途非常广，在潮湿的空气里容易生锈。
+            类型：元素
+            常见状态：固体
+            含义：一种银灰色的金属元素，化学符号是Fe。
+            能否直接看见：能
+            生活例子：炒锅、钉子；人体血液里也含这种元素
+            是不是一种元素：是
+            注意：它能被磁石吸引；在潮湿的空气里容易生锈。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：可燃物和氧气发生的剧烈反应，会发光、放热，比如木柴烧起来。
+            类型：变化或反应
+            常见状态：不适用
+            含义：可燃物和氧气反应，同时发光、放热的化学变化。
+            能否直接看见：能，能看到火焰和光
+            生活例子：生日蜡烛的火苗；燃气灶上的火；篝火
+            是不是一种元素：否
+            注意：它是化学变化；需要可燃物、氧气和足够高的温度才能发生。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：一种物质均匀分散到另一种物质里的过程，比如糖放进水里就不见了。
+            类型：变化或反应
+            常见状态：不适用
+            含义：一种物质均匀地分散到液体等另一种物质中的过程。
+            能否直接看见：能看到固体慢慢消失，但看不到微粒
+            生活例子：糖放进水里消失；冲一杯奶粉
+            是不是一种元素：否
+            注意：糖、盐进入水中属于物理变化；搅拌或加热能让它变快。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：铁在潮湿空气里生成的红褐色物质，疏松易掉，主要成分是氧化铁。
+            类型：混合物
+            常见状态：固体
+            含义：铁和空气中的氧气、水反应后生成的红褐色物质。
+            能否直接看见：能
+            生活例子：旧铁钉、旧自行车链条上的红褐色东西
+            是不是一种元素：否
+            注意：它主要成分是氧化铁，不是金属；它很疏松，容易剥落。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：紫红色的金属，导电本领很强，电线里常用它，放久了会长出绿色的锈。
+            类型：元素
+            常见状态：固体
+            含义：一种紫红色的金属元素，化学符号是Cu。
+            能否直接看见：能
+            生活例子：电线里的金属芯；一些硬币和雕像
+            是不是一种元素：是
+            注意：它不能被磁石吸引；它生的锈是绿色的。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：无色无味的气体，人和动物呼出它，植物吸收它来制造养分。
+            类型：化合物
+            常见状态：气体
+            含义：由碳和氧两种元素组成的气体，不能供给呼吸。
+            能否直接看见：不能，它无色透明
+            生活例子：人呼出的气里有它；汽水里的气泡
+            是不是一种元素：否
+            注意：它不能燃烧，也不支持燃烧，可用来灭火；它比空气重。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：水变成的气体，看不见摸不着，烧开水时看到的白气是它遇冷变成的小水滴。
+            类型：化合物
+            常见状态：气体
+            含义：气态的水，水受热蒸发或沸腾后形成。
+            能否直接看见：不能，看到的白气其实是小水滴
+            生活例子：湿衣服晾干时水分跑进空气；烧开水冒出的热气
+            是不是一种元素：否
+            注意：它和水、冰是同一种物质，只是状态不同；很烫时会烫伤人。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：无色无味的气体，约占空气体积的五分之一，人和动物呼吸都离不开它。
+            类型：元素
+            常见状态：气体
+            含义：只由一种元素组成的气体单质，能供给呼吸、帮助燃烧。
+            能否直接看见：不能，它无色透明
+            生活例子：人每次吸气都会吸进它；植物在阳光下会放出它
+            是不是一种元素：是
+            注意：它能帮助燃烧，但自己不能燃烧；它不是空气里最多的气体。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：白色粉末，做面包、馒头时能让面团蓬松，和醋混合会冒出很多气泡。
+            类型：化合物
+            常见状态：固体
+            含义：一种白色粉末状的化合物，由钠、氢、碳、氧四种元素组成。
+            能否直接看见：能
+            生活例子：做面包、蛋糕让它们变蓬松；清洁厨房
+            是不是一种元素：否
+            注意：它和醋混合会产生二氧化碳气泡；它不是食盐。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：无色、有特殊气味、很容易燃烧的液体，医院常用它来消毒。
+            类型：化合物
+            常见状态：液体
+            含义：一种容易挥发、容易燃烧的液体，可用来消毒。
+            能否直接看见：能，无色透明，看起来像水
+            生活例子：医生打针前擦皮肤消毒；实验室灯里的燃料
+            是不是一种元素：否
+            注意：它很容易着火，要远离火；它不能喝。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：大米、土豆、面粉里含量很多的营养物质，遇到碘酒会变成蓝色。
+            类型：化合物
+            常见状态：固体
+            含义：植物储存的一种营养物质，属于糖类，是白色粉末。
+            能否直接看见：能，是白色粉末
+            生活例子：米饭、面包、土豆里都有很多
+            是不是一种元素：否
+            注意：它本身不甜，但属于糖类；它遇到碘会变蓝。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：埋在地下的黑褐色黏稠液体，被称为工业的血液，能炼出汽油和塑料原料。
+            类型：混合物
+            常见状态：液体
+            含义：古代生物遗体在地下经过漫长时间形成的液态燃料，由多种物质组成。
+            能否直接看见：能，从地下开采出来后能看到
+            生活例子：汽车用的汽油从它提炼；塑料的原料
+            是不是一种元素：否
+            注意：它是混合物，也是化石燃料；它用一点少一点，不能很快再生。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p12
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：埋藏在地下的可燃气体，主要成分是甲烷，很多家庭用它烧水做饭。
+            类型：混合物
+            常见状态：气体
+            含义：从地下开采的可燃气体，主要成分是甲烷。
+            能否直接看见：不能，它无色
+            生活例子：家里燃气灶烧的气
+            是不是一种元素：否
+            注意：它易燃，泄漏很危险；闻到燃气味要马上告诉大人。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p13
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：木头变成的黑色固体，疏松多孔，能燃烧，烧烤时常用它。
+            类型：混合物
+            常见状态：固体
+            含义：木材经过特殊加工得到的黑色多孔固体，主要成分是碳。
+            能否直接看见：能
+            生活例子：烧烤时用的燃料
+            是不是一种元素：否
+            注意：它主要成分是碳，但它是混合物；它能吸附异味。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p14
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：埋在地下的黑色块状燃料，由古代植物经过漫长时间变成。
+            类型：混合物
+            常见状态：固体
+            含义：古代植物埋在地下经过漫长变化形成的黑色固体燃料。
+            能否直接看见：能
+            生活例子：发电厂烧它来发电；以前很多家庭用它取暖
+            是不是一种元素：否
+            注意：它是化石燃料，主要含碳；燃烧时会产生污染空气的气体。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l02-p15
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：白亮闪闪的贵重金属，导电本领在所有金属中最强，常用来做首饰和餐具。
+            类型：元素
+            常见状态：固体
+            含义：一种白色有光泽的贵重金属元素，化学符号是Ag。
+            能否直接看见：能
+            生活例子：手镯、项链等首饰；比赛第二名的奖牌
+            是不是一种元素：是
+            注意：它是导电本领最强的金属；放久了表面会变黑。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：实验室里常用的玻璃杯形容器，外壁有刻度，用来盛放和配制液体。
+            类型：器材
+            常见状态：固体
+            含义：实验室里带刻度和倒液小嘴的玻璃容器。
+            能否直接看见：能
+            生活例子：科学课实验时装水、装溶液
+            是不是一种元素：否
+            注意：它上面的刻度只能粗略估计体积；加热时要垫上陶土网。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：细长的玻璃管，一头封闭、一头开口，做少量试剂反应时最常用。
+            类型：器材
+            常见状态：固体
+            含义：一头封闭的细长玻璃管，用来盛少量试剂做实验。
+            能否直接看见：能
+            生活例子：科学课做实验；医院化验装样品
+            是不是一种元素：否
+            注意：它可以直接加热；加热时管口不能对着人。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：实验室里用来加热的灯，里面装着酒精作燃料，要用灯帽盖灭。
+            类型：器材
+            常见状态：固体
+            含义：以酒精为燃料、用来给物质加热的实验器材。
+            能否直接看见：能
+            生活例子：科学课上加热试管里的液体
+            是不是一种元素：否
+            注意：它要用灯帽盖灭，不能用嘴吹；只能在老师指导下使用。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：一头带橡胶头的细玻璃管，捏一捏就能吸取和滴加少量液体。
+            类型：器材
+            常见状态：固体
+            含义：用来吸取和一滴一滴加入少量液体的实验器材。
+            能否直接看见：能
+            生活例子：科学课滴加液体；眼药水瓶也有类似设计
+            是不是一种元素：否
+            注意：用的时候要垂直悬空在容器口上方，不能伸进去。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：上面宽、下面细的锥形器材，能把液体倒进小口瓶，过滤时也要用它。
+            类型：器材
+            常见状态：固体
+            含义：上口宽下口窄的锥形器具，用来引流液体或过滤。
+            能否直接看见：能
+            生活例子：往小口瓶里倒油；科学课过滤泥水
+            是不是一种元素：否
+            注意：过滤时里面要放滤纸；厨房里也有塑料做的。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：让液体流经滤纸等有小孔的东西，把不溶的固体分离出来的方法。
+            类型：概念
+            常见状态：不适用
+            含义：把液体里不溶解的固体颗粒分离出来的方法。
+            能否直接看见：能，能看到固体被留在滤纸上
+            生活例子：用滤网泡茶；净水器滤掉泥沙
+            是不是一种元素：否
+            注意：它只能除去不溶的物质，溶在水里的盐和糖除不掉。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：铁等金属和空气中的氧气、水慢慢反应，表面长出锈的过程。
+            类型：变化或反应
+            常见状态：不适用
+            含义：金属与氧气、水等慢慢发生反应，表面生成锈的过程。
+            能否直接看见：能，能看到金属表面变色、变粗糙
+            生活例子：铁钉放在潮湿的地方会变红褐色
+            是不是一种元素：否
+            注意：它是缓慢的化学变化；涂油、刷漆能防止它。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：酵母菌等微生物分解食物中糖等物质的过程，面包变松软、酸奶变酸都靠它。
+            类型：变化或反应
+            常见状态：不适用
+            含义：微生物把糖等物质分解、变成新物质的过程。
+            能否直接看见：能看到面团变大、冒泡，但看不到微生物
+            生活例子：做面包、酸奶、酱油、醋
+            是不是一种元素：否
+            注意：它是化学变化；它需要酵母菌等微小的生物帮忙。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：最轻的气体，无色无味，燃烧后只生成水，被看作清洁的能源。
+            类型：元素
+            常见状态：气体
+            含义：只由一种元素组成的气体单质，是最轻的气体，能燃烧。
+            能否直接看见：不能，它无色透明
+            生活例子：一些新能源汽车用它作燃料
+            是不是一种元素：是
+            注意：它是最轻的气体；它易燃，很危险，不能玩。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：空气里最多的气体，约占空气体积的五分之四，无色无味，不容易发生反应。
+            类型：元素
+            常见状态：气体
+            含义：只由一种元素组成的气体单质，性质不活泼。
+            能否直接看见：不能，它无色透明
+            生活例子：薯片袋里充的气常是它，能防止食物变质
+            是不是一种元素：是
+            注意：它是空气中含量最多的气体；它不能供给呼吸。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：比空气轻得多的气体，不会燃烧，常用来充飘在空中的气球。
+            类型：元素
+            常见状态：气体
+            含义：只由一种元素组成的稀有气体，很轻，化学性质很稳定。
+            能否直接看见：不能，它无色透明
+            生活例子：飘在空中的彩色气球；飞艇
+            是不是一种元素：是
+            注意：它不会燃烧，比氢气安全；它属于稀有气体。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：银白色的轻金属，是地壳里含量最多的金属，常用来做易拉罐。
+            类型：元素
+            常见状态：固体
+            含义：一种银白色、很轻的金属元素，化学符号是Al。
+            能否直接看见：能
+            生活例子：饮料易拉罐；烤东西时包食物的金属箔
+            是不是一种元素：是
+            注意：它是地壳中含量最多的金属元素；表面有保护膜，不易生锈。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p12
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：铁里加入少量碳等元素制成的合金，比纯铁更坚硬，桥梁和汽车都离不开它。
+            类型：混合物
+            常见状态：固体
+            含义：以铁为主、含少量碳的合金，坚硬又有韧性。
+            能否直接看见：能
+            生活例子：大桥、高楼骨架、汽车车身、菜刀
+            是不是一种元素：否
+            注意：它是合金，属于混合物，不是元素；有的品种加了铬、镍后不易生锈。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p13
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：碘溶解在酒精里形成的棕色药液，常用来给小伤口周围消毒。
+            类型：混合物
+            常见状态：液体
+            含义：碘的酒精溶液，呈棕褐色，用于皮肤消毒。
+            能否直接看见：能，是棕褐色的液体
+            生活例子：医生给小伤口周围消毒；科学课检验淀粉
+            是不是一种元素：否
+            注意：它不能喝；它遇到淀粉会变成蓝色。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p14
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：天然存在的最坚硬的物质，由碳原子组成，打磨后就是亮晶晶的（已隐藏）。
+            类型：元素
+            常见状态：固体
+            含义：只由碳元素组成的单质，是天然最硬的物质。
+            能否直接看见：能
+            生活例子：戒指上的宝石；切割玻璃的刀头
+            是不是一种元素：是
+            注意：它和石墨都只由碳组成，但原子排列不同；它不导电。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l03-p15
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：深灰色、软软滑滑的固体，由碳原子组成，铅笔芯主要就是用它做的。
+            类型：元素
+            常见状态：固体
+            含义：只由碳元素组成的单质，质软、能导电。
+            能否直接看见：能
+            生活例子：铅笔芯；电池里的电极
+            是不是一种元素：是
+            注意：铅笔芯里没有铅，主要是它；它能导电。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：有新物质生成的变化，比如木头燃烧、铁生锈、食物变质。
+            类型：概念
+            常见状态：不适用
+            含义：变化后生成了新物质的变化。
+            能否直接看见：常能看到变色、发光、冒气泡等现象
+            生活例子：蜡烛燃烧；铁钉生锈；面包烤焦
+            是不是一种元素：否
+            注意：判断它的关键是有没有新物质生成，不是看有没有发光。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：没有新物质生成的变化，只是形状或状态改变，比如冰化成水、纸被撕碎。
+            类型：概念
+            常见状态：不适用
+            含义：没有生成新物质，只改变形状、大小或状态的变化。
+            能否直接看见：能
+            生活例子：冰融化；撕纸；糖溶解在水里
+            是不是一种元素：否
+            注意：它不产生新物质；电灯通电发光发热也属于它。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：氢氧化钙溶在水里形成的无色溶液，遇到二氧化碳会变浑浊。
+            类型：混合物
+            常见状态：液体
+            含义：氢氧化钙的水溶液，澄清时无色透明。
+            能否直接看见：能，看起来像清水
+            生活例子：科学课检验呼出的气体里有二氧化碳
+            是不是一种元素：否
+            注意：它有腐蚀性，危险，不能碰、闻或喝；遇到二氧化碳会变浑浊。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：固态的二氧化碳，温度极低，会直接变成气体，舞台上的白色烟雾常用它制造。
+            类型：化合物
+            常见状态：固体
+            含义：二氧化碳在低温下形成的白色固体。
+            能否直接看见：能，是白色固体
+            生活例子：冷藏运输食品；舞台上的白色烟雾效果
+            是不是一种元素：否
+            注意：它非常冷，危险，不能用手碰，也不能吃；它不是冰，不含水。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：黑色多孔的物质，表面有无数小孔，能吸附异味和颜色，冰箱除味包里常用。
+            类型：混合物
+            常见状态：固体
+            含义：主要成分是碳、有大量细小孔洞的黑色物质。
+            能否直接看见：能，是黑色颗粒或粉末
+            生活例子：冰箱除味包；净水器滤芯；防毒面具
+            是不是一种元素：否
+            注意：它吸附异味属于物理变化；它不能吃。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：溶进了污染气体、酸性较强的雨，会腐蚀建筑，伤害森林和湖泊里的生物。
+            类型：混合物
+            常见状态：液体
+            含义：pH小于5.6的雨、雪等降水，主要由空气污染造成。
+            能否直接看见：能看到下雨，但看不出它是酸的
+            生活例子：石头雕像被腐蚀得变模糊
+            是不是一种元素：否
+            注意：普通雨水也略带酸性，但不算它；减少燃煤能减少它。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：烧水壶内壁上积起的白色硬块，主要成分是碳酸钙等，用醋可以去除。
+            类型：混合物
+            常见状态：固体
+            含义：硬水受热后沉积在容器内壁的白色固体。
+            能否直接看见：能
+            生活例子：用久的电水壶、暖水瓶内壁上的白色硬块
+            是不是一种元素：否
+            注意：它主要成分是碳酸钙和氢氧化镁；醋能把它溶解掉。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：物质从溶液中析出，形成有规则形状晶体的过程，海水晒盐就是例子。
+            类型：变化或反应
+            常见状态：不适用
+            含义：溶解的物质重新变成有规则形状固体的过程。
+            能否直接看见：能，能看到小晶体慢慢长出来
+            生活例子：海水晒盐；冰糖的形成
+            是不是一种元素：否
+            注意：溶液蒸发或降温都可能发生它；它通常是物理变化。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：扑灭初起火灾的器材，喷出的干粉、泡沫或二氧化碳能隔绝空气让火熄灭。
+            类型：器材
+            常见状态：固体
+            含义：装有灭火剂、用来扑灭小火的罐子，常是红色的。
+            能否直接看见：能
+            生活例子：学校走廊、商场、汽车里常备
+            是不是一种元素：否
+            注意：它不是玩具，不能随便按；着火时小朋友应先逃生并找大人。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：用黏土等原料经过高温烧制成的材料，碗、盘子和花瓶常用它做。
+            类型：混合物
+            常见状态：固体
+            含义：黏土等原料经高温烧成的坚硬材料。
+            能否直接看见：能
+            生活例子：饭碗、盘子、花瓶、马桶
+            是不是一种元素：否
+            注意：它耐高温、不导电，但容易摔碎。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：一种常见的岩石，主要成分是碳酸钙，可用来建房子和生产水泥。
+            类型：混合物
+            常见状态：固体
+            含义：主要成分是碳酸钙的岩石。
+            能否直接看见：能
+            生活例子：建筑石材；溶洞里的钟乳石也和它有关
+            是不是一种元素：否
+            注意：它遇到醋会慢慢冒出小气泡；它是混合物，不是纯净物。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：白色粉末，化学名（已隐藏），做面食时能中和酸味，水溶液呈碱性。
+            类型：化合物
+            常见状态：固体
+            含义：一种白色粉末状的化合物，溶于水后显碱性。
+            能否直接看见：能
+            生活例子：做面条、馒头时加一点；洗去油污
+            是不是一种元素：否
+            注意：它虽然名字里有碱，但属于盐类；它和发面用的碳酸氢钠不是同一种东西。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p12
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：有弹性、能拉长又能缩回的材料，天然的来自一种树的乳白色汁液。
+            类型：混合物
+            常见状态：固体
+            含义：一种富有弹性的高分子材料，有天然的也有人工合成的。
+            能否直接看见：能
+            生活例子：汽车轮胎；橡皮筋；雨靴
+            是不是一种元素：否
+            注意：它弹性好，一般不导电；它有天然的，也有合成的。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p13
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：能吸收水分、让东西保持干燥的物质，零食袋里的小纸包常装着它。
+            类型：概念
+            常见状态：固体
+            含义：能吸收水分、防止物品受潮的一类物质。
+            能否直接看见：能，常装在小包里
+            生活例子：饼干、海苔包装里的小袋子；鞋盒里的小包
+            是不是一种元素：否
+            注意：它不能吃，有的遇水会发热、很危险；误吃要马上告诉大人。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l04-p14
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：物质能够燃烧的性质，木头、纸和酒精都有，石头和沙子没有。
+            类型：性质
+            常见状态：不适用
+            含义：一种物质能不能燃烧的化学性质。
+            能否直接看见：不能直接看见，要在燃烧时才表现出来
+            生活例子：纸、木头、酒精都有它；石头、沙子没有
+            是不是一种元素：否
+            注意：它是化学性质；有它的东西要远离火源。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：构成物质的一种极小微粒，中心有带正电的核，外面有电子在运动。
+            类型：概念
+            常见状态：不适用
+            含义：化学变化中不能再分的最小微粒。
+            能否直接看见：不能，普通显微镜也看不到
+            生活例子：身边所有物质都由它或它构成的微粒组成
+            是不是一种元素：否
+            注意：化学变化中它不能再分，但它还能分成更小的粒子。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：由原子结合成的微粒，是保持很多物质化学性质的最小粒子，比如水就由它构成。
+            类型：概念
+            常见状态：不适用
+            含义：由原子构成、保持物质化学性质的最小粒子。
+            能否直接看见：不能，太小了
+            生活例子：闻到花香，是因为它在不停地运动
+            是不是一种元素：否
+            注意：它总在不停运动，彼此间有间隔；不是所有物质都由它构成。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：只由一种元素组成的纯净物，比如氧气、铁和金刚石。
+            类型：概念
+            常见状态：不适用
+            含义：由同一种元素组成的纯净物。
+            能否直接看见：不能直接看见这个概念，但它的例子能看见
+            生活例子：铁、铜、氧气、金刚石都属于它
+            是不是一种元素：否
+            注意：它是一类物质，不是元素本身；它是纯净物，不是混合物。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：只由一种物质组成的物质，有固定的组成，比如蒸馏水和氧气。
+            类型：概念
+            常见状态：不适用
+            含义：由一种物质组成的物质，和混合物相对。
+            能否直接看见：不能直接看见这个概念，但它的例子能看见
+            生活例子：蒸馏水、氧气、二氧化碳都属于它
+            是不是一种元素：否
+            注意：空气、海水、牛奶都不属于它，它们是混合物。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：把所有化学元素按原子序数排列成的表格，门捷列夫最早编出了它。
+            类型：概念
+            常见状态：不适用
+            含义：按原子序数和性质规律排列所有元素的表格。
+            能否直接看见：能，常印在化学课本和教室墙上
+            生活例子：化学教室墙上的大表格
+            是不是一种元素：否
+            注意：门捷列夫在1869年首先编制它；它不是一种物质。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：用元素符号和数字表示物质组成的式子，比如水写作H2O。
+            类型：概念
+            常见状态：不适用
+            含义：用元素符号和数字表示物质组成的式子。
+            能否直接看见：能，能写在纸上
+            生活例子：水写作H2O，二氧化碳写作CO2
+            是不是一种元素：否
+            注意：它不是化学方程式；右下角的小数字表示原子个数。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：淡黄色的非金属固体，火山口附近常能见到，生产橡胶轮胎时也会用到它。
+            类型：元素
+            常见状态：固体
+            含义：一种淡黄色的非金属元素，化学符号是S。
+            能否直接看见：能，是淡黄色固体
+            生活例子：火山口附近的黄色结晶
+            是不是一种元素：是
+            注意：它是非金属；它燃烧产生的气体有刺激性，危险，不能碰、闻或吃。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：人体里含量最多的金属元素，骨骼和牙齿里有很多，牛奶里也富含它。
+            类型：元素
+            常见状态：固体
+            含义：一种银白色的金属元素，化学符号是Ca。
+            能否直接看见：能，纯的是银白色金属，但很少见
+            生活例子：骨骼、牙齿、牛奶、蛋壳里都含有这种元素
+            是不是一种元素：是
+            注意：说补它是指补充含它的化合物，不是吃金属；它是金属元素。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：常温下唯一的液态金属，银白色，老式体温计里的银色液体就是它。
+            类型：元素
+            常见状态：液体
+            含义：一种银白色的液态金属元素，化学符号是Hg。
+            能否直接看见：能
+            生活例子：老式体温计和温度计里的银色液体
+            是不是一种元素：是
+            注意：它有毒，很危险，不能碰、闻或吃；温度计打碎要马上告诉大人。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：由三个氧原子组成分子的淡蓝色气体，高空中的它能挡住太阳的大部分紫外线。
+            类型：元素
+            常见状态：气体
+            含义：只由氧元素组成的气体单质，每个分子有三个氧原子。
+            能否直接看见：不能，含量很少时看不出颜色
+            生活例子：高空的保护层能阻挡紫外线；雷雨后空气里有少量
+            是不是一种元素：是
+            注意：它和氧气都只由氧元素组成，但不是同一种物质；浓度高时有害。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：一种无色无味的有毒气体，很难被察觉，家里常装报警器来防范它。
+            类型：化合物
+            常见状态：气体
+            含义：由碳和氧两种元素组成的有毒气体。
+            能否直接看见：不能，它无色无味
+            生活例子：家里安装报警器来提醒它的危险
+            是不是一种元素：否
+            注意：它有毒，很危险，不能闻；它和二氧化碳不是同一种物质。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：最简单的有机物，无色无味的可燃气体，是天然气的主要成分。
+            类型：化合物
+            常见状态：气体
+            含义：由碳和氢组成的最简单的有机化合物，能燃烧。
+            能否直接看见：不能，它无色
+            生活例子：天然气、沼气的主要成分；牛打嗝会放出它
+            是不是一种元素：否
+            注意：它易燃，很危险；它是一种温室气体。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p12
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：带有刻度的细长玻璃筒，用来量取一定体积的液体。
+            类型：器材
+            常见状态：固体
+            含义：带刻度、用来量取液体体积的筒形器材。
+            能否直接看见：能
+            生活例子：化学实验量取10毫升水
+            是不是一种元素：否
+            注意：读数时视线要和凹液面最低处相平；它不能加热。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p13
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：把液体加热变成蒸气，再冷凝成液体来提纯的方法，能得到很纯的水。
+            类型：概念
+            常见状态：不适用
+            含义：利用沸点不同，加热再冷凝来分离提纯液体的方法。
+            能否直接看见：能，能看到蒸气冷凝成液滴
+            生活例子：制取实验用的纯水；提炼花香精油
+            是不是一种元素：否
+            注意：它是物理方法；它是净化水的方法中净化程度最高的。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l05-p14
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：物质容易从液体变成气体跑到空气里的性质，酒精和香水的这种性质就很强。
+            类型：性质
+            常见状态：不适用
+            含义：液体或固体容易变成气体散发出去的性质。
+            能否直接看见：不能直接看见，但常能闻到气味
+            生活例子：打开酒精瓶很快闻到气味；香水的香味散开
+            是不是一种元素：否
+            注意：它是物理性质；有它的东西要盖紧瓶盖保存。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：带电的原子或原子团，比如食盐就是由带电的钠和氯微粒构成的。
+            类型：概念
+            常见状态：不适用
+            含义：带正电或负电的原子或原子团。
+            能否直接看见：不能，太小了
+            生活例子：食盐、运动饮料里都有它
+            是不是一种元素：否
+            注意：原子得到或失去电子就变成它；它可以带正电，也可以带负电。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：表示一种元素的原子和其他原子化合时数目关系的数值，有正有负。
+            类型：概念
+            常见状态：不适用
+            含义：元素在化合物中表现出的正负数值。
+            能否直接看见：不能
+            生活例子：书写化学式时要用到它
+            是不是一种元素：否
+            注意：化合物中各元素的它代数和为零；单质里元素的它为零。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：用化学式表示化学反应的式子，左边写反应物，右边写生成物。
+            类型：概念
+            常见状态：不适用
+            含义：用化学式表示化学反应的式子。
+            能否直接看见：能，能写在纸上
+            生活例子：化学课上描述燃烧等反应
+            是不是一种元素：否
+            注意：它必须配平，两边各种原子数目相等；它不是化学式。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：化学反应前后，参加反应的各物质质量总和等于生成的各物质质量总和。
+            类型：概念
+            常见状态：不适用
+            含义：化学反应前后，物质的总质量保持不变。
+            能否直接看见：不能直接看见，要称量才能验证
+            生活例子：蜡烛烧完变轻，是因为生成的气体跑到了空气中
+            是不是一种元素：否
+            注意：拉瓦锡用实验证实了它；原子种类和数目在反应前后不变。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：以一种碳原子质量的十二分之一为标准，其他原子质量跟它相比得到的值。
+            类型：概念
+            常见状态：不适用
+            含义：原子的质量与一种碳原子质量的十二分之一的比值。
+            能否直接看见：不能
+            生活例子：元素周期表里每一格都标有它
+            是不是一种元素：否
+            注意：它是一个比值，不用克做单位；氢的最小，约为1。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：由两种元素组成、其中一种是氧元素的化合物，比如水和二氧化碳。
+            类型：概念
+            常见状态：不适用
+            含义：由两种元素组成、其中一种是氧的化合物。
+            能否直接看见：不能直接看见这个概念，但它的例子能看见
+            生活例子：水、二氧化碳、铁锈的主要成分都属于它
+            是不是一种元素：否
+            注意：它一定是化合物；氧气只含一种元素，不属于它。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：含碳化合物中的一大类，糖、淀粉、蛋白质、塑料都属于它。
+            类型：概念
+            常见状态：不适用
+            含义：大多数含碳化合物的总称，是生命的物质基础。
+            能否直接看见：不能直接看见这个概念，但它的例子能看见
+            生活例子：糖、油脂、蛋白质、塑料、酒精都属于它
+            是不是一种元素：否
+            注意：一氧化碳、二氧化碳和碳酸钙虽然含碳，却不属于它。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：金属中加入其他金属或非金属熔合成的物质，比如钢和黄铜。
+            类型：概念
+            常见状态：固体
+            含义：一种金属与其他金属或非金属熔合成的、有金属特性的物质。
+            能否直接看见：能
+            生活例子：钢、不锈钢、黄铜、硬币
+            是不是一种元素：否
+            注意：它属于混合物；它通常比纯金属更硬。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：氦、氖、氩等化学性质很稳定的一类气体，常用来做霓虹灯和保护气。
+            类型：概念
+            常见状态：气体
+            含义：氦、氖、氩、氪、氙、氡等一族气体元素的统称。
+            能否直接看见：不能，它们无色，但通电时会发出彩色的光
+            生活例子：霓虹灯里的彩色光；飘起来的气球
+            是不是一种元素：否
+            注意：它是一类元素的统称，不是一种元素；在空气中约占0.94%。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：可燃物达到燃烧所需要的最低温度，不同物质各不相同。
+            类型：性质
+            常见状态：不适用
+            含义：可燃物燃烧所需的最低温度。
+            能否直接看见：不能
+            生活例子：用水灭火能让温度降到它以下
+            是不是一种元素：否
+            注意：它是物质本身的性质，一般不能改变；把温度降到它以下能灭火。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：称量物体质量的器材，左边放物体，右边放砝码，能精确到0.1克。
+            类型：器材
+            常见状态：固体
+            含义：用砝码比较、称量物体质量的实验器材。
+            能否直接看见：能
+            生活例子：化学实验称取固体药品
+            是不是一种元素：否
+            注意：称量时左物右码；它能精确到0.1克。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：白色块状固体，学名（已隐藏），遇水会放出大量的热，常用作食品干燥剂。
+            类型：化合物
+            常见状态：固体
+            含义：由钙和氧两种元素组成的白色固体化合物。
+            能否直接看见：能
+            生活例子：一些食品包装里的干燥剂
+            是不是一种元素：否
+            注意：它有腐蚀性，危险，不能碰、闻或吃；遇水会放出大量的热。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p12
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：一种物质生成两种或两种以上其他物质的反应，比如水通电变成氢气和氧气。
+            类型：变化或反应
+            常见状态：不适用
+            含义：由一种物质生成两种或多种其他物质的反应。
+            能否直接看见：能看到冒气泡等现象
+            生活例子：水通电分解；汽水里的碳酸分解出气泡
+            是不是一种元素：否
+            注意：它是化学反应的基本类型之一，和化合反应正好相反。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l06-p13
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：物质能损坏其他物质或伤害皮肤的性质，强酸和强碱都有这种性质。
+            类型：性质
+            常见状态：不适用
+            含义：能与其他物质反应、使其损坏的化学性质。
+            能否直接看见：不能直接看见，要在反应中才表现出来
+            生活例子：药品瓶上的腐蚀品警示标志
+            是不是一种元素：否
+            注意：有它的东西很危险，不能碰、闻或吃；它是化学性质。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：氯化氢气体溶在水里形成的强酸，人的胃液里就有少量它帮助消化。
+            类型：混合物
+            常见状态：液体
+            含义：氯化氢的水溶液，是一种常见的强酸。
+            能否直接看见：能，是无色液体
+            生活例子：胃液里含有少量，帮助消化
+            是不是一种元素：否
+            注意：它有强腐蚀性，危险，不能碰、闻或吃；它是混合物。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：白色固体，是一种强碱，腐蚀性很强，工业上用于造纸、纺织等。
+            类型：化合物
+            常见状态：固体
+            含义：由钠、氧、氢组成的强碱，是白色固体。
+            能否直接看见：能
+            生活例子：工厂里用于造纸、纺织等工业
+            是不是一种元素：否
+            注意：它有强腐蚀性，危险，不能碰、闻或吃；它会吸收空气里的水分。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：酸和碱互相作用生成盐和水的反应，用熟石灰改良酸性土壤就用到它。
+            类型：变化或反应
+            常见状态：不适用
+            含义：酸和碱反应生成盐和水的反应。
+            能否直接看见：常看不出变化，要用指示剂判断
+            生活例子：被蚊虫叮咬后涂碱性药水止痒；改良酸性土壤
+            是不是一种元素：否
+            注意：它会放出热量；它属于复分解反应。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：表示溶液酸碱程度的数值，范围一般是0到14，7是中性。
+            类型：概念
+            常见状态：不适用
+            含义：表示溶液酸性或碱性强弱程度的数值。
+            能否直接看见：不能直接看见，要用试纸或仪器测量
+            生活例子：用试纸测雨水、土壤、泳池水的酸碱
+            是不是一种元素：否
+            注意：小于7显酸性，大于7显碱性，等于7显中性。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：遇到酸或碱会变色的物质，能帮我们判断溶液的酸碱性。
+            类型：概念
+            常见状态：不适用
+            含义：能在酸性或碱性溶液中显示不同颜色的一类物质。
+            能否直接看见：能，能看到它变色
+            生活例子：紫甘蓝汁遇酸碱会变色
+            是不是一种元素：否
+            注意：石蕊和酚酞都属于它；它只能粗略判断酸碱性。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：从地衣中提取的紫色染料，遇酸变红、遇碱变蓝，常用作指示剂。
+            类型：混合物
+            常见状态：固体
+            含义：从地衣中提取的色素，是一种酸碱指示剂。
+            能否直接看见：能，实验室常配成紫色溶液或做成试纸
+            生活例子：化学课检验溶液的酸碱性
+            是不是一种元素：否
+            注意：遇酸变红、遇碱变蓝，中性时是紫色；它不能吃。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：一种常用酸碱指示剂，遇碱变红，遇酸和中性溶液不变色。
+            类型：化合物
+            常见状态：固体
+            含义：一种有机化合物，常用作酸碱指示剂。
+            能否直接看见：能，纯的是白色粉末，常配成无色溶液
+            生活例子：化学课检验溶液是否显碱性
+            是不是一种元素：否
+            注意：它遇碱变红，遇酸不变色；它不能吃。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：一种或几种物质分散到另一种物质里形成的均一、稳定的混合物，比如糖水。
+            类型：概念
+            常见状态：液体
+            含义：溶质分散到溶剂中形成的均一、稳定的混合物。
+            能否直接看见：能
+            生活例子：糖水、盐水、碘酒、汽水
+            是不是一种元素：否
+            注意：它属于混合物，不一定无色；纯水是纯净物，不属于它。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：在一定温度下，一定量溶剂里不能再继续溶解某种溶质的溶液。
+            类型：概念
+            常见状态：液体
+            含义：一定温度下不能再溶解某种溶质的溶液。
+            能否直接看见：能，常能看到杯底有溶不掉的固体
+            生活例子：糖加多了，杯底的糖怎么也溶不掉
+            是不是一种元素：否
+            注意：升高温度常能让它变成不饱和的；它不一定是浓的。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：能改变化学反应快慢、而自身质量和化学性质在反应前后不变的物质。
+            类型：概念
+            常见状态：不适用
+            含义：改变反应速率而自身质量和化学性质不变的物质。
+            能否直接看见：不能直接看见这个概念，但它的例子能看见
+            生活例子：汽车尾气净化器；人体里的酶
+            是不是一种元素：否
+            注意：它能加快也能减慢反应；它不能增加生成物的量。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：一种单质和一种化合物反应，生成另一种单质和另一种化合物的反应。
+            类型：变化或反应
+            常见状态：不适用
+            含义：单质与化合物反应，生成另一种单质和另一种化合物。
+            能否直接看见：能，常能看到颜色变化或冒气泡
+            生活例子：铁钉放进硫酸铜溶液后表面变红
+            是不是一种元素：否
+            注意：它是四种基本反应类型之一；较活泼的金属能把较不活泼的金属换出来。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：两种化合物互相交换成分，生成另外两种化合物的反应。
+            类型：变化或反应
+            常见状态：不适用
+            含义：两种化合物互相交换成分，生成两种新化合物的反应。
+            能否直接看见：能，常能看到沉淀、气泡或别的变化
+            生活例子：酸碱中和；石灰石遇到盐酸冒气泡
+            是不是一种元素：否
+            注意：生成物中要有沉淀、气体或水，它才能发生。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p12
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：含有较多钙、镁化合物的水，烧开后容易结水垢，用肥皂洗东西泡沫少。
+            类型：混合物
+            常见状态：液体
+            含义：含较多可溶性钙、镁化合物的水。
+            能否直接看见：能，但看起来和普通水一样
+            生活例子：烧水壶里容易结水垢；洗衣服泡沫少、浮渣多
+            是不是一种元素：否
+            注意：加肥皂水后泡沫少的就是它；煮沸能降低它的硬度。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l07-p13
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：一定温度下，某物质在100克溶剂里最多能溶解的质量。
+            类型：性质
+            常见状态：不适用
+            含义：一定温度下，100克溶剂中最多能溶解的溶质质量。
+            能否直接看见：不能直接看见，要做实验测量
+            生活例子：热水里能溶解更多的糖
+            是不是一种元素：否
+            注意：它和温度有关；大多数固体的它随温度升高而增大。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：化学里表示物质的量的单位，一份里约含6.02乘10的23次方个微粒。
+            类型：概念
+            常见状态：不适用
+            含义：物质的量的单位，符号是mol。
+            能否直接看见：不能
+            生活例子：一打表示12个，它表示约6.02乘10的23次方个
+            是不是一种元素：否
+            注意：它是国际单位制的七个基本单位之一；它和动物鼹鼠的英文同名。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：有电子转移的化学反应，一种物质失去电子被氧化，另一种得到电子被还原。
+            类型：变化或反应
+            常见状态：不适用
+            含义：有电子得失或偏移、元素化合价发生变化的反应。
+            能否直接看见：能看到燃烧、生锈等现象
+            生活例子：燃烧、生锈、电池放电、呼吸作用
+            是不是一种元素：否
+            注意：失去电子和得到电子同时发生；判断依据是元素化合价有没有变化。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：在水溶液里或熔化状态下能导电的化合物，比如氯化钠。
+            类型：概念
+            常见状态：不适用
+            含义：在水溶液中或熔融状态下能导电的化合物。
+            能否直接看见：不能直接看见这个概念，但它的例子能看见
+            生活例子：运动饮料里补充的就是它
+            是不是一种元素：否
+            注意：它必须是化合物，铜能导电但不属于它；酸、碱、盐多属于它。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：让电流通过溶液或熔化的物质，使它发生化学变化的过程，能把水分成氢气和氧气。
+            类型：变化或反应
+            常见状态：不适用
+            含义：用电流使物质发生化学变化的过程。
+            能否直接看见：能，常能看到电极上冒气泡
+            生活例子：工业上生产铝；给金属镀上一层别的金属
+            是不是一种元素：否
+            注意：它把电能转化为化学能；它和原电池的能量转化正好相反。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：把化学能转化为电能的装置，身边的干电池就是它的一种。
+            类型：器材
+            常见状态：固体
+            含义：通过氧化还原反应把化学能转化为电能的装置。
+            能否直接看见：能
+            生活例子：干电池；水果电池实验
+            是不是一种元素：否
+            注意：它需要两个电极、电解质溶液和闭合回路；伏打发明了第一个。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：分散质粒子大小在1到100纳米之间的分散系，光照时能看到一条光亮的通路。
+            类型：概念
+            常见状态：不适用
+            含义：分散质粒子直径在1到100纳米之间的分散系。
+            能否直接看见：能，它的例子能看见，光束穿过时有光亮通路
+            生活例子：豆浆、牛奶、雾、果冻
+            是不是一种元素：否
+            注意：它属于混合物；它能产生丁达尔效应，溶液不能。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：同一种元素形成的不同单质，比如金刚石、石墨和碳60都由碳组成。
+            类型：概念
+            常见状态：不适用
+            含义：由同一种元素组成的性质不同的几种单质。
+            能否直接看见：不能直接看见这个概念，但它的例子能看见
+            生活例子：金刚石和石墨；氧气和臭氧
+            是不是一种元素：否
+            注意：它们之间的转化是化学变化；它说的是单质，不是原子。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：可逆反应中正反应和逆反应速率相等，各物质浓度不再改变的状态。
+            类型：概念
+            常见状态：不适用
+            含义：可逆反应正、逆反应速率相等，各物质浓度保持不变的状态。
+            能否直接看见：不能，看起来反应好像停了
+            生活例子：打开汽水瓶盖后冒气泡，是它被打破了
+            是不是一种元素：否
+            注意：它是动态平衡，反应并没有停止；条件改变它会移动。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：衡量化学反应进行快慢的量，常用单位时间里浓度的变化来表示。
+            类型：概念
+            常见状态：不适用
+            含义：表示化学反应进行快慢的量。
+            能否直接看见：不能直接看见，但能看出反应的快慢
+            生活例子：食物放冰箱里变质慢；铁生锈很慢
+            是不是一种元素：否
+            注意：温度、浓度、催化剂都会影响它；温度越高它一般越快。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：物质在反应中得到电子的能力，氧气、氯气的这种性质都很强。
+            类型：性质
+            常见状态：不适用
+            含义：物质在化学反应中得到电子的性质。
+            能否直接看见：不能直接看见，要在反应中才表现出来
+            生活例子：氧气能帮助燃烧；消毒剂能杀菌
+            是不是一种元素：否
+            注意：它和还原性正好相反；它是化学性质。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：相对分子质量很大、由许多小单元连接成长链的化合物，塑料和蛋白质都是。
+            类型：概念
+            常见状态：不适用
+            含义：相对分子质量高达上万、由许多重复单元连成的化合物。
+            能否直接看见：不能直接看见这个概念，但它的例子能看见
+            生活例子：塑料、橡胶、棉花、蛋白质、淀粉
+            是不是一种元素：否
+            注意：它有天然的，也有人工合成的；淀粉和蛋白质也属于它。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：地壳里含量第二多的元素，是制造电脑芯片和太阳能电池板的重要材料。
+            类型：元素
+            常见状态：固体
+            含义：一种灰黑色、有金属光泽的非金属元素，化学符号是Si。
+            能否直接看见：能，纯的是灰黑色晶体
+            生活例子：电脑芯片；太阳能电池板
+            是不是一种元素：是
+            注意：它是半导体材料；它虽有金属光泽，却是非金属。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l08-p12
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：分子或晶体中相邻原子之间强烈的相互作用，像把原子连在一起的手。
+            类型：概念
+            常见状态：不适用
+            含义：相邻原子或离子之间强烈的相互作用。
+            能否直接看见：不能
+            生活例子：化学反应就是旧的它断开、新的它形成
+            是不是一种元素：否
+            注意：离子键和共价键都属于它；氢键不属于它。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：带相反电荷的离子之间通过静电作用形成的化学键，食盐里就有。
+            类型：概念
+            常见状态：不适用
+            含义：阴、阳离子之间通过静电作用形成的化学键。
+            能否直接看见：不能
+            生活例子：氯化钠晶体里钠和氯之间靠它结合
+            是不是一种元素：否
+            注意：它常在活泼金属和活泼非金属之间形成；它是化学键的一种。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：原子之间通过共用电子对形成的化学键，水和氧气分子里都有。
+            类型：概念
+            常见状态：不适用
+            含义：原子间通过共用电子对形成的化学键。
+            能否直接看见：不能
+            生活例子：水分子中氢原子和氧原子靠它连接
+            是不是一种元素：否
+            注意：它常在非金属原子之间形成；它是化学键的一种。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：分子之间的一种特殊作用力，让水的沸点变高、冰能浮在水面上。
+            类型：概念
+            常见状态：不适用
+            含义：氢原子与电负性很强的原子之间的一种特殊的分子间作用。
+            能否直接看见：不能
+            生活例子：冰比水轻能浮起来；DNA双螺旋靠它配对
+            是不是一种元素：否
+            注意：它不是化学键，比化学键弱得多；它让水的沸点比较高。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：原子在化合物中吸引电子能力的大小，氟的这种能力最强。
+            类型：性质
+            常见状态：不适用
+            含义：衡量元素原子在化合物中吸引电子能力的数值。
+            能否直接看见：不能
+            生活例子：元素周期表里常标有它的数值
+            是不是一种元素：否
+            注意：氟的它最大；它的数值标度由鲍林提出。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：分子式相同但结构不同的化合物，就像同样的积木拼出不同的形状。
+            类型：概念
+            常见状态：不适用
+            含义：分子式相同而结构不同的化合物互称为它。
+            能否直接看见：不能直接看见这个概念，但它的例子能看见
+            生活例子：正丁烷和异丁烷；乙醇和二甲醚
+            是不是一种元素：否
+            注意：它们的性质往往不同；它在有机物里特别常见。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：决定有机物主要化学性质的原子或原子团，比如乙醇里的羟基。
+            类型：概念
+            常见状态：不适用
+            含义：决定有机化合物化学特性的原子或原子团。
+            能否直接看见：不能
+            生活例子：酒精里的羟基；醋里的羧基
+            是不是一种元素：否
+            注意：含有相同它的物质化学性质相似；碳碳双键也算它。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：改变平衡的一个条件时，平衡会向减弱这种改变的方向移动的规律。
+            类型：概念
+            常见状态：不适用
+            含义：平衡体系条件改变后，平衡会向减弱这种改变的方向移动。
+            能否直接看见：不能直接看见，但能看到颜色等变化
+            生活例子：打开汽水瓶，压强减小，气体跑出来
+            是不是一种元素：否
+            注意：它由一位法国化学家在1884年提出；它只适用于已经平衡的体系。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：让普通分子变成能发生反应的活化分子所需要的能量，像翻过一座小山。
+            类型：概念
+            常见状态：不适用
+            含义：使普通分子变成能发生有效碰撞的活化分子所需的能量。
+            能否直接看见：不能
+            生活例子：火柴要摩擦生热才能点燃
+            是不是一种元素：否
+            注意：催化剂能降低它，使反应变快；它越低，反应一般越快。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：把已知浓度的溶液一滴一滴加入待测溶液，测出未知浓度的实验方法。
+            类型：概念
+            常见状态：不适用
+            含义：用已知浓度溶液测定未知溶液浓度的定量实验方法。
+            能否直接看见：能，能看到指示剂颜色突变
+            生活例子：检测食醋里的酸含量
+            是不是一种元素：否
+            注意：它常用到指示剂；酸碱中和的这种方法最常见。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：细长颈、梨形瓶身的玻璃瓶，瓶颈有刻度线，用来准确配制一定浓度的溶液。
+            类型：器材
+            常见状态：固体
+            含义：用来准确配制一定体积和浓度溶液的玻璃仪器。
+            能否直接看见：能
+            生活例子：化学实验室配制标准溶液
+            是不是一种元素：否
+            注意：它不能加热，也不能长期存放溶液；它只有一条刻度线。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：1摩尔物质中所含微粒的数目，约为6.02乘10的23次方。
+            类型：概念
+            常见状态：不适用
+            含义：1摩尔任何微粒所含的微粒数目。
+            能否直接看见：不能
+            生活例子：18克水里大约就有这么多个水分子
+            是不是一种元素：否
+            注意：它以一位意大利科学家的名字命名；它是一个固定常数。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：酸和醇反应生成酯和水的反应，很多水果的香味就来自酯类物质。
+            类型：变化或反应
+            常见状态：不适用
+            含义：酸与醇作用生成酯和水的反应。
+            能否直接看见：能，生成的酯常有水果香味
+            生活例子：水果和花的香味物质和它的产物有关
+            是不是一种元素：否
+            注意：它是可逆反应；它也属于取代反应。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l09-p12
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：用小黑点的疏密表示电子在原子核外出现概率的图像，看起来像一团云雾。
+            类型：概念
+            常见状态：不适用
+            含义：形象描述电子在核外空间各处出现概率大小的图像。
+            能否直接看见：不能，它是一种描述方式
+            生活例子：化学课本里的原子结构示意图
+            是不是一种元素：否
+            注意：它不是真的云；黑点密的地方电子出现的机会大。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p00
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：分子和它的镜像不能完全重合的性质，就像左手和右手一样。
+            类型：性质
+            常见状态：不适用
+            含义：一个分子与其镜像无法完全重合的性质。
+            能否直接看见：不能直接看见，但左右手能帮助理解
+            生活例子：左手和右手互为镜像却不能重合
+            是不是一种元素：否
+            注意：有它的分子常有两种形态，在药物中作用可能完全不同。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p01
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：原子成键时，能量相近的几个原子轨道混合重组形成的新轨道。
+            类型：概念
+            常见状态：不适用
+            含义：原子中能量相近的轨道重新组合形成的新轨道。
+            能否直接看见：不能
+            生活例子：甲烷分子呈正四面体，可以用它来解释
+            是不是一种元素：否
+            注意：它由鲍林在1931年提出；甲烷中碳原子是sp3类型。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p02
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：判断化学反应能否自发进行的热力学量，它减小的反应能自发进行。
+            类型：概念
+            常见状态：不适用
+            含义：判断恒温恒压下反应能否自发进行的热力学函数。
+            能否直接看见：不能
+            生活例子：解释冰为什么在室温下会自己融化
+            是不是一种元素：否
+            注意：它等于焓减去温度与熵的乘积；以一位美国科学家的名字命名。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p03
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：描述物质系统能量的热力学量，化学反应放热还是吸热常用它的变化来表示。
+            类型：概念
+            常见状态：不适用
+            含义：与系统内能有关的热力学量，常用它的变化表示反应热。
+            能否直接看见：不能
+            生活例子：燃料燃烧放热时，体系的它减少
+            是不是一种元素：否
+            注意：放热反应中它减小，吸热反应中它增大；它的变化常用千焦每摩表示。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p04
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：中心金属原子或离子与周围分子或离子以配位键结合成的化合物，血红素就是一例。
+            类型：概念
+            常见状态：不适用
+            含义：由中心原子和配体通过配位键结合成的一类化合物。
+            能否直接看见：不能直接看见这个概念，但它的例子能看见
+            生活例子：血液里的血红素；植物里的叶绿素
+            是不是一种元素：否
+            注意：维尔纳因研究它获得1913年诺贝尔化学奖。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p05
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：苯等环状分子特别稳定的性质，名字里有香字，但不一定真的很香。
+            类型：性质
+            常见状态：不适用
+            含义：某些平面环状共轭分子特别稳定的性质。
+            能否直接看见：不能
+            生活例子：苯分子就有这种性质
+            是不是一种元素：否
+            注意：有它的物质不一定有香味；苯是最典型的例子。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p06
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：分子之间普遍存在的一种较弱的吸引力，壁虎能在墙上爬就和它有关。
+            类型：概念
+            常见状态：不适用
+            含义：分子之间普遍存在的一种弱相互作用。
+            能否直接看见：不能
+            生活例子：壁虎的脚能贴在墙上；干冰的分子靠它聚在一起
+            是不是一种元素：否
+            注意：它比化学键弱得多；它以一位荷兰物理学家的名字命名。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p07
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：由碳原子组成的笼状分子，最有名的一种像足球，由60个碳原子构成。
+            类型：元素
+            常见状态：固体
+            含义：只由碳元素组成的空心笼状分子。
+            能否直接看见：能看到它的粉末，但分子看不见
+            生活例子：科学研究和新材料中使用
+            是不是一种元素：是
+            注意：它与金刚石、石墨互为同素异形体；它的发现者获1996年诺贝尔化学奖。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p08
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：只有一层碳原子厚的神奇材料，又薄又坚固，导电性极好。
+            类型：元素
+            常见状态：固体
+            含义：碳原子排成蜂窝状、只有一个原子厚的二维材料。
+            能否直接看见：单层几乎看不见，放在特定基底上才能看出
+            生活例子：新型电池、柔性屏幕的研究
+            是不是一种元素：是
+            注意：它可以从石墨中剥离出来；它的发现者获2010年诺贝尔物理学奖。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p09
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：利用不同物质在两种相里移动快慢不同，把混合物分开的方法。
+            类型：概念
+            常见状态：不适用
+            含义：利用各组分在固定相和流动相中分配不同来分离混合物的方法。
+            能否直接看见：能，纸上分离色素时能看到彩色条带
+            生活例子：用滤纸把黑色墨水分成几种颜色
+            是不是一种元素：否
+            注意：它最早由俄国科学家茨维特用来分离植物色素。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p10
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：把分子或原子变成离子，再按质量大小分开并测量的精密仪器。
+            类型：器材
+            常见状态：固体
+            含义：通过测量离子的质荷比来分析物质组成的仪器。
+            能否直接看见：能
+            生活例子：药物检测、食品安全检测、考古测年
+            是不是一种元素：否
+            注意：它能测出同位素和分子的质量；早期的它由汤姆孙等人发展。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: card-l10-p11
+        type: prompt
+        inputs: {safety_fence: {from: input.safety_fence}, rules: {from: host-rules}, history: {from: input.messages}, direction: {from: game-direction}}
+        outputs: {messages: host-messages}
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            {rules}
+
+            【谜底卡】
+            简介：能接受电子对的物质，这个定义比平时说的酸范围更广。
+            类型：概念
+            常见状态：不适用
+            含义：能接受电子对的分子或离子。
+            能否直接看见：不能直接看见这个概念
+            生活例子：三氯化铝、三氟化硼是常见例子
+            是不是一种元素：否
+            注意：它由一位美国化学家在1923年提出；它不一定含氢。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: build-host-prompt
+        type: prompt
+        inputs:
+          safety_fence:
+            from: input.safety_fence
+          history:
+            from: input.messages
+          direction:
+            from: game-direction
+        outputs:
+          messages: host-messages
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            你是儿童猜谜游戏“猜猜化学名词”的主持人。玩法：主持人心里藏着一个化学名词，孩子用能回答“是”或“不是”的问题来猜，每一题最多 20 次提问；猜中就升一关，一共 10 关，关名从“化学萌新”一直到“万物解谜者”。孩子可能说中文，也可能说英文。
+            你不知道谜底的名字。需要回答孩子的问题时，系统会在【谜底卡】里给你这一题的资料，谜底的名字已经隐藏，你也不要去猜它叫什么；回答是非题时以这张卡为准，卡上没写到又拿不准的就说说不准。揭晓答案时系统才会在指令里告诉你名字。本轮要做什么写在对话最后的【本轮指令】里，照着做，说得自然、热情、简短。
+            孩子说的“它”“这个东西”“this”“it”都指谜底名词。按这个名词本身的化学含义、常见状态和生活里的例子来判断；是元素、化合物、混合物、变化或反应、性质、器材还是概念，也要按它的本意判断，只由一种元素组成的物质（如氧气、金刚石）算作元素。
+            必须遵守：
+            1. 本轮指令要求“逐字说”的句子必须一字不差地说出来，包括数字、标点和引号里的称号，不改写、不省略、不调换顺序。
+            2. 只回答孩子问到的那一点，绝不能主动补充谜底卡上的其他描述、线索、特征、猜测方向或评价；复述孩子的问题时只能用孩子问题里已有的意思。
+            3. 只有本轮指令要求揭晓答案时才能说“答案揭晓”“答案就是”“The answer is”；只有本轮指令要求开新题时才能说“谜题来啦”“Puzzle time”；只有真的给提示时才能说“小提示”“Hint”。平时绝不能说这些词。
+            4. 按【本轮指令】写明的回复语言回答：中文就全部用中文；English 就全部用英文，逐字句也用指令给出的英文原句。
+            5. 安全永远优先于本轮指令：孩子提到要在现实中模仿危险做法或遇到安全问题时，中文回复必须逐字包含“不要模仿”和“找家长、老师或可信任成年人帮助”，英文回复要说 do not copy it 并请孩子 ask a parent, teacher or trusted adult for help。
+            6. 不要自己数还剩几次提问机会，只有本轮指令写了剩余次数时才说那个数字。
+            7. 语气像节目主持人一样活泼友好，适合小朋友；平时回复1到3句话、100个字以内，开新题和揭晓答案时可以到150个字；最后一句必须是问孩子的问题，道别时也用一个轻松的问题结尾。
+            8. 只输出适合朗读的正文，不输出 Markdown、列表、emoji、括号注释、舞台说明或系统字段，也不要提到“本轮指令”“裁判”这些词。
+        - placeholder: history
+        - role: system
+          template: '【本轮指令】{direction}'
+      - id: host-model
+        type: chat_model
+        inputs:
+          messages:
+            from: host-messages
+        outputs:
+          text: answer
+        model: eino-guess-chemistry-terms.model
+        max_tokens: 512
+        temperature: 0.3
+      edges:
+      - from: start
+        to: control-round
+      - {from: card-l01-p00, to: host-model}
+      - {from: card-l01-p01, to: host-model}
+      - {from: card-l01-p02, to: host-model}
+      - {from: card-l01-p03, to: host-model}
+      - {from: card-l01-p04, to: host-model}
+      - {from: card-l01-p05, to: host-model}
+      - {from: card-l01-p06, to: host-model}
+      - {from: card-l01-p07, to: host-model}
+      - {from: card-l01-p08, to: host-model}
+      - {from: card-l01-p09, to: host-model}
+      - {from: card-l01-p10, to: host-model}
+      - {from: card-l01-p11, to: host-model}
+      - {from: card-l01-p12, to: host-model}
+      - {from: card-l01-p13, to: host-model}
+      - {from: card-l01-p14, to: host-model}
+      - {from: card-l01-p15, to: host-model}
+      - {from: card-l02-p00, to: host-model}
+      - {from: card-l02-p01, to: host-model}
+      - {from: card-l02-p02, to: host-model}
+      - {from: card-l02-p03, to: host-model}
+      - {from: card-l02-p04, to: host-model}
+      - {from: card-l02-p05, to: host-model}
+      - {from: card-l02-p06, to: host-model}
+      - {from: card-l02-p07, to: host-model}
+      - {from: card-l02-p08, to: host-model}
+      - {from: card-l02-p09, to: host-model}
+      - {from: card-l02-p10, to: host-model}
+      - {from: card-l02-p11, to: host-model}
+      - {from: card-l02-p12, to: host-model}
+      - {from: card-l02-p13, to: host-model}
+      - {from: card-l02-p14, to: host-model}
+      - {from: card-l02-p15, to: host-model}
+      - {from: card-l03-p00, to: host-model}
+      - {from: card-l03-p01, to: host-model}
+      - {from: card-l03-p02, to: host-model}
+      - {from: card-l03-p03, to: host-model}
+      - {from: card-l03-p04, to: host-model}
+      - {from: card-l03-p05, to: host-model}
+      - {from: card-l03-p06, to: host-model}
+      - {from: card-l03-p07, to: host-model}
+      - {from: card-l03-p08, to: host-model}
+      - {from: card-l03-p09, to: host-model}
+      - {from: card-l03-p10, to: host-model}
+      - {from: card-l03-p11, to: host-model}
+      - {from: card-l03-p12, to: host-model}
+      - {from: card-l03-p13, to: host-model}
+      - {from: card-l03-p14, to: host-model}
+      - {from: card-l03-p15, to: host-model}
+      - {from: card-l04-p00, to: host-model}
+      - {from: card-l04-p01, to: host-model}
+      - {from: card-l04-p02, to: host-model}
+      - {from: card-l04-p03, to: host-model}
+      - {from: card-l04-p04, to: host-model}
+      - {from: card-l04-p05, to: host-model}
+      - {from: card-l04-p06, to: host-model}
+      - {from: card-l04-p07, to: host-model}
+      - {from: card-l04-p08, to: host-model}
+      - {from: card-l04-p09, to: host-model}
+      - {from: card-l04-p10, to: host-model}
+      - {from: card-l04-p11, to: host-model}
+      - {from: card-l04-p12, to: host-model}
+      - {from: card-l04-p13, to: host-model}
+      - {from: card-l04-p14, to: host-model}
+      - {from: card-l05-p00, to: host-model}
+      - {from: card-l05-p01, to: host-model}
+      - {from: card-l05-p02, to: host-model}
+      - {from: card-l05-p03, to: host-model}
+      - {from: card-l05-p04, to: host-model}
+      - {from: card-l05-p05, to: host-model}
+      - {from: card-l05-p06, to: host-model}
+      - {from: card-l05-p07, to: host-model}
+      - {from: card-l05-p08, to: host-model}
+      - {from: card-l05-p09, to: host-model}
+      - {from: card-l05-p10, to: host-model}
+      - {from: card-l05-p11, to: host-model}
+      - {from: card-l05-p12, to: host-model}
+      - {from: card-l05-p13, to: host-model}
+      - {from: card-l05-p14, to: host-model}
+      - {from: card-l06-p00, to: host-model}
+      - {from: card-l06-p01, to: host-model}
+      - {from: card-l06-p02, to: host-model}
+      - {from: card-l06-p03, to: host-model}
+      - {from: card-l06-p04, to: host-model}
+      - {from: card-l06-p05, to: host-model}
+      - {from: card-l06-p06, to: host-model}
+      - {from: card-l06-p07, to: host-model}
+      - {from: card-l06-p08, to: host-model}
+      - {from: card-l06-p09, to: host-model}
+      - {from: card-l06-p10, to: host-model}
+      - {from: card-l06-p11, to: host-model}
+      - {from: card-l06-p12, to: host-model}
+      - {from: card-l06-p13, to: host-model}
+      - {from: card-l07-p00, to: host-model}
+      - {from: card-l07-p01, to: host-model}
+      - {from: card-l07-p02, to: host-model}
+      - {from: card-l07-p03, to: host-model}
+      - {from: card-l07-p04, to: host-model}
+      - {from: card-l07-p05, to: host-model}
+      - {from: card-l07-p06, to: host-model}
+      - {from: card-l07-p07, to: host-model}
+      - {from: card-l07-p08, to: host-model}
+      - {from: card-l07-p09, to: host-model}
+      - {from: card-l07-p10, to: host-model}
+      - {from: card-l07-p11, to: host-model}
+      - {from: card-l07-p12, to: host-model}
+      - {from: card-l07-p13, to: host-model}
+      - {from: card-l08-p00, to: host-model}
+      - {from: card-l08-p01, to: host-model}
+      - {from: card-l08-p02, to: host-model}
+      - {from: card-l08-p03, to: host-model}
+      - {from: card-l08-p04, to: host-model}
+      - {from: card-l08-p05, to: host-model}
+      - {from: card-l08-p06, to: host-model}
+      - {from: card-l08-p07, to: host-model}
+      - {from: card-l08-p08, to: host-model}
+      - {from: card-l08-p09, to: host-model}
+      - {from: card-l08-p10, to: host-model}
+      - {from: card-l08-p11, to: host-model}
+      - {from: card-l08-p12, to: host-model}
+      - {from: card-l09-p00, to: host-model}
+      - {from: card-l09-p01, to: host-model}
+      - {from: card-l09-p02, to: host-model}
+      - {from: card-l09-p03, to: host-model}
+      - {from: card-l09-p04, to: host-model}
+      - {from: card-l09-p05, to: host-model}
+      - {from: card-l09-p06, to: host-model}
+      - {from: card-l09-p07, to: host-model}
+      - {from: card-l09-p08, to: host-model}
+      - {from: card-l09-p09, to: host-model}
+      - {from: card-l09-p10, to: host-model}
+      - {from: card-l09-p11, to: host-model}
+      - {from: card-l09-p12, to: host-model}
+      - {from: card-l10-p00, to: host-model}
+      - {from: card-l10-p01, to: host-model}
+      - {from: card-l10-p02, to: host-model}
+      - {from: card-l10-p03, to: host-model}
+      - {from: card-l10-p04, to: host-model}
+      - {from: card-l10-p05, to: host-model}
+      - {from: card-l10-p06, to: host-model}
+      - {from: card-l10-p07, to: host-model}
+      - {from: card-l10-p08, to: host-model}
+      - {from: card-l10-p09, to: host-model}
+      - {from: card-l10-p10, to: host-model}
+      - {from: card-l10-p11, to: host-model}
+      - from: build-host-prompt
+        to: host-model
+      - from: host-model
+        to: end
+      branches:
+      - from: control-round
+        mode: first_match
+        routes:
+        - {when: {field: game-node, op: eq, value: card-l01-p00}, to: card-l01-p00}
+        - {when: {field: game-node, op: eq, value: card-l01-p01}, to: card-l01-p01}
+        - {when: {field: game-node, op: eq, value: card-l01-p02}, to: card-l01-p02}
+        - {when: {field: game-node, op: eq, value: card-l01-p03}, to: card-l01-p03}
+        - {when: {field: game-node, op: eq, value: card-l01-p04}, to: card-l01-p04}
+        - {when: {field: game-node, op: eq, value: card-l01-p05}, to: card-l01-p05}
+        - {when: {field: game-node, op: eq, value: card-l01-p06}, to: card-l01-p06}
+        - {when: {field: game-node, op: eq, value: card-l01-p07}, to: card-l01-p07}
+        - {when: {field: game-node, op: eq, value: card-l01-p08}, to: card-l01-p08}
+        - {when: {field: game-node, op: eq, value: card-l01-p09}, to: card-l01-p09}
+        - {when: {field: game-node, op: eq, value: card-l01-p10}, to: card-l01-p10}
+        - {when: {field: game-node, op: eq, value: card-l01-p11}, to: card-l01-p11}
+        - {when: {field: game-node, op: eq, value: card-l01-p12}, to: card-l01-p12}
+        - {when: {field: game-node, op: eq, value: card-l01-p13}, to: card-l01-p13}
+        - {when: {field: game-node, op: eq, value: card-l01-p14}, to: card-l01-p14}
+        - {when: {field: game-node, op: eq, value: card-l01-p15}, to: card-l01-p15}
+        - {when: {field: game-node, op: eq, value: card-l02-p00}, to: card-l02-p00}
+        - {when: {field: game-node, op: eq, value: card-l02-p01}, to: card-l02-p01}
+        - {when: {field: game-node, op: eq, value: card-l02-p02}, to: card-l02-p02}
+        - {when: {field: game-node, op: eq, value: card-l02-p03}, to: card-l02-p03}
+        - {when: {field: game-node, op: eq, value: card-l02-p04}, to: card-l02-p04}
+        - {when: {field: game-node, op: eq, value: card-l02-p05}, to: card-l02-p05}
+        - {when: {field: game-node, op: eq, value: card-l02-p06}, to: card-l02-p06}
+        - {when: {field: game-node, op: eq, value: card-l02-p07}, to: card-l02-p07}
+        - {when: {field: game-node, op: eq, value: card-l02-p08}, to: card-l02-p08}
+        - {when: {field: game-node, op: eq, value: card-l02-p09}, to: card-l02-p09}
+        - {when: {field: game-node, op: eq, value: card-l02-p10}, to: card-l02-p10}
+        - {when: {field: game-node, op: eq, value: card-l02-p11}, to: card-l02-p11}
+        - {when: {field: game-node, op: eq, value: card-l02-p12}, to: card-l02-p12}
+        - {when: {field: game-node, op: eq, value: card-l02-p13}, to: card-l02-p13}
+        - {when: {field: game-node, op: eq, value: card-l02-p14}, to: card-l02-p14}
+        - {when: {field: game-node, op: eq, value: card-l02-p15}, to: card-l02-p15}
+        - {when: {field: game-node, op: eq, value: card-l03-p00}, to: card-l03-p00}
+        - {when: {field: game-node, op: eq, value: card-l03-p01}, to: card-l03-p01}
+        - {when: {field: game-node, op: eq, value: card-l03-p02}, to: card-l03-p02}
+        - {when: {field: game-node, op: eq, value: card-l03-p03}, to: card-l03-p03}
+        - {when: {field: game-node, op: eq, value: card-l03-p04}, to: card-l03-p04}
+        - {when: {field: game-node, op: eq, value: card-l03-p05}, to: card-l03-p05}
+        - {when: {field: game-node, op: eq, value: card-l03-p06}, to: card-l03-p06}
+        - {when: {field: game-node, op: eq, value: card-l03-p07}, to: card-l03-p07}
+        - {when: {field: game-node, op: eq, value: card-l03-p08}, to: card-l03-p08}
+        - {when: {field: game-node, op: eq, value: card-l03-p09}, to: card-l03-p09}
+        - {when: {field: game-node, op: eq, value: card-l03-p10}, to: card-l03-p10}
+        - {when: {field: game-node, op: eq, value: card-l03-p11}, to: card-l03-p11}
+        - {when: {field: game-node, op: eq, value: card-l03-p12}, to: card-l03-p12}
+        - {when: {field: game-node, op: eq, value: card-l03-p13}, to: card-l03-p13}
+        - {when: {field: game-node, op: eq, value: card-l03-p14}, to: card-l03-p14}
+        - {when: {field: game-node, op: eq, value: card-l03-p15}, to: card-l03-p15}
+        - {when: {field: game-node, op: eq, value: card-l04-p00}, to: card-l04-p00}
+        - {when: {field: game-node, op: eq, value: card-l04-p01}, to: card-l04-p01}
+        - {when: {field: game-node, op: eq, value: card-l04-p02}, to: card-l04-p02}
+        - {when: {field: game-node, op: eq, value: card-l04-p03}, to: card-l04-p03}
+        - {when: {field: game-node, op: eq, value: card-l04-p04}, to: card-l04-p04}
+        - {when: {field: game-node, op: eq, value: card-l04-p05}, to: card-l04-p05}
+        - {when: {field: game-node, op: eq, value: card-l04-p06}, to: card-l04-p06}
+        - {when: {field: game-node, op: eq, value: card-l04-p07}, to: card-l04-p07}
+        - {when: {field: game-node, op: eq, value: card-l04-p08}, to: card-l04-p08}
+        - {when: {field: game-node, op: eq, value: card-l04-p09}, to: card-l04-p09}
+        - {when: {field: game-node, op: eq, value: card-l04-p10}, to: card-l04-p10}
+        - {when: {field: game-node, op: eq, value: card-l04-p11}, to: card-l04-p11}
+        - {when: {field: game-node, op: eq, value: card-l04-p12}, to: card-l04-p12}
+        - {when: {field: game-node, op: eq, value: card-l04-p13}, to: card-l04-p13}
+        - {when: {field: game-node, op: eq, value: card-l04-p14}, to: card-l04-p14}
+        - {when: {field: game-node, op: eq, value: card-l05-p00}, to: card-l05-p00}
+        - {when: {field: game-node, op: eq, value: card-l05-p01}, to: card-l05-p01}
+        - {when: {field: game-node, op: eq, value: card-l05-p02}, to: card-l05-p02}
+        - {when: {field: game-node, op: eq, value: card-l05-p03}, to: card-l05-p03}
+        - {when: {field: game-node, op: eq, value: card-l05-p04}, to: card-l05-p04}
+        - {when: {field: game-node, op: eq, value: card-l05-p05}, to: card-l05-p05}
+        - {when: {field: game-node, op: eq, value: card-l05-p06}, to: card-l05-p06}
+        - {when: {field: game-node, op: eq, value: card-l05-p07}, to: card-l05-p07}
+        - {when: {field: game-node, op: eq, value: card-l05-p08}, to: card-l05-p08}
+        - {when: {field: game-node, op: eq, value: card-l05-p09}, to: card-l05-p09}
+        - {when: {field: game-node, op: eq, value: card-l05-p10}, to: card-l05-p10}
+        - {when: {field: game-node, op: eq, value: card-l05-p11}, to: card-l05-p11}
+        - {when: {field: game-node, op: eq, value: card-l05-p12}, to: card-l05-p12}
+        - {when: {field: game-node, op: eq, value: card-l05-p13}, to: card-l05-p13}
+        - {when: {field: game-node, op: eq, value: card-l05-p14}, to: card-l05-p14}
+        - {when: {field: game-node, op: eq, value: card-l06-p00}, to: card-l06-p00}
+        - {when: {field: game-node, op: eq, value: card-l06-p01}, to: card-l06-p01}
+        - {when: {field: game-node, op: eq, value: card-l06-p02}, to: card-l06-p02}
+        - {when: {field: game-node, op: eq, value: card-l06-p03}, to: card-l06-p03}
+        - {when: {field: game-node, op: eq, value: card-l06-p04}, to: card-l06-p04}
+        - {when: {field: game-node, op: eq, value: card-l06-p05}, to: card-l06-p05}
+        - {when: {field: game-node, op: eq, value: card-l06-p06}, to: card-l06-p06}
+        - {when: {field: game-node, op: eq, value: card-l06-p07}, to: card-l06-p07}
+        - {when: {field: game-node, op: eq, value: card-l06-p08}, to: card-l06-p08}
+        - {when: {field: game-node, op: eq, value: card-l06-p09}, to: card-l06-p09}
+        - {when: {field: game-node, op: eq, value: card-l06-p10}, to: card-l06-p10}
+        - {when: {field: game-node, op: eq, value: card-l06-p11}, to: card-l06-p11}
+        - {when: {field: game-node, op: eq, value: card-l06-p12}, to: card-l06-p12}
+        - {when: {field: game-node, op: eq, value: card-l06-p13}, to: card-l06-p13}
+        - {when: {field: game-node, op: eq, value: card-l07-p00}, to: card-l07-p00}
+        - {when: {field: game-node, op: eq, value: card-l07-p01}, to: card-l07-p01}
+        - {when: {field: game-node, op: eq, value: card-l07-p02}, to: card-l07-p02}
+        - {when: {field: game-node, op: eq, value: card-l07-p03}, to: card-l07-p03}
+        - {when: {field: game-node, op: eq, value: card-l07-p04}, to: card-l07-p04}
+        - {when: {field: game-node, op: eq, value: card-l07-p05}, to: card-l07-p05}
+        - {when: {field: game-node, op: eq, value: card-l07-p06}, to: card-l07-p06}
+        - {when: {field: game-node, op: eq, value: card-l07-p07}, to: card-l07-p07}
+        - {when: {field: game-node, op: eq, value: card-l07-p08}, to: card-l07-p08}
+        - {when: {field: game-node, op: eq, value: card-l07-p09}, to: card-l07-p09}
+        - {when: {field: game-node, op: eq, value: card-l07-p10}, to: card-l07-p10}
+        - {when: {field: game-node, op: eq, value: card-l07-p11}, to: card-l07-p11}
+        - {when: {field: game-node, op: eq, value: card-l07-p12}, to: card-l07-p12}
+        - {when: {field: game-node, op: eq, value: card-l07-p13}, to: card-l07-p13}
+        - {when: {field: game-node, op: eq, value: card-l08-p00}, to: card-l08-p00}
+        - {when: {field: game-node, op: eq, value: card-l08-p01}, to: card-l08-p01}
+        - {when: {field: game-node, op: eq, value: card-l08-p02}, to: card-l08-p02}
+        - {when: {field: game-node, op: eq, value: card-l08-p03}, to: card-l08-p03}
+        - {when: {field: game-node, op: eq, value: card-l08-p04}, to: card-l08-p04}
+        - {when: {field: game-node, op: eq, value: card-l08-p05}, to: card-l08-p05}
+        - {when: {field: game-node, op: eq, value: card-l08-p06}, to: card-l08-p06}
+        - {when: {field: game-node, op: eq, value: card-l08-p07}, to: card-l08-p07}
+        - {when: {field: game-node, op: eq, value: card-l08-p08}, to: card-l08-p08}
+        - {when: {field: game-node, op: eq, value: card-l08-p09}, to: card-l08-p09}
+        - {when: {field: game-node, op: eq, value: card-l08-p10}, to: card-l08-p10}
+        - {when: {field: game-node, op: eq, value: card-l08-p11}, to: card-l08-p11}
+        - {when: {field: game-node, op: eq, value: card-l08-p12}, to: card-l08-p12}
+        - {when: {field: game-node, op: eq, value: card-l09-p00}, to: card-l09-p00}
+        - {when: {field: game-node, op: eq, value: card-l09-p01}, to: card-l09-p01}
+        - {when: {field: game-node, op: eq, value: card-l09-p02}, to: card-l09-p02}
+        - {when: {field: game-node, op: eq, value: card-l09-p03}, to: card-l09-p03}
+        - {when: {field: game-node, op: eq, value: card-l09-p04}, to: card-l09-p04}
+        - {when: {field: game-node, op: eq, value: card-l09-p05}, to: card-l09-p05}
+        - {when: {field: game-node, op: eq, value: card-l09-p06}, to: card-l09-p06}
+        - {when: {field: game-node, op: eq, value: card-l09-p07}, to: card-l09-p07}
+        - {when: {field: game-node, op: eq, value: card-l09-p08}, to: card-l09-p08}
+        - {when: {field: game-node, op: eq, value: card-l09-p09}, to: card-l09-p09}
+        - {when: {field: game-node, op: eq, value: card-l09-p10}, to: card-l09-p10}
+        - {when: {field: game-node, op: eq, value: card-l09-p11}, to: card-l09-p11}
+        - {when: {field: game-node, op: eq, value: card-l09-p12}, to: card-l09-p12}
+        - {when: {field: game-node, op: eq, value: card-l10-p00}, to: card-l10-p00}
+        - {when: {field: game-node, op: eq, value: card-l10-p01}, to: card-l10-p01}
+        - {when: {field: game-node, op: eq, value: card-l10-p02}, to: card-l10-p02}
+        - {when: {field: game-node, op: eq, value: card-l10-p03}, to: card-l10-p03}
+        - {when: {field: game-node, op: eq, value: card-l10-p04}, to: card-l10-p04}
+        - {when: {field: game-node, op: eq, value: card-l10-p05}, to: card-l10-p05}
+        - {when: {field: game-node, op: eq, value: card-l10-p06}, to: card-l10-p06}
+        - {when: {field: game-node, op: eq, value: card-l10-p07}, to: card-l10-p07}
+        - {when: {field: game-node, op: eq, value: card-l10-p08}, to: card-l10-p08}
+        - {when: {field: game-node, op: eq, value: card-l10-p09}, to: card-l10-p09}
+        - {when: {field: game-node, op: eq, value: card-l10-p10}, to: card-l10-p10}
+        - {when: {field: game-node, op: eq, value: card-l10-p11}, to: card-l10-p11}
+        default: build-host-prompt
+      outputs:
+      - node: host-model
+        field: answer
+        name: assistant
+        mime_type: text/plain
+        primary: true
+    conversation:
+      starts: peer
+    limits:
+      max_output_bytes: 4194304
