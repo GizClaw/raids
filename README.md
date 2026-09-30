@@ -675,8 +675,10 @@ interviews in first person using their own testimony and public dialogue;
 they do not receive the host's private truth or raw recall notes. The host does
 not impersonate witnesses. Both engines retain the 26-response investigation
 regression and five-role audio and handoff/leakage-guard tests; the Eino
-variants rebuild the shoe-size and routing state from recalled facts each
-turn, because Eino graph state does not persist between turns.
+variants rebuild state each turn, because Eino graph state does not persist
+between turns: the latest shoe size stated in History is authoritative, recalled
+facts cover turns History no longer holds, and a fact is written only on a turn
+that states a size, so an unrelated turn cannot overwrite a correction.
 
 Murder Mystery follows the same History ownership for its full transcript and
 observes only its explicit authoritative shoe-size state into Memory. It does

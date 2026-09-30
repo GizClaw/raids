@@ -34,6 +34,7 @@ spec:
         inputs:
           text: {from: input.text}
           memory: {from: recalled}
+          history: {from: input.messages}
         outputs:
           rules: turn-rules
           fact: visible-fact
@@ -57,8 +58,31 @@ spec:
                       found = digits
               return found
 
-          def shoe_size(memory, text):
-              size = "未建立"
+          def stated_size(text):
+              if "同源鞋印" in text and has(text, ["尺码", "鉴定", "报告", "更正", "确认"]):
+                  return last_size(text)
+              return ""
+
+          def number_after(line, key, start):
+              at = line.find(key, start)
+              if at < 0:
+                  return 0
+              digits = ""
+              rest = line[at + len(key):].lstrip()
+              for i in range(len(rest)):
+                  if len(rest[i]) == 1 and rest[i] in "0123456789":
+                      digits += rest[i]
+                  else:
+                      break
+              return int(digits) if digits else 0
+
+          # The latest size stated in History is authoritative; recalled facts only cover
+          # turns History no longer holds, and the highest revision among them wins. A fact
+          # is written only on a turn that states a size, so an unrelated turn whose recall
+          # misses the correction cannot overwrite it.
+          def shoe_state(memory, history, text):
+              size = ""
+              revision = 0
               key = '"same_source_shoe_size":"'
               for line in memory.split("\n"):
                   start = line.find('{"schema":"raid_case_visible_state_v1"')
@@ -69,13 +93,20 @@ spec:
                       continue
                   rest = line[at + len(key):]
                   end = rest.find('"')
-                  if end > 0:
+                  saved = number_after(line, '"revision":', start)
+                  if end > 0 and saved >= revision:
                       size = rest[:end]
-              if "同源鞋印" in text and has(text, ["尺码", "鉴定", "报告", "更正", "确认"]):
-                  latest = last_size(text)
-                  if latest:
-                      size = latest + "码"
-              return size
+                      revision = saved
+              for message in history:
+                  if message["role"] == "user":
+                      stated = stated_size(message["content"])
+                      if stated:
+                          size = stated + "码"
+              stated = stated_size(text)
+              if not stated:
+                  return size, ""
+              size = stated + "码"
+              return size, '{"schema":"raid_case_visible_state_v1","revision":' + str(revision + 1) + ',"same_source_shoe_size":"' + size + '"}'
 
           def has(text, cues):
               for cue in cues:
@@ -90,7 +121,9 @@ spec:
                   rules += "本轮是厨房证词核对，优先执行：先写挂钟准确、后门内锁且无撬动/木蜡/细线，这些检查只与厨师证词一致；再明确这些结果不能证明厨师全程在后厨。禁止写‘没有其他线索能印证或反驳’、‘没有其他已发现的线索能印证或反驳’或任何全案范围的排除结论。\n"
               if "故意指控" in text and "厨师" in text and "反驳" in text:
                   rules += "本轮必须完成两个连续动作：第一句明确主持人暂时指控厨师是凶手；随后用第三人称写厨师否认，并复述20:50起揉面、停电时仍在后厨且未见未闻。不能只写反驳，也不能把暂定指控写成已确认结论。\n"
-              fact = '{"schema":"raid_case_visible_state_v1","same_source_shoe_size":"' + shoe_size(input["memory"], text) + '"}'
+              size, fact = shoe_state(input["memory"], input["history"], text)
+              if size:
+                  rules += "玩家提供的同源鞋印鉴定当前确认尺码是" + size + "，这是最新值，覆盖任何旧值。\n"
               return {"rules": rules, "fact": fact, "lane": "player_corrections", "kind": "state"}
         limits:
           max_execution_steps: 200000
