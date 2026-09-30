@@ -24,6 +24,8 @@ spec:
       state:
         fields:
         - {name: recalled, type: string, merge: replace}
+        - {name: state-query, type: string, merge: replace}
+        - {name: recalled-state, type: string, merge: replace}
         - {name: speaker, type: string, merge: replace}
         - {name: turn-rules, type: string, merge: replace}
         - {name: routing-fact, type: string, merge: replace}
@@ -34,6 +36,29 @@ spec:
         - {name: answer-messages, type: messages, merge: replace}
         - {name: answer, type: string, merge: replace}
       nodes:
+      - id: state-query
+        type: script
+        # A fixed query, independent of what the player asks, so the shoe-size
+        # facts are recalled every turn and the highest revision can win.
+        inputs:
+          text: {from: input.text}
+        outputs:
+          query: state-query
+        language: starlark
+        entrypoint: run
+        source: |
+          def run(input):
+              return {"query": "raid_case_visible_state_v1 same_source_shoe_size 同源鞋印 鉴定 尺码 更正"}
+        limits:
+          max_execution_steps: 1000
+          timeout: 250ms
+          max_input_bytes: 65536
+          max_output_bytes: 4096
+      - id: recall-state
+        type: memory_recall
+        query_from: state-query
+        output: recalled-state
+        top_k: 16
       - id: recall-case
         type: memory_recall
         query_from: input.text
@@ -44,6 +69,7 @@ spec:
         inputs:
           text: {from: input.text}
           memory: {from: recalled}
+          state_memory: {from: recalled-state}
           history: {from: input.messages}
         outputs:
           speaker: speaker
@@ -89,10 +115,10 @@ spec:
                       break
               return int(digits) if digits else 0
 
-          # The latest size stated in History is authoritative; recalled facts only cover
-          # turns History no longer holds, and the highest revision among them wins. A fact
-          # is written only on a turn that states a size, so an unrelated turn whose recall
-          # misses the correction cannot overwrite it.
+          # The latest size stated in History is authoritative. Once History no longer holds
+          # that turn, the facts come from a recall with a fixed query, which does not depend
+          # on what the player asks, and the highest revision among them wins. A fact is
+          # written only on a turn that states a size, so no other turn can overwrite it.
           def shoe_state(memory, history, text):
               size = ""
               revision = 0
@@ -211,7 +237,7 @@ spec:
                   rules += "厨房线索参考：挂钟准确，后门内锁且无撬动、木蜡或细线，与厨师证词一致，但不能证明他全程在后厨。自然回应孩子的推理，区分支持证词和证明事实。\n"
               if "故意指控" in text and "厨师" in text and "反驳" in text:
                   rules += "可以让主持人提出暂定怀疑，再让厨师自然回应；保持结论的不确定性。\n"
-              size, visible = shoe_state(memory, input["history"], text)
+              size, visible = shoe_state(input.get("state_memory", "") + "\n" + memory, input["history"], text)
               if size:
                   rules += "玩家提供的同源鞋印鉴定当前确认尺码是" + size + "，这是最新值，覆盖任何旧值。\n"
               rules += "本轮是否首次开场：" + ("是" if opening else "否")
@@ -342,7 +368,9 @@ spec:
           attributes: {lane: case-lane, kind: fact-kind}
         wait_for_completion: false
       edges:
-      - {from: start, to: recall-case}
+      - {from: start, to: state-query}
+      - {from: state-query, to: recall-state}
+      - {from: recall-state, to: recall-case}
       - {from: recall-case, to: select-speaker}
       - {from: prompt-narrator, to: speaker-model}
       - {from: prompt-housekeeper, to: speaker-model}
