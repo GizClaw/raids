@@ -38,7 +38,7 @@ RealTime 的 `realtime_roundtrip` 负责验证完整往返：events/text 非空�
 
 `test-unit-resources` 检查文件名/文档名、每档实现清单、raid.json 单实现登记、Voice/角色闭环和真实 routing-cases 脚本。按 variant 比较 `<raid>.flowcraft*.giztest.yaml` 与 `<raid>.eino*.giztest.yaml` 的完整 steps/finally（展开并行父步骤的断言），Journey 的三个 Eino 变体分别与 Flowcraft 比较。仅规范化 client/标识符、workflow_name 和 Workspace parameters；输入、expect、capture、timeout、collection、relay 计划保持一致。仅真实 TTS 能力差异沿用音频断言例外。
 
-空闲规则累计某 client 两次操作之间其它步骤的预算，包含 finally；显式 timeout 按原值计算，无显式 timeout 的控制操作按 30s 调度余量计算，output 为 0。并行组中每个参与 client、relay 中双方均视为持续有流量。间隔超过 180s、晚启动未重连、注册前保活、冗余保活都会失败。这是静态调度检查，不是网络时延上限或真实 E2E 验收；没有放宽或改动原有响应门槛。quality 不创建 Tester，不执行长 relay；预算沿用原值（story/adventure 30m，其余 10m）。
+空闲规则累计某 client 两次操作之间其它步骤的预算，包含 finally；显式 timeout 按原值计算，无显式 timeout 的控制操作按 30s 调度余量计算，output 为 0。并行组中每个参与 client、relay 中双方均视为持续有流量。间隔超过 180s、晚启动未重连、注册前保活、冗余保活都会失败。这是静态调度检查，不是网络时延上限或真实 E2E 验收；没有放宽或改动原有响应门槛。quality 不创建 Tester，不执行长 relay；预算沿用原值（story/adventure 30m，其余 10m；murder-mystery 多角色跑同样的 60 步路由套件，也是 30m）。
 
 Journey quality 另保留七回合 benchmark（四实现同输入同门槛）；soak 的四实现采用原门槛交集，并统一 recall barrier。eino-history 无持久 Memory 的差异可能导致 recall 失败，不作豁免。长剧情实际轮次以 relay 的 max_turns、completed_turns 和 Tester route 为准。
 

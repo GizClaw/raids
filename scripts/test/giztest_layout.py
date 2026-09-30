@@ -477,8 +477,10 @@ def check_quality(doc, file, raid, suffix):
         check_multi_role_review(doc, file)
         if STORY.match(raid):
             check_child_quality(doc, file)
-    check(doc.get('timeout') == ('30m' if STORY.match(os.path.basename(file)) else '10m'),
-          f'{file}: quality budget must retain 30m for story/adventure, 10m otherwise')
+    # Murder-mystery multi-role runs the same 60-step routing suite as a story raid.
+    long_suite = STORY.match(os.path.basename(file)) or (raid == 'murder-mystery' and suffix.endswith('.multi-role'))
+    check(doc.get('timeout') == ('30m' if long_suite else '10m'),
+          f'{file}: quality budget must retain 30m for story/adventure and multi-role murder-mystery, 10m otherwise')
     check(not any(s.get('workspace_relay') is not None for s in steps(doc)), f'{file}: long dialogue relay belongs in soak')
     check(not any(stream(s).get('completion') == 'first_response' for s in steps(doc)), f'{file}: first-response latency probes belong in smoke')
     check(suffix.endswith('.multi-role') or not any(c.endswith('_tester') for c in doc['clients']), f'{file}: idle Tester client in quality')
