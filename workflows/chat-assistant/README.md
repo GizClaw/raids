@@ -35,8 +35,11 @@ search the web.
 (`web-search` in both public profiles). The Model decides when to search. The
 system prompt tells it to search for weather, news, sports, prices, dates and
 anything “今天/现在/最近/最新”, or when unsure, and to answer chat, common
-knowledge and facts already in the conversation or memory directly. The Model
-must support tool calls.
+knowledge and facts already in the conversation or memory directly. Before a
+search it says one short phrase such as “我查一下。” in the same reply as the
+tool call; Eino streams that text before running the Tool, so the user hears
+it while the search and the second Model round run. The Model must support
+tool calls.
 
 The Tool posts `{Query, SearchType: "web", Count: 3}` to Volcengine's Doubao
 Search Custom API, plus `TimeRange` when the Model sets `time_range` for
