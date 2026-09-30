@@ -19,12 +19,12 @@ Tester Workflows do not receive the variable. See the root
 | `eino-history.yaml` | `eino-journey-history` | eino | - | `eino-journey-history.model` | `eino-journey-history.narrator` |
 | `eino-memory-async.yaml` | `eino-journey-memory-async` | eino | story-teller | `eino-journey-memory-async.model` | `eino-journey-memory-async.narrator` |
 | `eino-memory-recall.yaml` | `eino-journey-memory-recall` | eino | story-teller | `eino-journey-memory-recall.model` | `eino-journey-memory-recall.narrator` |
-| `flowcraft.yaml` | `flowcraft-journey-guide` | flowcraft | story-teller | `flowcraft-journey-guide.model` | `flowcraft-journey-guide.narrator` |
 
 Install an implementation into a RuntimeProfile with `raids install journey-guide --impl <engine> --profile <file> --collection <name> --set model.<alias>=<model id> --set voice.<alias>=<voice id>`; the slots above are the parameters the installer asks for.
 
-All four implementations accept text and push-to-talk input and synthesize spoken
-output. Bind the shared `asr` Model alias in the RuntimeProfile alongside the
+All three implementations accept text and push-to-talk input and synthesize spoken
+output. The public `journey` entry (西游记) binds `eino-journey-memory-async`, the
+variant that both recalls and observes `story-teller` memory. Bind the shared `asr` Model alias in the RuntimeProfile alongside the
 implementation-specific Model and Voice slots above; the bundled default/testing
 profiles already provide this binding.
 
@@ -35,8 +35,6 @@ Tester: `test.yaml` (`journey-guide-test`, eino), shared by every implementation
 - `tests/giztest/soak/journey-guide.eino-history.giztest.yaml` (relay, with reload, timeout 45m)
 - `tests/giztest/soak/journey-guide.eino-memory-async.giztest.yaml` (relay, with reload, timeout 45m)
 - `tests/giztest/soak/journey-guide.eino-memory-recall.giztest.yaml` (relay, with reload, timeout 45m)
-- `tests/giztest/soak/journey-guide.flowcraft.benchmark-6s.giztest.yaml` (single client, timeout 18m)
-- `tests/giztest/soak/journey-guide.flowcraft.giztest.yaml` (relay, with reload, timeout 79m)
 
 The route has 20 target responses:
 

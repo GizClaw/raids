@@ -157,7 +157,7 @@ class GiztestCapabilityTest(unittest.TestCase):
         for file in glob.glob('workflows/learn-*/raid.json'):
             raid = os.path.basename(os.path.dirname(file))
             self.assertEqual({'flowcraft': True, 'eino': True}, layout.tts_capabilities(raid))
-        self.assertEqual({'flowcraft': True, 'eino_history': True, 'eino_memory_async': True,
+        self.assertEqual({'eino_history': True, 'eino_memory_async': True,
                           'eino_memory_recall': True}, layout.tts_capabilities('journey-guide'))
 
     def test_non_tts_rejects_every_audio_assertion_family(self):
