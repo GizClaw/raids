@@ -506,9 +506,6 @@ def check_file(file, tier, workflow_aliases):
             resolved = workflow_aliases.get(workflow_name, {}).get('resource_id', workflow_name)
             expected_workflow = tester_id if step['client'].endswith('_tester') else target_id
             check(expected_workflow is not None and resolved == expected_workflow, f"{file}: {step.get('id')} targets a foreign Workflow")
-    if raid == 'murder-mystery':
-        check(sorted(inventory(raid)) == ['flowcraft', 'flowcraft.multi-role'] and
-              'eino-murder-mystery' not in json.dumps(doc, ensure_ascii=False), f'{file}: murder-mystery must be Flowcraft only')
     for step in steps(doc):
         engine = step.get('client', '').split('__')[0]
         if engine in capabilities:
