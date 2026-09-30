@@ -456,7 +456,14 @@ its exact opening, bounded witness replies, correction and short-summary rules.
 
 Every paragraph begins with exactly one configured `【旁白】` or Chinese
 character marker, immediately followed by prose; no other `【】` markers are
-allowed. `voice_adapter.speaker_voices` maps these names to existing aliases;
+allowed. The prompt names the voiced markers and states that everyone else has
+no Voice: people outside the cast, characters from the source work and
+companions the model would invent are quoted inside a `【旁白】` paragraph.
+Chapter headings and the closing question carry a marker too, and actions or
+moods go into narration instead of a bracketed stage direction before a line.
+AudioDock reads an unconfigured `【…】` aloud in the default Voice and keeps
+the previous Voice for an unmarked paragraph, so either fault puts a line in
+the wrong Voice. `voice_adapter.speaker_voices` maps these names to existing aliases;
 `default_voice` is the narrator alias. AudioDock strips configured markers from
 device text, serializes audio and prefetches the next segment. Interruption
 cancels current and pending segments. This requires **GizClaw v0.18.12**.
