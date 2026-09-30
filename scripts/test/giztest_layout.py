@@ -612,7 +612,7 @@ def validate():
         source = read(f'workflows/adventure-history/{engine}.multi-role.yaml')
         check('情境重现声明不替代角色自述' in source, f'history {engine}: reenactment boundary missing')
         check('正文第一句必须逐字' not in source, f'history {engine}: rigid scene opening')
-    kept = TIERS + ['device', 'h106', 'safety-fence', 'web-search', 'reports']
+    kept = TIERS + ['device', 'h106', 'safety-fence', 'reports']
     old = [f for f in sorted(glob.glob('tests/giztest/*/*.giztest.yaml')) if f.split('/')[2] not in kept]
     check(not old, f"legacy Giztest files remain: {', '.join(old)}")
 

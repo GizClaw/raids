@@ -161,10 +161,10 @@ This contract covers every raid with Flowcraft/Eino implementations and
 `doubao-realtime`. `ast-translate` has no system prompt entry, so GizClaw
 accepts the level without providing a fence to it.
 
-`tests/giztest/safety-fence/chat-assistant.flowcraft.giztest.yaml` checks the
+`tests/giztest/safety-fence/chat-assistant.eino.giztest.yaml` checks the
 fence end to end: the same request to repeat an insult is answered verbatim in
 an `off` Workspace and refused in a `child` Workspace, and both replies are
-printed from Workspace history. It needs the fenced `flowcraft-chat-assistant`
+printed from Workspace history. It needs the fenced `eino-chat-assistant`
 and the `testing` profile's `safety_fences` deployed; run it with
 `gizclaw test run tests/giztest/safety-fence`. It is outside `make test-e2e`.
 
@@ -188,15 +188,16 @@ A RuntimeProfile makes a Tool available by binding it under
 by canonical Tool ID. From GizClaw v0.23.3 Tools are opt-in: a Workflow
 without `toolkit` gets none. Earlier releases, including the v0.21.3 that CI
 pins, give such a Workflow every profile Tool, so every Flowcraft and Eino
-Workflow that must not search still declares `tool_ids: []`; the explicit
-empty list means the same on both. Eino `chat_model` and Flowcraft `llm`
+Workflow that must not search declares `tool_ids: []`; the explicit empty list
+means the same on both. Eino `chat_model` and Flowcraft `llm`
 nodes attach the exposed Tools to each Model call and let the Model decide when
 to call them. Only `eino-chat-assistant` allows `volc-web-search`; its prompt
 lists what needs a search (weather, news, dates, prices, “今天/最新”) and what
 does not (chat, common knowledge, facts already in the conversation or memory).
 `make test-unit-resources` validates `tools/`, and `APPLY=1 make test-e2e`
-applies it before the Workflows. `tests/giztest/web-search` checks live weather
-and date answers; run it with `gizclaw test run tests/giztest/web-search`.
+applies it before the Workflows. The chat-assistant quality tier asks for
+live weather and today's date, and fails on an offline refusal such as
+“无法联网”.
 
 ### Runtime alias ownership
 
@@ -228,7 +229,6 @@ slots currently bind the same Model resource:
 | Workflow `metadata.id` | Model alias |
 | --- | --- |
 | `doubao-realtime-conversation` | `doubao-realtime-conversation.model` |
-| `flowcraft-chat-assistant` | `flowcraft-chat-assistant.model` |
 | `eino-chat-assistant` | `eino-chat-assistant.model` |
 | `ast-translate-ja-zh` | `ast-translate-ja-zh.model` |
 | `ast-translate-ko-zh` | `ast-translate-ko-zh.model` |
@@ -267,7 +267,7 @@ Voice roles use the same Workflow namespace:
 | Workflow `metadata.id` | Voice roles |
 | --- | --- |
 | `doubao-realtime-conversation` | `assistant` |
-| `flowcraft-chat-assistant` | `assistant` |
+| `eino-chat-assistant` | `assistant` |
 | each `ast-translate-*` Workflow | `translator` |
 | `flowcraft-murder-mystery` | `game-master`, `housekeeper`, `chef`, `heir`, `lawyer` |
 | `flowcraft-journey-guide` | `narrator` |
@@ -288,7 +288,6 @@ Eino spoken implementations declare these additional Voice roles:
 | each `eino-learn-*` Workflow | `tutor` |
 | each `eino-guess-*` Workflow | `host` |
 | `eino-journey-history`, `eino-journey-memory-async`, `eino-journey-memory-recall` | `narrator` |
-| `eino-chat-assistant` | `assistant` |
 
 Each alias is `<Workflow metadata.id>.<role>`. Both public RuntimeProfiles
 bind it to the same Voice resource as the corresponding Flowcraft default.

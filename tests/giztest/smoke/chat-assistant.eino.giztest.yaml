@@ -34,7 +34,7 @@ variables:
     media_type: audio/ogg
     codec: opus
 repeat: 1
-timeout: 12m
+timeout: 30m
 steps:
 - id: eino_register
   client: eino
@@ -49,7 +49,7 @@ steps:
     request:
       name: "${eino_text_workspace}"
       collection: assistants
-      workflow_name: chat-assistant
+      workflow_name: general-assistant
       parameters:
         eino_workspace_parameters:
           agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
@@ -75,7 +75,7 @@ steps:
     request:
       name: "${eino_realtime_workspace}"
       collection: assistants
-      workflow_name: chat-assistant
+      workflow_name: general-assistant
       parameters:
         eino_workspace_parameters:
           agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
@@ -83,7 +83,7 @@ steps:
             initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
           input: WORKSPACE_INPUT_MODE_REALTIME
 - id: eino_opening
-  timeout: 2m
+  timeout: 6m
   peer_stream:
     mode: text
     input: 我下周三要去杭州见周宁，车次是G7331，请记住；用一句自然口语复述这四项，不要标签或追问。
@@ -151,7 +151,7 @@ steps:
     cache: run
   save_as: input_audio
 - id: eino_realtime_roundtrip
-  timeout: 2m
+  timeout: 6m
   peer_stream:
     mode: realtime
     input: "${input_audio}"
