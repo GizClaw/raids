@@ -5,11 +5,10 @@
 version: gizclaw.test/v1alpha1
 name: murder-mystery.quality.eino
 clients:
-  eino__transitions: &1
+  eino__transitions:
     identity: ephemeral
     connection: webrtc
     access_point: "${endpoint}"
-  eino__roles: *1
 variables:
   endpoint:
     direction: input
@@ -20,6 +19,10 @@ variables:
     type: string
     env: GIZCLAW_TEST_REGISTRATION_TOKEN
     secret: true
+  eino_transitions_workspace:
+    direction: input
+    type: string
+    generate: token
 repeat: 1
 timeout: 10m
 steps:
@@ -29,10 +32,42 @@ steps:
     method: server.register
     request:
       token: "${registration_token}"
+- id: eino_transitions_stop_create_workspace
+  client: eino__transitions
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: eino_transitions_create_workspace
+  client: eino__transitions
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_transitions_workspace}"
+      collection: raidtest-targets
+      workflow_name: eino-murder-mystery
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_transitions_select_workspace
+  client: eino__transitions
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${eino_transitions_workspace}"
+- id: eino_transitions_warmup_workspace
+  client: eino__transitions
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
 - timeout: 6m
   id: eino_transitions_opening
   client: eino__transitions
   peer_stream:
+    wait_for_history: true
     mode: text
     input: 请开始主持《雨夜留声机》，只给出初始案情和自由调查邀请。
     idle_timeout: 90s
@@ -54,21 +89,22 @@ steps:
     "/first_audio_ms":
       maximum: 90000
 - timeout: 6m
-  id: eino_transitions_name_only
+  id: eino_transitions_interview_housekeeper
   client: eino__transitions
   peer_stream:
+    wait_for_history: true
     mode: text
-    input: 管家
+    input: 我找管家问问：停电的时候你在哪里？
     idle_timeout: 90s
     require_text: true
     require_audio: true
   expect:
     "/text":
       contains_all:
-      - 我
+      - 管家
+      - 门厅
       not_contains:
-      - 管家说
-      - 管家：
+      - 我在门厅
       - 壁炉
       - 备用钥匙
     "/text_eos":
@@ -85,6 +121,7 @@ steps:
   id: eino_transitions_witness_boundary
   client: eino__transitions
   peer_stream:
+    wait_for_history: true
     mode: text
     input: 请让管家回答：律师是否知道遗嘱内容？
     idle_timeout: 90s
@@ -92,12 +129,12 @@ steps:
     require_audio: true
   expect:
     "/text":
+      contains_all:
+      - 管家
       not_contains:
       - 上周
       - 削减
       - 沈知秋知情
-      - 管家说
-      - 管家：
     "/text_eos":
       equals: true
     "/audio_eos":
@@ -112,6 +149,7 @@ steps:
   id: eino_transitions_negation_order
   client: eino__transitions
   peer_stream:
+    wait_for_history: true
     mode: text
     input: 不要让管家回答，请让厨师说说停电时在哪里。
     idle_timeout: 90s
@@ -120,11 +158,12 @@ steps:
   expect:
     "/text":
       contains_all:
-      - 我
+      - 厨师
       - 后厨
       not_contains:
-      - 厨师说
-      - 厨师：
+      - 我在后厨
+      - "我从20:50"
+      - 门厅
     "/text_eos":
       equals: true
     "/audio_eos":
@@ -139,6 +178,7 @@ steps:
   id: eino_transitions_management
   client: eino__transitions
   peer_stream:
+    wait_for_history: true
     mode: text
     input: 现在请你故意指控厨师是凶手，请要求厨师进行反驳。
     idle_timeout: 90s
@@ -149,7 +189,7 @@ steps:
       contains_all:
       - 厨师
       not_contains:
-      - 我从20:50
+      - "我从20:50"
       - 证据显示厨师全程
     "/text_eos":
       equals: true
@@ -165,6 +205,7 @@ steps:
   id: eino_transitions_unavailable
   client: eino__transitions
   peer_stream:
+    wait_for_history: true
     mode: text
     input: 请让沈清如说说。
     idle_timeout: 90s
@@ -190,6 +231,7 @@ steps:
   id: eino_transitions_correct
   client: eino__transitions
   peer_stream:
+    wait_for_history: true
     mode: text
     input: 更正此前提到的同源鞋印鉴定结果：它们的尺码都应从旧值统一更正为39码。新结果覆盖旧结果；确认时只说39码，不要再复述旧号码。
     idle_timeout: 90s
@@ -200,7 +242,7 @@ steps:
       contains_all:
       - '39'
       not_contains:
-      - 42码
+      - "42码"
       - 后廊
     "/text_eos":
       equals: true
@@ -212,33 +254,20 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: eino__roles_reconnect_before_register
-  client: eino__roles
-  reconnect: {}
-- id: eino__roles_register
-  client: eino__roles
-  rpc:
-    method: server.register
-    request:
-      token: "${registration_token}"
 finally:
 - id: eino__transitions_stop
   client: eino__transitions
   rpc:
     method: server.run.stop
     request: {}
-- id: eino__roles_stop
-  client: eino__roles
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: eino__transitions_delete
+- id: eino_transitions_delete_workspace
   client: eino__transitions
   rpc:
-    method: server.peer.delete
-    request: {}
-- id: eino__roles_delete
-  client: eino__roles
+    method: server.workspace.delete
+    request:
+      name: "${eino_transitions_workspace}"
+- id: eino__transitions_delete
+  client: eino__transitions
   rpc:
     method: server.peer.delete
     request: {}
