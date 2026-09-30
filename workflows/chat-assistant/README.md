@@ -1,11 +1,12 @@
 # Chat Assistant (`chat-assistant`) — 聊天助手
 
-- Category: `assistant`; rating: `preschool`, `child`, `teen`, `adult`, `senior`; tags: `assistant`, `memory`, `scheduling`
+- Category: `assistant`; rating: `preschool`, `child`, `teen`, `adult`, `senior`; tags: `assistant`, `memory`, `scheduling`, `web-search`
 
 ## Workspace safety fence
 
-Every player-facing LLM system prompt starts with `${board.safety_fence}`,
-then a blank line and the scenario instructions. This includes drafts forwarded
+Every player-facing LLM system prompt starts with `${board.safety_fence}`
+(Flowcraft) or `{safety_fence}` (Eino), then a blank line and the scenario
+instructions. This includes drafts forwarded
 by published scripts and all available character/host paths.
 At `off`, only two leading newlines remain. Internal routing/memory nodes and
 Tester Workflows do not receive the variable. See the root
@@ -16,15 +17,54 @@ Tester Workflows do not receive the variable. See the root
 | File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |
 | --- | --- | --- | --- | --- | --- |
 | `flowcraft.yaml` | `flowcraft-chat-assistant` | flowcraft | user-chat-with-assistant | `flowcraft-chat-assistant.model` | `flowcraft-chat-assistant.assistant` |
+| `eino.yaml` | `eino-chat-assistant` | eino | user-chat-with-assistant | `eino-chat-assistant.model` | `eino-chat-assistant.assistant` |
 
 Install an implementation into a RuntimeProfile with `raids install chat-assistant --impl <engine> --profile <file> --collection <name> --set model.<alias>=<model id> --set voice.<alias>=<voice id>`; the slots above are the parameters the installer asks for.
 
+Both public profiles list them in the `assistants` collection:
+`general-assistant` (Flowcraft, 聊天助手) and `chat-assistant` (Eino,
+聊天助手（联网）).
+
+## Web search (Eino)
+
+The Eino implementation is a plain ASR → LLM → TTS pipeline: the shared `asr`
+Model transcribes speech, `eino-chat-assistant.model` answers, and the Voice
+adapter speaks the reply. It recalls and observes `user-chat-with-assistant`
+memory like the Flowcraft implementation, and it can also search the web.
+
+`spec.toolkit.tool_ids` allows one Tool, `volc-web-search`
+([`tools/volc-web-search.yaml`](../../tools/volc-web-search.yaml), runtime name
+`web_search`); the RuntimeProfile must bind it under `resources.tools`
+(`web-search` in both public profiles). The Model decides when to search. The
+system prompt tells it to search for weather, news, sports, prices, dates and
+anything “今天/现在/最近/最新”, or when unsure, and to answer chat, common
+knowledge and facts already in the conversation or memory directly. The Model
+must support tool calls. The Flowcraft implementation declares
+`toolkit: {tool_ids: []}` and never searches; before GizClaw v0.23.3 a Workflow
+without that line would inherit the profile's Tools.
+
+The Tool posts `{Query, SearchType: "web", Count: 3}` to Volcengine's Doubao
+Search Custom API, plus `TimeRange` when the Model sets `time_range` for
+“最近/最新” questions (results are ranked by relevance, not date), with the `search_api_key` from `volc-credential`
+(`GIZCLAW_VOLC_SEARCH_API_KEY`). A searched turn costs one extra Model round
+plus the search (about 1s) and adds 5–25K prompt tokens of results. A timeout
+(10s) returns an error result to the Model. A malformed call, a non-200
+response or a response over 1 MiB fails the turn. Eino gets no clock input, so
+the Model takes dates from search results.
 
 ## Testing
 
 Tester: `test.yaml` (`chat-assistant-test`, eino), shared by every implementation; one Giztest scenario per implementation:
 
 - `tests/giztest/soak/chat-assistant.flowcraft.giztest.yaml` (relay, with reload, timeout 52m)
+- `tests/giztest/soak/chat-assistant.eino.giztest.yaml` (relay, with reload, timeout 52m)
+
+Smoke, quality and soak are step-for-step equal across the two implementations.
+Web search is Eino-only, so it has its own live check outside `make test-e2e`:
+`tests/giztest/web-search/chat-assistant.eino.giztest.yaml` asks for Shanghai's
+weather and today's date and fails on missing weather/date words, an offline
+refusal such as “无法联网”, or a first text later than 15s. Run it with
+`gizclaw test run tests/giztest/web-search`.
 
 The route has 12 target responses:
 

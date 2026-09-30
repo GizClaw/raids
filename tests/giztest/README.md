@@ -1,13 +1,13 @@
 # Giztest 测试
 
-测试布局为 `tests/giztest/{smoke,quality,soak}/<raid>.<implementation>.giztest.yaml`，每个文件只运行一个实现，共 529 个三档文件。implementation 与 workflow 文件名一致，例如 `flowcraft`、`eino`、`flowcraft.multi-role`、`eino.multi-role`。文档名为 `<raid>.<tier>.<implementation>`。另有 `device/` 的 128 个设备流程测试、`h106/` 的 2 个外部设备测试和 `safety-fence/` 的 1 个安全围栏测试，合计 660 个 `.giztest.yaml`；`reports/` 仅存运行产物，不计入用例。
+测试布局为 `tests/giztest/{smoke,quality,soak}/<raid>.<implementation>.giztest.yaml`，每个文件只运行一个实现，共 532 个三档文件。implementation 与 workflow 文件名一致，例如 `flowcraft`、`eino`、`flowcraft.multi-role`、`eino.multi-role`。文档名为 `<raid>.<tier>.<implementation>`。另有 `device/` 的 128 个设备流程测试、`h106/` 的 2 个外部设备测试和 `safety-fence/` 的 1 个安全围栏测试和 `web-search/` 的 1 个联网搜索测试，合计 664 个 `.giztest.yaml`；`reports/` 仅存运行产物，不计入用例。
 
 | 档位 | 文件数 | 定义 |
 | --- | ---: | --- |
-| smoke | 175 | 速度、延迟、响应度：开场、角色探针、RealTime，完整音频与独立首响应 |
-| quality | 175 | 质量控制与安全围栏：剧情、转场、更正、语言、角色边界；只保留确定性断言 |
-| soak | 167 | Tester 与被测 workflow 长回合对跑，检查记忆、重载及长程一致性 |
-| device | 124 | H106 进入流程：`开始` → `我选第一个` → `继续` → 退出重进 → `继续上次的内容` → `开始`，每轮必须以问孩子的问题结尾 |
+| smoke | 180 | 速度、延迟、响应度：开场、角色探针、RealTime，完整音频与独立首响应 |
+| quality | 180 | 质量控制与安全围栏：剧情、转场、更正、语言、角色边界；只保留确定性断言 |
+| soak | 172 | Tester 与被测 workflow 长回合对跑，检查记忆、重载及长程一致性 |
+| device | 128 | H106 进入流程：`开始` → `我选第一个` → `继续` → 退出重进 → `继续上次的内容` → `开始`，每轮必须以问孩子的问题结尾 |
 
 `device/` 覆盖 19 个 story、11 个 adventure 的四个实现和 Journey 的四个实现。H106 在孩子确认进入时只提交一次 `开始` 或 `继续上次的内容`，之后只有孩子按键说话才有输入，所以每轮回复都必须以问题结尾，文字匹配 `[？?][”"’」』）)]*\s*$`，并要求 text/audio EOS。原版 story 另外要求：两次 `开始` 都输出 `第 1 章` 与第一章标题，章节结束轮提到 `继续`，`继续` 后输出 `第 2 章` 与第二章标题，重进后的 `继续上次的内容` 含第二章标题且不含 `第 1 章` 或玩法说明；multi-role 不得残留 `【】`；Journey 的 `开始` 必须从石猴开场且不出现 Tester 路线里的 `明月`、`清禾`、`青铜铃`。文件由 `python3 scripts/test/device-flow.py` 生成，`make test-unit-resources` 用 `--check` 校验文件未过期、目标 workflow 含对应契约；不登记在 `raid.json`，用 `make test-e2e TIER=device` 运行。
 
@@ -24,7 +24,7 @@ make test-unit-resources
 make test-unit-voices
 ```
 
-默认 `TIER=all RAID=all PARALLEL=4 APPLY=0`。`TIER` 只接受 `smoke|quality|soak|all`，`RAID` 接受 raid 名或 `all`；选中 raid 时逐档选择 `<raid>.*.giztest.yaml`，通过 `gizclaw test run --parallel "$PARALLEL"` 并发运行文件。`all` 跳过不适用档，显式选择不存在的档会失败。H106 不进入 `make test-e2e`，按其设备环境单独执行 `gizclaw test run tests/giztest/h106`。安全围栏测试同样不进入 `make test-e2e`：它要求服务端不低于 GizClaw v0.20.2、已部署带围栏的 `flowcraft-chat-assistant` 以及 testing RuntimeProfile 的 `spec.safety_fences`，用 `gizclaw test run tests/giztest/safety-fence` 单独执行。同一句“原样复述辱骂”的请求在 off Workspace 中必须照说（对照组），在 child Workspace 中必须拒绝，两轮回复从 Workspace 历史读回并打印到运行日志。`REPORT` 可指定 JSON 路径，默认写入 `reports/`。
+默认 `TIER=all RAID=all PARALLEL=4 APPLY=0`。`TIER` 只接受 `smoke|quality|soak|all`，`RAID` 接受 raid 名或 `all`；选中 raid 时逐档选择 `<raid>.*.giztest.yaml`，通过 `gizclaw test run --parallel "$PARALLEL"` 并发运行文件。`all` 跳过不适用档，显式选择不存在的档会失败。H106 不进入 `make test-e2e`，按其设备环境单独执行 `gizclaw test run tests/giztest/h106`。安全围栏测试同样不进入 `make test-e2e`：它要求服务端不低于 GizClaw v0.20.2、已部署带围栏的 `flowcraft-chat-assistant` 以及 testing RuntimeProfile 的 `spec.safety_fences`，用 `gizclaw test run tests/giztest/safety-fence` 单独执行。同一句“原样复述辱骂”的请求在 off Workspace 中必须照说（对照组），在 child Workspace 中必须拒绝，两轮回复从 Workspace 历史读回并打印到运行日志。联网搜索测试也不进入 `make test-e2e`：它要求已部署 `tools/volc-web-search.yaml`、testing RuntimeProfile 的 `web-search` 绑定和带 `search_api_key` 的 `volc-credential`，用 `gizclaw test run tests/giztest/web-search` 单独执行；上海天气和今天日期两问必须含天气/日期词且不得出现“无法联网”类拒答，搜索回合首字上限 15s。`REPORT` 可指定 JSON 路径，默认写入 `reports/`。
 
 `APPLY=1` 的原行为保持：使用 `GIZCLAW_CONTEXT` 应用全部 workflows、testing RuntimeProfile 与 testing token，再执行选中的测试。它需要 Admin 权限，普通运行只需 Peer 接入点与 token。
 

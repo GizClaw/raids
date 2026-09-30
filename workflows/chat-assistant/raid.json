@@ -24,7 +24,8 @@
   "tags": [
     "assistant",
     "memory",
-    "scheduling"
+    "scheduling",
+    "web-search"
   ],
   "language": [
     "zh-CN"
@@ -54,6 +55,41 @@
             "role": "assistant",
             "language": "zh-CN",
             "description": "Assistant voice"
+          }
+        }
+      }
+    },
+    "eino": {
+      "file": "eino.yaml",
+      "workflow_id": "eino-chat-assistant",
+      "driver": "eino",
+      "input": [
+        "text",
+        "push-to-talk",
+        "realtime"
+      ],
+      "memory": {
+        "layout_id": "user-chat-with-assistant"
+      },
+      "parameters": {
+        "models": {
+          "eino-chat-assistant.model": {
+            "kind": "llm",
+            "role": "narrator",
+            "description": "Chat model that generates every turn; needs streaming Chinese output and tool calls"
+          }
+        },
+        "voices": {
+          "eino-chat-assistant.assistant": {
+            "role": "assistant",
+            "language": "zh-CN",
+            "description": "Assistant voice"
+          }
+        },
+        "tools": {
+          "web-search": {
+            "tool_id": "volc-web-search",
+            "description": "Volcengine web search; needs search_api_key in volc-credential"
           }
         }
       }
@@ -110,6 +146,27 @@
       "tier": "soak",
       "implementations": [
         "flowcraft"
+      ]
+    },
+    {
+      "file": "tests/giztest/smoke/chat-assistant.eino.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "eino"
+      ]
+    },
+    {
+      "file": "tests/giztest/quality/chat-assistant.eino.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "eino"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/chat-assistant.eino.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "eino"
       ]
     }
   ]

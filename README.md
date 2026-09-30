@@ -11,7 +11,7 @@ voices, credentials, and provider definitions needed for an AI scenario.
 
 ## Layout
 
-Resources are grouped by kind. Credential, Tenant, Model, and MemoryLayout
+Resources are grouped by kind. Credential, Tenant, Model, MemoryLayout, and Tool
 resources are flat because their `metadata.id` already provides the
 stable identity. Voice catalogs keep one grouping level per Tenant; Workflows are grouped by
 scenario (raid), with one file per engine implementation plus the scenario's
@@ -22,6 +22,7 @@ credentials/<credential-name>.yaml
 tenants/<tenant-name>.yaml
 models/<model-name>.yaml
 memory-layouts/<layout-name>.yaml
+tools/<tool-name>.yaml
 voices/<tenant-name>/<voice-id>.yaml
 workflows/<raid-name>/<engine>.yaml        # one directory per scenario: flowcraft.yaml, eino.yaml, ...
 workflows/<raid-name>/test.yaml            # original Tester Workflow (id <raid-name>-test)
@@ -161,6 +162,36 @@ printed from Workspace history. It needs the fenced `flowcraft-chat-assistant`
 and the `testing` profile's `safety_fences` deployed; run it with
 `gizclaw test run tests/giztest/safety-fence`. It is outside `make test-e2e`.
 
+### Tools
+
+`tools/` holds Tool resources that a chat Model can call during a turn. The
+only one is `volc-web-search` (runtime name `web_search`), an `http_request`
+Tool for Volcengine's Doubao Search Custom API
+(`https://open.feedcoopapi.com/search_api/web_search`). It authenticates with
+`auth.method: volc_search`, so GizClaw reads `search_api_key` from
+`volc-credential` (`GIZCLAW_VOLC_SEARCH_API_KEY`) on each call; the key never
+appears in the Tool. The schema requires the Model to send `search_type: web`
+and `count: 3`, because an HTTP Tool cannot set fixed body fields. An optional
+`time_range` (`OneDay`, `OneWeek`, `OneMonth`, `OneYear`) maps to `TimeRange`:
+results are ranked by relevance, not date, so “最近/最新” news needs it. The
+Tool returns the response's `Result` object.
+
+A RuntimeProfile makes a Tool available by binding it under
+`resources.tools`; both public profiles bind `web-search` to
+`volc-web-search`. A Workflow's `spec.toolkit.tool_ids` narrows those bindings
+by canonical Tool ID. From GizClaw v0.23.3 Tools are opt-in: a Workflow
+without `toolkit` gets none. Earlier releases, including the v0.21.3 that CI
+pins, give such a Workflow every profile Tool, so every Flowcraft and Eino
+Workflow that must not search still declares `tool_ids: []`; the explicit
+empty list means the same on both. Eino `chat_model` and Flowcraft `llm`
+nodes attach the exposed Tools to each Model call and let the Model decide when
+to call them. Only `eino-chat-assistant` allows `volc-web-search`; its prompt
+lists what needs a search (weather, news, dates, prices, “今天/最新”) and what
+does not (chat, common knowledge, facts already in the conversation or memory).
+`make test-unit-resources` validates `tools/`, and `APPLY=1 make test-e2e`
+applies it before the Workflows. `tests/giztest/web-search` checks live weather
+and date answers; run it with `gizclaw test run tests/giztest/web-search`.
+
 ### Runtime alias ownership
 
 RuntimeProfile Model and Voice aliases are opaque flat keys. Dots make
@@ -192,6 +223,7 @@ slots currently bind the same Model resource:
 | --- | --- |
 | `doubao-realtime-conversation` | `doubao-realtime-conversation.model` |
 | `flowcraft-chat-assistant` | `flowcraft-chat-assistant.model` |
+| `eino-chat-assistant` | `eino-chat-assistant.model` |
 | `ast-translate-ja-zh` | `ast-translate-ja-zh.model` |
 | `ast-translate-ko-zh` | `ast-translate-ko-zh.model` |
 | `ast-translate-zh-en-auto` | `ast-translate-zh-en-auto.model` |
@@ -248,6 +280,7 @@ Eino spoken implementations declare these additional Voice roles:
 | each `eino-adventure-*` Workflow | `adventure-guide` |
 | each `eino-learn-*` Workflow | `tutor` |
 | `eino-journey-history`, `eino-journey-memory-async`, `eino-journey-memory-recall` | `narrator` |
+| `eino-chat-assistant` | `assistant` |
 
 Each alias is `<Workflow metadata.id>.<role>`. Both public RuntimeProfiles
 bind it to the same Voice resource as the corresponding Flowcraft default.
@@ -507,7 +540,7 @@ Every scenario is one package directory `workflows/<raid>/`: one Workflow per
 engine implementation (`flowcraft.yaml`, `eino.yaml`, …), the scenario's single
 original relay Tester (`test.yaml`, id `<raid>-test`), a `raid.json` manifest, and a
 README. `raid.json` declares the implementations and the slots each needs —
-model aliases, voice aliases, MemoryLayout — without binding them to concrete
+model aliases, voice aliases, Tool aliases, MemoryLayout — without binding them to concrete
 resources; rating (`raids-age-v2`), category, and tags make the catalog
 filterable. It is descriptive metadata for consumers and reviewers, not an
 input to a generator: `runtime-profiles/default.yaml` and
@@ -547,7 +580,7 @@ package lacks a `raid.json`, or when a manifest uses any other age value.
 
 ## Declarative live tests
 
-Live tests use `tests/giztest/{smoke,quality,soak}/<raid>.<implementation>.giztest.yaml`, one implementation per file, named after its Workflow file. There are **529 tier files**: **179 smoke**, **179 quality**, and **171 soak**. The **128 device** files, the two external H106 files and the `safety-fence` end-to-end file remain separate, for **660 `.giztest.yaml` files** total; generated reports are excluded. Selected files run concurrently with `gizclaw test run --parallel N`.
+Live tests use `tests/giztest/{smoke,quality,soak}/<raid>.<implementation>.giztest.yaml`, one implementation per file, named after its Workflow file. There are **532 tier files**: **180 smoke**, **180 quality**, and **172 soak**. The **128 device** files, the two external H106 files, the `safety-fence` end-to-end file and the `web-search` live check remain separate, for **664 `.giztest.yaml` files** total; generated reports are excluded. Selected files run concurrently with `gizclaw test run --parallel N`.
 
 - **smoke** measures speed, latency and responsiveness, including complete audio and independent first-response probes.
 - **quality** enforces deterministic quality and safety guardrails, including transitions, corrections, language and role boundaries. Independent suite responses run in parallel and finish together within the existing file budget; long Tester relays live in soak.

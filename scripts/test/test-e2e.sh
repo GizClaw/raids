@@ -16,8 +16,9 @@ set -eu
 # Audio-only raids have no soak file and only story, adventure and Journey raids
 # have device files; TIER=all selects their available tiers.
 #
-# APPLY=1 applies the complete testing closure (every raid package, the testing
-# RuntimeProfile, and the testing token) with GIZCLAW_CONTEXT before running.
+# APPLY=1 applies the complete testing closure (every Tool, every raid package,
+# the testing RuntimeProfile, and the testing token) with GIZCLAW_CONTEXT before
+# running. Tools reference Credentials by ID, so those stay applied separately.
 # That replaces the retired raidtest shadow mode: edit
 # workflows/<raid>/<engine>.yaml, then run
 # `APPLY=1 make test-e2e TIER=smoke RAID=<raid>` to publish the edit and exercise
@@ -73,9 +74,12 @@ if test "$APPLY" = 1; then
 		"$GIZCLAW" admin apply $context_args -f "$1" >/dev/null
 		printf 'applied %s\n' "$1"
 	}
-	# The testing RuntimeProfile binds the whole catalog, so every Workflow it
-	# references must exist before it is applied, whatever RAID selects.
+	# The testing RuntimeProfile binds the whole catalog, so every Tool and
+	# Workflow it references must exist before it is applied, whatever RAID selects.
 	printf '==> apply the testing closure\n'
+	find tools -type f -name '*.yaml' | LC_ALL=C sort | while IFS= read -r file; do
+		apply "$file"
+	done
 	find workflows -type f -name '*.yaml' | LC_ALL=C sort | while IFS= read -r file; do
 		apply "$file"
 	done
