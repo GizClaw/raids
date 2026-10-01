@@ -26,25 +26,25 @@ def run(input):
         case('long-reply-still-rejects-stale-guide', 6, '明月熟悉黑风岭。清禾。' * 60,
              {'includes_all': ['forbidden:清禾']})
         short = '你藏好青铜铃，观察守卫和商队位置。'
-        case('requested-24-characters', 11, short, {'equals': ''})
-        case('requested-limit-still-enforced', 11, short + '继续观察。' * 3,
-             {'includes_all': ['max_runes:']})
+        case('brief-content', 11, short, {'equals': ''})
+        case('brevity-hint-is-not-a-counter', 11, short + '暂不营救。', {'equals': ''})
+        case('short-complete-fact', 6, '明月熟悉黑风岭。', {'equals': ''})
     else:
         case('ordinary-long-correction', 5, '你当前去苏州，坐G7105。' * 60, {'equals': ''})
         case('long-reply-still-rejects-stale-trip', 5, '苏州、G7105。仍去杭州。' * 60,
              {'includes_all': ['forbidden:仍去杭州']})
         for index, limit in ((3, 10), (8, 8), (9, 35), (10, 20)):
-            # Include required facts while remaining within the requested limit.
             facts = {3: '', 8: '', 9: '下周四苏州周宁G7105三点青桥', 10: '苏州周宁G7105'}[index]
-            case(f'within-user-limit-{limit}', index, facts or '加油', {'equals': ''})
-            case(f'over-user-limit-{limit}', index, facts + '好' * (limit + 1),
-                 {'includes_all': ['max_runes:']})
+            case(f'brief-content-{index}', index, facts or '加油', {'equals': ''})
+            case(f'brevity-hint-is-not-a-counter-{index}', index, facts + '好' * (limit + 1), {'equals': ''})
         for index, exact in ((4, '收到'), (11, '行程已更新')):
             case(f'exact-answer-{index}', index, exact, {'equals': ''})
             case(f'exact-answer-extra-text-{index}', index, exact + '。',
-                 {'includes_all': ['max_runes:']})
+                 {'includes_all': ['exact_text:']})
+
+    case('empty-reply-still-fails', 0, '  ', {'includes_all': ['reply:empty']})
 
     subprocess.run(['scripts/test/test-starlark-routing.sh'],
                    input=json.dumps({'Source': source, 'Steps': 2_000_000, 'Cases': cases}, ensure_ascii=False),
                    text=True, check=True)
-print('validated free-length ordinary replies, explicit user limits and retained fact checks')
+print('validated reply content without character counting, exact answers and retained fact checks')

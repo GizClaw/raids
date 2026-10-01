@@ -2,7 +2,7 @@
 
 0.23.2 使用 Profile 自定义的安全围栏字符串 ID；testing Profile 的普通测试显式选择 `off`，儿童围栏测试选择 `child`，不再发送 `SAFETY_FENCE_LEVEL_*` 枚举。`off` 只要求遵循 Workflow 自身规则，既有 `general`、`child` 的安全策略原文保留。H106 使用 deploy 管理的 Profile，本次只移除其 `collection` 参数，围栏选择仍由设备环境决定。
 
-Chat/Journey 的普通回复不设通用字数上限，重载后的回复同样按内容验收。仅当测试中的用户明确要求字数或原样回答时，Tester 才检查该上限；事实、更正、记忆、响应时延和音频完成检查继续执行。`scripts/test/test_reply_lengths.py` 用原生 Starlark 验证较长普通回复不会只因长度失败，明确字数指令和错误事实仍会被拒绝。
+Chat/Journey 不把回复字数作为通过或失败标准，重载后的回复同样按内容验收。数字提示只表达用户希望简短的意图，Tester 不做精确计数；原样回答仍按文本匹配。事实、更正、记忆、响应时延和音频完成检查继续执行。`scripts/test/test_reply_lengths.py` 用原生 Starlark 验证完整回复不会只因长短失败，错误事实、空回复和原样回答中添加的内容仍会被拒绝。
 
 模型目录原样保留 `doubao-seed-2-0-lite`，并新增独立的 `doubao-seed-2-1-lite`；旧 profile 仍可选择 2.0。
 

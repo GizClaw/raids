@@ -108,8 +108,9 @@ def turn(name, client, text, expect, timeout):
     }
 
 
-def question(extra):
-    return {'min_length': 20, 'pattern': ENDS_WITH_QUESTION, **extra}
+def question(extra, free_length=False):
+    presence = {'non_empty': True} if free_length else {'min_length': 20}
+    return {**presence, 'pattern': ENDS_WITH_QUESTION, **extra}
 
 
 def document(raid, suffix, impl):
@@ -148,11 +149,11 @@ def document(raid, suffix, impl):
         resume = question({'not_contains': (['【', '】'] if multi_role else []) + ['第 1 章', '你可以直接说出你的选择']})
         restart = question({**markers, 'not_contains': ['【', '】'] + NEXT_CHAPTER_HEADING}) if multi_role else question({'contains_all': ['第 1 章', first]})
     elif journey:
-        turns.append(turn('start', client, '开始', question({'contains_any': JOURNEY_OPENING, 'not_contains': JOURNEY_TEST_FACTS + ['紧箍', '取经路上']}), timeout))
-        turns.append(turn('chapter_choice', client, '我选第一个', question({'not_contains': JOURNEY_TEST_FACTS}), timeout))
-        turns.append(turn('continue', client, '继续', question({'not_contains': JOURNEY_TEST_FACTS}), timeout))
-        resume = question({'not_contains': JOURNEY_TEST_FACTS})
-        restart = question({'contains_any': JOURNEY_OPENING, 'not_contains': JOURNEY_TEST_FACTS})
+        turns.append(turn('start', client, '开始', question({'contains_any': JOURNEY_OPENING, 'not_contains': JOURNEY_TEST_FACTS + ['紧箍', '取经路上']}, free_length=True), timeout))
+        turns.append(turn('chapter_choice', client, '我选第一个', question({'not_contains': JOURNEY_TEST_FACTS}, free_length=True), timeout))
+        turns.append(turn('continue', client, '继续', question({'not_contains': JOURNEY_TEST_FACTS}, free_length=True), timeout))
+        resume = question({'not_contains': JOURNEY_TEST_FACTS}, free_length=True)
+        restart = question({'contains_any': JOURNEY_OPENING, 'not_contains': JOURNEY_TEST_FACTS}, free_length=True)
     else:
         turns.append(turn('start', client, '开始', question(markers), timeout))
         turns.append(turn('chapter_choice', client, '我选第一个', question(markers), timeout))
