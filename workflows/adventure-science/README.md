@@ -21,7 +21,7 @@ Tester Workflows do not receive the variable. See the root
 | `eino.yaml` | `eino-adventure-science` | eino | adventure | `eino-adventure-science.model` | `eino-adventure-science.adventure-guide` |
 | `flowcraft.yaml` | `flowcraft-adventure-science` | flowcraft | adventure | `flowcraft-adventure-science.model` | `flowcraft-adventure-science.adventure-guide` |
 
-Install an implementation into a RuntimeProfile with `raids install adventure-science --impl <engine> --profile <file> --collection <name> --set model.<alias>=<model id> --set voice.<alias>=<voice id>`; the slots above are the parameters the installer asks for.
+Install the Workflow resource and add a flat `spec.workflows` binding to its Workflow ID. Bind the slots above under `spec.resources.models` and `spec.resources.voices`; use `category:*` tags for discovery.
 
 
 ## Testing

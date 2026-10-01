@@ -66,6 +66,7 @@ type fixture struct {
 	requests int
 	fact     string
 	query    string
+	body     map[string]any
 }
 
 func searchToolkit(t *testing.T, f *fixture) *genx.Toolkit {
@@ -99,6 +100,7 @@ func searchToolkit(t *testing.T, f *fixture) *genx.Toolkit {
 		if err := json.NewDecoder(request.Body).Decode(&body); err != nil {
 			return nil, err
 		}
+		f.body = body
 		if body["Query"] != f.query || body["SearchType"] != "web" || body["Count"] != float64(3) {
 			return nil, fmt.Errorf("wrong search argument mapping: %#v", body)
 		}
@@ -151,7 +153,11 @@ func (m *scriptedModel) Stream(_ context.Context, input []*schema.Message, opts 
 	}
 	if m.rounds == 1 {
 		query := input[len(input)-1].Content
-		args, _ := json.Marshal(map[string]any{"query": query, "search_type": "web", "count": 3})
+		arguments := map[string]any{"query": query, "search_type": "web", "count": 3}
+		if m.mode == "search-null" {
+			arguments["time_range"] = nil
+		}
+		args, _ := json.Marshal(arguments)
 		return schema.StreamReaderFromArray([]*schema.Message{{Role: schema.Assistant, Content: "我查一下。",
 			ToolCalls: []schema.ToolCall{{ID: "search-1", Type: "function", Function: schema.FunctionCall{Name: "web_search", Arguments: string(args)}}}}}), nil
 	}
@@ -314,6 +320,39 @@ func TestSearchOracleRejectsFabricatedWeatherAndDate(t *testing.T) {
 	}
 	if err := searchResultError(text, f); err == nil {
 		t.Fatal("fabricated weather/date passed without executing web_search")
+	}
+}
+
+func TestOptionalSearchTimeRange(t *testing.T) {
+	// Ark can emit explicit null for an optional field. Exercise the shipped
+	// schema and the real executor, including its absent-versus-null mapping.
+	for _, suffix := range []string{"", `,"time_range":null`, `,"time_range":"OneDay"`} {
+		t.Run(suffix, func(t *testing.T) {
+			f := &fixture{query: "天气", fact: "结果"}
+			_, err := searchToolkit(t, f).InvokeTool(t.Context(), "web_search",
+				json.RawMessage(`{"query":"天气","search_type":"web","count":3`+suffix+`}`))
+			if err != nil {
+				t.Fatal(err)
+			}
+			value, present := f.body["TimeRange"]
+			if f.requests != 1 || present != (suffix != "") ||
+				(suffix == `,"time_range":null` && value != nil) ||
+				(suffix == `,"time_range":"OneDay"` && value != "OneDay") {
+				t.Fatalf("unexpected HTTP mapping: %#v", f.body)
+			}
+		})
+	}
+	for _, invalid := range []string{`""`, `"Yesterday"`, `42`} {
+		f := &fixture{query: "天气"}
+		_, err := searchToolkit(t, f).InvokeTool(t.Context(), "web_search",
+			json.RawMessage(`{"query":"天气","search_type":"web","count":3,"time_range":`+invalid+`}`))
+		if err == nil || f.requests != 0 {
+			t.Fatalf("invalid time range reached HTTP executor: %s", invalid)
+		}
+	}
+	text, f, _ := run(t, "上海今天天气怎么样？", "search-null")
+	if err := searchResultError(text, f); err != nil {
+		t.Fatal(err)
 	}
 }
 

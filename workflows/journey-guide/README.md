@@ -20,7 +20,7 @@ Tester Workflows do not receive the variable. See the root
 | `eino-memory-async.yaml` | `eino-journey-memory-async` | eino | story-teller | `eino-journey-memory-async.model` | `eino-journey-memory-async.narrator` |
 | `eino-memory-recall.yaml` | `eino-journey-memory-recall` | eino | story-teller | `eino-journey-memory-recall.model` | `eino-journey-memory-recall.narrator` |
 
-Install an implementation into a RuntimeProfile with `raids install journey-guide --impl <engine> --profile <file> --collection <name> --set model.<alias>=<model id> --set voice.<alias>=<voice id>`; the slots above are the parameters the installer asks for.
+Install the Workflow resource and add a flat `spec.workflows` binding to its Workflow ID. Bind the slots above under `spec.resources.models` and `spec.resources.voices`; use `category:*` tags for discovery.
 
 All three implementations accept text and push-to-talk input and synthesize spoken
 output. The public `journey` entry (西游记) binds `eino-journey-memory-async`, the

@@ -21,7 +21,7 @@ Tester Workflows do not receive the variable. See the root
 | `eino.yaml` | `eino-adventure-castle-mystery` | eino | adventure | `eino-adventure-castle-mystery.model` | `eino-adventure-castle-mystery.adventure-guide` |
 | `flowcraft.yaml` | `flowcraft-adventure-castle-mystery` | flowcraft | adventure | `flowcraft-adventure-castle-mystery.model` | `flowcraft-adventure-castle-mystery.adventure-guide` |
 
-Install an implementation into a RuntimeProfile with `raids install adventure-castle-mystery --impl <engine> --profile <file> --collection <name> --set model.<alias>=<model id> --set voice.<alias>=<voice id>`; the slots above are the parameters the installer asks for.
+Install the Workflow resource and add a flat `spec.workflows` binding to its Workflow ID. Bind the slots above under `spec.resources.models` and `spec.resources.voices`; use `category:*` tags for discovery.
 
 
 ## Testing

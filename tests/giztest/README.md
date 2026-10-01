@@ -1,12 +1,14 @@
 # Giztest 测试
 
+0.23.2 使用 Profile 自定义的安全围栏字符串 ID；testing Profile 的普通测试显式选择 `off`，儿童围栏测试选择 `child`，不再发送 `SAFETY_FENCE_LEVEL_*` 枚举。`off` 只要求遵循 Workflow 自身规则，既有 `general`、`child` 的安全策略原文保留。H106 使用 deploy 管理的 Profile，本次只移除其 `collection` 参数，围栏选择仍由设备环境决定。
+
 模型目录原样保留 `doubao-seed-2-0-lite`，并新增独立的 `doubao-seed-2-1-lite`；旧 profile 仍可选择 2.0。
 
 两个公开 RuntimeProfile 的讲述与 Tester 评审绑定 `doubao-seed-2-1-lite`，上游为 `doubao-seed-2-1-lite-260915`。思考默认关闭，可选值为 `enabled`、`disabled`；Tester 的 judge 输出预算为 1024 token，避免长评审截断后无法给出结论。语音输入仍走 ASR。
 
 Chat 的天气、日期 live 探针只检查语音回复可用性，关键词本身不证明搜索已执行。
 `make test-unit-chat-assistant` 另用仓库真实 Workflow、Tool、profile 与这两个输入，
-在 GizClaw v0.21.3 Eino 引擎和 HTTP Tool 执行器中验证请求映射、真实调用计数、随机受控结果传入回答，
+在 GizClaw v0.23.2 Eino 引擎和 HTTP Tool 执行器中验证请求映射、真实调用计数、随机受控结果传入回答，
 并拒绝没有调用搜索的虚构天气/日期回答。它同时检查用户与助手都进入异步记忆观察、闲聊不调用搜索。
 
 测试布局为 `tests/giztest/{smoke,quality,soak}/<raid>.<implementation>.giztest.yaml`，每个文件只运行一个实现，共 586 个三档文件。implementation 与 workflow 文件名一致，例如 `flowcraft`、`eino`、`flowcraft.multi-role`、`eino.multi-role`。文档名为 `<raid>.<tier>.<implementation>`。另有 `device/` 的 135 个设备流程测试、`h106/` 的 2 个外部设备测试和 `safety-fence/` 的 1 个安全围栏测试，合计 724 个 `.giztest.yaml`；`reports/` 仅存运行产物，不计入用例。
@@ -45,7 +47,7 @@ RealTime 的 `realtime_roundtrip` 负责验证完整往返：events/text 非空�
 
 不再对每个响应轮次发送全量 keepalive。独立 Workspace 准备阶段仍会让其它已注册 client 等待过久的位置保留 `*_setup_keepalive_*`（`server.run.status`）；Journey soak 在三个 90s recall barrier 之间保留一个 Tester 的 `*_recall_keepalive`。当前 smoke 1、quality 268、soak 4，共 273 个；每个都通过删除反证检查，删掉任一个会造成静态空闲预算超限。原有 3,735 个 keepalive 步骤全部移除，跨实现等待也随文件拆分消除。
 
-`test-unit-resources` 检查文件名/文档名、每档实现清单、raid.json 单实现登记、Voice/角色闭环和真实 routing-cases 脚本。按 variant 比较 `<raid>.flowcraft*.giztest.yaml` 与 `<raid>.eino*.giztest.yaml` 的完整 steps/finally（展开并行父步骤的断言），Journey 只有三个 Eino 变体，各自接受布局与门槛校验，不再有 Flowcraft 对照文件。仅规范化 client/标识符、workflow_name 和 Workspace parameters；输入、expect、capture、timeout、collection、relay 计划保持一致。仅真实 TTS 能力差异沿用音频断言例外。
+`test-unit-resources` 检查文件名/文档名、每档实现清单、raid.json 单实现登记、Voice/角色闭环和真实 routing-cases 脚本。按 variant 比较 `<raid>.flowcraft*.giztest.yaml` 与 `<raid>.eino*.giztest.yaml` 的完整 steps/finally（展开并行父步骤的断言），Journey 只有三个 Eino 变体，各自接受布局与门槛校验，不再有 Flowcraft 对照文件。仅规范化 client/标识符、workflow_name 和 Workspace parameters；输入、expect、capture、timeout、workflow 选择、relay 计划保持一致。仅真实 TTS 能力差异沿用音频断言例外。
 
 空闲规则累计某 client 两次操作之间其它步骤的预算，包含 finally；显式 timeout 按原值计算，无显式 timeout 的控制操作按 30s 调度余量计算，output 为 0。并行组中每个参与 client、relay 中双方均视为持续有流量。间隔超过 180s、晚启动未重连、注册前保活、冗余保活都会失败。这是静态调度检查，不是网络时延上限或真实 E2E 验收；没有放宽或改动原有响应门槛。quality 不创建 Tester，不执行长 relay；预算沿用原值（story/adventure 30m，其余 10m；murder-mystery 多角色跑同样的 60 步路由套件，也是 30m）。
 

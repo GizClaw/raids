@@ -41,8 +41,8 @@ smoke, quality, soak and device Giztest.
   (`@@ROLES_2@@`, `@@GUEST1_FIRST@@`) take the slot's JSON type.
 
 Runtime profiles stay hand-written: add `eino-<raid>-multi-role` to
-`raidtest-targets`, `<raid>-test-multi-role` to `raidtest-testers`, `figure.<key>`
-(pointing at `eino-<raid>-multi-role`) to the `figure` collection of `default.yaml`,
+`raidtest-targets`, `<raid>-test-multi-role` to bindings tagged `category:raidtest-testers`, `figure.<key>`
+(pointing at `eino-<raid>-multi-role`) to bindings tagged `category:figure` of `default.yaml`,
 the `eino-<raid>-mr.model` and `<raid>-test.model` aliases, and a distinct Voice for
 `eino-<raid>-mr.storyteller` and each role in both profiles. Add the raid ID to
 `raids.txt`.

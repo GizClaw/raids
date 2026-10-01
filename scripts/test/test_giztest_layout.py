@@ -132,6 +132,27 @@ class GiztestCapabilityTest(unittest.TestCase):
         layout.check_workspace_order({'steps': [create, select]}, 'fixture')
         self.rejected(layout.check_workspace_order, {'steps': [select, create]}, 'fixture')
 
+    def test_workspace_name_and_fence_must_be_bound_in_profile(self):
+        profile = {'workflows': {'assistant': {'resource_id': 'canonical-workflow'}},
+                   'safety_fences': {'off': {'prompt': 'Follow Workflow rules.'}, 'child': {'prompt': 'Child policy.'}}}
+        request = {'name': '${workspace}', 'workflow_name': 'assistant',
+                   'parameters': {'eino_workspace_parameters': {'safety_fence_level': 'off'}}}
+        doc = {'steps': [{'id': 'create', 'rpc': {'method': 'server.workspace.create', 'request': request}}]}
+        layout.check_workspace_contract(doc, 'fixture', profile)
+        for change in [
+            lambda r: r.update(collection='assistants'),
+            lambda r: r.update(workflow_name='canonical-workflow'),
+            lambda r: r['parameters']['eino_workspace_parameters'].pop('safety_fence_level'),
+            lambda r: r['parameters']['eino_workspace_parameters'].update(safety_fence_level='SAFETY_FENCE_LEVEL_OFF'),
+            lambda r: r['parameters']['eino_workspace_parameters'].update(safety_fence_level=False),
+        ]:
+            bad = copy.deepcopy(doc)
+            change(bad['steps'][0]['rpc']['request'])
+            self.rejected(layout.check_workspace_contract, bad, 'fixture', profile)
+        # A consuming Profile without fences permits an omitted selection.
+        del request['parameters']['eino_workspace_parameters']['safety_fence_level']
+        layout.check_workspace_contract(doc, 'fixture', {'workflows': profile['workflows']})
+
     def test_workspace_delete_requires_matching_local_creation(self):
         create = {'id': 'create', 'client': 'a', 'rpc': {
             'method': 'server.workspace.create', 'request': {'name': '${workspace}'}}}

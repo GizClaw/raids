@@ -21,7 +21,7 @@ Tester Workflows do not receive the variable. See the root
 | `eino.yaml` | `eino-murder-mystery` | eino | adventure | `eino-murder-mystery.model` | `eino-murder-mystery.game-master` |
 | `flowcraft.yaml` | `flowcraft-murder-mystery` | flowcraft | adventure | `flowcraft-murder-mystery.model` | `flowcraft-murder-mystery.game-master` |
 
-Install an implementation into a RuntimeProfile with `raids install murder-mystery --impl <engine> --profile <file> --collection <name> --set model.<alias>=<model id> --set voice.<alias>=<voice id>`; the slots above are the parameters the installer asks for.
+Install the Workflow resource and add a flat `spec.workflows` binding to its Workflow ID. Bind the slots above under `spec.resources.models` and `spec.resources.voices`; use `category:*` tags for discovery.
 
 
 ## Testing

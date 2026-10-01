@@ -50,14 +50,13 @@ Generic Admin `metadata.name` is unsupported. RuntimeProfile map keys remain
 Peer-facing aliases scoped by that profile; each binding points to an Admin
 Resource ID and does not create an alternate Admin selector.
 
-Every RuntimeProfile alias — Workflow collection names, Workflow, Model, Voice
+Every RuntimeProfile alias — Workflow, Model, Voice
 and memory binding keys, and `app_config` keys — is 1-63 bytes of
 dot-separated lowercase kebab-case segments, for example
 `learn.chinese-poetry-grade1-eino` or `story.animal-kingdom`. Underscores and
 uppercase letters are rejected. GizClaw v0.18.15 enforces this when a Server
 normalizes the profile, which `gizclaw admin validate` does not do, so
-`make test-unit-resources` checks it offline and also rejects a Workflow alias
-bound in more than one collection.
+`make test-unit-resources` checks it offline and rejects the legacy nested Workflow collection shape.
 
 Admin IDs are opaque and kind-qualified. They contain at most 1,024 Unicode
 characters, preserve internal characters exactly, and cannot have surrounding
@@ -84,9 +83,14 @@ Every player-facing Flowcraft, Eino, and Doubao Realtime implementation places t
 `safety_fence_level` prompt first in the system message, then a blank line and
 the scenario instructions. The Workspace chooses `off`, `general`, or `child`;
 the RuntimeProfile owns the complete text in
-`spec.safety_fences.{general,child}.prompt`. `child` does not inherit `general`.
-Raids does not choose a level or supply fallback fence text; only the
-`testing` RuntimeProfile carries example `general`/`child` prompts for Giztest.
+`spec.safety_fences.{off,general,child}.prompt`. `child` does not inherit `general`.
+In 0.23.2 these are Profile-defined string IDs rather than fixed enums. The
+`testing` Profile's `off` entry only says to follow the Workflow's own rules;
+its existing `general` and `child` policy text is unchanged. Ordinary Giztests
+select `off` explicitly, while the child boundary tests select `child`. A Profile
+with fence definitions requires a selection; omitting it is not an implicit off.
+Player Workflows still receive only the selected Profile text through the
+standard placeholder, without fallback policy inside the Workflow.
 
 ```yaml
 # Flowcraft LLM config
@@ -122,16 +126,16 @@ instructions: |
 Eino input keys become template variable names; no extra State field is
 needed. All current player prompts use `f_string`: `{safety_fence}` is the
 variable, while `{{` and `}}` escape literal braces. Neither this formatter
-nor Flowcraft's variable resolver trims the prompt. At `off`, the prefix
-becomes exactly two newlines, with no label, punctuation, or unresolved
-variable. These are valid system-message whitespace. We retain the existing
+nor Flowcraft's variable resolver trims the prompt. With no Profile fence
+definitions and no selection, the empty prefix becomes exactly two newlines.
+The testing Profile's named `off` instead inserts its neutral prompt. We retain the existing
 formats rather than change every template to remove that whitespace. Future
 `go_template` prompts can use `{{if .safety_fence}}{{.safety_fence}}`, a blank
 line, then `{{end}}` immediately before the original text; `jinja2` can use
 `{% if safety_fence %}{{ safety_fence }}`, a blank line, then `{% endif %}`.
-These conditional forms omit the separator at `off`. Realtime drivers
+These conditional forms omit the separator when the fence text is empty. Realtime drivers
 substitute `${input.safety_fence}` and trim the result, so Doubao Realtime
-leaves no leading blank lines at `off`; the dotted name is not expanded as an
+leaves no leading blank lines for empty fence text; the dotted name is not expanded as an
 environment variable by `gizclaw admin apply`.
 
 Only player replies receive the variable, including drafts forwarded through
@@ -154,7 +158,7 @@ a recognized player reply path fails and needs an explicit coverage review
 when adding a new graph shape.
 
 **Runtime dependency:** the fence needs **GizClaw v0.20.2** or later for both
-validation and serving; CI pins v0.20.2. Earlier releases reject Eino's
+validation and serving; CI now pins v0.23.2 with Profile-defined string IDs. Earlier releases reject Eino's
 `input.safety_fence` binding as undeclared.
 
 This contract covers every raid with Flowcraft/Eino implementations and
@@ -186,7 +190,7 @@ A RuntimeProfile makes a Tool available by binding it under
 `resources.tools`; both public profiles bind `web-search` to
 `volc-web-search`. A Workflow's `spec.toolkit.tool_ids` narrows those bindings
 by canonical Tool ID. From GizClaw v0.23.3 Tools are opt-in: a Workflow
-without `toolkit` gets none. Earlier releases, including the v0.21.3 that CI
+without `toolkit` gets none. Earlier releases, including the v0.23.2 that CI
 pins, give such a Workflow every profile Tool, so every Flowcraft and Eino
 Workflow that must not search declares `tool_ids: []`; the explicit empty list
 means the same on both. Eino `chat_model` and Flowcraft `llm`
@@ -341,7 +345,7 @@ The public MemoryLayout catalog is organized by reusable scenario:
   and open questions, and explicit corrections for `learn-*` raids.
 
 Knowledge-extension raids use the `learn-<subject>-<topic>` naming scheme and
-the `learn` collection. Each one embeds a verified knowledge card in its
+bindings tagged `category:learn`. Each one embeds a verified knowledge card in its
 prompt, keeps the sources in its package `knowledge.json`, teaches anything
 the child brings up, and must say "没有确切记载" instead of inventing details
 the card does not hold. The poetry set is `learn-chinese-poetry-grade1` through
@@ -378,7 +382,7 @@ on the child's culture are split by region and named `guess-<subject>-<region>`
 (for example `guess-history-figures-cn`), while universal subjects carry no
 region (`guess-physics-terms`). A product picks its regional content when its
 RuntimeProfile is assembled; both public profiles bind the Eino Workflows in the
-`guess` collection as `guess.<subject>[-<region>]-eino`.
+bindings tagged `category:guess` as `guess.<subject>[-<region>]-eino`.
 
 The catalog has ten guess raids: `guess-history-figures-cn` (the only regional
 one), `guess-chinese-idioms` (idioms and the folk stories behind them, for
@@ -424,7 +428,7 @@ told as legend. The catalog has twelve: `figure-li-bai`, `figure-confucius`,
 `figure-marie-curie`, `figure-einstein`, `figure-da-vinci`, `figure-edison`,
 `figure-nightingale` and `figure-galileo`. Each ships one implementation,
 continuous Eino multi-role narration, and the default profile binds it in the
-`figure` collection as `figure.<key>`.
+bindings tagged `category:figure` as `figure.<key>`.
 
 Facts and script are kept apart. `cards/figure/<人物>.txt` is a knowledge card
 about the real person — era, life events, the people around them, works, famous
@@ -535,9 +539,12 @@ latency, or sound quality; synthesis logs and listening remain separate
 acceptance evidence.
 
 Each Layout defines portable Flowcraft, Mem0, and Volc Mem0 policy. The public
-default profile selects Flowcraft with `connection.type: flowcraft_bbh`; it
-does not publish an endpoint, key, project ID, DSN, or directory. The consuming
-Server derives managed BBH storage from its own Workspace.
+default profile selects Flowcraft with explicit `flowcraft_object_store`
+directories under `/var/lib/gizclaw/raids-memory/default`; the testing profile
+uses its own directories. These are new-install paths, not a migration of legacy
+managed BBH data. Existing installations must retain and explicitly migrate or
+override their Memory bindings before applying the updated profiles. The consuming
+product selects its explicit directory or another supported physical Memory connection.
 
 Provider policy does not bypass runtime capability checks. In particular,
 Graph-authoritative `memory_observe.facts` writes require a Store with
@@ -564,10 +571,30 @@ is not discovered or applied as a catalog resource.
 The MemoryLayout definitions require a GizClaw build containing the MemoryLayout contract
 merged by [GizClaw #590](https://github.com/GizClaw/gizclaw/pull/590).
 
+## GizClaw 0.23.2 compatibility
+
+Both public RuntimeProfiles use a flat `spec.workflows` map. Workflow names,
+resource IDs and i18n remain unchanged; each former collection is represented
+by `category:<collection>` in its bindings' tags. Tag matching is exact and
+multiple filters use AND. Workspace creation names only the Workflow alias;
+Giztests and generators no longer send the removed `collection` field.
+Model, Voice, Tool and Memory aliases retain their identities. Safety-fence
+`general`/`child` prompts and per-raid age ratings are unchanged. No MHS/device manifest is added.
+
+`flowcraft_bbh` is no longer an accepted Memory connection in 0.23.2. The catalog
+uses explicit `flowcraft_object_store` directories for new installs. This change
+never copies, reinterprets or deletes existing managed BBH data; deployed products
+must choose and migrate their own physical binding separately. Dev qualification
+uses a temporary Profile, fresh Peers and an independent test directory.
+
+Tool aliases, Profile Tool extensions and `input.tool_instructions` discussed as
+future features are not implemented in 0.23.2 and are not part of this migration.
+The explicit canonical Tool allow-list remains in the Chat Workflow.
+
 ## Static resource validation
 
 Raids uses the released GizClaw binary as the only authority for declarative
-Resource format validation. With GizClaw v0.21.3 or later on `PATH`, validate
+Resource format validation. With GizClaw v0.23.2 or later on `PATH`, validate
 every applyable catalog Resource with:
 
 ```sh
@@ -598,7 +625,7 @@ default variables, and exports. `make help` lists the complete surface:
 `test-unit-*` target as its own step; there is no aggregate target.
 
 `make test-unit-chat-assistant` loads the shipped Chat Workflow, profiles, Tool
-and quality probe inputs into the GizClaw v0.21.3 Eino runtime. A scripted Model
+and quality probe inputs into the GizClaw v0.23.2 Eino runtime. A scripted Model
 and HTTP transport fixture replace the external providers. The real HTTP Tool
 executor must receive the mapped search request, return an unpredictable result,
 and feed it into the final answer. A fabricated weather/date answer is rejected
@@ -633,7 +660,7 @@ Go module downloads are disabled. Offline validation cannot establish real
 provider voice switching, timing, interruption or audible continuity.
 
 Passing this check establishes schema, binding, and deterministic routing
-contracts, not live behavior. CI pins the immutable v0.21.3 Linux package
+contracts, not live behavior. CI pins the immutable v0.23.2 Linux package
 and verifies its published SHA-256 digest before validation.
 `make test-unit-voices` separately requires exactly 635 MiniMax Voice files and exactly one
 `model: speech-2.6-turbo` field in each. Per-file schema validation alone does
@@ -653,7 +680,7 @@ resources; rating (`raids-age-v2`), category, and tags make the catalog
 filterable. It is descriptive metadata for consumers and reviewers, not an
 input to a generator: `runtime-profiles/default.yaml` and
 `runtime-profiles/testing.yaml` stay hand-written, and adding a raid to a
-profile means binding its Workflow in a collection and declaring the model and
+profile means adding its Workflow to the flat map with category tags and declaring the model and
 voice aliases the manifest lists.
 
 The audio-only `ast-translate` (category `translate`, one implementation per

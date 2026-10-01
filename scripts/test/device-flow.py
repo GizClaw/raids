@@ -82,14 +82,13 @@ def testing_profile():
     return load_yaml('runtime-profiles/testing.yaml')
 
 
-# The testing RuntimeProfile decides which collection and alias reach a Workflow.
+# The testing RuntimeProfile decides which flat alias reaches a Workflow.
 def target(workflow):
-    collections = dig(testing_profile(), 'spec', 'workflows', 'collections')
-    ordered = sorted(collections.items(), key=lambda item: 0 if item[0] == 'raidtest-targets' else 1)
-    for name, aliases in ordered:
-        for key, binding in aliases.items():
-            if binding.get('resource_id') == workflow:
-                return name, key
+    aliases = dig(testing_profile(), 'spec', 'workflows')
+    ordered = sorted(aliases.items(), key=lambda item: 0 if 'category:raidtest-targets' in item[1].get('tags', []) else 1)
+    for key, binding in ordered:
+        if binding.get('resource_id') == workflow:
+            return key
     raise RuntimeError(f'{workflow}: not bound in runtime-profiles/testing.yaml')
 
 
@@ -126,6 +125,7 @@ def document(raid, suffix, impl):
     parameters = {
         f'{driver}_workspace_parameters': {
             'agent_type': f'{driver.upper()}_WORKSPACE_PARAMETERS_AGENT_TYPE_{driver.upper()}',
+            'safety_fence_level': 'off',
             'conversation': {'initiative': 'CONVERSATION_PARAMETERS_INITIATIVE_PEER'},
             'input': 'WORKSPACE_INPUT_MODE_PUSH_TO_TALK'
         }
@@ -159,11 +159,11 @@ def document(raid, suffix, impl):
         turns.append(turn('continue', client, '继续', question(markers), timeout))
         resume = question(markers)
         restart = question(markers)
-    collection, workflow = target(dig(load_yaml(f'workflows/{raid}/{suffix}.yaml'), 'metadata', 'id'))
+    workflow = target(dig(load_yaml(f'workflows/{raid}/{suffix}.yaml'), 'metadata', 'id'))
     steps = [
         {'id': f'{client}_device_register', 'client': client, 'rpc': {'method': 'server.register', 'request': {'token': '${registration_token}'}}},
         {'id': f'{client}_device_create_workspace', 'client': client, 'rpc': {'method': 'server.workspace.create', 'request': {
-            'name': '${workspace}', 'collection': collection, 'workflow_name': workflow, 'parameters': parameters}}},
+            'name': '${workspace}', 'workflow_name': workflow, 'parameters': parameters}}},
         {'id': f'{client}_device_select_workspace', 'client': client, 'rpc': {'method': 'server.run.workspace.set', 'request': {'workspace_name': '${workspace}'}}},
         {'id': f'{client}_device_warmup_workspace', 'client': client, 'timeout': '2m', 'rpc': {'method': 'server.run.workspace.reload', 'request': {}}},
         *turns,

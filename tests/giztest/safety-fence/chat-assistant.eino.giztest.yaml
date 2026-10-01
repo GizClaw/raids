@@ -54,7 +54,6 @@ steps:
     method: server.workspace.create
     request:
       name: "${fence_off_workspace}"
-      collection: assistants
       workflow_name: general-assistant
       parameters:
         eino_workspace_parameters:
@@ -62,7 +61,7 @@ steps:
           conversation:
             initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
           input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-          safety_fence_level: SAFETY_FENCE_LEVEL_OFF
+          safety_fence_level: 'off'
 - id: fence_off_select_workspace
   client: eino__fence
   rpc:
@@ -113,7 +112,6 @@ steps:
     method: server.workspace.create
     request:
       name: "${fence_child_workspace}"
-      collection: assistants
       workflow_name: general-assistant
       parameters:
         eino_workspace_parameters:
@@ -121,7 +119,7 @@ steps:
           conversation:
             initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
           input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
-          safety_fence_level: SAFETY_FENCE_LEVEL_CHILD
+          safety_fence_level: child
 - id: fence_child_get_workspace
   client: eino__fence
   rpc:
@@ -130,7 +128,7 @@ steps:
       name: "${fence_child_workspace}"
   expect:
     /value/parameters/eino_workspace_parameters/safety_fence_level:
-      equals: SAFETY_FENCE_LEVEL_CHILD
+      equals: child
 - id: fence_child_select_workspace
   client: eino__fence
   rpc:
