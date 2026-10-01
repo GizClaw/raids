@@ -28,8 +28,10 @@ jobs:
       - name: Set up Go for Starlark checks
         uses: actions/setup-go@v5
         with:
-          go-version-file: scripts/test/starlark/go.mod
-          cache-dependency-path: scripts/test/starlark/go.sum
+          go-version-file: scripts/test/chat-assistant/go.mod
+          cache-dependency-path: |
+            scripts/test/starlark/go.sum
+            scripts/test/chat-assistant/go.sum
 
       - name: Download GizClaw v0.21.3
         env:
@@ -60,3 +62,6 @@ jobs:
 
       - name: Check catalog Voice invariants
         run: make test-unit-voices
+
+      - name: Check Chat memory and controlled search results
+        run: make test-unit-chat-assistant

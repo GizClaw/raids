@@ -9,12 +9,13 @@ printf '%s\n' \
   'Configuration:' \
   '  help                   show every public Make target' \
   '' \
-  'Unit test (offline; no network, no credentials):' \
+  'Unit test (no live deployment or provider credentials):' \
   '  test-unit-resources    validate applyable Resources and Giztest documents with GizClaw' \
   '  test-unit-learn        regenerate learn-* raids and fail on committed-output drift' \
   '  test-unit-guess        regenerate guess-* raids, check drift, and replay game-state scenarios' \
   '  test-unit-figure       regenerate figure-* raids and fail on committed-output drift' \
   '  test-unit-voices       check catalog-wide Voice invariants (MiniMax synthesis model)' \
+  '  test-unit-chat-assistant  run the shipped Eino graph with controlled search and Memory fixtures' \
   '' \
   'Integration test (live deployment):' \
   '  test-e2e               run the Giztest corpus against a provisioned deployment' \

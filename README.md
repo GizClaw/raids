@@ -583,8 +583,21 @@ python3 -m pip install -r scripts/requirements.txt
 Every public Make target dispatches to the same-named script under
 `scripts/<group>/<target>.sh`; the Makefile itself only declares targets,
 default variables, and exports. `make help` lists the complete surface:
-`test-unit-resources`, `test-unit-learn`, `test-unit-voices`, and `test-e2e`. CI runs each
+`test-unit-resources`, `test-unit-learn`, `test-unit-guess`, `test-unit-figure`,
+`test-unit-voices`, `test-unit-chat-assistant`, and `test-e2e`. CI runs each
 `test-unit-*` target as its own step; there is no aggregate target.
+
+`make test-unit-chat-assistant` loads the shipped Chat Workflow, profiles, Tool
+and quality probe inputs into the GizClaw v0.21.3 Eino runtime. A scripted Model
+and HTTP transport fixture replace the external providers. The real HTTP Tool
+executor must receive the mapped search request, return an unpredictable result,
+and feed it into the final answer. A fabricated weather/date answer is rejected
+when no search ran; a casual turn makes no search request. The completed turn's
+Memory observation must contain both user input and assistant output, without
+waiting for Memory completion. This target requires Go 1.26.4 and downloads
+pinned Go modules on the first run; it uses no provider credentials or live
+deployment, and its source and checksums are maintained under
+`scripts/test/chat-assistant/`.
 
 For static schema validation, the target exports a fixed non-secret placeholder
 for each empty variable declared by `.env.example`. It never reads or requires

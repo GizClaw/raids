@@ -27,6 +27,10 @@ speech, `eino-chat-assistant.model` answers, and the Voice adapter speaks the
 reply. It recalls and observes `user-chat-with-assistant` memory, and it can
 search the web.
 
+The asynchronous observation includes both the captured user input and the
+generated assistant reply, so confirmed facts present in the reply remain
+available to the existing Memory layout.
+
 ## Web search
 
 `spec.toolkit.tool_ids` allows one Tool, `volc-web-search`
@@ -61,6 +65,15 @@ and today's date and fails on missing weather/date words, an offline refusal
 such as “无法联网”, or a first text later than 15s. Those two probes need
 `tools/volc-web-search.yaml`, the testing profile's `web-search` binding and a
 `search_api_key` in `volc-credential`.
+
+The live weather/date keyword checks establish spoken response availability;
+they do not prove that search executed. `make test-unit-chat-assistant` also
+runs those same inputs through the shipped graph and real HTTP Tool executor
+with a scripted Model and controlled HTTP result. It checks one actual request,
+the mapped query and Count, the pre-search phrase, and the exact unpredictable
+result in the answer; an invented weather/date response without a request
+fails that oracle. The same target checks both user and assistant observation
+and that a casual turn sends no search request.
 
 The route has 12 target responses:
 

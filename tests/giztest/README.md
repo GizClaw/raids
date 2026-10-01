@@ -1,5 +1,10 @@
 # Giztest 测试
 
+Chat 的天气、日期 live 探针只检查语音回复可用性，关键词本身不证明搜索已执行。
+`make test-unit-chat-assistant` 另用仓库真实 Workflow、Tool、profile 与这两个输入，
+在 GizClaw v0.21.3 Eino 引擎和 HTTP Tool 执行器中验证请求映射、真实调用计数、随机受控结果传入回答，
+并拒绝没有调用搜索的虚构天气/日期回答。它同时检查用户与助手都进入异步记忆观察、闲聊不调用搜索。
+
 测试布局为 `tests/giztest/{smoke,quality,soak}/<raid>.<implementation>.giztest.yaml`，每个文件只运行一个实现，共 586 个三档文件。implementation 与 workflow 文件名一致，例如 `flowcraft`、`eino`、`flowcraft.multi-role`、`eino.multi-role`。文档名为 `<raid>.<tier>.<implementation>`。另有 `device/` 的 135 个设备流程测试、`h106/` 的 2 个外部设备测试和 `safety-fence/` 的 1 个安全围栏测试，合计 724 个 `.giztest.yaml`；`reports/` 仅存运行产物，不计入用例。
 
 | 档位 | 文件数 | 定义 |
