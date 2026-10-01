@@ -1,5 +1,9 @@
 # Giztest 测试
 
+模型目录原样保留 `doubao-seed-2-0-lite`，并新增独立的 `doubao-seed-2-1-lite`；旧 profile 仍可选择 2.0。
+
+两个公开 RuntimeProfile 的讲述与 Tester 评审绑定 `doubao-seed-2-1-lite`，上游为 `doubao-seed-2-1-lite-260915`。思考默认关闭，可选值为 `enabled`、`disabled`；Tester 的 judge 输出预算为 1024 token，避免长评审截断后无法给出结论。语音输入仍走 ASR。
+
 Chat 的天气、日期 live 探针只检查语音回复可用性，关键词本身不证明搜索已执行。
 `make test-unit-chat-assistant` 另用仓库真实 Workflow、Tool、profile 与这两个输入，
 在 GizClaw v0.21.3 Eino 引擎和 HTTP Tool 执行器中验证请求映射、真实调用计数、随机受控结果传入回答，

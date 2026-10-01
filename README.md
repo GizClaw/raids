@@ -201,6 +201,16 @@ live weather and today's date, and fails on an offline refusal such as
 
 ### Runtime alias ownership
 
+The catalog retains `doubao-seed-2-0-lite` unchanged and adds
+`doubao-seed-2-1-lite` as a separate Model resource. Existing external profiles
+may keep selecting 2.0 Lite; both resource IDs remain available.
+
+Narration and Tester judging use `doubao-seed-2-1-lite-260915` through the
+`doubao-seed-2-1-lite` Model resource in both public RuntimeProfiles. Thinking
+is disabled by default; the supported values are `enabled` and `disabled`.
+Tester judges allow 1024 output tokens so longer reviews can include a verdict.
+The speech input path still uses ASR; this Model remains text-only.
+
 RuntimeProfile Model and Voice aliases are opaque flat keys. Dots make
 ownership visible; they do not create nested maps, fallback, wildcard, or
 prefix lookup. Workflow-owned slots use the canonical Workflow
