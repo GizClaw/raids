@@ -169,6 +169,10 @@ and the `testing` profile's `safety_fences` deployed; run it with
 
 ### Runtime alias ownership
 
+The catalog retains `doubao-seed-2-0-lite` unchanged and adds
+`doubao-seed-2-1-lite` as a separate Model resource. Existing external profiles
+may keep selecting 2.0 Lite; both resource IDs remain available.
+
 Narration and Tester judging use `doubao-seed-2-1-lite-260915` through the
 `doubao-seed-2-1-lite` Model resource in both public RuntimeProfiles. Thinking
 is disabled by default; the supported values are `enabled` and `disabled`.

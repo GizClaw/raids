@@ -1,5 +1,7 @@
 # Giztest 测试
 
+模型目录原样保留 `doubao-seed-2-0-lite`，并新增独立的 `doubao-seed-2-1-lite`；旧 profile 仍可选择 2.0。
+
 两个公开 RuntimeProfile 的讲述与 Tester 评审绑定 `doubao-seed-2-1-lite`，上游为 `doubao-seed-2-1-lite-260915`。思考默认关闭，可选值为 `enabled`、`disabled`；Tester 的 judge 输出预算为 1024 token，避免长评审截断后无法给出结论。语音输入仍走 ASR。
 
 测试布局为 `tests/giztest/{smoke,quality,soak}/<raid>.<implementation>.giztest.yaml`，每个文件只运行一个实现，共 589 个三档文件。implementation 与 workflow 文件名一致，例如 `flowcraft`、`eino`、`flowcraft.multi-role`、`eino.multi-role`。文档名为 `<raid>.<tier>.<implementation>`。另有 `device/` 的 136 个设备流程测试、`h106/` 的 2 个外部设备测试和 `safety-fence/` 的 1 个安全围栏测试，合计 728 个 `.giztest.yaml`；`reports/` 仅存运行产物，不计入用例。
