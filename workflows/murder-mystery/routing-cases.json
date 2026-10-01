@@ -6,6 +6,9 @@
     "memory_var": "case_memory",
     "speaker_var": "selected_speaker"
   },
+  "eino": {
+    "node": "select-speaker"
+  },
   "cases": [
     {
       "id": "relay-opening",
@@ -1118,6 +1121,14 @@
           "case_state.revision": {
             "equals": 5
           }
+        },
+        "eino": {
+          "routing_fact": {
+            "includes_all": [
+              "\"revision\":5",
+              "\"active_roles\":[\"narrator\",\"housekeeper\",\"chef\",\"heir\",\"lawyer\"]"
+            ]
+          }
         }
       },
       "memory": "{\"schema\":\"raid_case_routing_v1\",\"revision\":4,\"started\":true,\"active_roles\":[\"narrator\",\"ghost\"]}"
@@ -1329,6 +1340,161 @@
           },
           "__summary_index": {
             "equals": ""
+          }
+        }
+      }
+    },
+    {
+      "id": "shoe-size-report-writes-fact",
+      "input": "我刚收到外部鉴定报告：此前提到的同源鞋印尺码都是42码。请把这份报告作为已确认线索，并明确复述一次。",
+      "state": {
+        "started": true,
+        "revision": 1
+      },
+      "history": [
+        {
+          "role": "assistant",
+          "content": "22:00，沈鹤年被发现死在沈家大宅二楼书房。此时正值雨夜。"
+        }
+      ],
+      "expect": {
+        "speaker": "narrator",
+        "eino": {
+          "visible_fact": {
+            "includes_all": [
+              "\"revision\":1",
+              "\"same_source_shoe_size\":\"42码\""
+            ]
+          },
+          "rules": {
+            "includes_all": [
+              "当前确认尺码是42码"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "shoe-size-correction-outranks-recall",
+      "input": "更正此前提到的同源鞋印鉴定结果：它们的尺码都应从旧值统一更正为39码。",
+      "state": {
+        "started": true,
+        "revision": 1
+      },
+      "history": [
+        {
+          "role": "assistant",
+          "content": "22:00，沈鹤年被发现死在沈家大宅二楼书房。此时正值雨夜。"
+        }
+      ],
+      "memory": "{\"schema\":\"raid_case_visible_state_v1\",\"revision\":1,\"same_source_shoe_size\":\"42码\"}",
+      "expect": {
+        "speaker": "narrator",
+        "eino": {
+          "visible_fact": {
+            "includes_all": [
+              "\"revision\":2",
+              "\"same_source_shoe_size\":\"39码\""
+            ]
+          },
+          "rules": {
+            "includes_all": [
+              "当前确认尺码是39码"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "shoe-size-unrelated-turn-writes-nothing",
+      "input": "我去花园看看水池和围墙附近有没有线索。",
+      "state": {
+        "started": true,
+        "revision": 1
+      },
+      "history": [
+        {
+          "role": "assistant",
+          "content": "22:00，沈鹤年被发现死在沈家大宅二楼书房。此时正值雨夜。"
+        }
+      ],
+      "memory": "{\"schema\":\"raid_case_visible_state_v1\",\"revision\":2,\"same_source_shoe_size\":\"39码\"}",
+      "expect": {
+        "speaker": "narrator",
+        "eino": {
+          "visible_fact": {
+            "equals": ""
+          },
+          "rules": {
+            "includes_all": [
+              "当前确认尺码是39码"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "shoe-size-history-outranks-missed-recall",
+      "input": "我去花园看看水池和围墙附近有没有线索。",
+      "state": {
+        "started": true,
+        "revision": 1
+      },
+      "history": [
+        {
+          "role": "assistant",
+          "content": "22:00，沈鹤年被发现死在沈家大宅二楼书房。此时正值雨夜。"
+        },
+        {
+          "role": "user",
+          "content": "更正此前提到的同源鞋印鉴定结果：它们的尺码都应从旧值统一更正为39码。"
+        },
+        {
+          "role": "assistant",
+          "content": "更正，同源鞋印尺码为39码。"
+        }
+      ],
+      "expect": {
+        "speaker": "narrator",
+        "eino": {
+          "visible_fact": {
+            "equals": ""
+          },
+          "rules": {
+            "includes_all": [
+              "当前确认尺码是39码"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "shoe-size-fixed-recall-outranks-turn-recall",
+      "input": "我去花园看看水池和围墙附近有没有线索。",
+      "state": {
+        "started": true,
+        "revision": 1
+      },
+      "history": [
+        {
+          "role": "assistant",
+          "content": "22:00，沈鹤年被发现死在沈家大宅二楼书房。此时正值雨夜。"
+        }
+      ],
+      "memory": "{\"schema\":\"raid_case_visible_state_v1\",\"revision\":1,\"same_source_shoe_size\":\"42码\"}",
+      "eino_input": {
+        "state_memory": "- {\"schema\":\"raid_case_visible_state_v1\",\"revision\":1,\"same_source_shoe_size\":\"42码\"}\n- {\"schema\":\"raid_case_visible_state_v1\",\"revision\":2,\"same_source_shoe_size\":\"39码\"}"
+      },
+      "expect": {
+        "speaker": "narrator",
+        "eino": {
+          "visible_fact": {
+            "equals": ""
+          },
+          "rules": {
+            "includes_all": [
+              "当前确认尺码是39码"
+            ]
           }
         }
       }

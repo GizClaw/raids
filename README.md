@@ -238,6 +238,7 @@ slots currently bind the same Model resource:
 | `ast-translate-zh-ja` | `ast-translate-zh-ja.model` |
 | `ast-translate-zh-ko` | `ast-translate-zh-ko.model` |
 | `flowcraft-murder-mystery` | `flowcraft-murder-mystery.model` |
+| `eino-murder-mystery` | `eino-murder-mystery.model` |
 | `eino-journey-history` | `eino-journey-history.model` |
 | `eino-journey-memory-recall` | `eino-journey-memory-recall.model` |
 | `eino-journey-memory-async` | `eino-journey-memory-async.model` |
@@ -269,6 +270,7 @@ Voice roles use the same Workflow namespace:
 | `eino-chat-assistant` | `assistant` |
 | each `ast-translate-*` Workflow | `translator` |
 | `flowcraft-murder-mystery` | `game-master`, `housekeeper`, `chef`, `heir`, `lawyer` |
+| `eino-murder-mystery` | `game-master`, `housekeeper`, `chef`, `heir`, `lawyer` |
 | each `flowcraft-story-*` / `eino-story-*` Workflow | `storyteller` plus every title-specific character role declared by its `raid.json` |
 | each `flowcraft-adventure-*` / `eino-adventure-*` Workflow | `adventure-guide` plus every scene-specific character role declared by its `raid.json` |
 | each `flowcraft-learn-chinese-poetry-grade*` Workflow | `tutor` |
@@ -486,11 +488,20 @@ its exact opening, bounded witness replies, correction and short-summary rules.
 
 Every paragraph begins with exactly one configured `【旁白】` or Chinese
 character marker, immediately followed by prose; no other `【】` markers are
-allowed. `voice_adapter.speaker_voices` maps these names to existing aliases;
+allowed. The prompt names the voiced markers and states that everyone else has
+no Voice: people outside the cast, characters from the source work and
+companions the model would invent are quoted inside a `【旁白】` paragraph.
+Chapter headings and the closing question carry a marker too, and actions or
+moods go into narration instead of a bracketed stage direction before a line.
+AudioDock reads an unconfigured `【…】` aloud in the default Voice and keeps
+the previous Voice for an unmarked paragraph, so either fault puts a line in
+the wrong Voice. `voice_adapter.speaker_voices` maps these names to existing aliases;
 `default_voice` is the narrator alias. AudioDock strips configured markers from
 device text, serializes audio and prefetches the next segment. Interruption
 cancels current and pending segments. This requires **GizClaw v0.18.12**.
-`murder-mystery` retains its existing single-speaker routing contract.
+`murder-mystery` retains its existing single-speaker routing contract on both
+engines: a selector script picks the host or one witness for each turn, and the
+Eino variant branches into that speaker's prompt in front of one model.
 
 Both engines retain ASR, existing voice slots and matching role Voice resources
 in `default` and `testing` RuntimeProfiles. Chapter controls and investigation
@@ -593,7 +604,7 @@ their original bounds. Quality budgets are 30 minutes for these longer stories.
 Each raid supplies a version-1 `routing-cases.json`. The gate executes actual
 Flowcraft JavaScript and Eino Starlark against state and content-control
 assertions. Single-speaker naming/order assertions have been removed from the
-42 story/adventure/figure fixtures; murder mystery retains its existing tests. Python,
+42 story/adventure/figure fixtures; murder mystery retains its existing tests, run against both engines. Python,
 Node.js and a local Go toolchain with cached Starlark dependencies are required;
 Go module downloads are disabled. Offline validation cannot establish real
 provider voice switching, timing, interruption or audible continuity.
@@ -656,14 +667,14 @@ package lacks a `raid.json`, or when a manifest uses any other age value.
 
 ## Declarative live tests
 
-Live tests use `tests/giztest/{smoke,quality,soak}/<raid>.<implementation>.giztest.yaml`, one implementation per file, named after its Workflow file. There are **580 tier files**: **196 smoke**, **196 quality**, and **188 soak**. The **135 device** files, the two external H106 files and the `safety-fence` end-to-end file remain separate, for **718 `.giztest.yaml` files** total; generated reports are excluded. Selected files run concurrently with `gizclaw test run --parallel N`.
+Live tests use `tests/giztest/{smoke,quality,soak}/<raid>.<implementation>.giztest.yaml`, one implementation per file, named after its Workflow file. There are **586 tier files**: **198 smoke**, **198 quality**, and **190 soak**. The **135 device** files, the two external H106 files and the `safety-fence` end-to-end file remain separate, for **724 `.giztest.yaml` files** total; generated reports are excluded. Selected files run concurrently with `gizclaw test run --parallel N`.
 
 - **smoke** measures speed, latency and responsiveness, including complete audio and independent first-response probes.
 - **quality** enforces deterministic quality and safety guardrails, including transitions, corrections, language and role boundaries. Independent suite responses run in parallel and finish together within the existing file budget; long Tester relays live in soak.
 - **soak** runs long conversations between the Tester and target Workflow, including reload and memory continuity.
 - **device** replays the H106 entry flow for every story, adventure, figure and Journey implementation: “开始”, “我选第一个”, “继续”, leave and re-enter (`server.run.stop` + reload), “继续上次的内容”, “开始”. Every reply must end with a question; original stories must enter chapter 2 on “继续”, resume there, and restart at chapter 1. The files are generated by `python3 scripts/test/device-flow.py`, are not registered in `raid.json`, and run with `make test-e2e TIER=device`.
 
-The audio-only `ast-translate` and `doubao-realtime` targets have no soak protocol. Murder Mystery is Flowcraft-only. Figure raids are Eino multi-role only, so they have no Flowcraft peer to compare against. Journey tests its three Eino implementations against equal gates, including recall; its history-only implementation has no recall exemption.
+The audio-only `ast-translate` and `doubao-realtime` targets have no soak protocol. Figure raids are Eino multi-role only, so they have no Flowcraft peer to compare against. Journey tests its three Eino implementations against equal gates, including recall; its history-only implementation has no recall exemption.
 
 ```sh
 make test-e2e TIER=smoke RAID=story-aesop
@@ -692,8 +703,12 @@ checks, corrections, reasoning, provisional accusations, and conclusions.
 The housekeeper, chef, Shen Zhiqiu (沈知秋), and lawyer answer individual
 interviews in first person using their own testimony and public dialogue;
 they do not receive the host's private truth or raw recall notes. The host does
-not impersonate witnesses. Flowcraft retains the 26-response investigation
-regression and five-role audio and handoff/leakage-guard tests.
+not impersonate witnesses. Both engines retain the 26-response investigation
+regression and five-role audio and handoff/leakage-guard tests; the Eino
+variants rebuild state each turn, because Eino graph state does not persist
+between turns: the latest shoe size stated in History is authoritative, recalled
+facts cover turns History no longer holds, and a fact is written only on a turn
+that states a size, so an unrelated turn cannot overwrite a correction.
 
 Murder Mystery follows the same History ownership for its full transcript and
 observes only its explicit authoritative shoe-size state into Memory. It does
