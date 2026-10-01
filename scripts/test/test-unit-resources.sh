@@ -73,6 +73,7 @@ python3 scripts/test/test_runtime_profile_aliases.py
 python3 scripts/test/runtime_profile_aliases.py
 python3 scripts/test/starlark-modules.py | scripts/test/test-starlark-routing.sh --modules
 python3 scripts/test/test-multi-role-testers.py
+python3 scripts/test/test_reply_lengths.py
 python3 scripts/test/test_eino_script_outputs.py
 python3 scripts/test/eino_script_outputs.py
 python3 scripts/test/test_giztest_layout.py

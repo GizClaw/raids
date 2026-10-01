@@ -636,6 +636,12 @@ pinned Go modules on the first run; it uses no provider credentials or live
 deployment, and its source and checksums are maintained under
 `scripts/test/chat-assistant/`.
 
+Chat and Journey have no default character ceiling for ordinary replies. Only
+an explicit user character limit or exact-answer instruction imposes an upper
+bound. `test-unit-resources` runs `scripts/test/test_reply_lengths.py` through
+native Starlark to accept longer ordinary replies while retaining those user
+constraints and the existing fact/correction checks.
+
 For static schema validation, the target exports a fixed non-secret placeholder
 for each empty variable declared by `.env.example`. It never reads or requires
 real provider credentials; `.env.example` remains the maintained list of
