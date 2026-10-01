@@ -33,9 +33,9 @@ make test-unit-resources
 make test-unit-voices
 ```
 
-默认 `TIER=all RAID=all PARALLEL=4 APPLY=0`。`TIER` 只接受 `smoke|quality|soak|all`，`RAID` 接受 raid 名或 `all`；选中 raid 时逐档选择 `<raid>.*.giztest.yaml`，通过 `gizclaw test run --parallel "$PARALLEL"` 并发运行文件。`all` 跳过不适用档，显式选择不存在的档会失败。H106 不进入 `make test-e2e`，按其设备环境单独执行 `gizclaw test run tests/giztest/h106`。安全围栏测试同样不进入 `make test-e2e`：它要求服务端不低于 GizClaw v0.20.2、已部署带围栏的 `eino-chat-assistant` 以及 testing RuntimeProfile 的 `spec.safety_fences`，用 `gizclaw test run tests/giztest/safety-fence` 单独执行。同一句“原样复述辱骂”的请求在 off Workspace 中必须照说（对照组），在 child Workspace 中必须拒绝，两轮回复从 Workspace 历史读回并打印到运行日志。联网搜索测试也不进入 `make test-e2e`：它要求已部署 `tools/volc-web-search.yaml`、testing RuntimeProfile 的 `web-search` 绑定和带 `search_api_key` 的 `volc-credential`，用 `gizclaw test run tests/giztest/web-search` 单独执行；上海天气和今天日期两问必须含天气/日期词且不得出现“无法联网”类拒答，搜索回合首字上限 15s。`REPORT` 可指定 JSON 路径，默认写入 `reports/`。
+默认 `TIER=all RAID=all PARALLEL=4 APPLY=0`。`TIER` 只接受 `smoke|quality|soak|device|all`，`RAID` 接受 raid 名或 `all`；选中 raid 时逐档选择 `<raid>.*.giztest.yaml`，通过 `gizclaw test run --parallel "$PARALLEL"` 并发运行文件。`all` 跳过不适用档，显式选择不存在的档会失败。H106 不进入 `make test-e2e`，按其设备环境单独执行 `gizclaw test run tests/giztest/h106`。安全围栏测试同样不进入 `make test-e2e`：它要求服务端不低于 GizClaw v0.20.2、已部署带围栏的 `eino-chat-assistant` 以及 testing RuntimeProfile 的 `spec.safety_fences`，用 `gizclaw test run tests/giztest/safety-fence` 单独执行。同一句“原样复述辱骂”的请求在 off Workspace 中必须照说（对照组），在 child Workspace 中必须拒绝，两轮回复从 Workspace 历史读回并打印到运行日志。联网搜索的 live 回复探针位于 `tests/giztest/quality/chat-assistant.eino.giztest.yaml`，由 `make test-e2e TIER=quality RAID=chat-assistant` 选择，也包含在该 raid 的 `TIER=all` 中。运行前需部署 `tools/volc-web-search.yaml`、testing RuntimeProfile 的 `web-search` 绑定和带 `search_api_key` 的 `volc-credential`；上海天气和今天日期两问必须含天气/日期词且不得出现“无法联网”类拒答，搜索回合首字上限 15s。实际工具调用与结果传递另由上文的受控测试验证。`REPORT` 可指定 JSON 路径，默认写入 `reports/`。
 
-`APPLY=1` 的原行为保持：使用 `GIZCLAW_CONTEXT` 应用全部 workflows、testing RuntimeProfile 与 testing token，再执行选中的测试。它需要 Admin 权限，普通运行只需 Peer 接入点与 token。
+`APPLY=1` 的原行为保持：使用 `GIZCLAW_CONTEXT` 应用全部 Tools、workflows、testing RuntimeProfile 与 testing token，再执行选中的测试。它需要 Admin 权限，普通运行只需 Peer 接入点与 token。
 
 非 RealTime 往返的完整响应只卡首字（6s）和首音的耗时，不设 text/audio EOS 耗时上限：回复写多长、播多久都不算失败，只要播放不欠载。完整响应步骤的 timeout 只是运行预算：没有其它已注册 client 空闲陪跑的步骤放宽到 6m（原 90s/2m）或 10m（原 4m），smoke 文件总预算 30m；有 client 空闲陪跑的步骤保留原值，以守住 180s 空闲调度门槛；smoke 检查 text/audio EOS、非空音频、音频流闭合且无重叠、按设备听感检查 `/audio_pacing/underruns == 0` 且 `/audio_pacing/minimum_buffer_ms >= 0`（Giztest 的 500ms 预缓冲播放模型）。开始播放前的包间隔不代表设备听到卡顿；`max_interval_ms` 保留在 evidence 中用于诊断，不作为失败条件。独立 `completion: first_response` 探针要求首字 2s、首音 3s，主动结束流，因此不要求该探针 EOS。文件总 timeout 是运行预算，不能作为放宽单步门槛的依据。运行 CLI 必须支持 `/audio_integrity` 与 `/audio_pacing`，并且不低于 GizClaw v0.18.10：更早的 CLI 在 realtime 首响应探针里要等语音和尾静音同步发完才开始计时，且没有首个 BOS 前的音频暂存（GizClaw/gizclaw#1283），会报出与服务端无关的首字超时和音频边界违规。多角色语音要求服务端支持 `voice_adapter.speaker_voices`，文字不被 TTS 启动拖住要求服务端不低于 v0.18.10。
 
@@ -45,11 +45,11 @@ RealTime 的 `realtime_roundtrip` 负责验证完整往返：events/text 非空�
 
 不再对每个响应轮次发送全量 keepalive。独立 Workspace 准备阶段仍会让其它已注册 client 等待过久的位置保留 `*_setup_keepalive_*`（`server.run.status`）；Journey soak 在三个 90s recall barrier 之间保留一个 Tester 的 `*_recall_keepalive`。当前 smoke 1、quality 268、soak 4，共 273 个；每个都通过删除反证检查，删掉任一个会造成静态空闲预算超限。原有 3,735 个 keepalive 步骤全部移除，跨实现等待也随文件拆分消除。
 
-`test-unit-resources` 检查文件名/文档名、每档实现清单、raid.json 单实现登记、Voice/角色闭环和真实 routing-cases 脚本。按 variant 比较 `<raid>.flowcraft*.giztest.yaml` 与 `<raid>.eino*.giztest.yaml` 的完整 steps/finally（展开并行父步骤的断言），Journey 的三个 Eino 变体分别与 Flowcraft 比较。仅规范化 client/标识符、workflow_name 和 Workspace parameters；输入、expect、capture、timeout、collection、relay 计划保持一致。仅真实 TTS 能力差异沿用音频断言例外。
+`test-unit-resources` 检查文件名/文档名、每档实现清单、raid.json 单实现登记、Voice/角色闭环和真实 routing-cases 脚本。按 variant 比较 `<raid>.flowcraft*.giztest.yaml` 与 `<raid>.eino*.giztest.yaml` 的完整 steps/finally（展开并行父步骤的断言），Journey 只有三个 Eino 变体，各自接受布局与门槛校验，不再有 Flowcraft 对照文件。仅规范化 client/标识符、workflow_name 和 Workspace parameters；输入、expect、capture、timeout、collection、relay 计划保持一致。仅真实 TTS 能力差异沿用音频断言例外。
 
 空闲规则累计某 client 两次操作之间其它步骤的预算，包含 finally；显式 timeout 按原值计算，无显式 timeout 的控制操作按 30s 调度余量计算，output 为 0。并行组中每个参与 client、relay 中双方均视为持续有流量。间隔超过 180s、晚启动未重连、注册前保活、冗余保活都会失败。这是静态调度检查，不是网络时延上限或真实 E2E 验收；没有放宽或改动原有响应门槛。quality 不创建 Tester，不执行长 relay；预算沿用原值（story/adventure 30m，其余 10m；murder-mystery 多角色跑同样的 60 步路由套件，也是 30m）。
 
-Journey quality 另保留七回合 benchmark（四实现同输入同门槛）；soak 的四实现采用原门槛交集，并统一 recall barrier。eino-history 无持久 Memory 的差异可能导致 recall 失败，不作豁免。长剧情实际轮次以 relay 的 max_turns、completed_turns 和 Tester route 为准。
+Journey quality 另保留七回合 benchmark（三个 Eino 实现同输入同门槛）；soak 的三个 Eino 实现采用原门槛，并统一 recall barrier。eino-history 无持久 Memory 的差异可能导致 recall 失败，不作豁免。长剧情实际轮次以 relay 的 max_turns、completed_turns 和 Tester route 为准。
 
 首响应探针主动提前结束后，smoke 显式停止当前 run 并 reload 已选 Workspace，再开始下一探针，避免未读尾音污染下一轮音频完整性证据。`audio_integrity` 的流闭合、不重叠和 violations 门槛保持不变。
 
