@@ -19,8 +19,7 @@ forgotten rather than invented. The chapters, cast and opening below are this ra
 
 Every player-facing system prompt starts with the Workspace fence, then a
 blank line and the scenario instructions: Eino binds `input.safety_fence` and
-renders `{safety_fence}` with `f_string`. At `off`, only two leading newlines
-remain. Internal routing/memory nodes and Tester Workflows do not receive the
+renders `{safety_fence}` with `f_string`. With empty fence text, only two leading newlines remain. Internal routing/memory nodes and Tester Workflows do not receive the
 variable. See the root
 [contract and GizClaw compatibility requirement](../../README.md#workspace-safety-fence).
 

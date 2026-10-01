@@ -10,7 +10,7 @@ Every player-facing system prompt starts with the Workspace fence, then a
 blank line and the scenario instructions: Flowcraft uses `${board.safety_fence}`;
 Eino binds `input.safety_fence` and renders `{safety_fence}` with `f_string`.
 This includes drafts forwarded by published scripts and all available character/host paths.
-At `off`, only two leading newlines remain. Internal routing/memory nodes and
+With empty fence text, only two leading newlines remain. Internal routing/memory nodes and
 Tester Workflows do not receive the variable. See the root
 [contract and GizClaw compatibility requirement](../../README.md#workspace-safety-fence).
 

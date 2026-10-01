@@ -14,7 +14,7 @@ Explore every classical poem in China's grade 6 primary Chinese textbooks — au
 The tutor's system prompt starts with the Workspace safety fence, followed by a
 blank line and the learning rules and knowledge card. Flowcraft references
 `${board.safety_fence}`; Eino binds `input.safety_fence` and renders
-`{safety_fence}` with `f_string`. With `off`, only two leading newlines remain.
+`{safety_fence}` with `f_string`. With empty fence text, only two leading newlines remain.
 Tester and memory nodes do not receive this variable. See the
 [Workspace safety fence contract](../../README.md#workspace-safety-fence),
 including the required GizClaw version support.

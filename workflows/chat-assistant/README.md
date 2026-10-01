@@ -5,7 +5,7 @@
 ## Workspace safety fence
 
 The player prompt starts with `{safety_fence}`, then a blank line and the
-scenario instructions. At `off`, only two leading newlines remain. Internal routing/memory nodes and
+scenario instructions. With empty fence text, only two leading newlines remain. Internal routing/memory nodes and
 Tester Workflows do not receive the variable. See the root
 [contract and GizClaw compatibility requirement](../../README.md#workspace-safety-fence).
 
@@ -17,8 +17,8 @@ Tester Workflows do not receive the variable. See the root
 
 Install the Workflow resource and add a flat `spec.workflows` binding to its Workflow ID. Bind the slots above under `spec.resources.models` and `spec.resources.voices`; use `category:*` tags for discovery.
 
-Both public profiles list it in the `assistants` collection as
-`general-assistant` (聊天助手). It bound `flowcraft-chat-assistant` until the
+Both public profiles bind it as `spec.workflows.general-assistant`
+(聊天助手), tagged `category:assistants`. It bound `flowcraft-chat-assistant` until the
 Flowcraft implementation was removed, so a consumer that overrides that alias
 or keys assets by Workflow ID must switch to `eino-chat-assistant`.
 
@@ -37,9 +37,11 @@ available to the existing Memory layout.
 ([`tools/volc-web-search.yaml`](../../tools/volc-web-search.yaml), runtime name
 `web_search`); the RuntimeProfile must bind it under `resources.tools`
 (`web-search` in both public profiles). The Model decides when to search. The
-system prompt tells it to search for weather, news, sports, prices, dates and
-anything “今天/现在/最近/最新”, or when unsure, and to answer chat, common
-knowledge and facts already in the conversation or memory directly. Before a
+system prompt tells it to search for current weather/date queries, news,
+sports, prices and uncertain facts. User-supplied facts to remember, confirm or
+correct are answered directly, including future plans and dates; confirmations
+contain only the requested new fields. Chat, common knowledge and facts already
+in the conversation or memory are answered directly. Before a
 search it says one short phrase such as “我查一下。” in the same reply as the
 tool call; Eino streams that text before running the Tool, so the user hears
 it while the search and the second Model round run. The Model must support
@@ -47,7 +49,9 @@ tool calls.
 
 The Tool posts `{Query, SearchType: "web", Count: 3}` to Volcengine's Doubao
 Search Custom API, plus `TimeRange` when the Model sets `time_range` for
-“最近/最新” questions (results are ranked by relevance, not date), with the `search_api_key` from `volc-credential`
+“最近/最新” questions (results are ranked by relevance, not date). Omission or
+JSON null means no publication-time filter; invalid ranges remain rejected.
+Authentication uses the `search_api_key` from `volc-credential`
 (`GIZCLAW_VOLC_SEARCH_API_KEY`). A searched turn costs one extra Model round
 plus the search (about 1s) and adds 5–25K prompt tokens of results. A timeout
 (10s) returns an error result to the Model. A malformed call, a non-200
