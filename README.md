@@ -28,11 +28,17 @@ workflows/<raid-name>/test.yaml            # original Tester Workflow (id <raid-
 workflows/<raid-name>/raid.json            # scenario metadata: rating, category, tags, voices, models, testing
 workflows/<raid-name>/README.md            # human-readable play and test route
 workflows/<raid-name>/routing-cases.json   # shared dual-engine routing cases for multi-voice raids
+cards/figure/<人物>.txt                     # knowledge card: facts about one historical figure
+cards/guess/<subject>/<谜底>.txt            # knowledge card: facts about one guess answer
 runtime-profiles/<profile-name>.yaml
 registration-tokens/<token-name>.yaml
 runtime-profile.example.yaml
 raids.txt                                  # one raid ID per line: the table of contents
 ```
+
+Cards describe an entry itself — a person, an idiom, a landmark — and are the
+factual reference a generator embeds in prompts so the model does not invent
+facts; how a raid plays with the entry lives in its `workflows/<raid>/` package.
 
 File names are repository-local. Each applyable catalog Resource declares its
 immutable, caller-defined Admin identity in `metadata.id`. Every ID-bearing
@@ -163,6 +169,12 @@ and the `testing` profile's `safety_fences` deployed; run it with
 
 ### Runtime alias ownership
 
+Narration and Tester judging use `doubao-seed-2-1-lite-260915` through the
+`doubao-seed-2-1-lite` Model resource in both public RuntimeProfiles. Thinking
+is disabled by default; the supported values are `enabled` and `disabled`.
+Tester judges allow 1024 output tokens so longer reviews can include a verdict.
+The speech input path still uses ASR; this Model remains text-only.
+
 RuntimeProfile Model and Voice aliases are opaque flat keys. Dots make
 ownership visible; they do not create nested maps, fallback, wildcard, or
 prefix lookup. Workflow-owned slots use the canonical Workflow
@@ -200,6 +212,7 @@ slots currently bind the same Model resource:
 | `ast-translate-zh-ja` | `ast-translate-zh-ja.model` |
 | `ast-translate-zh-ko` | `ast-translate-zh-ko.model` |
 | `flowcraft-murder-mystery` | `flowcraft-murder-mystery.model` |
+| `eino-murder-mystery` | `eino-murder-mystery.model` |
 | `flowcraft-journey-guide` | `flowcraft-journey-guide.model` |
 | `eino-journey-history` | `eino-journey-history.model` |
 | `eino-journey-memory-recall` | `eino-journey-memory-recall.model` |
@@ -232,6 +245,7 @@ Voice roles use the same Workflow namespace:
 | `flowcraft-chat-assistant` | `assistant` |
 | each `ast-translate-*` Workflow | `translator` |
 | `flowcraft-murder-mystery` | `game-master`, `housekeeper`, `chef`, `heir`, `lawyer` |
+| `eino-murder-mystery` | `game-master`, `housekeeper`, `chef`, `heir`, `lawyer` |
 | `flowcraft-journey-guide` | `narrator` |
 | each `flowcraft-story-*` / `eino-story-*` Workflow | `storyteller` plus every title-specific character role declared by its `raid.json` |
 | each `flowcraft-adventure-*` / `eino-adventure-*` Workflow | `adventure-guide` plus every scene-specific character role declared by its `raid.json` |
@@ -353,7 +367,7 @@ puzzle's own prompt node, whose card has every name blanked out, so the host
 answers yes or no from the card and cannot say a name it never sees. The host
 replies in the language the child just used.
 
-Each puzzle has a knowledge card, `scripts/guess/cards/<raid>/<谜底>.txt`: one
+Each puzzle has a knowledge card, `cards/guess/<subject>/<谜底>.txt` (`<subject>` is the raid ID without `guess-`): one
 `字段：值` line per field, in the order of that raid's `_template.txt`, ending
 with three prewritten small hints. The Workflow gives every card its own prompt
 node; the control script only picks the node for the current puzzle, so the
@@ -363,6 +377,30 @@ Run `python3 scripts/guess/generate.py` to refresh the Workflow, Tester,
 manifest, README, and Giztests; `make test-unit-guess` regenerates every package in a
 temporary directory, fails on drift, and replays the game-state scenarios in
 `scripts/guess/cases.py` through the Starlark interpreter GizClaw uses.
+
+### Historical-figure raids
+
+The `figure` category lets a child talk with a historical person who tells
+their own life in the first person, one chapter per life stage, and then stays
+for free conversation. It reuses the chaptered story contract below. The
+child's choices may send the person down a path they did not take; what stays
+fixed is knowledge: the person only knows their own era, and later legends are
+told as legend. The catalog has twelve: `figure-li-bai`, `figure-confucius`,
+`figure-sima-qian`, `figure-su-shi`, `figure-zhang-qian`, `figure-li-shizhen`,
+`figure-marie-curie`, `figure-einstein`, `figure-da-vinci`, `figure-edison`,
+`figure-nightingale` and `figure-galileo`. Each ships one implementation,
+continuous Eino multi-role narration, and the default profile binds it in the
+`figure` collection as `figure.<key>`.
+
+Facts and script are kept apart. `cards/figure/<人物>.txt` is a knowledge card
+about the real person — era, life events, the people around them, works, famous
+lines, later legends and what they cannot know — embedded in the prompt as the
+factual reference so the model does not invent them. `workflows/<raid>/figure.json`
+is the raid's script: chapters, cast, opening and free-talk topics.
+`python3 scripts/figure/generate.py` builds each package from the two;
+`make test-unit-figure` regenerates every package in a temporary directory and
+fails on drift. See [`scripts/figure/README.md`](scripts/figure/README.md) for the
+fields.
 
 The public story catalog contains 19 titles, each with paired Flowcraft and
 Eino implementations. Every title owns an independent four-chapter bible,
@@ -426,11 +464,20 @@ its exact opening, bounded witness replies, correction and short-summary rules.
 
 Every paragraph begins with exactly one configured `【旁白】` or Chinese
 character marker, immediately followed by prose; no other `【】` markers are
-allowed. `voice_adapter.speaker_voices` maps these names to existing aliases;
+allowed. The prompt names the voiced markers and states that everyone else has
+no Voice: people outside the cast, characters from the source work and
+companions the model would invent are quoted inside a `【旁白】` paragraph.
+Chapter headings and the closing question carry a marker too, and actions or
+moods go into narration instead of a bracketed stage direction before a line.
+AudioDock reads an unconfigured `【…】` aloud in the default Voice and keeps
+the previous Voice for an unmarked paragraph, so either fault puts a line in
+the wrong Voice. `voice_adapter.speaker_voices` maps these names to existing aliases;
 `default_voice` is the narrator alias. AudioDock strips configured markers from
 device text, serializes audio and prefetches the next segment. Interruption
 cancels current and pending segments. This requires **GizClaw v0.18.12**.
-`murder-mystery` retains its existing single-speaker routing contract.
+`murder-mystery` retains its existing single-speaker routing contract on both
+engines: a selector script picks the host or one witness for each turn, and the
+Eino variant branches into that speaker's prompt in front of one model.
 
 Both engines retain ASR, existing voice slots and matching role Voice resources
 in `default` and `testing` RuntimeProfiles. Chapter controls and investigation
@@ -523,7 +570,7 @@ contains a populated value.
 
 The target also checks the manifest → speaker mapping → both RuntimeProfiles →
 Voice resource chain, distinct role Voices and matching bindings across engines.
-For 31 continuous-narration raids it verifies a single narration LLM, configured
+For 42 continuous-narration raids it verifies a single narration LLM, configured
 Chinese markers, 300–600-character story probes, clean text, complete serial
 audio and zero underruns. First-response gates remain unchanged. Quality keeps
 safety, transitions, choice endings and correction/recovery contracts; soak
@@ -533,7 +580,7 @@ their original bounds. Quality budgets are 30 minutes for these longer stories.
 Each raid supplies a version-1 `routing-cases.json`. The gate executes actual
 Flowcraft JavaScript and Eino Starlark against state and content-control
 assertions. Single-speaker naming/order assertions have been removed from the
-31 story/adventure/figure fixtures; murder mystery retains its existing tests. Python,
+42 story/adventure/figure fixtures; murder mystery retains its existing tests, run against both engines. Python,
 Node.js and a local Go toolchain with cached Starlark dependencies are required;
 Go module downloads are disabled. Offline validation cannot establish real
 provider voice switching, timing, interruption or audible continuity.
@@ -565,7 +612,9 @@ voice aliases the manifest lists.
 The audio-only `ast-translate` (category `translate`, one implementation per
 language pair) and `doubao-realtime` packages speak through their driver rather
 than a voice adapter and have no Tester or soak tier, so their manifests omit
-`tester` and register only smoke and quality tests.
+`tester` and register only smoke and quality tests. Figure raids ship only an Eino
+multi-role implementation, so their manifests omit `tester` and declare the
+multi-role Tester under `testers`.
 
 ### Age rating
 
@@ -594,14 +643,14 @@ package lacks a `raid.json`, or when a manifest uses any other age value.
 
 ## Declarative live tests
 
-Live tests use `tests/giztest/{smoke,quality,soak}/<raid>.<implementation>.giztest.yaml`, one implementation per file, named after its Workflow file. There are **559 tier files**: **189 smoke**, **189 quality**, and **181 soak**. The **128 device** files, the two external H106 files and the `safety-fence` end-to-end file remain separate, for **690 `.giztest.yaml` files** total; generated reports are excluded. Selected files run concurrently with `gizclaw test run --parallel N`.
+Live tests use `tests/giztest/{smoke,quality,soak}/<raid>.<implementation>.giztest.yaml`, one implementation per file, named after its Workflow file. There are **589 tier files**: **199 smoke**, **199 quality**, and **191 soak**. The **136 device** files, the two external H106 files and the `safety-fence` end-to-end file remain separate, for **728 `.giztest.yaml` files** total; generated reports are excluded. Selected files run concurrently with `gizclaw test run --parallel N`.
 
 - **smoke** measures speed, latency and responsiveness, including complete audio and independent first-response probes.
 - **quality** enforces deterministic quality and safety guardrails, including transitions, corrections, language and role boundaries. Independent suite responses run in parallel and finish together within the existing file budget; long Tester relays live in soak.
 - **soak** runs long conversations between the Tester and target Workflow, including reload and memory continuity.
-- **device** replays the H106 entry flow for every story, adventure and Journey implementation: “开始”, “我选第一个”, “继续”, leave and re-enter (`server.run.stop` + reload), “继续上次的内容”, “开始”. Every reply must end with a question; original stories must enter chapter 2 on “继续”, resume there, and restart at chapter 1. The files are generated by `python3 scripts/test/device-flow.py`, are not registered in `raid.json`, and run with `make test-e2e TIER=device`.
+- **device** replays the H106 entry flow for every story, adventure, figure and Journey implementation: “开始”, “我选第一个”, “继续”, leave and re-enter (`server.run.stop` + reload), “继续上次的内容”, “开始”. Every reply must end with a question; original stories must enter chapter 2 on “继续”, resume there, and restart at chapter 1. The files are generated by `python3 scripts/test/device-flow.py`, are not registered in `raid.json`, and run with `make test-e2e TIER=device`.
 
-The audio-only `ast-translate` and `doubao-realtime` targets have no soak protocol. Murder Mystery is Flowcraft-only. Journey tests all four implementations against equal gates, including recall; its history-only implementation has no recall exemption.
+The audio-only `ast-translate` and `doubao-realtime` targets have no soak protocol. Figure raids are Eino multi-role only, so they have no Flowcraft peer to compare against. Journey tests all four implementations against equal gates, including recall; its history-only implementation has no recall exemption.
 
 ```sh
 make test-e2e TIER=smoke RAID=story-aesop
@@ -630,8 +679,12 @@ checks, corrections, reasoning, provisional accusations, and conclusions.
 The housekeeper, chef, Shen Zhiqiu (沈知秋), and lawyer answer individual
 interviews in first person using their own testimony and public dialogue;
 they do not receive the host's private truth or raw recall notes. The host does
-not impersonate witnesses. Flowcraft retains the 26-response investigation
-regression and five-role audio and handoff/leakage-guard tests.
+not impersonate witnesses. Both engines retain the 26-response investigation
+regression and five-role audio and handoff/leakage-guard tests; the Eino
+variants rebuild state each turn, because Eino graph state does not persist
+between turns: the latest shoe size stated in History is authoritative, recalled
+facts cover turns History no longer holds, and a fact is written only on a turn
+that states a size, so an unrelated turn cannot overwrite a correction.
 
 Murder Mystery follows the same History ownership for its full transcript and
 observes only its explicit authoritative shoe-size state into Memory. It does

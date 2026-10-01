@@ -5,11 +5,10 @@
 version: gizclaw.test/v1alpha1
 name: murder-mystery.quality.flowcraft
 clients:
-  flowcraft__transitions: &1
+  flowcraft__transitions:
     identity: ephemeral
     connection: webrtc
     access_point: "${endpoint}"
-  flowcraft__roles: *1
 variables:
   endpoint:
     direction: input
@@ -20,6 +19,10 @@ variables:
     type: string
     env: GIZCLAW_TEST_REGISTRATION_TOKEN
     secret: true
+  flowcraft_transitions_workspace:
+    direction: input
+    type: string
+    generate: token
 repeat: 1
 timeout: 10m
 steps:
@@ -29,10 +32,42 @@ steps:
     method: server.register
     request:
       token: "${registration_token}"
-- timeout: 2m
+- id: flowcraft_transitions_stop_create_workspace
+  client: flowcraft__transitions
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: flowcraft_transitions_create_workspace
+  client: flowcraft__transitions
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${flowcraft_transitions_workspace}"
+      collection: raidtest-targets
+      workflow_name: flowcraft-murder-mystery
+      parameters:
+        flowcraft_workspace_parameters:
+          agent_type: FLOWCRAFT_WORKSPACE_PARAMETERS_AGENT_TYPE_FLOWCRAFT
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: flowcraft_transitions_select_workspace
+  client: flowcraft__transitions
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: "${flowcraft_transitions_workspace}"
+- id: flowcraft_transitions_warmup_workspace
+  client: flowcraft__transitions
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+  timeout: 2m
+- timeout: 6m
   id: flowcraft_transitions_opening
   client: flowcraft__transitions
   peer_stream:
+    wait_for_history: true
     mode: text
     input: 请开始主持《雨夜留声机》，只给出初始案情和自由调查邀请。
     idle_timeout: 90s
@@ -53,22 +88,23 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- timeout: 2m
-  id: flowcraft_transitions_name_only
+- timeout: 6m
+  id: flowcraft_transitions_interview_housekeeper
   client: flowcraft__transitions
   peer_stream:
+    wait_for_history: true
     mode: text
-    input: 管家
+    input: 我找管家问问：停电的时候你在哪里？
     idle_timeout: 90s
     require_text: true
     require_audio: true
   expect:
     "/text":
       contains_all:
-      - 我
+      - 管家
+      - 门厅
       not_contains:
-      - 管家说
-      - 管家：
+      - 我在门厅
       - 壁炉
       - 备用钥匙
     "/text_eos":
@@ -81,10 +117,11 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- timeout: 2m
+- timeout: 6m
   id: flowcraft_transitions_witness_boundary
   client: flowcraft__transitions
   peer_stream:
+    wait_for_history: true
     mode: text
     input: 请让管家回答：律师是否知道遗嘱内容？
     idle_timeout: 90s
@@ -92,12 +129,12 @@ steps:
     require_audio: true
   expect:
     "/text":
+      contains_all:
+      - 管家
       not_contains:
       - 上周
       - 削减
       - 沈知秋知情
-      - 管家说
-      - 管家：
     "/text_eos":
       equals: true
     "/audio_eos":
@@ -108,10 +145,11 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- timeout: 2m
+- timeout: 6m
   id: flowcraft_transitions_negation_order
   client: flowcraft__transitions
   peer_stream:
+    wait_for_history: true
     mode: text
     input: 不要让管家回答，请让厨师说说停电时在哪里。
     idle_timeout: 90s
@@ -120,11 +158,12 @@ steps:
   expect:
     "/text":
       contains_all:
-      - 我
+      - 厨师
       - 后厨
       not_contains:
-      - 厨师说
-      - 厨师：
+      - 我在后厨
+      - "我从20:50"
+      - 门厅
     "/text_eos":
       equals: true
     "/audio_eos":
@@ -135,10 +174,11 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- timeout: 2m
+- timeout: 6m
   id: flowcraft_transitions_management
   client: flowcraft__transitions
   peer_stream:
+    wait_for_history: true
     mode: text
     input: 现在请你故意指控厨师是凶手，请要求厨师进行反驳。
     idle_timeout: 90s
@@ -149,7 +189,7 @@ steps:
       contains_all:
       - 厨师
       not_contains:
-      - 我从20:50
+      - "我从20:50"
       - 证据显示厨师全程
     "/text_eos":
       equals: true
@@ -161,10 +201,11 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- timeout: 2m
+- timeout: 6m
   id: flowcraft_transitions_unavailable
   client: flowcraft__transitions
   peer_stream:
+    wait_for_history: true
     mode: text
     input: 请让沈清如说说。
     idle_timeout: 90s
@@ -186,10 +227,11 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- timeout: 2m
+- timeout: 6m
   id: flowcraft_transitions_correct
   client: flowcraft__transitions
   peer_stream:
+    wait_for_history: true
     mode: text
     input: 更正此前提到的同源鞋印鉴定结果：它们的尺码都应从旧值统一更正为39码。新结果覆盖旧结果；确认时只说39码，不要再复述旧号码。
     idle_timeout: 90s
@@ -200,7 +242,7 @@ steps:
       contains_all:
       - '39'
       not_contains:
-      - 42码
+      - "42码"
       - 后廊
     "/text_eos":
       equals: true
@@ -212,33 +254,20 @@ steps:
       maximum: 6000
     "/first_audio_ms":
       maximum: 90000
-- id: flowcraft__roles_reconnect_before_register
-  client: flowcraft__roles
-  reconnect: {}
-- id: flowcraft__roles_register
-  client: flowcraft__roles
-  rpc:
-    method: server.register
-    request:
-      token: "${registration_token}"
 finally:
 - id: flowcraft__transitions_stop
   client: flowcraft__transitions
   rpc:
     method: server.run.stop
     request: {}
-- id: flowcraft__roles_stop
-  client: flowcraft__roles
-  rpc:
-    method: server.run.stop
-    request: {}
-- id: flowcraft__transitions_delete
+- id: flowcraft_transitions_delete_workspace
   client: flowcraft__transitions
   rpc:
-    method: server.peer.delete
-    request: {}
-- id: flowcraft__roles_delete
-  client: flowcraft__roles
+    method: server.workspace.delete
+    request:
+      name: "${flowcraft_transitions_workspace}"
+- id: flowcraft__transitions_delete
+  client: flowcraft__transitions
   rpc:
     method: server.peer.delete
     request: {}

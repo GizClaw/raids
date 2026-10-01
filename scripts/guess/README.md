@@ -1,13 +1,13 @@
 # Guess package generation
 
 Run `python3 scripts/guess/generate.py` from the repository root after editing a
-card in `cards/`, a `workflows/guess-*/puzzles.json`, or anything in `templates/`. Pass raid IDs to
+card in `cards/guess/<subject>/`, a `workflows/guess-*/puzzles.json`, or anything in `templates/`. Pass raid IDs to
 regenerate a subset; `--out <directory>` writes to a separate root.
 `make test-unit-guess` regenerates every package in a temporary directory,
 fails on drift, and runs `cases.py`.
 
-- `cards/<raid>/<谜底>.txt` holds one knowledge card per puzzle: one `字段：值`
-  line per field, in the order of `cards/<raid>/_template.txt` (copy the
+- `cards/guess/<subject>/<谜底>.txt` (at the repository root; `<subject>` is the raid ID without `guess-`) holds one knowledge card per puzzle: one `字段：值`
+  line per field, in the order of `cards/guess/<subject>/_template.txt` (copy the
   template to add a puzzle). The first four fields — 谜底、英文名、别名、简介 —
   feed the control script (guess matching, reveal text); the middle fields go,
   with every name blanked out, into the puzzle's own host prompt node; the last
