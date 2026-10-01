@@ -41,6 +41,9 @@ def run(input):
             case(f'exact-answer-{index}', index, exact, {'equals': ''})
             case(f'exact-answer-extra-text-{index}', index, exact + '。',
                  {'includes_all': ['exact_text:']})
+            for suffix, padded in (('spaces', ' ' + exact + ' '), ('newline', exact + '\n')):
+                case(f'exact-answer-{suffix}-{index}', index, padded,
+                     {'includes_all': ['exact_text:']})
 
     case('empty-reply-still-fails', 0, '  ', {'includes_all': ['reply:empty']})
 
