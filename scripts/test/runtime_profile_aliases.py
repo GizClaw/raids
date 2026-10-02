@@ -1,4 +1,4 @@
-# GizClaw 0.18.15+ rejects a RuntimeProfile whose collection names, binding keys
+# GizClaw 0.18.15+ rejects a RuntimeProfile whose binding keys
 # or app_config keys break runtimealias.Validate, but only when a Server
 # normalizes it: `gizclaw admin validate` accepts the same file. Mirror the rule
 # so a non-conforming alias fails offline instead of at `gizclaw admin apply`.
@@ -19,7 +19,7 @@ def valid(alias_name):
 
 
 # Returns [path, alias] pairs for every alias the Server would reject, plus
-# Workflow aliases bound in more than one collection.
+# malformed aliases.
 def errors(spec):
     found = []
 
@@ -27,14 +27,8 @@ def errors(spec):
         if not valid(name):
             found.append([path, name])
 
-    owners = {}
-    for collection, bindings in ((spec.get('workflows') or {}).get('collections') or {}).items():
-        check('workflows.collections', collection)
-        for name in (bindings or {}).keys():
-            check(f'workflows.collections.{collection}', name)
-            if name in owners:
-                found.append([f'workflows.collections.{collection} (also in {owners[name]})', name])
-            owners.setdefault(name, collection)
+    for name in (spec.get('workflows') or {}).keys():
+        check('workflows', name)
     for kind, bindings in (spec.get('resources') or {}).items():
         for name in (bindings or {}).keys():
             check(f'resources.{kind}', name)

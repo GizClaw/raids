@@ -49,14 +49,13 @@ Generic Admin `metadata.name` is unsupported. RuntimeProfile map keys remain
 Peer-facing aliases scoped by that profile; each binding points to an Admin
 Resource ID and does not create an alternate Admin selector.
 
-Every RuntimeProfile alias — Workflow collection names, Workflow, Model, Voice
+Every RuntimeProfile alias — Workflow, Model, Voice
 and memory binding keys, and `app_config` keys — is 1-63 bytes of
 dot-separated lowercase kebab-case segments, for example
 `learn.chinese-poetry-grade1-eino` or `story.animal-kingdom`. Underscores and
 uppercase letters are rejected. GizClaw v0.18.15 enforces this when a Server
 normalizes the profile, which `gizclaw admin validate` does not do, so
-`make test-unit-resources` checks it offline and also rejects a Workflow alias
-bound in more than one collection.
+`make test-unit-resources` checks the aliases offline.
 
 Admin IDs are opaque and kind-qualified. They contain at most 1,024 Unicode
 characters, preserve internal characters exactly, and cannot have surrounding
@@ -153,7 +152,7 @@ a recognized player reply path fails and needs an explicit coverage review
 when adding a new graph shape.
 
 **Runtime dependency:** the fence needs **GizClaw v0.20.2** or later for both
-validation and serving; CI pins v0.20.2. Earlier releases reject Eino's
+validation and serving; CI pins v0.24.1. Earlier releases reject Eino's
 `input.safety_fence` binding as undeclared.
 
 This contract covers every raid with Flowcraft/Eino implementations and
@@ -298,10 +297,20 @@ contains no credential value. Every public MiniMax Voice selects
 require that Voice-owned provider model when constructing MiniMax TTS and do
 not substitute a hidden model default.
 
+RuntimeProfile Workflow bindings are a flat map. Each original catalog grouping
+is retained as an opaque tag, with IDs, i18n, model/voice/memory aliases and
+app_config unchanged. Tag selectors use intersection semantics in GizClaw.
+
+MemoryLayouts include an independent `mem0_self_hosted` policy for GizClaw v0.24.1
+and later. A `mem0_self_hosted` RuntimeProfile connection selects its own `scope`
+and `custom_instructions`; Cloud categories, multilingual and decay settings stay
+in `mem0`. Endpoint, authentication, models and pgvector provisioning belong to
+the deployment and the self-hosted service.
+
 The public MemoryLayout catalog is organized by reusable scenario:
 
 - `user-chat-with-assistant` stores durable user conversation context in the owner Peer's
-  shared memory scope for Flowcraft, Mem0, and Volc Mem0. Other layouts explicitly
+  shared memory scope for Flowcraft, Mem0 Cloud, self-hosted Mem0, and Volc Mem0. Other layouts explicitly
   select the Workspace scope for each implementation, so story, adventure, and
   learning state stays private to each Workspace.
 - `story-teller` separates Graph-written progress from narrated continuity.
@@ -311,7 +320,7 @@ The public MemoryLayout catalog is organized by reusable scenario:
   and open questions, and explicit corrections for `learn-*` raids.
 
 Knowledge-extension raids use the `learn-<subject>-<topic>` naming scheme and
-the `learn` collection. Each one embeds a verified knowledge card in its
+the `learn` tag. Each one embeds a verified knowledge card in its
 prompt, keeps the sources in its package `knowledge.json`, teaches anything
 the child brings up, and must say "没有确切记载" instead of inventing details
 the card does not hold. The poetry set is `learn-chinese-poetry-grade1` through
@@ -348,7 +357,7 @@ on the child's culture are split by region and named `guess-<subject>-<region>`
 (for example `guess-history-figures-cn`), while universal subjects carry no
 region (`guess-physics-terms`). A product picks its regional content when its
 RuntimeProfile is assembled; both public profiles bind the Eino Workflows in the
-`guess` collection as `guess.<subject>[-<region>]-eino`.
+`guess` tag as `guess.<subject>[-<region>]-eino`.
 
 The catalog has ten guess raids: `guess-history-figures-cn` (the only regional
 one), `guess-chinese-idioms` (idioms and the folk stories behind them, for
@@ -394,7 +403,7 @@ told as legend. The catalog has twelve: `figure-li-bai`, `figure-confucius`,
 `figure-marie-curie`, `figure-einstein`, `figure-da-vinci`, `figure-edison`,
 `figure-nightingale` and `figure-galileo`. Each ships one implementation,
 continuous Eino multi-role narration, and the default profile binds it in the
-`figure` collection as `figure.<key>`.
+`figure` tag as `figure.<key>`.
 
 Facts and script are kept apart. `cards/figure/<人物>.txt` is a knowledge card
 about the real person — era, life events, the people around them, works, famous
@@ -537,7 +546,7 @@ merged by [GizClaw #590](https://github.com/GizClaw/gizclaw/pull/590).
 ## Static resource validation
 
 Raids uses the released GizClaw binary as the only authority for declarative
-Resource format validation. With GizClaw v0.21.3 or later on `PATH`, validate
+Resource format validation. With GizClaw v0.24.1 or later on `PATH`, validate
 every applyable catalog Resource with:
 
 ```sh
@@ -590,8 +599,8 @@ Go module downloads are disabled. Offline validation cannot establish real
 provider voice switching, timing, interruption or audible continuity.
 
 Passing this check establishes schema, binding, and deterministic routing
-contracts, not live behavior. CI pins the immutable v0.21.3 Linux package
-and verifies its published SHA-256 digest before validation.
+contracts, not live behavior. CI pins the v0.24.1 Linux package and its
+SHA-256 digest in the repository before validation.
 `make test-unit-voices` separately requires exactly 635 MiniMax Voice files and exactly one
 `model: speech-2.6-turbo` field in each. Per-file schema validation alone does
 not prove other runtime-only requirements such as cross-resource references or
@@ -610,7 +619,7 @@ resources; rating (`raids-age-v2`), category, and tags make the catalog
 filterable. It is descriptive metadata for consumers and reviewers, not an
 input to a generator: `runtime-profiles/default.yaml` and
 `runtime-profiles/testing.yaml` stay hand-written, and adding a raid to a
-profile means binding its Workflow in a collection and declaring the model and
+profile means binding its Workflow with tags and declaring the model and
 voice aliases the manifest lists.
 
 The audio-only `ast-translate` (category `translate`, one implementation per
