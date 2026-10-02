@@ -34,6 +34,7 @@ jobs:
       - name: Download GizClaw v0.24.1
         env:
           GIZCLAW_ASSET: gizclaw_0.24.1_amd64.deb
+          GIZCLAW_SHA256: a8ee0692b19a9740cc9819368f0700dc6b23145d5748b2a0328eff1f5fd516c0
         run: |
           set -euo pipefail
           package="$RUNNER_TEMP/$GIZCLAW_ASSET"
@@ -41,12 +42,7 @@ jobs:
           curl --fail --location --retry 3 \
             --output "$package" \
             "https://github.com/GizClaw/gizclaw/releases/download/v0.24.1/$GIZCLAW_ASSET"
-          curl --fail --location --retry 3 \
-            --output "$RUNNER_TEMP/gizclaw-SHA256SUMS" \
-            "https://github.com/GizClaw/gizclaw/releases/download/v0.24.1/SHA256SUMS"
-          expected="$(awk -v asset="$GIZCLAW_ASSET" '$2 == asset {print $1}' "$RUNNER_TEMP/gizclaw-SHA256SUMS")"
-          [[ "$expected" =~ ^[0-9a-f]{64}$ ]]
-          printf '%s  %s\n' "$expected" "$package" | sha256sum --check --status
+          printf '%s  %s\n' "$GIZCLAW_SHA256" "$package" | sha256sum --check --status
           dpkg-deb --extract "$package" "$root"
           printf 'GIZCLAW=%s\n' "$root/usr/bin/gizclaw" >> "$GITHUB_ENV"
 
