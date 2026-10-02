@@ -70,8 +70,8 @@ for file in sorted(glob.glob('workflows/*/raid.json')):
             for map_name in ('speaker_voices', 'node_voices'):
                 ids = [dig(profile, 'resources', 'voices', a, 'resource_id') for a in adapter.get(map_name, {}).values()]
                 check(len(set(ids)) == len(ids), f'{workflow}: duplicate {profile_name} {map_name} Voice resources')
-            collections = profile['workflows']['collections']
-            check(any(any(entry.get('resource_id') == dig(doc, 'metadata', 'id') for entry in c.values()) for c in collections.values()), f'{workflow}: missing {profile_name} collection entry')
+            bindings = profile['workflows']
+            check(any(entry.get('resource_id') == dig(doc, 'metadata', 'id') for entry in bindings.values()), f'{workflow}: missing {profile_name} Workflow binding')
             for a in aliases:
                 voice_id = dig(profile, 'resources', 'voices', a, 'resource_id')
                 check(voice_id is not None and voice_id in voices, f'{workflow}: unresolved {profile_name} Voice {a}')

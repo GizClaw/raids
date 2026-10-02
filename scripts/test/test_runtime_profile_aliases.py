@@ -15,16 +15,13 @@ class RuntimeProfileAliasesTest(unittest.TestCase):
     def test_every_alias_map_is_checked(self):
         binding = {'resource_id': 'x'}
         spec = {
-            'workflows': {'collections': {
-                'learn_x': {'learn.math_grade1': binding, 'shared': binding},
-                'story': {'shared': binding},
-            }},
+            'workflows': {'learn.math_grade1': binding, 'ok': {**binding, 'tags': ['opaque tag with spaces']}},
             'resources': {'models': {'a_b.model': binding}, 'voices': {'ok.voice': binding},
                           'memories': {'Mem': binding}},
             'app_config': {'bad_key': 'v'},
         }
         names = [name for _, name in runtime_profile_aliases.errors(spec)]
-        self.assertEqual(['learn_x', 'learn.math_grade1', 'shared', 'a_b.model', 'Mem', 'bad_key'], names)
+        self.assertEqual(['learn.math_grade1', 'a_b.model', 'Mem', 'bad_key'], names)
 
 
 if __name__ == '__main__':

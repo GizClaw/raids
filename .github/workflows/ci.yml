@@ -31,18 +31,22 @@ jobs:
           go-version-file: scripts/test/starlark/go.mod
           cache-dependency-path: scripts/test/starlark/go.sum
 
-      - name: Download GizClaw v0.21.3
+      - name: Download GizClaw v0.24.1
         env:
-          GIZCLAW_ASSET: gizclaw_0.21.3_amd64.deb
-          GIZCLAW_SHA256: f86217e537bca24abce96edfa83d7e610ac06c243c514e813e67eb326e416caa
+          GIZCLAW_ASSET: gizclaw_0.24.1_amd64.deb
         run: |
           set -euo pipefail
           package="$RUNNER_TEMP/$GIZCLAW_ASSET"
-          root="$RUNNER_TEMP/gizclaw-v0.21.3"
+          root="$RUNNER_TEMP/gizclaw-v0.24.1"
           curl --fail --location --retry 3 \
             --output "$package" \
-            "https://github.com/GizClaw/gizclaw/releases/download/v0.21.3/$GIZCLAW_ASSET"
-          printf '%s  %s\n' "$GIZCLAW_SHA256" "$package" | sha256sum --check --status
+            "https://github.com/GizClaw/gizclaw/releases/download/v0.24.1/$GIZCLAW_ASSET"
+          curl --fail --location --retry 3 \
+            --output "$RUNNER_TEMP/gizclaw-SHA256SUMS" \
+            "https://github.com/GizClaw/gizclaw/releases/download/v0.24.1/SHA256SUMS"
+          expected="$(awk -v asset="$GIZCLAW_ASSET" '$2 == asset {print $1}' "$RUNNER_TEMP/gizclaw-SHA256SUMS")"
+          [[ "$expected" =~ ^[0-9a-f]{64}$ ]]
+          printf '%s  %s\n' "$expected" "$package" | sha256sum --check --status
           dpkg-deb --extract "$package" "$root"
           printf 'GIZCLAW=%s\n' "$root/usr/bin/gizclaw" >> "$GITHUB_ENV"
 

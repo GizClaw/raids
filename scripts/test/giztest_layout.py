@@ -564,8 +564,7 @@ def check_realtime(file, manifest, raid):
 
 
 def validate():
-    collections = load_yaml('runtime-profiles/testing.yaml')['spec']['workflows']['collections']
-    workflow_aliases = {name: alias for collection in collections.values() for name, alias in collection.items()}
+    workflow_aliases = load_yaml('runtime-profiles/testing.yaml')['spec']['workflows']
     raids = sorted(os.path.basename(os.path.dirname(f)) for f in glob.glob('workflows/*/raid.json'))
     for tier in TIERS:
         tier_raids = [raid for raid in raids if tier in raid_tiers(raid)]
