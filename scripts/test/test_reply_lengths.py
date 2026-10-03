@@ -29,6 +29,13 @@ def run(input):
         case('brief-content', 11, short, {'equals': ''})
         case('brevity-hint-is-not-a-counter', 11, short + '暂不营救。', {'equals': ''})
         case('short-complete-fact', 6, '明月熟悉黑风岭。', {'equals': ''})
+        case('established-item-short-reference', 11,
+             '你按住铃藏好身形，见守卫在洞道，商队被围在火光旁。', {'equals': ''})
+        case('missing-item-still-fails', 11, '你藏好身形，观察守卫和商队位置。',
+             {'includes_all': ['required_any:']})
+        for item in ('银铃', '金铃', '铁铃', '风铃'):
+            case(f'wrong-item-{item}', 11, f'你藏好青铜铃，但又拿起{item}。',
+                 {'includes_all': [f'forbidden:{item}']})
     else:
         case('ordinary-long-correction', 5, '你当前去苏州，坐G7105。' * 60, {'equals': ''})
         case('long-reply-still-rejects-stale-trip', 5, '苏州、G7105。仍去杭州。' * 60,
