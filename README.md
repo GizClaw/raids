@@ -158,7 +158,7 @@ a recognized player reply path fails and needs an explicit coverage review
 when adding a new graph shape.
 
 **Runtime dependency:** the fence needs **GizClaw v0.20.2** or later for both
-validation and serving; CI now pins v0.23.2 with Profile-defined string IDs. Earlier releases reject Eino's
+validation and serving; CI now pins v0.24.1 with Profile-defined string IDs. Earlier releases reject Eino's
 `input.safety_fence` binding as undeclared.
 
 This contract covers every raid with Flowcraft/Eino implementations and
@@ -190,10 +190,10 @@ A RuntimeProfile makes a Tool available by binding it under
 `resources.tools`; both public profiles bind `web-search` to
 `volc-web-search`. A Workflow's `spec.toolkit.tool_ids` narrows those bindings
 by canonical Tool ID. From GizClaw v0.23.3 Tools are opt-in: a Workflow
-without `toolkit` gets none. Earlier releases, including the v0.23.2 that CI
-pins, give such a Workflow every profile Tool, so every Flowcraft and Eino
-Workflow that must not search declares `tool_ids: []`; the explicit empty list
-means the same on both. Eino `chat_model` and Flowcraft `llm`
+without `toolkit` gets none, including the v0.24.1 that CI pins. Earlier
+releases give such a Workflow every profile Tool. Flowcraft and Eino Workflows
+that must not search retain `tool_ids: []`, which explicitly grants no Tools
+on either contract. Eino `chat_model` and Flowcraft `llm`
 nodes attach the exposed Tools to each Model call and let the Model decide when
 to call them. Only `eino-chat-assistant` allows `volc-web-search`; its prompt
 lists what needs a search (weather, news, dates, prices, “今天/最新”) and what
@@ -332,10 +332,20 @@ contains no credential value. Every public MiniMax Voice selects
 require that Voice-owned provider model when constructing MiniMax TTS and do
 not substitute a hidden model default.
 
+RuntimeProfile Workflow bindings are a flat map. Each original catalog grouping
+is retained as an opaque tag, with IDs, i18n, model/voice/memory aliases and
+app_config unchanged. Tag selectors use intersection semantics in GizClaw.
+
+MemoryLayouts include an independent `mem0_self_hosted` policy for GizClaw v0.24.1
+and later. A `mem0_self_hosted` RuntimeProfile connection selects its own `scope`
+and `custom_instructions`; Cloud categories, multilingual and decay settings stay
+in `mem0`. Endpoint, authentication, models and pgvector provisioning belong to
+the deployment and the self-hosted service.
+
 The public MemoryLayout catalog is organized by reusable scenario:
 
 - `user-chat-with-assistant` stores durable user conversation context in the owner Peer's
-  shared memory scope for Flowcraft, Mem0, and Volc Mem0. Other layouts explicitly
+  shared memory scope for Flowcraft, Mem0 Cloud, self-hosted Mem0, and Volc Mem0. Other layouts explicitly
   select the Workspace scope for each implementation, so story, adventure, and
   learning state stays private to each Workspace.
 - `story-teller` separates Graph-written progress from narrated continuity.
@@ -539,12 +549,9 @@ latency, or sound quality; synthesis logs and listening remain separate
 acceptance evidence.
 
 Each Layout defines portable Flowcraft, Mem0, and Volc Mem0 policy. The public
-default profile selects Flowcraft with explicit `flowcraft_object_store`
-directories under `/var/lib/gizclaw/raids-memory/default`; the testing profile
-uses its own directories. These are new-install paths, not a migration of legacy
-managed BBH data. Existing installations must retain and explicitly migrate or
-override their Memory bindings before applying the updated profiles. The consuming
-product selects its explicit directory or another supported physical Memory connection.
+default profile selects Flowcraft with `connection.type: flowcraft_bbh`; it
+does not publish an endpoint, key, project ID, DSN, or directory. The consuming
+Server derives managed BBH storage from its own Workspace.
 
 Provider policy does not bypass runtime capability checks. In particular,
 Graph-authoritative `memory_observe.facts` writes require a Store with
@@ -571,30 +578,30 @@ is not discovered or applied as a catalog resource.
 The MemoryLayout definitions require a GizClaw build containing the MemoryLayout contract
 merged by [GizClaw #590](https://github.com/GizClaw/gizclaw/pull/590).
 
-## GizClaw 0.23.2 compatibility
+## GizClaw 0.24.1 compatibility
 
 Both public RuntimeProfiles use a flat `spec.workflows` map. Workflow names,
-resource IDs and i18n remain unchanged; each former collection is represented
-by `category:<collection>` in its bindings' tags. Tag matching is exact and
-multiple filters use AND. Workspace creation names only the Workflow alias;
+resource IDs and i18n retain their identities; each former collection is exposed
+as both its existing bare tag and `category:<collection>`. Exact tag matching and
+AND filters work with either spelling. Workspace creation names only the alias;
 Giztests and generators no longer send the removed `collection` field.
-Model, Voice, Tool and Memory aliases retain their identities. Safety-fence
-`general`/`child` prompts and per-raid age ratings are unchanged. No MHS/device manifest is added.
+Model, Voice, Tool and Memory aliases retain their identities. Existing
+`general`/`child` prompts and per-raid age ratings are unchanged.
 
-`flowcraft_bbh` is no longer an accepted Memory connection in 0.23.2. The catalog
-uses explicit `flowcraft_object_store` directories for new installs. This change
-never copies, reinterprets or deletes existing managed BBH data; deployed products
-must choose and migrate their own physical binding separately. Dev qualification
-uses a temporary Profile, fresh Peers and an independent test directory.
+The public profiles retain main's managed `flowcraft_bbh` Memory bindings,
+accepted by 0.24.1, and its independent `mem0_self_hosted` policies and scopes.
+This PR does not change the catalog's physical Memory binding or migrate existing
+data. Explicit object-store directories remain a deployment-owned alternative.
+Previous 0.23.2 Dev reports used isolated test directories and remain historical
+qualification of that runtime.
 
-Tool aliases, Profile Tool extensions and `input.tool_instructions` discussed as
-future features are not implemented in 0.23.2 and are not part of this migration.
-The explicit canonical Tool allow-list remains in the Chat Workflow.
+Future Tool aliases, Profile extensions and Tool prompt-injection APIs are not
+introduced by this PR. The Chat Workflow retains its canonical Tool allow-list.
 
 ## Static resource validation
 
 Raids uses the released GizClaw binary as the only authority for declarative
-Resource format validation. With GizClaw v0.23.2 or later on `PATH`, validate
+Resource format validation. With GizClaw v0.24.1 or later on `PATH`, validate
 every applyable catalog Resource with:
 
 ```sh
@@ -625,7 +632,7 @@ default variables, and exports. `make help` lists the complete surface:
 `test-unit-*` target as its own step; there is no aggregate target.
 
 `make test-unit-chat-assistant` loads the shipped Chat Workflow, profiles, Tool
-and quality probe inputs into the GizClaw v0.23.2 Eino runtime. A scripted Model
+and quality probe inputs into the GizClaw v0.24.1 Eino runtime. A scripted Model
 and HTTP transport fixture replace the external providers. The real HTTP Tool
 executor must receive the mapped search request, return an unpredictable result,
 and feed it into the final answer. A fabricated weather/date answer is rejected
@@ -666,7 +673,7 @@ Go module downloads are disabled. Offline validation cannot establish real
 provider voice switching, timing, interruption or audible continuity.
 
 Passing this check establishes schema, binding, and deterministic routing
-contracts, not live behavior. CI pins the immutable v0.23.2 Linux package
+contracts, not live behavior. CI pins the immutable v0.24.1 Linux package
 and verifies its published SHA-256 digest before validation.
 `make test-unit-voices` separately requires exactly 635 MiniMax Voice files and exactly one
 `model: speech-2.6-turbo` field in each. Per-file schema validation alone does
