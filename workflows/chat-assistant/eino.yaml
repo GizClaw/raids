@@ -97,10 +97,14 @@ spec:
           text: answer
         model: eino-chat-assistant.model
         max_tokens: 2048
-      - id: observe-memory
+      - id: observe-user-memory
         type: memory_observe
         facts:
         - text_from: observation
+        wait_for_completion: false
+      - id: observe-assistant-memory
+        type: memory_observe
+        facts:
         - text_from: answer
         wait_for_completion: false
       edges:
@@ -113,8 +117,10 @@ spec:
       - from: build-prompt
         to: assistant-model
       - from: assistant-model
-        to: observe-memory
-      - from: observe-memory
+        to: observe-user-memory
+      - from: observe-user-memory
+        to: observe-assistant-memory
+      - from: observe-assistant-memory
         to: end
       branches: []
       outputs:

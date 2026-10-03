@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,6 +23,7 @@ import (
 	"github.com/GizClaw/gizclaw-go/pkgs/gizclaw/services/ai/workflow/einoconfig"
 	"github.com/GizClaw/gizclaw-go/pkgs/giztools"
 	"github.com/GizClaw/gizclaw-go/pkgs/store/memory"
+	"github.com/GizClaw/gizclaw-go/pkgs/store/memory/mem0"
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/components/retriever"
 	"github.com/cloudwego/eino/schema"
@@ -190,15 +192,22 @@ func (components) ResolveRetriever(context.Context, string) (retriever.Retriever
 	return nil, errors.New("unexpected retriever")
 }
 
-type memoryStore struct{ observed chan memory.Observation }
+type memoryStore struct {
+	observed chan memory.Observation
+	delegate memory.Store
+}
 
 func (*memoryStore) SupportsDirectFactObservation() bool { return true }
 func (*memoryStore) Recall(context.Context, memory.Query) (memory.RecallResult, error) {
 	return memory.RecallResult{}, nil
 }
-func (s *memoryStore) Observe(_ context.Context, observation memory.Observation) (memory.ObserveResult, error) {
+func (s *memoryStore) Observe(ctx context.Context, observation memory.Observation) (memory.ObserveResult, error) {
+	result, err := s.delegate.Observe(ctx, observation)
+	if err != nil {
+		return result, err
+	}
 	s.observed <- observation
-	return memory.ObserveResult{}, nil
+	return result, nil
 }
 func (*memoryStore) Update(context.Context, memory.UpdateRequest) (memory.Fact, error) {
 	return memory.Fact{}, errors.New("unexpected update")
@@ -207,7 +216,7 @@ func (*memoryStore) Delete(context.Context, memory.DeleteRequest) error {
 	return errors.New("unexpected delete")
 }
 
-func run(t *testing.T, input, mode string, mutations ...func(*genxeino.GraphDefinition)) (string, *fixture, memory.Observation) {
+func run(t *testing.T, input, mode string, mutations ...func(*genxeino.GraphDefinition)) (string, *fixture, []memory.Observation) {
 	t.Helper()
 	workflow := document(t, "workflows/chat-assistant/eino.yaml")["spec"].(map[string]any)
 	if workflow["memory"] != "user-chat-with-assistant" {
@@ -243,7 +252,40 @@ func run(t *testing.T, input, mode string, mutations ...func(*genxeino.GraphDefi
 		t.Fatal(err)
 	}
 	f := &fixture{query: input, fact: "搜索结果报码" + hex.EncodeToString(nonce)}
-	store := &memoryStore{observed: make(chan memory.Observation, 1)}
+	// Exercise the real self-hosted adapter, including single-fact direct imports.
+	memoryHTTP := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if request.URL.Path == "/search" {
+			_, _ = io.WriteString(w, `{"results":[]}`)
+			return
+		}
+		if request.URL.Path != "/memories" || request.Method != "POST" {
+			http.Error(w, "unexpected Mem0 operation", http.StatusBadRequest)
+			return
+		}
+		var body map[string]any
+		if err := json.NewDecoder(request.Body).Decode(&body); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		messages, ok := body["messages"].([]any)
+		if !ok || len(messages) != 1 || body["infer"] != false {
+			http.Error(w, "expected one direct fact", http.StatusBadRequest)
+			return
+		}
+		message := messages[0].(map[string]any)
+		metadata := body["metadata"].(map[string]any)
+		_ = json.NewEncoder(w).Encode(map[string]any{"results": []any{map[string]any{
+			"id": "fact-" + metadata["gizclaw.observation_id"].(string), "memory": message["content"],
+			"user_id": body["user_id"], "metadata": metadata,
+		}}})
+	}))
+	t.Cleanup(memoryHTTP.Close)
+	delegate, err := mem0.New(mem0.Config{Endpoint: memoryHTTP.URL, Flavor: mem0.SelfHosted, HTTPClient: memoryHTTP.Client()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := &memoryStore{observed: make(chan memory.Observation, 4), delegate: delegate}
 	transformer, err := genxeino.New(t.Context(), genxeino.Config{
 		Agent: genxeino.AgentConfig{ID: "chat-assistant-contract"}, Graph: graph,
 		Components: components{chat: &scriptedModel{mode: mode}}, ToolInvoker: searchToolkit(t, f),
@@ -279,13 +321,19 @@ func run(t *testing.T, input, mode string, mutations ...func(*genxeino.GraphDefi
 			text.WriteString(string(part))
 		}
 	}
-	select {
-	case observation := <-store.observed:
-		return text.String(), f, observation
-	case <-time.After(time.Second):
-		t.Fatal("the completed turn was not observed")
+	var observations []memory.Observation
+	for _, node := range graph.Nodes {
+		if node.MemoryObserve == nil {
+			continue
+		}
+		select {
+		case observation := <-store.observed:
+			observations = append(observations, observation)
+		case <-time.After(time.Second):
+			t.Fatal("the completed turn was not observed")
+		}
 	}
-	return "", nil, memory.Observation{}
+	return text.String(), f, observations
 }
 
 func searchResultError(text string, f *fixture) error {
@@ -373,9 +421,11 @@ func TestObservesUserAndAssistantWithoutSearchingCasualTurn(t *testing.T) {
 	}
 }
 
-func observationError(input, answer string, observation memory.Observation) error {
-	if len(observation.Facts) != 2 || observation.Facts[0].Text != input || observation.Facts[1].Text != answer {
-		return fmt.Errorf("observation lost the user or assistant turn: %#v", observation.Facts)
+func observationError(input, answer string, observations []memory.Observation) error {
+	if len(observations) != 2 || len(observations[0].Facts) != 1 || len(observations[1].Facts) != 1 ||
+		observations[0].Facts[0].Text != input || observations[1].Facts[0].Text != answer ||
+		observations[0].ID == observations[1].ID {
+		return fmt.Errorf("observations lost independent user or assistant facts: %#v", observations)
 	}
 	return nil
 }
@@ -383,16 +433,24 @@ func observationError(input, answer string, observation memory.Observation) erro
 func TestObservationOracleRejectsMissingAssistantCandidate(t *testing.T) {
 	input := "以后请叫我米娜。"
 	answer, _, observation := run(t, input, "casual", func(graph *genxeino.GraphDefinition) {
-		for i := range graph.Nodes {
-			node := graph.Nodes[i].MemoryObserve
-			if node != nil {
-				// Execute the real graph with only the shipped user candidate.
-				node.Facts = node.Facts[:1]
+		var nodes []genxeino.NodeDefinition
+		for _, node := range graph.Nodes {
+			if node.ID != "observe-assistant-memory" {
+				nodes = append(nodes, node)
 			}
 		}
+		graph.Nodes = nodes
+		var edges []genxeino.EdgeDefinition
+		for _, edge := range graph.Edges {
+			if edge.From == "observe-assistant-memory" || edge.To == "observe-assistant-memory" {
+				continue
+			}
+			edges = append(edges, edge)
+		}
+		graph.Edges = append(edges, genxeino.EdgeDefinition{From: "observe-user-memory", To: "end"})
 	})
-	if len(observation.Facts) != 1 || observation.Facts[0].Text != input {
-		t.Fatalf("mutation did not remove only the assistant candidate: %#v", observation.Facts)
+	if len(observation) != 1 || len(observation[0].Facts) != 1 || observation[0].Facts[0].Text != input {
+		t.Fatalf("mutation did not remove only the assistant observation: %#v", observation)
 	}
 	if err := observationError(input, answer, observation); err == nil {
 		t.Fatal("missing assistant observation passed the complete-turn oracle")

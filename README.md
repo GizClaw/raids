@@ -556,9 +556,9 @@ Server derives managed BBH storage from its own Workspace.
 Provider policy does not bypass runtime capability checks. In particular,
 Graph-authoritative `memory_observe.facts` writes require a Store with
 direct-fact support, which the public default Flowcraft binding provides. The
-current Mem0 and Volc Mem0 adapters accept conversation extraction but not
-direct structured facts, so Workflows that write authoritative facts must not
-be switched to those drivers until the adapters add that capability. Their
+current Mem0 and Volc Mem0 adapters also accept one direct structured fact per
+observation. Workflows that write several authoritative facts must use separate
+ordered observation nodes when binding these drivers. Their
 Layout blocks remain the policy contract for configuring compatible
 environment-owned projects; their presence alone is not proof of runtime
 compatibility or successful extraction.
@@ -637,8 +637,10 @@ and HTTP transport fixture replace the external providers. The real HTTP Tool
 executor must receive the mapped search request, return an unpredictable result,
 and feed it into the final answer. A fabricated weather/date answer is rejected
 when no search ran; a casual turn makes no search request. The completed turn's
-Memory observation must contain both user input and assistant output, without
-waiting for Memory completion. This target requires Go 1.26.4 and downloads
+Memory observations must retain both user input and assistant output in separate
+ordered single-fact writes, without waiting for Memory completion. The real
+Mem0 adapter executes those writes against a local HTTP fixture so its direct-import
+cardinality and scope contract are covered. This target requires Go 1.26.4 and downloads
 pinned Go modules on the first run; it uses no provider credentials or live
 deployment, and its source and checksums are maintained under
 `scripts/test/chat-assistant/`.
