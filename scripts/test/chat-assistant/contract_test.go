@@ -69,7 +69,7 @@ type fixture struct {
 	body     map[string]any
 }
 
-func searchToolkit(t *testing.T, f *fixture) *genx.Toolkit {
+func searchToolkit(t *testing.T, f *fixture, mutations ...func(*giztools.HTTPOperation)) *genx.Toolkit {
 	t.Helper()
 	resource := document(t, "tools/volc-web-search.yaml")
 	spec := resource["spec"].(map[string]any)
@@ -90,6 +90,9 @@ func searchToolkit(t *testing.T, f *fixture) *genx.Toolkit {
 		operation.Body = append(operation.Body, giztools.HTTPBinding{
 			ArgumentPointer: binding.ArgumentPointer, Target: binding.Target, Required: required,
 		})
+	}
+	for _, mutate := range mutations {
+		mutate(&operation)
 	}
 	executor := giztools.HTTPExecutor{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
 		f.requests++
@@ -204,7 +207,7 @@ func (*memoryStore) Delete(context.Context, memory.DeleteRequest) error {
 	return errors.New("unexpected delete")
 }
 
-func run(t *testing.T, input, mode string) (string, *fixture, memory.Observation) {
+func run(t *testing.T, input, mode string, mutations ...func(*genxeino.GraphDefinition)) (string, *fixture, memory.Observation) {
 	t.Helper()
 	workflow := document(t, "workflows/chat-assistant/eino.yaml")["spec"].(map[string]any)
 	if workflow["memory"] != "user-chat-with-assistant" {
@@ -231,6 +234,9 @@ func run(t *testing.T, input, mode string) (string, *fixture, memory.Observation
 		if node.MemoryObserve != nil && node.MemoryObserve.WaitForCompletion {
 			t.Fatal("memory observation must remain asynchronous")
 		}
+	}
+	for _, mutate := range mutations {
+		mutate(&graph)
 	}
 	nonce := make([]byte, 16)
 	if _, err := rand.Read(nonce); err != nil {
@@ -362,7 +368,49 @@ func TestObservesUserAndAssistantWithoutSearchingCasualTurn(t *testing.T) {
 	if f.requests != 0 {
 		t.Fatal("casual turn unexpectedly searched")
 	}
-	if len(observation.Facts) != 2 || observation.Facts[0].Text != input || observation.Facts[1].Text != text {
-		t.Fatalf("observation lost the user or assistant turn: %#v", observation.Facts)
+	if err := observationError(input, text, observation); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func observationError(input, answer string, observation memory.Observation) error {
+	if len(observation.Facts) != 2 || observation.Facts[0].Text != input || observation.Facts[1].Text != answer {
+		return fmt.Errorf("observation lost the user or assistant turn: %#v", observation.Facts)
+	}
+	return nil
+}
+
+func TestObservationOracleRejectsMissingAssistantCandidate(t *testing.T) {
+	input := "以后请叫我米娜。"
+	answer, _, observation := run(t, input, "casual", func(graph *genxeino.GraphDefinition) {
+		for i := range graph.Nodes {
+			node := graph.Nodes[i].MemoryObserve
+			if node != nil {
+				// Execute the real graph with only the shipped user candidate.
+				node.Facts = node.Facts[:1]
+			}
+		}
+	})
+	if len(observation.Facts) != 1 || observation.Facts[0].Text != input {
+		t.Fatalf("mutation did not remove only the assistant candidate: %#v", observation.Facts)
+	}
+	if err := observationError(input, answer, observation); err == nil {
+		t.Fatal("missing assistant observation passed the complete-turn oracle")
+	}
+}
+
+func TestSearchRejectsBrokenResponsePointer(t *testing.T) {
+	f := &fixture{query: "上海天气", fact: "仅存在于HTTP响应中的事实"}
+	toolkit := searchToolkit(t, f, func(operation *giztools.HTTPOperation) {
+		pointer := "/Result/missing"
+		operation.ResponsePointer = &pointer
+	})
+	_, err := toolkit.InvokeTool(t.Context(), "web_search",
+		json.RawMessage(`{"query":"上海天气","search_type":"web","count":3}`))
+	if f.requests != 1 {
+		t.Fatalf("broken pointer test did not execute HTTP: requests=%d", f.requests)
+	}
+	if err == nil {
+		t.Fatal("broken response pointer was accepted by the real HTTP Tool executor")
 	}
 }
