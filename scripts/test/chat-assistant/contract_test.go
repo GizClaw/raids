@@ -21,6 +21,7 @@ import (
 	genxeino "github.com/GizClaw/gizclaw-go/pkgs/genx/transformers/eino"
 	"github.com/GizClaw/gizclaw-go/pkgs/gizclaw/api/apitypes"
 	"github.com/GizClaw/gizclaw-go/pkgs/gizclaw/services/ai/workflow/einoconfig"
+	"github.com/GizClaw/gizclaw-go/pkgs/gizclaw/services/runtime/toolkit"
 	"github.com/GizClaw/gizclaw-go/pkgs/giztools"
 	"github.com/GizClaw/gizclaw-go/pkgs/store/memory"
 	"github.com/GizClaw/gizclaw-go/pkgs/store/memory/mem0"
@@ -380,11 +381,18 @@ func TestSearchOracleRejectsFabricatedWeatherAndDate(t *testing.T) {
 func TestOptionalSearchTimeRange(t *testing.T) {
 	// Ark can emit explicit null for an optional field. Exercise the shipped
 	// schema and the real executor, including its absent-versus-null mapping.
+	var argument jsonschema.Schema
+	decode(t, document(t, "tools/volc-web-search.yaml")["spec"].(map[string]any)["input_schema"], &argument)
+	catalogTool := toolkit.Tool{InputSchema: *argument.CloneSchemas()}
 	for _, suffix := range []string{"", `,"time_range":null`, `,"time_range":"OneDay"`} {
 		t.Run(suffix, func(t *testing.T) {
 			f := &fixture{query: "天气", fact: "结果"}
+			args := json.RawMessage(`{"query":"天气","search_type":"web","count":3` + suffix + `}`)
+			if err := toolkit.ValidateToolArgs(catalogTool, args); err != nil {
+				t.Fatal(err)
+			}
 			_, err := searchToolkit(t, f).InvokeTool(t.Context(), "web_search",
-				json.RawMessage(`{"query":"天气","search_type":"web","count":3`+suffix+`}`))
+				args)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -396,10 +404,14 @@ func TestOptionalSearchTimeRange(t *testing.T) {
 			}
 		})
 	}
-	for _, invalid := range []string{`""`, `"Yesterday"`, `42`} {
+	for _, invalid := range []string{`""`, `"null"`, `"Yesterday"`, `42`} {
 		f := &fixture{query: "天气"}
+		args := json.RawMessage(`{"query":"天气","search_type":"web","count":3,"time_range":` + invalid + `}`)
+		if err := toolkit.ValidateToolArgs(catalogTool, args); err == nil {
+			t.Fatalf("invalid time range passed the runtime authorizer: %s", invalid)
+		}
 		_, err := searchToolkit(t, f).InvokeTool(t.Context(), "web_search",
-			json.RawMessage(`{"query":"天气","search_type":"web","count":3,"time_range":`+invalid+`}`))
+			args)
 		if err == nil || f.requests != 0 {
 			t.Fatalf("invalid time range reached HTTP executor: %s", invalid)
 		}
