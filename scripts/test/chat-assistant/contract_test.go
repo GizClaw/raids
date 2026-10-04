@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -66,10 +67,12 @@ type roundTripFunc func(*http.Request) (*http.Response, error)
 func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
 type fixture struct {
-	requests int
-	fact     string
-	query    string
-	body     map[string]any
+	requests      int
+	fact          string
+	query         string
+	body          map[string]any
+	memoryMu      sync.Mutex
+	memoryBatches [][]string
 }
 
 func searchToolkit(t *testing.T, f *fixture, mutations ...func(*giztools.HTTPOperation)) *genx.Toolkit {
@@ -274,6 +277,13 @@ func run(t *testing.T, input, mode string, mutations ...func(*genxeino.GraphDefi
 			http.Error(w, "expected keyed direct-fact batch", http.StatusBadRequest)
 			return
 		}
+		var batch []string
+		for _, value := range messages {
+			batch = append(batch, value.(map[string]any)["content"].(string))
+		}
+		f.memoryMu.Lock()
+		f.memoryBatches = append(f.memoryBatches, batch)
+		f.memoryMu.Unlock()
 		var results []any
 		for index, value := range messages {
 			message := value.(map[string]any)
@@ -342,6 +352,22 @@ func run(t *testing.T, input, mode string, mutations ...func(*genxeino.GraphDefi
 			observations = append(observations, observation)
 		case <-time.After(time.Second):
 			t.Fatal("the completed turn was not observed")
+		}
+	}
+	f.memoryMu.Lock()
+	defer f.memoryMu.Unlock()
+	if len(f.memoryBatches) != len(observations) {
+		t.Fatal("wrong number of Mem0 HTTP batches")
+	}
+	for index, observation := range observations {
+		batch := f.memoryBatches[index]
+		if len(batch) != len(observation.Facts) {
+			t.Fatalf("Mem0 HTTP lost a fact: got %#v for %#v", batch, observation.Facts)
+		}
+		for factIndex, fact := range observation.Facts {
+			if batch[factIndex] != fact.Text {
+				t.Fatalf("Mem0 HTTP changed fact order or text: got %#v", batch)
+			}
 		}
 	}
 	return text.String(), f, observations
