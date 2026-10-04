@@ -190,7 +190,7 @@ A RuntimeProfile makes a Tool available by binding it under
 `resources.tools`; both public profiles bind `web-search` to
 `volc-web-search`. A Workflow's `spec.toolkit.tool_ids` narrows those bindings
 by canonical Tool ID. From GizClaw v0.23.3 Tools are opt-in: a Workflow
-without `toolkit` gets none, including the v0.24.1 that CI pins. Earlier
+without `toolkit` gets none, including the v0.24.2 that CI pins. Earlier
 releases give such a Workflow every profile Tool. Flowcraft and Eino Workflows
 that must not search retain `tool_ids: []`, which explicitly grants no Tools
 on either contract. Eino `chat_model` and Flowcraft `llm`
@@ -336,7 +336,7 @@ RuntimeProfile Workflow bindings are a flat map. Each original catalog grouping
 is retained as an opaque tag, with IDs, i18n, model/voice/memory aliases and
 app_config unchanged. Tag selectors use intersection semantics in GizClaw.
 
-MemoryLayouts include an independent `mem0_self_hosted` policy for GizClaw v0.24.1
+MemoryLayouts include an independent `mem0_self_hosted` policy for GizClaw v0.24.2
 and later. A `mem0_self_hosted` RuntimeProfile connection selects its own `scope`
 and `custom_instructions`; Cloud categories, multilingual and decay settings stay
 in `mem0`. Endpoint, authentication, models and pgvector provisioning belong to
@@ -578,7 +578,7 @@ is not discovered or applied as a catalog resource.
 The MemoryLayout definitions require a GizClaw build containing the MemoryLayout contract
 merged by [GizClaw #590](https://github.com/GizClaw/gizclaw/pull/590).
 
-## GizClaw 0.24.1 compatibility
+## GizClaw 0.24.2 compatibility
 
 Both public RuntimeProfiles use a flat `spec.workflows` map. Workflow names,
 resource IDs and i18n retain their identities; each former collection is exposed
@@ -589,7 +589,7 @@ Model, Voice, Tool and Memory aliases retain their identities. Existing
 `general`/`child` prompts and per-raid age ratings are unchanged.
 
 The public profiles retain main's managed `flowcraft_bbh` Memory bindings,
-accepted by 0.24.1, and its independent `mem0_self_hosted` policies and scopes.
+accepted by 0.24.2, and its independent `mem0_self_hosted` policies and scopes.
 This PR does not change the catalog's physical Memory binding or migrate existing
 data. Explicit object-store directories remain a deployment-owned alternative.
 Previous 0.23.2 Dev reports used isolated test directories and remain historical
@@ -601,7 +601,7 @@ introduced by this PR. The Chat Workflow retains its canonical Tool allow-list.
 ## Static resource validation
 
 Raids uses the released GizClaw binary as the only authority for declarative
-Resource format validation. With GizClaw v0.24.1 or later on `PATH`, validate
+Resource format validation. With GizClaw v0.24.2 or later on `PATH`, validate
 every applyable catalog Resource with:
 
 ```sh
@@ -675,7 +675,7 @@ Go module downloads are disabled. Offline validation cannot establish real
 provider voice switching, timing, interruption or audible continuity.
 
 Passing this check establishes schema, binding, and deterministic routing
-contracts, not live behavior. CI pins the immutable v0.24.1 Linux package
+contracts, not live behavior. CI pins the immutable v0.24.2 Linux package
 and verifies its published SHA-256 digest before validation.
 `make test-unit-voices` separately requires exactly 635 MiniMax Voice files and exactly one
 `model: speech-2.6-turbo` field in each. Per-file schema validation alone does
