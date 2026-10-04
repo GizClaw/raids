@@ -5,15 +5,18 @@
 # - Resource aliases below illustrate one possible composition.
 # - Workflow-owned Model and Voice aliases use `<Workflow metadata.id>.<role>`.
 # - MemoryLayout-owned extraction aliases use `<MemoryLayout metadata.id>.extract`.
+# - Tool aliases are Peer-facing names for Tool resources in tools/; Workflows
+#   select Tools by canonical ID through spec.toolkit.tool_ids.
 #
 # Example maintenance guide:
 # - Keep Model and Voice aliases aligned with
 #   the resources published by this repository.
 # - Add, rename, or remove an alias whenever the corresponding Workflow reference changes.
 # - Set each Model resource_id to a matching metadata.id from models/.
+# - Set each Tool resource_id to a matching metadata.id from tools/.
 # - Voice placeholders are intentionally unbound. Replace them with Voice metadata.id
 #   values selected by the consuming product when adapting this example.
-# - Keep Workflow bindings empty here; each consuming product owns its tags and bindings
+# - Keep Workflow bindings empty here; each consuming product owns its flat map and tags
 #   and the rest of its Runtime Profile policy.
 ---
 apiVersion: gizclaw.admin/v1alpha1
@@ -21,7 +24,6 @@ kind: RuntimeProfile
 metadata:
   id: raids
 spec:
-  # Workflow bindings and tags are defined by each consuming product.
   workflows: {}
   resources:
     models:
@@ -40,7 +42,7 @@ spec:
       doubao-realtime-conversation.model:
         resource_id: doubao-realtime-dialog
         i18n: {en: {display_name: Realtime Conversation}, zh-CN: {display_name: 实时对话}}
-      flowcraft-chat-assistant.model:
+      eino-chat-assistant.model:
         resource_id: doubao-seed-2-1-lite
         i18n: {en: {display_name: Chat}, zh-CN: {display_name: 对话}}
       ast-translate-ja-zh.model:
@@ -68,9 +70,6 @@ spec:
         resource_id: doubao-seed-2-1-lite
         i18n: {en: {display_name: Chat}, zh-CN: {display_name: 对话}}
       eino-murder-mystery.model:
-        resource_id: doubao-seed-2-1-lite
-        i18n: {en: {display_name: Chat}, zh-CN: {display_name: 对话}}
-      flowcraft-journey-guide.model:
         resource_id: doubao-seed-2-1-lite
         i18n: {en: {display_name: Chat}, zh-CN: {display_name: 对话}}
       eino-journey-history.model:
@@ -154,6 +153,11 @@ spec:
       flowcraft-murder-mystery-test.model:
         resource_id: doubao-seed-2-1-lite
         i18n: {en: {display_name: Tester}, zh-CN: {display_name: 验收}}
+    tools:
+      # workflows/chat-assistant/eino.yaml allows this Tool through spec.toolkit.tool_ids.
+      web-search:
+        resource_id: volc-web-search
+        i18n: {en: {display_name: Web Search}, zh-CN: {display_name: 联网搜索}}
     voices:
       # Replace each placeholder with a Voice metadata.id selected by the consuming product.
 
@@ -162,8 +166,8 @@ spec:
         resource_id: <voice-resource-id>
         i18n: {en: {display_name: Doubao Assistant}, zh-CN: {display_name: 豆包助手}}
 
-      # workflows/flowcraft/chat-assistant.yaml
-      flowcraft-chat-assistant.assistant:
+      # workflows/chat-assistant/eino.yaml
+      eino-chat-assistant.assistant:
         resource_id: <voice-resource-id>
         i18n: {en: {display_name: General Assistant}, zh-CN: {display_name: 通用助手}}
 
@@ -190,10 +194,7 @@ spec:
         resource_id: <voice-resource-id>
         i18n: {en: {display_name: Translator}, zh-CN: {display_name: 翻译员}}
 
-      # workflows/flowcraft/journey-guide.yaml
-      flowcraft-journey-guide.narrator:
-        resource_id: <voice-resource-id>
-        i18n: {en: {display_name: Journey Narrator}, zh-CN: {display_name: 西游记旁白}}
+      # workflows/journey-guide/eino-*.yaml
       eino-journey-memory-recall.narrator:
         resource_id: <voice-resource-id>
         i18n: {en: {display_name: Journey Narrator}, zh-CN: {display_name: 西游记旁白}}

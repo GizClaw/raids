@@ -49,6 +49,7 @@ steps:
       parameters:
         eino_workspace_parameters:
           agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          safety_fence_level: 'off'
           conversation:
             initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
           input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
@@ -79,7 +80,7 @@ steps:
     "/audio_eos":
       equals: true
     "/text":
-      min_length: 20
+      non_empty: true
       pattern: "[？?][^？?]{0,40}$"
       contains_any: &2
       - 石猴
@@ -108,7 +109,7 @@ steps:
     "/audio_eos":
       equals: true
     "/text":
-      min_length: 20
+      non_empty: true
       pattern: "[？?][^？?]{0,40}$"
       not_contains: &1
       - 明月
@@ -129,7 +130,7 @@ steps:
     "/audio_eos":
       equals: true
     "/text":
-      min_length: 20
+      non_empty: true
       pattern: "[？?][^？?]{0,40}$"
       not_contains: *1
 - id: eino_memory_recall_device_leave
@@ -158,7 +159,7 @@ steps:
     "/audio_eos":
       equals: true
     "/text":
-      min_length: 20
+      non_empty: true
       pattern: "[？?][^？?]{0,40}$"
       not_contains: *1
 - timeout: 4m
@@ -176,7 +177,7 @@ steps:
     "/audio_eos":
       equals: true
     "/text":
-      min_length: 20
+      non_empty: true
       pattern: "[？?][^？?]{0,40}$"
       contains_any: *2
       not_contains: *1

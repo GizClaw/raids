@@ -34,5 +34,5 @@ fails on drift, and runs `cases.py`.
   and checks that every card node exists and never names its own answer.
 
 Runtime profiles stay hand-written: add `eino-<raid>` to `raidtest-targets` and
-the `guess` collection, `<raid>-test` to `raidtest-testers`, the `.model` and
+bindings tagged `category:guess`, `<raid>-test` to bindings tagged `category:raidtest-testers`, the `.model` and
 `-test.model` aliases, and the `.host` Voice in both profiles.

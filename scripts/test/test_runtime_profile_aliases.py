@@ -15,13 +15,18 @@ class RuntimeProfileAliasesTest(unittest.TestCase):
     def test_every_alias_map_is_checked(self):
         binding = {'resource_id': 'x'}
         spec = {
-            'workflows': {'learn.math_grade1': binding, 'ok': {**binding, 'tags': ['opaque tag with spaces']}},
+            'workflows': {'learn.math_grade1': binding, 'shared': binding},
             'resources': {'models': {'a_b.model': binding}, 'voices': {'ok.voice': binding},
                           'memories': {'Mem': binding}},
             'app_config': {'bad_key': 'v'},
         }
         names = [name for _, name in runtime_profile_aliases.errors(spec)]
         self.assertEqual(['learn.math_grade1', 'a_b.model', 'Mem', 'bad_key'], names)
+
+    def test_legacy_collection_shape_is_rejected(self):
+        spec = {'workflows': {'collections': {'story': {'alice': {'resource_id': 'x'}}}}}
+        self.assertEqual([['workflows (expected a flat resource binding)', 'collections']],
+                         runtime_profile_aliases.errors(spec))
 
 
 if __name__ == '__main__':

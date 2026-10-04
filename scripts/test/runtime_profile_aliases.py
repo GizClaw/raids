@@ -1,4 +1,4 @@
-# GizClaw 0.18.15+ rejects a RuntimeProfile whose binding keys
+# GizClaw rejects a RuntimeProfile whose Workflow binding keys
 # or app_config keys break runtimealias.Validate, but only when a Server
 # normalizes it: `gizclaw admin validate` accepts the same file. Mirror the rule
 # so a non-conforming alias fails offline instead of at `gizclaw admin apply`.
@@ -18,8 +18,7 @@ def valid(alias_name):
     return isinstance(alias_name, str) and len(alias_name.encode('utf-8')) <= MAX_BYTES and PATTERN.fullmatch(alias_name) is not None
 
 
-# Returns [path, alias] pairs for every alias the Server would reject, plus
-# malformed aliases.
+# Returns [path, alias] pairs for every alias the Server would reject.
 def errors(spec):
     found = []
 
@@ -27,8 +26,10 @@ def errors(spec):
         if not valid(name):
             found.append([path, name])
 
-    for name in (spec.get('workflows') or {}).keys():
+    for name, binding in (spec.get('workflows') or {}).items():
         check('workflows', name)
+        if not isinstance(binding, dict) or not isinstance(binding.get('resource_id'), str):
+            found.append(['workflows (expected a flat resource binding)', name])
     for kind, bindings in (spec.get('resources') or {}).items():
         for name in (bindings or {}).keys():
             check(f'resources.{kind}', name)

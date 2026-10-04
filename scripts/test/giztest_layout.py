@@ -152,6 +152,26 @@ def check_matcher_types(doc, file):
             visit(step)
 
 
+def check_workspace_contract(doc, file, profile):
+    # Schema validation cannot establish membership in the selected Profile.
+    # Mirror the 0.23.2 name and fence binding checks before a live run.
+    aliases = profile.get('workflows') or {}
+    fences = profile.get('safety_fences') or {}
+    for step in steps(doc):
+        if rpc(step).get('method') != 'server.workspace.create':
+            continue
+        request = rpc(step).get('request') or {}
+        check('collection' not in request, f"{file}: {step.get('id')} uses removed collection field")
+        check(request.get('workflow_name') in aliases,
+              f"{file}: {step.get('id')} Workflow name is not bound in testing Profile")
+        parameters = request.get('parameters') or {}
+        values = [v for k, v in parameters.items() if k.endswith('_workspace_parameters') and isinstance(v, dict)]
+        if fences:
+            check(len(values) == 1 and isinstance(values[0].get('safety_fence_level'), str) and
+                  values[0]['safety_fence_level'] in fences,
+                  f"{file}: {step.get('id')} must select a Profile-defined safety fence ID")
+
+
 def check_workspace_order(doc, file):
     # Generated Workspace names must be created on that client before selection.
     def workspace(step, field='name'):
@@ -564,7 +584,12 @@ def check_realtime(file, manifest, raid):
 
 
 def validate():
-    workflow_aliases = load_yaml('runtime-profiles/testing.yaml')['spec']['workflows']
+    profile = load_yaml('runtime-profiles/testing.yaml')['spec']
+    workflow_aliases = profile['workflows']
+    for file in sorted(glob.glob('tests/giztest/*/*.giztest.yaml')):
+        # H106 uses a deploy-owned Profile, whose fence selections belong to it.
+        if file.split('/')[2] != 'h106':
+            check_workspace_contract(load_yaml(file), file, profile)
     raids = sorted(os.path.basename(os.path.dirname(f)) for f in glob.glob('workflows/*/raid.json'))
     for tier in TIERS:
         tier_raids = [raid for raid in raids if tier in raid_tiers(raid)]

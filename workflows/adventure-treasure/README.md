@@ -10,7 +10,7 @@ Every player-facing system prompt starts with the Workspace fence, then a
 blank line and the scenario instructions: Flowcraft uses `${board.safety_fence}`;
 Eino binds `input.safety_fence` and renders `{safety_fence}` with `f_string`.
 This covers all narrator/character paths, prompt branches, and available variants.
-At `off`, only two leading newlines remain. Internal routing/memory nodes and
+With empty fence text, only two leading newlines remain. Internal routing/memory nodes and
 Tester Workflows do not receive the variable. See the root
 [contract and GizClaw compatibility requirement](../../README.md#workspace-safety-fence).
 
@@ -21,7 +21,7 @@ Tester Workflows do not receive the variable. See the root
 | `eino.yaml` | `eino-adventure-treasure` | eino | adventure | `eino-adventure-treasure.model` | `eino-adventure-treasure.adventure-guide` |
 | `flowcraft.yaml` | `flowcraft-adventure-treasure` | flowcraft | adventure | `flowcraft-adventure-treasure.model` | `flowcraft-adventure-treasure.adventure-guide` |
 
-Install an implementation into a RuntimeProfile with `raids install adventure-treasure --impl <engine> --profile <file> --collection <name> --set model.<alias>=<model id> --set voice.<alias>=<voice id>`; the slots above are the parameters the installer asks for.
+Install the Workflow resource and add a flat `spec.workflows` binding to its Workflow ID. Bind the slots above under `spec.resources.models` and `spec.resources.voices`; use `category:*` tags for discovery.
 
 
 ## Testing

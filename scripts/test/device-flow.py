@@ -82,14 +82,13 @@ def testing_profile():
     return load_yaml('runtime-profiles/testing.yaml')
 
 
-# The testing RuntimeProfile decides which tag and alias reach a Workflow.
+# The testing RuntimeProfile decides which flat alias reaches a Workflow.
 def target(workflow):
-    bindings = dig(testing_profile(), 'spec', 'workflows')
-    ordered = sorted(bindings.items(), key=lambda item: 0 if 'raidtest-targets' in item[1].get('tags', []) else 1)
+    aliases = dig(testing_profile(), 'spec', 'workflows')
+    ordered = sorted(aliases.items(), key=lambda item: 0 if 'category:raidtest-targets' in item[1].get('tags', []) else 1)
     for key, binding in ordered:
         if binding.get('resource_id') == workflow:
-            tags = binding.get('tags', [])
-            return ('raidtest-targets' if 'raidtest-targets' in tags else tags[0]), key
+            return key
     raise RuntimeError(f'{workflow}: not bound in runtime-profiles/testing.yaml')
 
 
@@ -109,8 +108,9 @@ def turn(name, client, text, expect, timeout):
     }
 
 
-def question(extra):
-    return {'min_length': 20, 'pattern': ENDS_WITH_QUESTION, **extra}
+def question(extra, free_length=False):
+    presence = {'non_empty': True} if free_length else {'min_length': 20}
+    return {**presence, 'pattern': ENDS_WITH_QUESTION, **extra}
 
 
 def document(raid, suffix, impl):
@@ -126,6 +126,7 @@ def document(raid, suffix, impl):
     parameters = {
         f'{driver}_workspace_parameters': {
             'agent_type': f'{driver.upper()}_WORKSPACE_PARAMETERS_AGENT_TYPE_{driver.upper()}',
+            'safety_fence_level': 'off',
             'conversation': {'initiative': 'CONVERSATION_PARAMETERS_INITIATIVE_PEER'},
             'input': 'WORKSPACE_INPUT_MODE_PUSH_TO_TALK'
         }
@@ -148,18 +149,18 @@ def document(raid, suffix, impl):
         resume = question({'not_contains': (['【', '】'] if multi_role else []) + ['第 1 章', '你可以直接说出你的选择']})
         restart = question({**markers, 'not_contains': ['【', '】'] + NEXT_CHAPTER_HEADING}) if multi_role else question({'contains_all': ['第 1 章', first]})
     elif journey:
-        turns.append(turn('start', client, '开始', question({'contains_any': JOURNEY_OPENING, 'not_contains': JOURNEY_TEST_FACTS + ['紧箍', '取经路上']}), timeout))
-        turns.append(turn('chapter_choice', client, '我选第一个', question({'not_contains': JOURNEY_TEST_FACTS}), timeout))
-        turns.append(turn('continue', client, '继续', question({'not_contains': JOURNEY_TEST_FACTS}), timeout))
-        resume = question({'not_contains': JOURNEY_TEST_FACTS})
-        restart = question({'contains_any': JOURNEY_OPENING, 'not_contains': JOURNEY_TEST_FACTS})
+        turns.append(turn('start', client, '开始', question({'contains_any': JOURNEY_OPENING, 'not_contains': JOURNEY_TEST_FACTS + ['紧箍', '取经路上']}, free_length=True), timeout))
+        turns.append(turn('chapter_choice', client, '我选第一个', question({'not_contains': JOURNEY_TEST_FACTS}, free_length=True), timeout))
+        turns.append(turn('continue', client, '继续', question({'not_contains': JOURNEY_TEST_FACTS}, free_length=True), timeout))
+        resume = question({'not_contains': JOURNEY_TEST_FACTS}, free_length=True)
+        restart = question({'contains_any': JOURNEY_OPENING, 'not_contains': JOURNEY_TEST_FACTS}, free_length=True)
     else:
         turns.append(turn('start', client, '开始', question(markers), timeout))
         turns.append(turn('chapter_choice', client, '我选第一个', question(markers), timeout))
         turns.append(turn('continue', client, '继续', question(markers), timeout))
         resume = question(markers)
         restart = question(markers)
-    _, workflow = target(dig(load_yaml(f'workflows/{raid}/{suffix}.yaml'), 'metadata', 'id'))
+    workflow = target(dig(load_yaml(f'workflows/{raid}/{suffix}.yaml'), 'metadata', 'id'))
     steps = [
         {'id': f'{client}_device_register', 'client': client, 'rpc': {'method': 'server.register', 'request': {'token': '${registration_token}'}}},
         {'id': f'{client}_device_create_workspace', 'client': client, 'rpc': {'method': 'server.workspace.create', 'request': {

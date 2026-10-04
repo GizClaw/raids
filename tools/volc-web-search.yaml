@@ -1,0 +1,54 @@
+---
+apiVersion: gizclaw.admin/v1alpha1
+kind: Tool
+metadata:
+  id: volc-web-search
+spec:
+  type: http_request
+  invoke_name: web_search
+  description: >-
+    联网搜索网页，返回与搜索词相关的网页结果，每条含标题、站点、发布时间、摘要和正文。
+    天气、新闻、赛事、价格、日期，或“今天”“现在”“最近”“最新”等实时和近期信息，
+    以及用户要求查询、核实的不确定事实，先调用它再回答。用户提供事实要求记住、确认或更正时直接确认，不调用搜索。
+  input_schema:
+    type: object
+    properties:
+      query:
+        type: string
+        description: 一个简洁的中文搜索短语，不超过 100 个字，例如“北京今天天气”。
+      search_type:
+        type: string
+        enum: [web]
+        description: 固定填 web。
+      count:
+        type: integer
+        enum: [3]
+        description: 固定填 3。
+      time_range:
+        anyOf:
+          - type: string
+            enum: [OneDay, OneWeek, OneMonth, OneYear]
+          - type: 'null'
+        description: >-
+          可选，只返回这段时间内发布的网页。结果按相关度而不是时间排序，所以问“最近”“最新”的新闻或人物动态时填 OneMonth，
+          问今天或这几天发生的事填 OneDay 或 OneWeek；天气、汇率、日期和常识直接省略 time_range，表示不限制发文时间。
+          若发送 null，必须使用 JSON 的裸值 null，绝不能发送字符串 "null"；也不得传空字符串。
+    required: [query, search_type, count]
+    additionalProperties: false
+  http:
+    # 豆包搜索 Custom 版（原联网搜索 / 融合信息搜索）API Key 接入：
+    # https://www.volcengine.com/docs/87772/2272953
+    url: https://open.feedcoopapi.com/search_api/web_search
+    method: POST
+    auth:
+      method: volc_search
+      credential: volc-credential
+    body:
+      - {argument_pointer: /query, target: /Query}
+      - {argument_pointer: /search_type, target: /SearchType}
+      - {argument_pointer: /count, target: /Count}
+      - {argument_pointer: /time_range, target: /TimeRange, required: false}
+    # Result stays present (null on failure); WebResults is omitted when nothing matches.
+    response_pointer: /Result
+    timeout: 10s
+    max_response_bytes: 1048576

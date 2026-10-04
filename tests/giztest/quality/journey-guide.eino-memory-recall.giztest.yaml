@@ -1,7 +1,7 @@
 # User Story:
 # As a Raids quality maintainer,
 # I want identical quality contracts for every implementation of journey-guide,
-# So that safety, correction, recall, routing and language regressions fail at the original gates.
+# So that safety, correction, recall, routing and language regressions remain covered without a default reply-length ceiling.
 version: gizclaw.test/v1alpha1
 name: journey-guide.quality.eino-memory-recall
 clients:
@@ -42,6 +42,7 @@ steps:
       parameters:
         eino_workspace_parameters:
           agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          safety_fence_level: 'off'
           conversation:
             initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
           input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
@@ -70,8 +71,7 @@ steps:
       contains_all:
       - 花果山
       - 青铜铃
-      min_length: 80
-      max_length: 520
+      non_empty: true
     "/first_text_ms":
       maximum: 6000
     "/audio_bytes":
@@ -88,8 +88,7 @@ steps:
     require_audio: true
   expect:
     "/text":
-      min_length: 80
-      max_length: 520
+      non_empty: true
     "/first_text_ms":
       maximum: 6000
     "/audio_bytes":
@@ -109,8 +108,7 @@ steps:
       contains_all:
       - 清禾
       - 黑风岭
-      min_length: 10
-      max_length: 200
+      non_empty: true
     "/first_text_ms":
       maximum: 6000
     "/audio_bytes":
@@ -132,8 +130,7 @@ steps:
       - 黑风岭
       not_contains:
       - 清禾
-      min_length: 10
-      max_length: 200
+      non_empty: true
     "/first_text_ms":
       maximum: 6000
     "/audio_bytes":
@@ -154,8 +151,7 @@ steps:
       - 明月
       not_contains:
       - 清禾
-      min_length: 80
-      max_length: 520
+      non_empty: true
     "/first_text_ms":
       maximum: 6000
     "/audio_bytes":
@@ -176,8 +172,7 @@ steps:
       - 商队就是迷路
       - 你继续前进
       - 你走进山洞
-      min_length: 40
-      max_length: 480
+      non_empty: true
     "/first_text_ms":
       maximum: 6000
     "/audio_bytes":
@@ -200,8 +195,7 @@ steps:
       - 黑风岭
       not_contains:
       - 清禾
-      min_length: 10
-      max_length: 200
+      non_empty: true
     "/first_text_ms":
       maximum: 6000
     "/audio_bytes":

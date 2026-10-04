@@ -14,12 +14,12 @@ Explore every classical poem in China's grade 1 primary Chinese textbooks — au
 The tutor's system prompt starts with the Workspace safety fence, followed by a
 blank line and the learning rules and knowledge card. Flowcraft references
 `${board.safety_fence}`; Eino binds `input.safety_fence` and renders
-`{safety_fence}` with `f_string`. With `off`, only two leading newlines remain.
+`{safety_fence}` with `f_string`. With empty fence text, only two leading newlines remain.
 Tester and memory nodes do not receive this variable. See the
 [Workspace safety fence contract](../../README.md#workspace-safety-fence),
 including the required GizClaw version support.
 
-Install an implementation into a RuntimeProfile with `raids install learn-chinese-poetry-grade1 --impl <engine> --profile <file> --collection <name> --set model.<alias>=<model id> --set voice.<alias>=<voice id>`; the slots above are the parameters the installer asks for.
+Install the Workflow resource and add a flat `spec.workflows` binding to its Workflow ID. Bind the slots above under `spec.resources.models` and `spec.resources.voices`; use `category:*` tags for discovery.
 
 ## Knowledge card
 
