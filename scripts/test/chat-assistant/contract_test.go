@@ -253,7 +253,7 @@ func run(t *testing.T, input, mode string, mutations ...func(*genxeino.GraphDefi
 		t.Fatal(err)
 	}
 	f := &fixture{query: input, fact: "搜索结果报码" + hex.EncodeToString(nonce)}
-	// Exercise the real self-hosted adapter, including single-fact direct imports.
+	// Exercise the real self-hosted adapter with a keyed multi-fact HTTP batch.
 	memoryHTTP := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if request.URL.Path == "/search" {
@@ -270,16 +270,26 @@ func run(t *testing.T, input, mode string, mutations ...func(*genxeino.GraphDefi
 			return
 		}
 		messages, ok := body["messages"].([]any)
-		if !ok || len(messages) != 1 || body["infer"] != false {
-			http.Error(w, "expected one direct fact", http.StatusBadRequest)
+		if !ok || len(messages) == 0 || body["infer"] != false || body["observation_id"] == nil || body["observation_digest"] == nil {
+			http.Error(w, "expected keyed direct-fact batch", http.StatusBadRequest)
 			return
 		}
-		message := messages[0].(map[string]any)
-		metadata := body["metadata"].(map[string]any)
-		_ = json.NewEncoder(w).Encode(map[string]any{"results": []any{map[string]any{
-			"id": "fact-" + metadata["gizclaw.observation_id"].(string), "memory": message["content"],
-			"user_id": body["user_id"], "metadata": metadata,
-		}}})
+		var results []any
+		for index, value := range messages {
+			message := value.(map[string]any)
+			metadata, _ := message["metadata"].(map[string]any)
+			if metadata == nil {
+				metadata = map[string]any{}
+			}
+			metadata["gizclaw.observation_id"] = body["observation_id"]
+			metadata["gizclaw.observation_digest"] = body["observation_digest"]
+			metadata["gizclaw.fact_index"] = index
+			results = append(results, map[string]any{
+				"id": fmt.Sprintf("fact-%s-%d", body["observation_id"], index), "memory": message["content"],
+				"user_id": body["user_id"], "metadata": metadata,
+			})
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"results": results})
 	}))
 	t.Cleanup(memoryHTTP.Close)
 	delegate, err := mem0.New(mem0.Config{Endpoint: memoryHTTP.URL, Flavor: mem0.SelfHosted, HTTPClient: memoryHTTP.Client()})
@@ -434,38 +444,27 @@ func TestObservesUserAndAssistantWithoutSearchingCasualTurn(t *testing.T) {
 }
 
 func observationError(input, answer string, observations []memory.Observation) error {
-	if len(observations) != 2 || len(observations[0].Facts) != 1 || len(observations[1].Facts) != 1 ||
-		observations[0].Facts[0].Text != input || observations[1].Facts[0].Text != answer ||
-		observations[0].ID == observations[1].ID {
-		return fmt.Errorf("observations lost independent user or assistant facts: %#v", observations)
+	if len(observations) != 1 || len(observations[0].Facts) != 2 ||
+		observations[0].Facts[0].Text != input || observations[0].Facts[1].Text != answer || observations[0].ID == "" {
+		return fmt.Errorf("one observation lost the user or assistant facts: %#v", observations)
 	}
 	return nil
 }
 
 func TestObservationOracleRejectsMissingAssistantCandidate(t *testing.T) {
 	input := "以后请叫我米娜。"
-	answer, _, observation := run(t, input, "casual", func(graph *genxeino.GraphDefinition) {
-		var nodes []genxeino.NodeDefinition
-		for _, node := range graph.Nodes {
-			if node.ID != "observe-assistant-memory" {
-				nodes = append(nodes, node)
+	answer, _, observations := run(t, input, "casual", func(graph *genxeino.GraphDefinition) {
+		for i := range graph.Nodes {
+			if node := graph.Nodes[i].MemoryObserve; node != nil {
+				node.Facts = node.Facts[:1]
 			}
 		}
-		graph.Nodes = nodes
-		var edges []genxeino.EdgeDefinition
-		for _, edge := range graph.Edges {
-			if edge.From == "observe-assistant-memory" || edge.To == "observe-assistant-memory" {
-				continue
-			}
-			edges = append(edges, edge)
-		}
-		graph.Edges = append(edges, genxeino.EdgeDefinition{From: "observe-user-memory", To: "end"})
 	})
-	if len(observation) != 1 || len(observation[0].Facts) != 1 || observation[0].Facts[0].Text != input {
-		t.Fatalf("mutation did not remove only the assistant observation: %#v", observation)
+	if len(observations) != 1 || len(observations[0].Facts) != 1 || observations[0].Facts[0].Text != input {
+		t.Fatalf("mutation did not remove only the assistant fact: %#v", observations)
 	}
-	if err := observationError(input, answer, observation); err == nil {
-		t.Fatal("missing assistant observation passed the complete-turn oracle")
+	if err := observationError(input, answer, observations); err == nil {
+		t.Fatal("missing assistant fact passed the complete-turn oracle")
 	}
 }
 
