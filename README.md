@@ -158,7 +158,7 @@ a recognized player reply path fails and needs an explicit coverage review
 when adding a new graph shape.
 
 **Runtime dependency:** the fence needs **GizClaw v0.20.2** or later for both
-validation and serving; CI now pins v0.24.1 with Profile-defined string IDs. Earlier releases reject Eino's
+validation and serving; CI now pins v0.24.2 with Profile-defined string IDs. Earlier releases reject Eino's
 `input.safety_fence` binding as undeclared.
 
 This contract covers every raid with Flowcraft/Eino implementations and
@@ -804,6 +804,11 @@ Versioned packages use the corresponding Git tag archive, for example:
 ```text
 https://github.com/GizClaw/raids/archive/refs/tags/v0.4.0.tar.gz
 ```
+
+Release `v0.18.0` selects Eino for the public Chat and stable Journey entries,
+adds Profile-bound Chat web search, and validates against GizClaw v0.24.2.
+Self-hosted Mem0 requires that runtime for Chat's single-node two-fact writes;
+the catalog does not split observations according to the chosen provider.
 
 Release `v0.2` includes the public `chatroom` and `pet-care` system Workflows
 for Desktop consumers.
