@@ -4,7 +4,9 @@
 # the level and the puzzle number, and (level, puzzle) picks the secret.
 # Each turn makes one model call: this script either writes the host's
 # instruction for build-host-prompt, or activates the current puzzle's card
-# node, whose card has the name removed so the host cannot say it.
+# node. The card omits the name; the instruction supplies the fixed answer
+# privately so the host can judge facts and equivalent guesses without
+# changing the answer or revealing it before the round ends.
 DATA = @@DATA@@
 MAX_ASK = 20
 MAX_HINTS = 3
@@ -29,8 +31,11 @@ CLOSINGS_EN = ["What's your next question?", "What would you like to ask next?",
 HINT_CUES = ["提示", "线索", "帮帮我", "帮我一下", "猜不到", "猜不出", "想不出", "太难了", "hint", "clue", "helpme", "imstuck"]
 ANSWER_REQUEST_CUES = ["告诉我答案", "答案是什么", "直接告诉我", "到底是谁", "到底是什么", "你说答案", "tellmetheanswer", "whatistheanswer", "justtellme", "whoisit", "whatisit"]
 GIVE_UP_CUES = ["我放弃", "放弃了", "不猜了", "认输", "猜不出来了", "igiveup", "giveup"]
-# What may surround the secret's name in a guess such as “是孔子吗” or “Is it Confucius?”.
-GUESS_FILLERS = ["是不是", "我猜是", "我猜", "我觉得是", "我觉得", "答案是", "谜底是", "应该是", "会不会是", "难道是", "那就是", "就是", "是", "吗", "呀", "啊", "呢", "吧", "嘛", "他", "她", "它", "这个人", "这个成语", "这个故事", "的故事", "成语", "故事", "这个", "这种", "那个", "一只", "一头", "一条", "一种", "一个", "一位", "一匹", "一块", "一座", "一颗", "一台", "一辆", "一件", "一项", "一本", "一张", "theansweris", "isit", "itis", "iguess", "ithink", "maybe", "is", "it", "the", "an", "a"]
+# Strip wrappers only at the edges, never words from inside an answer or a
+# property question. Matching a wrapper is optional; the model can judge an
+# equivalent guess using the privately supplied fixed answer.
+GUESS_PREFIXES = ["我想问", "请问", "所以", "那么", "你选的", "你想的", "你藏的", "这个东西", "这个物质", "是不是", "我猜", "我觉得", "答案", "谜底", "应该", "会不会", "难道", "那", "就是", "是", "他", "她", "它", "这个人", "这个成语", "这个故事", "成语", "故事", "这个", "这种", "那个", "一只", "一头", "一条", "一种", "一个", "一位", "一匹", "一块", "一座", "一颗", "一台", "一辆", "一件", "一项", "一本", "一张", "coulditbe", "couldit", "woulditbe", "wouldit", "isit", "itis", "theansweris", "iguess", "ithink", "maybe", "is", "it", "be", "the", "an", "a"]
+GUESS_SUFFIXES = ["的故事", "对不对", "对吗", "吗", "呀", "啊", "呢", "吧", "嘛"]
 DECLINE_EXACT = ["不要", "不想", "不了", "不用了", "先不了", "no", "nope", "notnow", "nothanks"]
 
 def compact(text):
@@ -302,15 +307,60 @@ def farewell(lang, state, midround):
 
 def is_guess(text, item):
     word = compact(text)
-    for name in sorted([compact(n) for n in names_of(item) if n != ""], key=len, reverse=True):
-        if name == "" or name not in word:
-            continue
-        rest = word.replace(name, "")
-        # Longest first, so "an" is not cut down to a stray "n" by "a".
-        for filler in sorted(GUESS_FILLERS, key=len, reverse=True):
-            rest = rest.replace(filler, "")
-        return rest == ""
+    names = [compact(n) for n in names_of(item) if n != ""]
+    # Each pass shortens the input, so its byte length bounds the work.
+    for unused in range(len(word) + 1):
+        if word in names:
+            return True
+        trimmed = False
+        for prefix in sorted(GUESS_PREFIXES, key=len, reverse=True):
+            if word.startswith(prefix):
+                word = word[len(prefix):]
+                trimmed = True
+                break
+        for suffix in sorted(GUESS_SUFFIXES, key=len, reverse=True):
+            if word.endswith(suffix):
+                word = word[:-len(suffix)]
+                trimmed = True
+                break
+        if not trimmed:
+            break
+    # An explicitly named different puzzle stays wrong even if it sounds
+    # similar. Only a whole name, after removing grammatical wrappers, can
+    # be recognized as a transcription of this puzzle's name.
+    for level in DATA["levels"]:
+        for other in level["items"]:
+            for name in names_of(other):
+                if word == compact(name) and word not in names:
+                    return False
+    for name in names:
+        if same_pronunciation(word, name):
+            return True
     return False
+
+def same_pronunciation(word, name):
+    # Compare the whole direct guess, not a name found inside a property or
+    # negated question. Alternatives come from the full pronunciation data,
+    # not from the regression's example spellings. Mandarin ASR can lose tone.
+    given = list(word.codepoints())
+    expected = list(name.codepoints())
+    if len(given) != len(expected) or len(given) == 0:
+        return False
+    changed = False
+    for a, b in zip(given, expected):
+        if a == b:
+            continue
+        if a not in DATA["homophones"].get(b, ""):
+            return False
+        changed = True
+    return changed
+
+def locked_answer(lang, state):
+    item = secret_for(state["level"], state["puzzle"])
+    names = " / ".join(names_of(item))
+    if lang == "en":
+        return "[Fixed answer, private] Level " + str(state["level"]) + ", puzzle " + str(state["puzzle"]) + ": " + names + ". Use this answer for every judgment; do not choose another or disclose it before the round ends.\n"
+    return "【固定谜底，仅供内部判断】第 " + str(state["level"]) + " 关，第 " + str(state["puzzle"]) + " 题：" + names + "。每次判断都用这个答案，不能另选，不能在本题结束前主动透露。\n"
 
 def reveal(lang, state, reason):
     # The whole reveal is our own text, so the host reads it verbatim instead of
@@ -377,19 +427,23 @@ def answer_rules(lang, state):
     sample = example(lang, asked)
     if lang == "en":
         lines = [
-            "The child is asking or guessing. The system has already checked that the child did NOT name the answer.",
-            "Answer from the puzzle card: if it is a yes or no question, start with “Yes” or “No” and you may restate it (if they asked “" + ex_q[0] + "”, say “" + ex_q[1] + " " + closing + "” or “" + ex_q[2] + " " + closing + "”). Mostly true with a clear exception: start with “Partly”. Not on the card and not sure: start with “I'm not sure about that one”. Titles given after death or by later admirers do not count.",
+            "The child is asking or guessing about the fixed answer. A phrasing the script did not match is not necessarily a wrong guess. Never change the fixed answer to fit the conversation.",
+            "Judge the exact proposition the child asked, including its cause, time and words like every or always. A question asking whether a property is true is a yes-or-no question, including technical terms, universal statements and properties absent from the card. Do not reject it as an open-ended question merely because it is more detailed than the examples.",
+            "Answer from the fixed answer, puzzle card and well-established facts you are sure of: if it is a yes or no question, start with “Yes” or “No” and you may restate it (if they asked “" + ex_q[0] + "”, say “" + ex_q[1] + " " + closing + "” or “" + ex_q[2] + " " + closing + "”). Use “Partly” only when the asked property itself varies across the cases they asked about. A false cause or time is “No”, even if some other detail in the question is true. Only if genuinely unsure, start with “I'm not sure about that one”; a fact being absent from the card does not make it unknown. Never give a false or uncertain answer merely to keep the secret. Titles given after death or by later admirers do not count.",
             "Only answer and restate. Never explain why, and never say any book, work, event, title, place, person or number from the card.",
-            "If the child names an answer to guess, it is wrong: start with “No”, say that is not it, and encourage them.",
+            "Every child message may be a speech transcript, even when it looks like typed text. For a direct name guess, compare its pronunciation with the fixed name and aliases BEFORE judging its literal spelling. If the whole guessed name sounds the same, it is a correct guess, including a ONE-CHARACTER answer written with a different homophone; never reject it just because that written character means something else. Also accept an obvious spelling slip that clearly names the fixed answer. If pronunciation and meaning are genuinely ambiguous, ask the child to repeat. A property question is not a name guess.",
+            "Distinguish a direct answer guess from a question about a property. A category or shared feature alone is not a correct guess. If their direct guess names or unambiguously means the fixed answer, they won: " + reveal("en", state, "win") + " In that case skip all ordinary-answer, hint, closing and question-limit instructions. Otherwise, only reject a direct guess if it means a different answer: start with “No” and encourage them.",
             "If it cannot be answered with yes or no (a name, a year, letters of the name): start with “I can only answer yes or no” and give exactly this example: “" + sample + "”.",
             "If they ask for the answer or who it is without giving up, tell them they can say “I give up” to see it.",
         ]
     else:
         lines = [
-            "孩子在提问或猜答案。系统已经核对过：孩子这句话没有说中谜底。",
-            "按谜底卡回答：能用“是/不是”回答的问题，回复第一个字必须是“是”，或以“不是”开头，后面可以把问题改成陈述句复述一遍（孩子问“" + ex_q[0] + "”就说“" + ex_q[1] + closing + "”或“" + ex_q[2] + closing + "”）；大体对但有明显例外就以“有一部分是”开头；卡上没写到、拿不准就以“这个我也说不准”开头。身份按本人真实做过的事判断，后世追封、尊称不算。",
+            "孩子在提问或猜本题的固定谜底。脚本没有匹配到的说法不等于猜错；不能为了迎合对话更换固定谜底。",
+            "先判断孩子问的完整命题，包括原因、时间和“每条、所有、一定”等限定。询问某个属性是否成立，就是是非题；含有专业术语、全称判断或卡片未写出的属性也一样，不能因为比示例更具体就当成开放式问题拒答。",
+            "按固定谜底、谜底卡和你确定的公认常识回答：能用“是/不是”回答的问题，回复第一个字必须是“是”，或以“不是”开头，后面可以把问题改成陈述句复述一遍（孩子问“" + ex_q[0] + "”就说“" + ex_q[1] + closing + "”或“" + ex_q[2] + closing + "”）；只有所问属性本身在孩子问到的不同情况中有真有假，才以“有一部分是”开头。问的原因或时间不对就答“不是”，不能因为句子里另一个事实成立就答部分是。确实拿不准才以“这个我也说不准”开头。卡片没写出某个事实不代表不知道，不能为了保密故意答错或假装不知道。身份按本人真实做过的事判断，后世追封、尊称不算。",
             "只回答和复述，不要解释原因，绝不能说出谜底卡上的书名、作品、事件、称号、地名、人名或数字。",
-            "如果孩子是直接说出一个答案来猜，那一定猜错了：以“不是”开头，说“不是某某哦”（某某换成孩子猜的答案），再鼓励一句。",
+            "孩子的每条输入都可能是语音转写，即使看起来像打字。直接猜名字时，先比较整段名字的读音与固定谜底及别名是否相同，再考虑字形；读音相同就算猜中。只有一个字的谜底也一样：转写为另一个同音字，必须按固定谜底判猜中，绝不能按那个字的另一种字面意思判错。明显的形近错别字也应按原意判定。确实有歧义才请孩子再说一遍，不要把询问属性误当成猜名字。",
+            "先区分直接猜答案和询问属性；只猜中类别或共有特征不算猜中谜底。如果孩子直接猜的名称、别名或明确的同义表达指向固定谜底，必须判猜中：" + reveal("zh", state, "win") + "。这时不再执行普通回答、提示、结尾和次数用完的指令。只有直接猜的是另一个答案时才以“不是”开头并鼓励继续猜。",
             "如果问题不能用是或不是回答（例如问名字、问哪一年、问名字里的字）：以“这个问题我只能回答是或不是哦”开头，再逐字举这个例子：“" + sample + "”。",
             "如果孩子要答案或问谜底是谁但没有说放弃：告诉孩子想看答案可以说“我放弃”。",
         ]
@@ -410,7 +464,9 @@ def play(text, lang, state):
     level = state["level"]
     item = secret_for(level, state["puzzle"])
     if is_guess(text, item):
-        return say(lang, reveal("zh", state, "win"), reveal("en", state, "win"))
+        result = say(lang, reveal("zh", state, "win"), reveal("en", state, "win"))
+        result["node"] = "read-winning-reply"
+        return result
     if matches_any(compact(text), GIVE_UP_CUES):
         return say(lang, reveal("zh", state, "giveup"), reveal("en", state, "giveup"))
     if matches_any(compact(text), HINT_CUES):
@@ -418,18 +474,18 @@ def play(text, lang, state):
     lines = answer_rules(lang, state)
     left = MAX_ASK - state["asked"] - 1
     if left <= 0:
-        lines.append(("This was the 20th question. First answer it in one sentence by the rules above, then say this exactly, word for word: “" + reveal_words("en", state, "out") + "”") if lang == "en" else ("这是第 20 问。先按上面的规则用一句话回答这一问，然后" + reveal("zh", state, "out")))
+        lines.append(("If the child did not win: this was the 20th question. First answer it in one sentence by the rules above, then say this exactly, word for word: “" + reveal_words("en", state, "out") + "”") if lang == "en" else ("如果孩子没有猜中：这是第 20 问。先按上面的规则用一句话回答这一问，然后" + reveal("zh", state, "out")))
     else:
         if left in REMIND_AT:
             lines.append(("Also tell the child they have " + str(left) + " questions left.") if lang == "en" else ("再告诉孩子还剩 " + str(left) + " 次提问机会。"))
         if lang == "en":
             # English replies tend to stop after the answer, so the two-part
             # shape goes first where the model cannot miss it.
-            lines.insert(0, "Your reply must be two parts: first your answer as described below, then exactly this question: “" + CLOSINGS_EN[state["asked"] % len(CLOSINGS_EN)] + "” Never stop after the answer.")
-            lines.append("Every reply ends with that question.")
+            lines.insert(0, "For an ordinary question or a wrong guess, your reply must be two parts: first your answer as described below, then exactly this question: “" + CLOSINGS_EN[state["asked"] % len(CLOSINGS_EN)] + "” Never stop after the answer.")
+            lines.append("An ordinary answer or a wrong guess ends with that question; a correct guess uses the win paragraph instead.")
         else:
-            lines.append("最后一句必须是以问号结尾的简短问句，例如“" + CLOSINGS_ZH[state["asked"] % len(CLOSINGS_ZH)] + "”，不要用“请继续提问吧”这类陈述句结尾。")
-    return {"route": "play", "node": card_node(level, state["puzzle"]), "direction": head(lang) + "\n".join(lines), "rules": DATA["host_rules"]}
+            lines.append("普通回答或猜错时，最后一句必须是以问号结尾的简短问句，例如“" + CLOSINGS_ZH[state["asked"] % len(CLOSINGS_ZH)] + "”，不要用“请继续提问吧”这类陈述句结尾；猜中时只说上面的整段获胜揭晓。")
+    return {"route": "play", "node": card_node(level, state["puzzle"]), "direction": head(lang) + locked_answer(lang, state) + "\n".join(lines), "rules": DATA["host_rules"]}
 
 def follow_up(text, lang, state):
     # The revealed puzzle's own card node answers the follow-up question.
@@ -437,7 +493,7 @@ def follow_up(text, lang, state):
         body = "The last answer has been revealed and the child is asking about it. Answer in one or two short, child-friendly sentences: use the puzzle card first, and you may add well-established common knowledge you are sure of; if you are not sure, say so. Do not start a new puzzle or say “Puzzle time”. End with exactly “Ready for the next puzzle?”"
     else:
         body = "上一题的答案已经揭晓，孩子在追问和它有关的问题。用一两句适合小朋友的话简短回答：先用谜底卡上的内容，卡上没有的，可以补充你确定的公认常识；拿不准就直说不知道。不要开启新的一题，不要说“谜题来啦”；最后逐字问“准备好挑战下一题了吗？”"
-    return {"route": "follow", "node": card_node(state["level"], state["puzzle"]), "direction": head(lang) + body, "rules": DATA["host_rules"]}
+    return {"route": "follow", "node": card_node(state["level"], state["puzzle"]), "direction": head(lang) + locked_answer(lang, state) + body, "rules": DATA["host_rules"]}
 
 def matches_any(word, words):
     for candidate in words:

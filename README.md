@@ -372,18 +372,21 @@ level's puzzles are a fixed list and every turn rebuilds the game from the
 spoken History: the latest `谜题来啦！第 N 关…，第 K 题。` (or `Puzzle time!
 Level N, …, puzzle K.`) opening names the level and the puzzle counter, and the
 counter walks the level's list without repeats. Every turn makes one model call.
-The control script itself recognises a correct guess (the secret's name or an
-alias), a give-up, and a hint request, and has the host read out the reveal or
-the next prewritten hint verbatim. Any other question activates the current
-puzzle's own prompt node, whose card has every name blanked out, so the host
-answers yes or no from the card and cannot say a name it never sees. The host
-replies in the language the child just used.
+The control script recognises names, aliases and whole-name Mandarin homophone
+transcriptions, a give-up, and a hint request. A matched correct guess goes to
+`read-winning-reply` with the already decided announcement, without the raw
+guess or conversation for the model to rejudge. Other questions activate the
+current puzzle's own prompt node. Its instruction privately supplies the same
+fixed answer every turn; its card supplies the facts. The host can use established
+knowledge beyond the card and recognise an equivalent guess, while keeping the
+answer secret until the round ends. It replies in the child's current language,
+Chinese or English.
 
 Each puzzle has a knowledge card, `cards/guess/<subject>/<谜底>.txt` (`<subject>` is the raid ID without `guess-`): one
 `字段：值` line per field, in the order of that raid's `_template.txt`, ending
 with three prewritten small hints. The Workflow gives every card its own prompt
 node; the control script only picks the node for the current puzzle, so the
-host reads that one (nameless) card and nothing else. `workflows/<raid>/puzzles.json` keeps the level order (card names
+host reads that one card with the private fixed-answer instruction. `workflows/<raid>/puzzles.json` keeps the level order (card names
 per level), level titles, judge and hint guidance, and the scripted test route.
 Run `python3 scripts/guess/generate.py` to refresh the Workflow, Tester,
 manifest, README, and Giztests; `make test-unit-guess` regenerates every package in a
@@ -573,7 +576,7 @@ declarative Giztest corpus with `gizclaw test validate`. It also validates
 resources.
 
 Checks and generators are Python 3 behind the shell Make entry points; only the
-routing gate invokes native Starlark through its Node.js coordinator and Go. The Python scripts need PyYAML, pinned in `scripts/requirements.txt`:
+routing gate invokes native Starlark through its Node.js coordinator and Go. The Python scripts need PyYAML and the Guess generator needs pypinyin, both pinned in `scripts/requirements.txt`:
 
 ```sh
 python3 -m pip install -r scripts/requirements.txt

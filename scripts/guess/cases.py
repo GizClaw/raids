@@ -58,14 +58,15 @@ def control_cases(data: dict[str, Any]) -> list[dict[str, Any]]:
     lost = round2 + [user("我放弃"), host(f"没关系，答案揭晓：{s2['zh']}！还在第 2 关，要不要再来一题？")]
     noes = round1 + [item for pair in [[user(f"问题{i}？"), host("不是。你的下一个问题是什么？")] for i in range(5)] for item in pair]
     hinted = round1 + [user("给我提示"), host("小提示：这是一个提示。还想问什么？"), user("问题？"), host("不是。继续问吧？")]
-    return [
+    scenarios = [
         case("fresh-start", "开始", [], {"route": {"equals": "open"}, "direction": {"includes_all": [
             "【回复语言：中文】", f"谜题来啦！第 1 关“{title(data, 1)}”，第 1 题。", "你有 20 次提问机会"]}}),
         case("fresh-english", "Let's play!", [], {"route": {"equals": "open"}, "direction": {"includes_all": [
             "English", f"Puzzle time! Level 1, {title(data, 1, 'en')}, puzzle 1."]}}),
         case("smoke-opening", "请从指定中文开场开始。", [], {"route": {"equals": "open"}, "direction": {"includes_all": ["第 1 关", "第 1 题"]}}),
         case("first-question", data["tests"]["first"]["yes"], round1, {"route": {"equals": "play"}, "node": {"equals": node(data, 1, 1)},
-            "rules": {"includes_all": ["你不知道谜底的名字"]}, "direction": {"includes_all": ["【回复语言：中文】", "系统已经核对过", " / ".join(s1["hints"]), "你的下一个问题是什么？"]}}),
+            "rules": {"includes_all": ["每题的谜底由系统在开题时选定", "不能为了保密而答错或假装不知道"]},
+            "direction": {"includes_all": ["【回复语言：中文】", f"第 1 关，第 1 题：{s1['zh']} / {s1['en']}", "脚本没有匹配到的说法不等于猜错", " / ".join(s1["hints"]), "你的下一个问题是什么？"]}}),
         case("hint-request", "给我一个提示吧", round1, {"route": {"equals": "say"}, "direction": {"includes_all": ["挑一条孩子还不知道的", " / ".join(s1["hints"])]}}),
         case("hint-skips-used", "再给我一个提示", round1 + [user("提示"), host("小提示：" + s1["hints"][0] + "。还想问什么？")],
              {"route": {"equals": "say"}, "direction": {"includes_all": [" / ".join(s1["hints"][1:])]}}),
@@ -78,15 +79,29 @@ def control_cases(data: dict[str, Any]) -> list[dict[str, Any]]:
         case("last-hint", "提示", round1 + [user("提示"), host("小提示：" + s1["hints"][0] + "。"), user("提示"), host("小提示：" + s1["hints"][2] + "。")],
              {"route": {"equals": "say"}, "direction": {"includes_all": ["逐字说“小提示：" + s1["hints"][1] + "。"]}}),
         case("big-hint-request", data["tests"]["first"]["big_hint"], round1, {"route": {"equals": "say"}, "direction": {"includes_all": ["小提示：所选的那条", s1["hints"][0]]}}),
-        case("correct-guess", data["tests"]["first"]["guess"], round1, {"route": {"equals": "say"}, "direction": {"includes_all": [
+        case("correct-guess", data["tests"]["first"]["guess"], round1, {"route": {"equals": "say"}, "node": {"equals": "read-winning-reply"}, "direction": {"includes_all": [
             f"逐字说出下面这一整段话，一字不改：“猜对啦！答案就是{s1['zh']}！{s1['profile']}恭喜你升到第 2 关，获得“{title(data, 2)}”称号！准备好挑战下一题了吗？”"]}}),
         case("alias-guess", f"我猜是{(s1['aliases'] or [s1['zh']])[0]}", round1, {"route": {"equals": "say"}, "direction": {"includes_all": [f"答案就是{s1['zh']}"]}}),
-        case("english-guess", f"Is it {s1['en']}?", round1, {"route": {"equals": "say"}, "direction": {"includes_all": [
+        case("english-guess", f"Is it {s1['en']}?", round1, {"route": {"equals": "say"}, "node": {"equals": "read-winning-reply"}, "direction": {"includes_all": [
             f"You got it! The answer is {s1['en']}! Congratulations, you've reached Level 2: {title(data, 2, 'en')}! Ready for the next puzzle?"]}}),
         case("story-phrase-guess", f"是{s1['zh']}的故事吗？", round1, {"route": {"equals": "say"}, "direction": {"includes_all": [f"答案就是{s1['zh']}"]}}),
         case("measure-word-guess", f"是一个{s1['zh']}吗？", round1, {"route": {"equals": "say"}, "direction": {"includes_all": [f"答案就是{s1['zh']}"]}}),
         case("english-an-guess", f"Is it an {s1['en']}?", round1, {"route": {"equals": "say"}, "direction": {"includes_all": [f"The answer is {s1['en']}!"]}}),
+        case("is-it-guess", f"是不是{s1['zh']}？", round1, {"route": {"equals": "say"}, "direction": {"includes_all": [f"猜对啦！答案就是{s1['zh']}！"]}}),
+        case("natural-guess", f"我想问是不是{s1['zh']}呀？", round1, {"route": {"equals": "say"}, "direction": {"includes_all": [f"猜对啦！答案就是{s1['zh']}！"]}}),
+        case("thing-guess", f"这个东西是不是{s1['zh']}？", round1, {"route": {"equals": "say"}, "direction": {"includes_all": [f"答案就是{s1['zh']}"]}}),
+        case("selected-guess", f"所以你选的是不是{s1['zh']}？", round1, {"route": {"equals": "say"}, "direction": {"includes_all": [f"答案就是{s1['zh']}"]}}),
+        case("english-could-guess", f"Could it be {s1['en']}?", round1, {"route": {"equals": "say"}, "direction": {"includes_all": [f"The answer is {s1['en']}!"]}}),
         case("name-but-no-guess", f"它和{s1['zh']}有关系吗？", round1, {"route": {"equals": "play"}, "node": {"equals": node(data, 1, 1)}}),
+        case("same-feature-not-a-guess", f"它是不是和{s1['zh']}一样大？", round1, {"route": {"equals": "play"}, "node": {"equals": node(data, 1, 1)}}),
+        case("negated-name-not-a-guess", f"它不是{s1['zh']}对不对？", round1, {"route": {"equals": "play"}, "node": {"equals": node(data, 1, 1)}}),
+        case("derived-object-not-a-guess", f"它是不是{s1['zh']}的模型？", round1, {"route": {"equals": "play"}, "node": {"equals": node(data, 1, 1)}}),
+        case("guess-after-incorrect-answer", f"是不是{s1['zh']}", round1 + [user("它有没有氢元素？"), host("这个我也说不准。接下来你想问什么？")],
+             {"route": {"equals": "say"}, "direction": {"includes_all": [f"猜对啦！答案就是{s1['zh']}！"]}}),
+        case("answer-stays-fixed-after-wrong-rejection", "它是什么样的？", round1 + [user(f"是不是{s1['zh']}"), host("不是。你的下一个问题是什么？")],
+             {"route": {"equals": "play"}, "node": {"equals": node(data, 1, 1)}, "direction": {"includes_all": [f"第 1 关，第 1 题：{s1['zh']} / {s1['en']}"]}}),
+        case("give-up-keeps-the-same-answer", "我认输了", round1 + [user(f"是不是{s1['zh']}"), host("不是。你的下一个问题是什么？")],
+             {"route": {"equals": "say"}, "direction": {"includes_all": [f"没关系，答案揭晓：{s1['zh']}！"]}}),
         case("give-up", "我放弃", round1, {"route": {"equals": "say"}, "direction": {"includes_all": [f"没关系，答案揭晓：{s1['zh']}！", "第 1 关"]}}),
         case("english-give-up", "I give up.", round1, {"route": {"equals": "say"}, "direction": {"includes_all": [f"No worries! The answer is {s1['en']}!"]}}),
         case("chinese-numerals", "它是什么？", [user("开始"), host(f"谜题来啦！第一关“{title(data, 1)}”，第一题。你的第一个问题是什么？")],
@@ -128,7 +143,7 @@ def control_cases(data: dict[str, Any]) -> list[dict[str, Any]]:
              + [user("给我一个提示"), host("小提示：" + s1["hints"][0] + "。还想问什么？")],
              {"route": {"equals": "play"}, "direction": {"includes_all": ["还剩 1 次提问机会"]}}),
         case("answer-request-keeps-chances", "问题？", round1 + [user(data["tests"]["first"]["ask"]), host("想看答案可以说“我放弃”哦。你的下一个问题是什么？"), user("问题？"), host("是。还想问什么？")],
-             {"route": {"equals": "play"}, "direction": {"includes_all": ["小提示："]}, "rules": {"includes_all": ["你不知道谜底的名字"]}}),
+             {"route": {"equals": "play"}, "direction": {"includes_all": ["小提示："]}, "rules": {"includes_all": ["固定谜底只供你内部判断"]}}),
         case("resume-after-answer-request", "继续上次的内容", round1 + [user(data["tests"]["first"]["ask"]), host("想看答案可以说“我放弃”哦。"), user("问题？"), host("是。")],
              {"route": {"equals": "say"}, "direction": {"includes_all": ["你已经问了 1 次，还剩 19 次机会"]}}),
         case("last-question", "问题？", round1 + [item for pair in [[user(f"问题{i}？"), host("是。还想问什么？")] for i in range(19)] for item in pair],
@@ -140,6 +155,21 @@ def control_cases(data: dict[str, Any]) -> list[dict[str, Any]]:
         case("top-level-win-stays", "下一题", [user("开始"), host(opening(data, top, 7)), user("猜"), host(f"猜对啦！答案就是{top_secret['zh']}！太厉害了！")],
              {"route": {"equals": "open"}, "direction": {"includes_all": [f"第 {top} 关“{title(data, top)}”，第 8 题。"]}}),
     ]
+    if data["id"] == "guess-chemistry-terms":
+        scenarios += [
+            case("ice-hydrogen-keeps-answer", "它有没有氢元素？", round1,
+                 {"route": {"equals": "play"}, "node": {"equals": node(data, 1, 1)},
+                  "direction": {"includes_all": ["第 1 关，第 1 题：冰 / ice / 冰块", "公认常识", "不能为了保密故意答错或假装不知道"]}}),
+            case("h106-homophone-guess", "是不是兵？", round1,
+                 {"route": {"equals": "say"}, "node": {"equals": "read-winning-reply"}, "direction": {"includes_all": ["猜对啦！答案就是冰！"]}}),
+            case("ice-salt-not-a-homophone", "是不是盐？", round1,
+                 {"route": {"equals": "play"}, "node": {"equals": node(data, 1, 1)}}),
+            case("ice-homophone-property-not-a-guess", "它和兵有什么关系？", round1,
+                 {"route": {"equals": "play"}, "node": {"equals": node(data, 1, 1)}}),
+            case("h106-homophone-win-next-round", "下一题", round1 + [user("是不是兵？"), host("猜对啦！答案就是冰！准备好挑战下一题了吗？")],
+                 {"route": {"equals": "open"}, "direction": {"includes_all": [f"第 2 关“{title(data, 2)}”，第 2 题。"]}}),
+        ]
+    return scenarios
 
 
 def run_suite(label: str, source: str, cases: list[dict[str, Any]], steps: int) -> None:

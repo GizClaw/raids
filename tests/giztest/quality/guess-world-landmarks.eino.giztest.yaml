@@ -23,6 +23,100 @@ variables:
     direction: input
     type: string
     generate: token
+  eino_quality_regression_natural_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_quality_regression_natural_history:
+    direction: output
+    type: string
+  eino_quality_regression_homophone_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_quality_regression_homophone_history:
+    direction: output
+    type: string
+  eino_quality_regression_giveup_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_quality_regression_giveup_history:
+    direction: output
+    type: string
+  eino_quality_regression_spoken_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_quality_regression_spoken_fact_audio:
+    direction: output
+    type: audio
+    media_type: audio/ogg
+    codec: opus
+    max_bytes: 1048576
+  eino_quality_regression_spoken_fact_transcript:
+    direction: output
+    type: string
+  eino_quality_regression_spoken_guess_audio:
+    direction: output
+    type: audio
+    media_type: audio/ogg
+    codec: opus
+    max_bytes: 1048576
+  eino_quality_regression_spoken_guess_transcript:
+    direction: output
+    type: string
+  eino_quality_regression_spoken_history:
+    direction: output
+    type: string
+  eino_quality_regression_english_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_quality_regression_english_history:
+    direction: output
+    type: string
+  eino_quality_regression_english_giveup_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_quality_regression_english_giveup_history:
+    direction: output
+    type: string
+  eino_quality_regression_spoken_en_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_quality_regression_spoken_en_fact1_audio:
+    direction: output
+    type: audio
+    media_type: audio/ogg
+    codec: opus
+    max_bytes: 1048576
+  eino_quality_regression_spoken_en_fact1_transcript:
+    direction: output
+    type: string
+  eino_quality_regression_spoken_en_fact2_audio:
+    direction: output
+    type: audio
+    media_type: audio/ogg
+    codec: opus
+    max_bytes: 1048576
+  eino_quality_regression_spoken_en_fact2_transcript:
+    direction: output
+    type: string
+  eino_quality_regression_spoken_en_guess_audio:
+    direction: output
+    type: audio
+    media_type: audio/ogg
+    codec: opus
+    max_bytes: 1048576
+  eino_quality_regression_spoken_en_guess_transcript:
+    direction: output
+    type: string
+  eino_quality_regression_spoken_en_history:
+    direction: output
+    type: string
 repeat: 1
 timeout: 10m
 steps:
@@ -51,6 +145,104 @@ steps:
           conversation:
             initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
           input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_quality_regression_natural_create
+  client: eino__quality
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_quality_regression_natural_workspace}"
+      workflow_name: eino-guess-world-landmarks
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          safety_fence_level: 'child'
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_quality_regression_homophone_create
+  client: eino__quality
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_quality_regression_homophone_workspace}"
+      workflow_name: eino-guess-world-landmarks
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          safety_fence_level: 'child'
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_quality_regression_giveup_create
+  client: eino__quality
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_quality_regression_giveup_workspace}"
+      workflow_name: eino-guess-world-landmarks
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          safety_fence_level: 'child'
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_quality_regression_spoken_create
+  client: eino__quality
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_quality_regression_spoken_workspace}"
+      workflow_name: eino-guess-world-landmarks
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          safety_fence_level: 'child'
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_quality_regression_english_create
+  client: eino__quality
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_quality_regression_english_workspace}"
+      workflow_name: eino-guess-world-landmarks
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          safety_fence_level: 'child'
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_quality_regression_english_giveup_create
+  client: eino__quality
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_quality_regression_english_giveup_workspace}"
+      workflow_name: eino-guess-world-landmarks
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          safety_fence_level: 'child'
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+- id: eino_quality_regression_spoken_en_create
+  client: eino__quality
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${eino_quality_regression_spoken_en_workspace}"
+      workflow_name: eino-guess-world-landmarks
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          safety_fence_level: 'child'
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
 - id: eino_quality_select_candidate_workspace
   client: eino__quality
   rpc:
@@ -73,7 +265,7 @@ steps:
     require_text: true
     require_audio: true
   expect:
-    "/text":
+    "/reply":
       pattern: "谜题来啦[\\s\\S]*第\\s*1\\s*关[\\s\\S]*第\\s*1\\s*题"
       not_contains:
       - "埃菲尔铁塔"
@@ -98,13 +290,73 @@ steps:
     require_text: true
     require_audio: true
   expect:
-    "/text":
+    "/reply":
       pattern: "^\\s*是"
       not_contains:
       - "埃菲尔铁塔"
       - "Eiffel Tower"
       - "巴黎铁塔"
       - "艾菲尔铁塔"
+    "/text_eos":
+      equals: true
+    "/first_text_ms":
+      maximum: 6000
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+- timeout: 6m
+  id: eino_quality_fact_iron
+  client: eino__quality
+  peer_stream:
+    mode: text
+    input: "它含有铁元素吗？"
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/reply":
+      pattern: "^\\s*是"
+      not_contains:
+      - "埃菲尔铁塔"
+      - "Eiffel Tower"
+      - "巴黎铁塔"
+      - "艾菲尔铁塔"
+      - "不知道"
+      - "不确定"
+      - "说不准"
+      - "有一部分是"
+      - "谜题来啦"
+    "/text_eos":
+      equals: true
+    "/first_text_ms":
+      maximum: 6000
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+- timeout: 6m
+  id: eino_quality_fact_ocean
+  client: eino__quality
+  peer_stream:
+    mode: text
+    input: "它是一处海洋吗？"
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/reply":
+      pattern: "^\\s*不是"
+      not_contains:
+      - "埃菲尔铁塔"
+      - "Eiffel Tower"
+      - "巴黎铁塔"
+      - "艾菲尔铁塔"
+      - "不知道"
+      - "不确定"
+      - "说不准"
+      - "有一部分是"
+      - "谜题来啦"
     "/text_eos":
       equals: true
     "/first_text_ms":
@@ -123,7 +375,7 @@ steps:
     require_text: true
     require_audio: true
   expect:
-    "/text":
+    "/reply":
       not_contains:
       - "埃菲尔铁塔"
       - "Eiffel Tower"
@@ -148,7 +400,7 @@ steps:
     require_text: true
     require_audio: true
   expect:
-    "/text":
+    "/reply":
       contains_all:
       - "不要模仿"
       - "找家长、老师或可信任成年人帮助"
@@ -175,7 +427,7 @@ steps:
     require_text: true
     require_audio: true
   expect:
-    "/text":
+    "/reply":
       contains: "小提示"
       not_contains:
       - "埃菲尔铁塔"
@@ -201,7 +453,7 @@ steps:
     require_text: true
     require_audio: true
   expect:
-    "/text":
+    "/reply":
       pattern: "^\\s*不是"
       not_contains:
       - "埃菲尔铁塔"
@@ -226,7 +478,7 @@ steps:
     require_text: true
     require_audio: true
   expect:
-    "/text":
+    "/reply":
       contains_all:
       - "猜对啦"
       - "埃菲尔铁塔"
@@ -250,7 +502,7 @@ steps:
     require_text: true
     require_audio: true
   expect:
-    "/text":
+    "/reply":
       pattern: "(?i)puzzle time[\\s\\S]*level\\s*2[\\s\\S]*puzzle\\s*2"
       not_contains:
       - "尼罗河"
@@ -275,7 +527,7 @@ steps:
     require_text: true
     require_audio: true
   expect:
-    "/text":
+    "/reply":
       pattern: "^\\s*Yes[^\\p{Han}]*$"
       not_contains:
       - "尼罗河"
@@ -300,7 +552,7 @@ steps:
     require_text: true
     require_audio: true
   expect:
-    "/text":
+    "/reply":
       contains: "Nile River"
       pattern: "(?i)the answer is"
     "/text_eos":
@@ -311,12 +563,980 @@ steps:
       equals: true
     "/audio_bytes":
       minimum: 1
+- id: eino_quality_regression_natural_stop
+  client: eino__quality
+  rpc: {method: server.run.stop, request: {}}
+- id: eino_quality_regression_natural_select
+  client: eino__quality
+  rpc:
+    method: server.run.workspace.set
+    request: {workspace_name: "${eino_quality_regression_natural_workspace}"}
+- id: eino_quality_regression_natural_reload
+  client: eino__quality
+  rpc: {method: server.run.workspace.reload, request: {}}
+  timeout: 2m
+- timeout: 6m
+  id: eino_quality_regression_natural_opening
+  client: eino__quality
+  peer_stream:
+    mode: text
+    input: "开始"
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/reply":
+      pattern: "谜题来啦[\\s\\S]*第\\s*1\\s*关[\\s\\S]*第\\s*1\\s*题"
+      not_contains:
+      - "埃菲尔铁塔"
+      - "Eiffel Tower"
+      - "巴黎铁塔"
+      - "艾菲尔铁塔"
+    "/text_eos":
+      equals: true
+    "/first_text_ms":
+      maximum: 6000
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+- timeout: 6m
+  id: eino_quality_regression_natural_fact
+  client: eino__quality
+  peer_stream:
+    mode: text
+    input: "它含有铁元素吗？"
+    wait_for_history: true
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/reply":
+      not_contains:
+      - "埃菲尔铁塔"
+      - "Eiffel Tower"
+      - "巴黎铁塔"
+      - "艾菲尔铁塔"
+      - "谜题来啦"
+      - "不知道"
+      - "不确定"
+      - "说不准"
+      pattern: "^\\s*是"
+    "/text_eos":
+      equals: true
+    "/first_text_ms":
+      maximum: 6000
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+- timeout: 6m
+  id: eino_quality_regression_natural_guess
+  client: eino__quality
+  peer_stream:
+    mode: text
+    input: "我想问是不是埃菲尔铁塔呀？"
+    wait_for_history: true
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/reply":
+      contains_all:
+      - "猜对啦"
+      - "答案就是埃菲尔铁塔"
+      - "地图小玩家"
+      pattern: "第\\s*2\\s*关"
+    "/text_eos":
+      equals: true
+    "/first_text_ms":
+      maximum: 6000
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+- id: eino_quality_regression_natural_history_read
+  client: eino__quality
+  rpc:
+    method: server.run.workspace.history
+    request: {limit: 8, order: PEER_RUN_HISTORY_LIST_REQUEST_ORDER_DESC}
+  capture: {eino_quality_regression_natural_history: "/items/0/text"}
+- id: eino_quality_regression_natural_history_emit
+  output: {variable: eino_quality_regression_natural_history}
+- id: eino_quality_regression_homophone_stop
+  client: eino__quality
+  rpc: {method: server.run.stop, request: {}}
+- id: eino_quality_regression_homophone_select
+  client: eino__quality
+  rpc:
+    method: server.run.workspace.set
+    request: {workspace_name: "${eino_quality_regression_homophone_workspace}"}
+- id: eino_quality_regression_homophone_reload
+  client: eino__quality
+  rpc: {method: server.run.workspace.reload, request: {}}
+  timeout: 2m
+- timeout: 6m
+  id: eino_quality_regression_homophone_opening
+  client: eino__quality
+  peer_stream:
+    mode: text
+    input: "开始"
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/reply":
+      pattern: "谜题来啦[\\s\\S]*第\\s*1\\s*关[\\s\\S]*第\\s*1\\s*题"
+      not_contains:
+      - "埃菲尔铁塔"
+      - "Eiffel Tower"
+      - "巴黎铁塔"
+      - "艾菲尔铁塔"
+    "/text_eos":
+      equals: true
+    "/first_text_ms":
+      maximum: 6000
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+- timeout: 6m
+  id: eino_quality_regression_homophone_fact
+  client: eino__quality
+  peer_stream:
+    mode: text
+    input: "它含有铁元素吗？"
+    wait_for_history: true
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/reply":
+      not_contains:
+      - "埃菲尔铁塔"
+      - "Eiffel Tower"
+      - "巴黎铁塔"
+      - "艾菲尔铁塔"
+      - "谜题来啦"
+      - "不知道"
+      - "不确定"
+      - "说不准"
+      pattern: "^\\s*是"
+    "/text_eos":
+      equals: true
+    "/first_text_ms":
+      maximum: 6000
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+- timeout: 6m
+  id: eino_quality_regression_homophone_guess
+  client: eino__quality
+  peer_stream:
+    mode: text
+    input: "是不是埃非尔铁塔？"
+    wait_for_history: true
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/reply":
+      contains_all:
+      - "猜对啦"
+      - "答案就是埃菲尔铁塔"
+      - "地图小玩家"
+      pattern: "第\\s*2\\s*关"
+    "/text_eos":
+      equals: true
+    "/first_text_ms":
+      maximum: 6000
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+- id: eino_quality_regression_homophone_history_read
+  client: eino__quality
+  rpc:
+    method: server.run.workspace.history
+    request: {limit: 8, order: PEER_RUN_HISTORY_LIST_REQUEST_ORDER_DESC}
+  capture: {eino_quality_regression_homophone_history: "/items/0/text"}
+- id: eino_quality_regression_homophone_history_emit
+  output: {variable: eino_quality_regression_homophone_history}
+- id: eino_quality_regression_giveup_stop
+  client: eino__quality
+  rpc: {method: server.run.stop, request: {}}
+- id: eino_quality_regression_giveup_select
+  client: eino__quality
+  rpc:
+    method: server.run.workspace.set
+    request: {workspace_name: "${eino_quality_regression_giveup_workspace}"}
+- id: eino_quality_regression_giveup_reload
+  client: eino__quality
+  rpc: {method: server.run.workspace.reload, request: {}}
+  timeout: 2m
+- timeout: 6m
+  id: eino_quality_regression_giveup_opening
+  client: eino__quality
+  peer_stream:
+    mode: text
+    input: "开始"
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/reply":
+      pattern: "谜题来啦[\\s\\S]*第\\s*1\\s*关[\\s\\S]*第\\s*1\\s*题"
+      not_contains:
+      - "埃菲尔铁塔"
+      - "Eiffel Tower"
+      - "巴黎铁塔"
+      - "艾菲尔铁塔"
+    "/text_eos":
+      equals: true
+    "/first_text_ms":
+      maximum: 6000
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+- timeout: 6m
+  id: eino_quality_regression_giveup_fact
+  client: eino__quality
+  peer_stream:
+    mode: text
+    input: "它含有铁元素吗？"
+    wait_for_history: true
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/reply":
+      not_contains:
+      - "埃菲尔铁塔"
+      - "Eiffel Tower"
+      - "巴黎铁塔"
+      - "艾菲尔铁塔"
+      - "谜题来啦"
+      - "不知道"
+      - "不确定"
+      - "说不准"
+      pattern: "^\\s*是"
+    "/text_eos":
+      equals: true
+    "/first_text_ms":
+      maximum: 6000
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+- timeout: 6m
+  id: eino_quality_regression_giveup_wrong_guess
+  client: eino__quality
+  peer_stream:
+    mode: text
+    input: "是不是长城？"
+    wait_for_history: true
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/reply":
+      not_contains:
+      - "埃菲尔铁塔"
+      - "Eiffel Tower"
+      - "巴黎铁塔"
+      - "艾菲尔铁塔"
+      - "谜题来啦"
+      - "不知道"
+      - "不确定"
+      - "说不准"
+      pattern: "^\\s*不是"
+    "/text_eos":
+      equals: true
+    "/first_text_ms":
+      maximum: 6000
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+- timeout: 6m
+  id: eino_quality_regression_giveup_reveal
+  client: eino__quality
+  peer_stream:
+    mode: text
+    input: "我认输了"
+    wait_for_history: true
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/reply":
+      contains_all:
+      - "答案揭晓"
+      - "埃菲尔铁塔"
+      pattern: "第\\s*1\\s*关"
+      not_contains:
+      - "猜对啦"
+      - "第 2 关"
+    "/text_eos":
+      equals: true
+    "/first_text_ms":
+      maximum: 6000
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+- id: eino_quality_regression_giveup_history_read
+  client: eino__quality
+  rpc:
+    method: server.run.workspace.history
+    request: {limit: 8, order: PEER_RUN_HISTORY_LIST_REQUEST_ORDER_DESC}
+  capture: {eino_quality_regression_giveup_history: "/items/0/text"}
+- id: eino_quality_regression_giveup_history_emit
+  output: {variable: eino_quality_regression_giveup_history}
+- id: eino_quality_regression_spoken_stop
+  client: eino__quality
+  rpc: {method: server.run.stop, request: {}}
+- id: eino_quality_regression_spoken_select
+  client: eino__quality
+  rpc:
+    method: server.run.workspace.set
+    request: {workspace_name: "${eino_quality_regression_spoken_workspace}"}
+- id: eino_quality_regression_spoken_reload
+  client: eino__quality
+  rpc: {method: server.run.workspace.reload, request: {}}
+  timeout: 2m
+- timeout: 6m
+  id: eino_quality_regression_spoken_opening
+  client: eino__quality
+  peer_stream:
+    mode: text
+    input: "开始"
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/reply":
+      pattern: "谜题来啦[\\s\\S]*第\\s*1\\s*关[\\s\\S]*第\\s*1\\s*题"
+      not_contains:
+      - "埃菲尔铁塔"
+      - "Eiffel Tower"
+      - "巴黎铁塔"
+      - "艾菲尔铁塔"
+    "/text_eos":
+      equals: true
+    "/first_text_ms":
+      maximum: 6000
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+- id: eino_quality_regression_spoken_fact_synthesize
+  client: eino__quality
+  speech:
+    method: server.speech.synthesize
+    request:
+      voice_name: giztest-input.zh
+      text: "它含有铁元素吗？"
+      accepted_content_types: [audio/ogg]
+    cache: run
+  save_as: eino_quality_regression_spoken_fact_audio
+- timeout: 6m
+  id: eino_quality_regression_spoken_fact
+  client: eino__quality
+  peer_stream:
+    mode: push-to-talk
+    input: "${eino_quality_regression_spoken_fact_audio}"
+    pacing: 20ms
+    wait_for_history: true
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/reply":
+      not_contains:
+      - "埃菲尔铁塔"
+      - "Eiffel Tower"
+      - "巴黎铁塔"
+      - "艾菲尔铁塔"
+      - "谜题来啦"
+      - "不知道"
+      - "不确定"
+      - "说不准"
+      pattern: "^\\s*是"
+    "/text_eos":
+      equals: true
+    "/first_text_ms":
+      maximum: 6000
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/transcript":
+      non_empty: true
+  capture: {eino_quality_regression_spoken_fact_transcript: "/transcript"}
+- id: eino_quality_regression_spoken_fact_transcript_emit
+  output: {variable: eino_quality_regression_spoken_fact_transcript}
+- id: eino_quality_regression_spoken_guess_synthesize
+  client: eino__quality
+  speech:
+    method: server.speech.synthesize
+    request:
+      voice_name: giztest-input.zh
+      text: "是埃菲尔铁塔吗？"
+      accepted_content_types: [audio/ogg]
+    cache: run
+  save_as: eino_quality_regression_spoken_guess_audio
+- timeout: 6m
+  id: eino_quality_regression_spoken_guess
+  client: eino__quality
+  peer_stream:
+    mode: push-to-talk
+    input: "${eino_quality_regression_spoken_guess_audio}"
+    pacing: 20ms
+    wait_for_history: true
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/reply":
+      contains_all:
+      - "猜对啦"
+      - "答案就是埃菲尔铁塔"
+      - "地图小玩家"
+      pattern: "第\\s*2\\s*关"
+    "/text_eos":
+      equals: true
+    "/first_text_ms":
+      maximum: 6000
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/transcript":
+      non_empty: true
+  capture: {eino_quality_regression_spoken_guess_transcript: "/transcript"}
+- id: eino_quality_regression_spoken_guess_transcript_emit
+  output: {variable: eino_quality_regression_spoken_guess_transcript}
+- id: eino_quality_regression_spoken_history_read
+  client: eino__quality
+  rpc:
+    method: server.run.workspace.history
+    request: {limit: 8, order: PEER_RUN_HISTORY_LIST_REQUEST_ORDER_DESC}
+  capture: {eino_quality_regression_spoken_history: "/items/0/text"}
+- id: eino_quality_regression_spoken_history_emit
+  output: {variable: eino_quality_regression_spoken_history}
+- id: eino_quality_regression_english_stop
+  client: eino__quality
+  rpc: {method: server.run.stop, request: {}}
+- id: eino_quality_regression_english_select
+  client: eino__quality
+  rpc:
+    method: server.run.workspace.set
+    request: {workspace_name: "${eino_quality_regression_english_workspace}"}
+- id: eino_quality_regression_english_reload
+  client: eino__quality
+  rpc: {method: server.run.workspace.reload, request: {}}
+  timeout: 2m
+- timeout: 6m
+  id: eino_quality_regression_english_opening
+  client: eino__quality
+  peer_stream:
+    mode: text
+    input: "Let's play!"
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/reply":
+      pattern: "(?i)^Puzzle time[\\s\\S]*level\\s*1[\\s\\S]*puzzle\\s*1[^\\p{Han}]*$"
+      not_contains:
+      - "埃菲尔铁塔"
+      - "Eiffel Tower"
+      - "巴黎铁塔"
+      - "艾菲尔铁塔"
+    "/text_eos":
+      equals: true
+    "/first_text_ms":
+      maximum: 6000
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+- timeout: 6m
+  id: eino_quality_regression_english_fact1
+  client: eino__quality
+  peer_stream:
+    mode: text
+    input: "Does it contain iron?"
+    wait_for_history: true
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/reply":
+      not_contains:
+      - "埃菲尔铁塔"
+      - "Eiffel Tower"
+      - "巴黎铁塔"
+      - "艾菲尔铁塔"
+      - "not sure"
+      - "don't know"
+      - "uncertain"
+      - "Puzzle time"
+      pattern: "(?i)^\\s*Yes[^\\p{Han}]*$"
+    "/text_eos":
+      equals: true
+    "/first_text_ms":
+      maximum: 6000
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+- timeout: 6m
+  id: eino_quality_regression_english_fact2
+  client: eino__quality
+  peer_stream:
+    mode: text
+    input: "Is it an ocean?"
+    wait_for_history: true
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/reply":
+      not_contains:
+      - "埃菲尔铁塔"
+      - "Eiffel Tower"
+      - "巴黎铁塔"
+      - "艾菲尔铁塔"
+      - "not sure"
+      - "don't know"
+      - "uncertain"
+      - "Puzzle time"
+      pattern: "(?i)^\\s*No[^\\p{Han}]*$"
+    "/text_eos":
+      equals: true
+    "/first_text_ms":
+      maximum: 6000
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+- timeout: 6m
+  id: eino_quality_regression_english_guess
+  client: eino__quality
+  peer_stream:
+    mode: text
+    input: "Could it be Eiffel Tower?"
+    wait_for_history: true
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/reply":
+      contains_all:
+      - "You got it!"
+      - "The answer is Eiffel Tower"
+      - "Map Reader"
+      pattern: "(?i)Level\\s*2[^\\p{Han}]*$"
+    "/text_eos":
+      equals: true
+    "/first_text_ms":
+      maximum: 6000
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+- id: eino_quality_regression_english_history_read
+  client: eino__quality
+  rpc:
+    method: server.run.workspace.history
+    request: {limit: 8, order: PEER_RUN_HISTORY_LIST_REQUEST_ORDER_DESC}
+  capture: {eino_quality_regression_english_history: "/items/0/text"}
+- id: eino_quality_regression_english_history_emit
+  output: {variable: eino_quality_regression_english_history}
+- id: eino_quality_regression_english_giveup_stop
+  client: eino__quality
+  rpc: {method: server.run.stop, request: {}}
+- id: eino_quality_regression_english_giveup_select
+  client: eino__quality
+  rpc:
+    method: server.run.workspace.set
+    request: {workspace_name: "${eino_quality_regression_english_giveup_workspace}"}
+- id: eino_quality_regression_english_giveup_reload
+  client: eino__quality
+  rpc: {method: server.run.workspace.reload, request: {}}
+  timeout: 2m
+- timeout: 6m
+  id: eino_quality_regression_english_giveup_opening
+  client: eino__quality
+  peer_stream:
+    mode: text
+    input: "Let's play!"
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/reply":
+      pattern: "(?i)^Puzzle time[\\s\\S]*level\\s*1[\\s\\S]*puzzle\\s*1[^\\p{Han}]*$"
+      not_contains:
+      - "埃菲尔铁塔"
+      - "Eiffel Tower"
+      - "巴黎铁塔"
+      - "艾菲尔铁塔"
+    "/text_eos":
+      equals: true
+    "/first_text_ms":
+      maximum: 6000
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+- timeout: 6m
+  id: eino_quality_regression_english_giveup_fact1
+  client: eino__quality
+  peer_stream:
+    mode: text
+    input: "Does it contain iron?"
+    wait_for_history: true
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/reply":
+      not_contains:
+      - "埃菲尔铁塔"
+      - "Eiffel Tower"
+      - "巴黎铁塔"
+      - "艾菲尔铁塔"
+      - "not sure"
+      - "don't know"
+      - "uncertain"
+      - "Puzzle time"
+      pattern: "(?i)^\\s*Yes[^\\p{Han}]*$"
+    "/text_eos":
+      equals: true
+    "/first_text_ms":
+      maximum: 6000
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+- timeout: 6m
+  id: eino_quality_regression_english_giveup_fact2
+  client: eino__quality
+  peer_stream:
+    mode: text
+    input: "Is it an ocean?"
+    wait_for_history: true
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/reply":
+      not_contains:
+      - "埃菲尔铁塔"
+      - "Eiffel Tower"
+      - "巴黎铁塔"
+      - "艾菲尔铁塔"
+      - "not sure"
+      - "don't know"
+      - "uncertain"
+      - "Puzzle time"
+      pattern: "(?i)^\\s*No[^\\p{Han}]*$"
+    "/text_eos":
+      equals: true
+    "/first_text_ms":
+      maximum: 6000
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+- timeout: 6m
+  id: eino_quality_regression_english_giveup_wrong_guess
+  client: eino__quality
+  peer_stream:
+    mode: text
+    input: "Is it the Great Wall?"
+    wait_for_history: true
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/reply":
+      not_contains:
+      - "埃菲尔铁塔"
+      - "Eiffel Tower"
+      - "巴黎铁塔"
+      - "艾菲尔铁塔"
+      - "not sure"
+      - "don't know"
+      - "uncertain"
+      - "Puzzle time"
+      pattern: "(?i)^\\s*No[^\\p{Han}]*$"
+    "/text_eos":
+      equals: true
+    "/first_text_ms":
+      maximum: 6000
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+- timeout: 6m
+  id: eino_quality_regression_english_giveup_reveal
+  client: eino__quality
+  peer_stream:
+    mode: text
+    input: "I give up."
+    wait_for_history: true
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/reply":
+      contains_all:
+      - "The answer is Eiffel Tower"
+      pattern: "(?i)Level\\s*1[^\\p{Han}]*$"
+      not_contains:
+      - "You got it"
+      - "Level 2"
+    "/text_eos":
+      equals: true
+    "/first_text_ms":
+      maximum: 6000
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+- id: eino_quality_regression_english_giveup_history_read
+  client: eino__quality
+  rpc:
+    method: server.run.workspace.history
+    request: {limit: 8, order: PEER_RUN_HISTORY_LIST_REQUEST_ORDER_DESC}
+  capture: {eino_quality_regression_english_giveup_history: "/items/0/text"}
+- id: eino_quality_regression_english_giveup_history_emit
+  output: {variable: eino_quality_regression_english_giveup_history}
+- id: eino_quality_regression_spoken_en_stop
+  client: eino__quality
+  rpc: {method: server.run.stop, request: {}}
+- id: eino_quality_regression_spoken_en_select
+  client: eino__quality
+  rpc:
+    method: server.run.workspace.set
+    request: {workspace_name: "${eino_quality_regression_spoken_en_workspace}"}
+- id: eino_quality_regression_spoken_en_reload
+  client: eino__quality
+  rpc: {method: server.run.workspace.reload, request: {}}
+  timeout: 2m
+- timeout: 6m
+  id: eino_quality_regression_spoken_en_opening
+  client: eino__quality
+  peer_stream:
+    mode: text
+    input: "Let's play!"
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/reply":
+      pattern: "(?i)^Puzzle time[\\s\\S]*level\\s*1[\\s\\S]*puzzle\\s*1[^\\p{Han}]*$"
+      not_contains:
+      - "埃菲尔铁塔"
+      - "Eiffel Tower"
+      - "巴黎铁塔"
+      - "艾菲尔铁塔"
+    "/text_eos":
+      equals: true
+    "/first_text_ms":
+      maximum: 6000
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+- id: eino_quality_regression_spoken_en_fact1_synthesize
+  client: eino__quality
+  speech:
+    method: server.speech.synthesize
+    request:
+      voice_name: giztest-input.zh
+      text: "Does it contain iron?"
+      accepted_content_types: [audio/ogg]
+    cache: run
+  save_as: eino_quality_regression_spoken_en_fact1_audio
+- timeout: 6m
+  id: eino_quality_regression_spoken_en_fact1
+  client: eino__quality
+  peer_stream:
+    mode: push-to-talk
+    input: "${eino_quality_regression_spoken_en_fact1_audio}"
+    pacing: 20ms
+    wait_for_history: true
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/reply":
+      not_contains:
+      - "埃菲尔铁塔"
+      - "Eiffel Tower"
+      - "巴黎铁塔"
+      - "艾菲尔铁塔"
+      - "not sure"
+      - "don't know"
+      - "uncertain"
+      - "Puzzle time"
+      pattern: "(?i)^\\s*Yes[^\\p{Han}]*$"
+    "/text_eos":
+      equals: true
+    "/first_text_ms":
+      maximum: 6000
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/transcript":
+      non_empty: true
+  capture: {eino_quality_regression_spoken_en_fact1_transcript: "/transcript"}
+- id: eino_quality_regression_spoken_en_fact1_transcript_emit
+  output: {variable: eino_quality_regression_spoken_en_fact1_transcript}
+- id: eino_quality_regression_spoken_en_fact2_synthesize
+  client: eino__quality
+  speech:
+    method: server.speech.synthesize
+    request:
+      voice_name: giztest-input.zh
+      text: "Is it an ocean?"
+      accepted_content_types: [audio/ogg]
+    cache: run
+  save_as: eino_quality_regression_spoken_en_fact2_audio
+- timeout: 6m
+  id: eino_quality_regression_spoken_en_fact2
+  client: eino__quality
+  peer_stream:
+    mode: push-to-talk
+    input: "${eino_quality_regression_spoken_en_fact2_audio}"
+    pacing: 20ms
+    wait_for_history: true
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/reply":
+      not_contains:
+      - "埃菲尔铁塔"
+      - "Eiffel Tower"
+      - "巴黎铁塔"
+      - "艾菲尔铁塔"
+      - "not sure"
+      - "don't know"
+      - "uncertain"
+      - "Puzzle time"
+      pattern: "(?i)^\\s*No[^\\p{Han}]*$"
+    "/text_eos":
+      equals: true
+    "/first_text_ms":
+      maximum: 6000
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/transcript":
+      non_empty: true
+  capture: {eino_quality_regression_spoken_en_fact2_transcript: "/transcript"}
+- id: eino_quality_regression_spoken_en_fact2_transcript_emit
+  output: {variable: eino_quality_regression_spoken_en_fact2_transcript}
+- id: eino_quality_regression_spoken_en_guess_synthesize
+  client: eino__quality
+  speech:
+    method: server.speech.synthesize
+    request:
+      voice_name: giztest-input.zh
+      text: "Could it be Eiffel Tower?"
+      accepted_content_types: [audio/ogg]
+    cache: run
+  save_as: eino_quality_regression_spoken_en_guess_audio
+- timeout: 6m
+  id: eino_quality_regression_spoken_en_guess
+  client: eino__quality
+  peer_stream:
+    mode: push-to-talk
+    input: "${eino_quality_regression_spoken_en_guess_audio}"
+    pacing: 20ms
+    wait_for_history: true
+    idle_timeout: 90s
+    require_text: true
+    require_audio: true
+  expect:
+    "/reply":
+      contains_all:
+      - "You got it!"
+      - "The answer is Eiffel Tower"
+      - "Map Reader"
+      pattern: "(?i)Level\\s*2[^\\p{Han}]*$"
+    "/text_eos":
+      equals: true
+    "/first_text_ms":
+      maximum: 6000
+    "/audio_eos":
+      equals: true
+    "/audio_bytes":
+      minimum: 1
+    "/transcript":
+      non_empty: true
+  capture: {eino_quality_regression_spoken_en_guess_transcript: "/transcript"}
+- id: eino_quality_regression_spoken_en_guess_transcript_emit
+  output: {variable: eino_quality_regression_spoken_en_guess_transcript}
+- id: eino_quality_regression_spoken_en_history_read
+  client: eino__quality
+  rpc:
+    method: server.run.workspace.history
+    request: {limit: 8, order: PEER_RUN_HISTORY_LIST_REQUEST_ORDER_DESC}
+  capture: {eino_quality_regression_spoken_en_history: "/items/0/text"}
+- id: eino_quality_regression_spoken_en_history_emit
+  output: {variable: eino_quality_regression_spoken_en_history}
 finally:
 - id: eino__quality_stop
   client: eino__quality
   rpc:
     method: server.run.stop
     request: {}
+- id: eino_quality_regression_natural_delete
+  client: eino__quality
+  rpc:
+    method: server.workspace.delete
+    request: {name: "${eino_quality_regression_natural_workspace}"}
+- id: eino_quality_regression_homophone_delete
+  client: eino__quality
+  rpc:
+    method: server.workspace.delete
+    request: {name: "${eino_quality_regression_homophone_workspace}"}
+- id: eino_quality_regression_giveup_delete
+  client: eino__quality
+  rpc:
+    method: server.workspace.delete
+    request: {name: "${eino_quality_regression_giveup_workspace}"}
+- id: eino_quality_regression_spoken_delete
+  client: eino__quality
+  rpc:
+    method: server.workspace.delete
+    request: {name: "${eino_quality_regression_spoken_workspace}"}
+- id: eino_quality_regression_english_delete
+  client: eino__quality
+  rpc:
+    method: server.workspace.delete
+    request: {name: "${eino_quality_regression_english_workspace}"}
+- id: eino_quality_regression_english_giveup_delete
+  client: eino__quality
+  rpc:
+    method: server.workspace.delete
+    request: {name: "${eino_quality_regression_english_giveup_workspace}"}
+- id: eino_quality_regression_spoken_en_delete
+  client: eino__quality
+  rpc:
+    method: server.workspace.delete
+    request: {name: "${eino_quality_regression_spoken_en_workspace}"}
 - id: eino_quality_delete_candidate_workspace
   client: eino__quality
   rpc:
