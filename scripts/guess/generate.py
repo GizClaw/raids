@@ -7,8 +7,11 @@ import argparse
 import json
 import math
 import sys
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
+
+from pypinyin import Style, pinyin
 
 sys.dont_write_bytecode = True
 
@@ -69,7 +72,8 @@ def names(item: dict[str, Any]) -> list[str]:
 
 
 # Every card file starts with these lines; the fields after them come from the
-# raid's _template.txt and are what the host reads, with names blanked out.
+# raid's _template.txt and provide facts in the host card. The controller
+# supplies the fixed name and aliases separately in a private instruction.
 CARD_HEAD = ("谜底", "英文名", "别名", "简介")
 # Three prewritten small hints, read out one at a time by the control script.
 HINT_FIELD = "小提示"
@@ -169,6 +173,7 @@ def starlark_data(data: dict[str, Any]) -> dict[str, Any]:
     keys = ("subject_zh", "subject_en", "examples_zh", "examples_en", "restate_zh", "restate_en")
     out: dict[str, Any] = {key: data[key] for key in keys}
     out["host_rules"] = host_prompt(data)
+    out["homophones"] = homophones(data)
     out["levels"] = [
         {
             "title_zh": level["title"]["zh"],
@@ -185,12 +190,42 @@ def starlark_data(data: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+@lru_cache(maxsize=1)
+def pronunciation_index() -> dict[str, set[str]]:
+    # Embed only equivalents of characters used in this raid's names. The
+    # runtime stays pure Starlark and does not need a pronunciation service.
+    index: dict[str, set[str]] = {}
+    for code in range(0x4E00, 0xA000):
+        char = chr(code)
+        for syllables in pinyin(char, style=Style.NORMAL, heteronym=True):
+            for syllable in syllables:
+                if syllable != char:
+                    index.setdefault(syllable, set()).add(char)
+    return index
+
+
+def homophones(data: dict[str, Any]) -> dict[str, str]:
+    chars = {char for level in data["levels"] for item in level["items"]
+             for name in names(item) for char in name if 0x4E00 <= ord(char) < 0xA000}
+    index = pronunciation_index()
+    result = {}
+    for char in sorted(chars):
+        equivalent: set[str] = set()
+        for syllables in pinyin(char, style=Style.NORMAL, heteronym=True):
+            for syllable in syllables:
+                equivalent.update(index.get(syllable, set()))
+        equivalent.discard(char)
+        if equivalent:
+            result[char] = "".join(sorted(equivalent))
+    return result
+
+
 def host_prompt(data: dict[str, Any]) -> str:
     levels = data["levels"]
     lines = [
         f"你是儿童猜谜游戏“{data['game_zh']}”的主持人。玩法：主持人心里藏着{data['subject_zh']}，孩子用能回答“是”或“不是”的问题来猜，"
         f"每一题最多 20 次提问；猜中就升一关，一共 {len(levels)} 关，关名从“{levels[0]['title']['zh']}”一直到“{levels[-1]['title']['zh']}”。孩子可能说中文，也可能说英文。",
-        "你不知道谜底的名字。需要回答孩子的问题时，系统会在【谜底卡】里给你这一题的资料，谜底的名字已经隐藏，你也不要去猜它叫什么；回答是非题时以这张卡为准，卡上没写到又拿不准的就说说不准。揭晓答案时系统才会在指令里告诉你名字。本轮要做什么写在对话最后的【本轮指令】里，照着做，说得自然、热情、简短。",
+        "每题的谜底由系统在开题时选定；本题结束前始终是同一个答案，你不能根据孩子的提问、猜测或自己的前一条回复另选答案。回答问题时，【本轮指令】中的【固定谜底】给出本题的名称和别名，【谜底卡】给出同一题的资料。固定谜底只供你内部判断，孩子没有猜中或放弃、次数也没用完时绝不能主动透露。以固定谜底和卡片为准，可以使用你确定的公认常识回答卡片未写出的属性；确实拿不准才说说不准，不能为了保密而答错或假装不知道。如果前一条回答有误，应按固定谜底纠正，不能为迁就旧回复而改答案。本轮要做什么写在对话最后的【本轮指令】里，照着做，说得自然、热情、简短。",
         data["subject_note"],
         "必须遵守：",
         "1. 本轮指令要求“逐字说”的句子必须一字不差地说出来，包括数字、标点和引号里的称号，不改写、不省略、不调换顺序。",
@@ -220,8 +255,8 @@ def f_string_literal(text: str) -> str:
 
 
 def anonymous_body(item: dict[str, Any]) -> str:
-    # The host reads this card while the puzzle is open, so it must not carry
-    # the answer: drop the name fields and blank every name out of the rest.
+    # Keep names in the private controller instruction rather than repeating
+    # them in the factual card: drop name fields and blank names in the rest.
     lines = [f"简介：{item['profile']}"] + [f"{key}：{value}" for key, value in item["card"].items()]
     text = "\n".join(lines)
     for name in sorted(names(item), key=len, reverse=True):
@@ -261,7 +296,7 @@ def route(data: dict[str, Any]) -> list[tuple[str, str, str, dict[str, Any]]]:
     forbid1 = names1 + tests["first"]["forbid"]
     level2 = data["levels"][1]["title"]["zh"]
     plain = ["###", "```"]
-    return [
+    steps = [
         ("opening", "开始",
          "开启第 1 关第 1 题：说出谜题来啦、第 1 关和称号、第 1 题，说明只能问是非题、共 20 次机会，以提问结尾；不得透露谜底；15-240字",
          {"required": ["谜题来啦", "第 1 关", "第 1 题"], "required_any": [], "forbidden": plain + names1, "min_runes": 15, "max_runes": 240}),
@@ -293,6 +328,15 @@ def route(data: dict[str, Any]) -> list[tuple[str, str, str, dict[str, Any]]]:
          "重连后继续：上一题已经揭晓，应开启第 2 关第 3 题，说出谜题来啦、第 2 关和第 3 题，以提问结尾；15-200字",
          {"required": ["谜题来啦", "第 2 关", "第 3 题"], "required_any": [], "forbidden": plain, "min_runes": 15, "max_runes": 200}),
     ]
+    steps[2:2] = [
+        ("fact-" + fact["id"], fact["question"],
+         f"谜底仍是{s1['zh']}：这个问题必须以“{fact['answer']}”开头回答，不能假装不知道，不得说出谜底或换题；2-200字",
+         {"required": [fact["answer"]], "required_any": [],
+          "forbidden": plain + names1 + ["不知道", "不确定", "说不准", "有一部分是", "谜题来啦"],
+          "min_runes": 2, "max_runes": 200})
+        for fact in tests["first"].get("facts", [])
+    ]
+    return steps
 
 
 def render_tester(raid: str, data: dict[str, Any]) -> str:
@@ -386,19 +430,19 @@ def raid_manifest(raid: str, data: dict[str, Any]) -> str:
     return json.dumps(manifest, ensure_ascii=False, indent=2) + "\n"
 
 
-def probe(name: str, text: str, expect_text: dict[str, Any]) -> str:
+def probe(name: str, text: str, expect_text: dict[str, Any], mode: str = "text") -> str:
     lines = [
         "- timeout: 6m",
         f"  id: eino_quality_{name}",
         "  client: eino__quality",
         "  peer_stream:",
-        "    mode: text",
+        f"    mode: {mode}",
         f"    input: {dumps(text)}",
         "    idle_timeout: 90s",
         "    require_text: true",
         "    require_audio: true",
         "  expect:",
-        '    "/text":',
+        '    "/reply":',
     ]
     for key, value in expect_text.items():
         if isinstance(value, list):
@@ -417,6 +461,125 @@ def probe(name: str, text: str, expect_text: dict[str, Any]) -> str:
         "      minimum: 1",
     ]
     return "\n".join(lines)
+
+
+def quality_regressions(raid: str, data: dict[str, Any]) -> dict[str, str]:
+    first = data["tests"]["first"]
+    item = secret(data, 1, 1)
+    hidden = {"not_contains": names(item) + ["谜题来啦", "不知道", "不确定", "说不准"]}
+    fact = {**hidden, "pattern": "^\\s*是"}
+    win = {"contains_all": ["猜对啦", "答案就是" + item["zh"], data["levels"][1]["title"]["zh"]], "pattern": "第\\s*2\\s*关"}
+    groups = [dict(variant, mode="text") for variant in first.get("guess_variants", [])]
+    if first.get("wrong_guess"):
+        groups.append({"id": "giveup", "mode": "text"})
+    if first.get("speech_regression"):
+        groups.append({"id": "spoken", "mode": "push-to-talk"})
+    if first.get("english_facts"):
+        groups.extend([{"id": "english", "mode": "text", "lang": "en"},
+                       {"id": "english-giveup", "mode": "text", "lang": "en"},
+                       {"id": "spoken-en", "mode": "push-to-talk", "lang": "en"}])
+    variables, creates, probes, cleanup = [], [], [], []
+    for group in groups:
+        name = "regression_" + group["id"].replace("-", "_")
+        workspace = "eino_quality_" + name + "_workspace"
+        variables.append(f"  {workspace}:\n    direction: input\n    type: string\n    generate: token")
+        creates.append(f"""- id: eino_quality_{name}_create
+  client: eino__quality
+  rpc:
+    method: server.workspace.create
+    request:
+      name: "${{{workspace}}}"
+      workflow_name: eino-{raid}
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          safety_fence_level: 'child'
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK""")
+        probes.append(f"""- id: eino_quality_{name}_stop
+  client: eino__quality
+  rpc: {{method: server.run.stop, request: {{}}}}
+- id: eino_quality_{name}_select
+  client: eino__quality
+  rpc:
+    method: server.run.workspace.set
+    request: {{workspace_name: "${{{workspace}}}"}}
+- id: eino_quality_{name}_reload
+  client: eino__quality
+  rpc: {{method: server.run.workspace.reload, request: {{}}}}
+  timeout: 2m""")
+        english = group.get("lang") == "en"
+        if english:
+            hidden_en = {"not_contains": names(item) + ["not sure", "don't know", "uncertain", "Puzzle time"]}
+            probes.append(probe(name + "_opening", "Let's play!", {"pattern": "(?i)^Puzzle time[\\s\\S]*level\\s*1[\\s\\S]*puzzle\\s*1[^\\p{Han}]*$", "not_contains": names(item)}))
+            turns = [("fact" + str(index), f["question"], {**hidden_en, "pattern": "(?i)^\\s*" + f["answer"] + "[^\\p{Han}]*$"}) for index, f in enumerate(first["english_facts"], 1)]
+            win_en = {"contains_all": ["You got it!", "The answer is " + item["en"], data["levels"][1]["title"]["en"]], "pattern": "(?i)Level\\s*2[^\\p{Han}]*$"}
+        else:
+            probes.append(probe(name + "_opening", "开始", {"pattern": opening_pattern(1, 1), "not_contains": names(item)}))
+            question = first["facts"][0]["question"]
+            turns = [("fact", question, fact)]
+        if group["id"] == "english-giveup":
+            turns.extend([
+                ("wrong_guess", first["english_wrong_guess"], {**hidden_en, "pattern": "(?i)^\\s*No[^\\p{Han}]*$"}),
+                ("reveal", "I give up.", {"contains_all": ["The answer is " + item["en"]], "pattern": "(?i)Level\\s*1[^\\p{Han}]*$", "not_contains": ["You got it", "Level 2"]}),
+            ])
+        elif group["id"] == "giveup":
+            turns.extend([
+                ("wrong_guess", first["wrong_guess"], {**hidden, "pattern": "^\\s*不是"}),
+                ("reveal", "我认输了", {"contains_all": ["答案揭晓", item["zh"]], "pattern": "第\\s*1\\s*关", "not_contains": ["猜对啦", "第 2 关"]}),
+            ])
+        else:
+            turns.append(("guess", ("Could it be " + item["en"] + "?") if english else group.get("text", first["guess"]), win_en if english else win))
+        for turn, text, expectation in turns:
+            identifier = name + "_" + turn
+            if group["mode"] == "push-to-talk":
+                audio = "eino_quality_" + identifier + "_audio"
+                variables.append(f"  {audio}:\n    direction: output\n    type: audio\n    media_type: audio/ogg\n    codec: opus\n    max_bytes: 1048576")
+                probes.append(f"""- id: eino_quality_{identifier}_synthesize
+  client: eino__quality
+  speech:
+    method: server.speech.synthesize
+    request:
+      voice_name: giztest-input.zh
+      text: {dumps(text)}
+      accepted_content_types: [audio/ogg]
+    cache: run
+  save_as: {audio}""")
+                text = "${" + audio + "}"
+            part = probe(identifier, text, expectation, group["mode"])
+            # Read the committed turn before asking the next question; spoken
+            # History below records the actual ASR/response evidence.
+            part = part.replace("    idle_timeout: 90s", "    wait_for_history: true\n    idle_timeout: 90s")
+            if group["mode"] == "push-to-talk":
+                part = part.replace("    wait_for_history: true", "    pacing: 20ms\n    wait_for_history: true")
+            probes.append(part)
+            if group["mode"] == "push-to-talk":
+                transcript = "eino_quality_" + identifier + "_transcript"
+                variables.append(f"  {transcript}:\n    direction: output\n    type: string")
+                # Giztest /text includes both transcript and assistant text.
+                # Judge /reply and retain the actual ASR separately.
+                part = probes.pop()
+                part += f'\n    "/transcript":\n      non_empty: true\n  capture: {{{transcript}: "/transcript"}}'
+                probes.append(part)
+                probes.append(f"- id: {transcript}_emit\n  output: {{variable: {transcript}}}")
+        history = "eino_quality_" + name + "_history"
+        variables.append(f"  {history}:\n    direction: output\n    type: string")
+        probes.append(f"""- id: {history}_read
+  client: eino__quality
+  rpc:
+    method: server.run.workspace.history
+    request: {{limit: 8, order: PEER_RUN_HISTORY_LIST_REQUEST_ORDER_DESC}}
+  capture: {{{history}: "/items/0/text"}}
+- id: {history}_emit
+  output: {{variable: {history}}}""")
+        cleanup.append(f"""- id: eino_quality_{name}_delete
+  client: eino__quality
+  rpc:
+    method: server.workspace.delete
+    request: {{name: "${{{workspace}}}"}}""")
+    return {"REGRESSION_VARIABLES": "\n".join(variables), "REGRESSION_WORKSPACES": "\n".join(creates),
+            "REGRESSION_PROBES": "\n".join(probes), "REGRESSION_CLEANUP": "\n".join(cleanup)}
 
 
 def opening_pattern(level: int, puzzle: int) -> str:
@@ -444,7 +607,21 @@ def render_quality(raid: str, data: dict[str, Any]) -> str:
         probe("english_answer", tests["second"]["english"], {"pattern": "^\\s*Yes[^\\p{Han}]*$", "not_contains": names2}),
         probe("english_give_up", "I give up.", {"contains": s2["en"], "pattern": "(?i)the answer is"}),
     ]
-    return fill(template("quality.giztest.yaml"), {"RAID": raid, "PROBES": "\n".join(probes)})
+    probes[2:2] = [
+        probe("fact_" + fact["id"], fact["question"],
+              {"pattern": "^\\s*" + fact["answer"],
+               "not_contains": names1 + ["不知道", "不确定", "说不准", "有一部分是", "谜题来啦"]})
+        for fact in tests["first"].get("facts", [])
+    ]
+    regression = quality_regressions(raid, data)
+    if regression["REGRESSION_PROBES"]:
+        probes.append(regression["REGRESSION_PROBES"])
+    values = {"RAID": raid, "PROBES": "\n".join(probes), **regression}
+    text = template("quality.giztest.yaml")
+    for key in ("REGRESSION_VARIABLES", "REGRESSION_WORKSPACES", "REGRESSION_CLEANUP"):
+        if not values[key]:
+            text = text.replace("@@" + key + "@@\n", "")
+    return fill(text, values)
 
 
 def render_smoke(raid: str, data: dict[str, Any]) -> str:
@@ -492,10 +669,11 @@ def render_readme(raid: str, data: dict[str, Any]) -> str:
 ## How a round works
 
 1. `开始` (or any first message) opens level 1, puzzle 1 with `谜题来啦！第 1 关…，第 1 题。` (`Puzzle time! Level 1, …, puzzle 1.` in English).
-2. The child asks yes-or-no questions. Each puzzle has its own prompt node holding its knowledge card with
-   every name blanked out; the control script activates that node, so the host answers from the card in a
-   single model call and cannot leak a name it never sees. The script itself spots a correct guess
-   (the secret's name or alias) or a give-up and reveals the answer.
+2. The child asks yes-or-no questions. The control script selects the puzzle's card node and passes the same
+   fixed answer privately on every question turn. The host answers from that card and established facts,
+   keeping the name secret until a correct guess, a give-up or the question limit. The script spots direct
+   name or alias guesses; the host can also recognize an equivalent answer instead of rejecting every
+   phrasing the script did not match. Every turn uses a single model call.
 3. Each puzzle allows 20 questions and at most 3 small hints (on request, or after 5 `不是` in a row).
 4. A correct guess reveals the answer, praises the child and moves one level up; giving up or running out of
    questions reveals the answer and keeps the level. The next message opens the next puzzle.
@@ -515,14 +693,18 @@ a level before any repeats.
 ## Tests
 
 - Smoke: opening, RealTime round trip, and a RealTime question-turn first response within the standard 2 s text / 3 s audio.
-- Quality: one scripted path — opening, a `是` answer, refusing to name the secret, safety literals,
+- Quality: the level-up path — opening, a `是` answer, refusing to name the secret, safety literals,
   a small hint for a big-hint request, a `不是` answer, a correct guess of `{s1['zh']}` with level-up praise,
   then English play on level 2 (`{s2['en']}`) through `I give up.`
+  Additional fact questions in `tests.first.facts` keep the same answer and reject uncertain replies.
+  Optional `guess_variants`, `wrong_guess` and `speech_regression` add fresh Workspace rounds for
+  natural guesses, simulated ASR spelling, a wrong guess followed by give-up, and real push-to-talk
+  ASR input. Those rounds emit their latest committed reply and assert the same secret throughout.
 - Soak: the Tester relays the same path in Chinese, reloads the Workspace, and checks that
   `继续上次的内容` opens level 2, puzzle 3; its judge verifies yes-or-no facts, secret keeping and hint size.
 
 Knowledge cards live in `cards/guess/{raid.removeprefix('guess-')}/`, one `<谜底>.txt` per puzzle; each
-puzzle gets its own prompt node, so the host only ever reads the current (nameless) card.
+puzzle gets its own prompt node, so the host only ever reads the current card and fixed answer.
 Regenerate after editing a card or `puzzles.json`:
 
 ```sh

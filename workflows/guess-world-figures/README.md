@@ -15,10 +15,11 @@ The host hides a world-famous person; the child guesses with yes-or-no questions
 ## How a round works
 
 1. `开始` (or any first message) opens level 1, puzzle 1 with `谜题来啦！第 1 关…，第 1 题。` (`Puzzle time! Level 1, …, puzzle 1.` in English).
-2. The child asks yes-or-no questions. Each puzzle has its own prompt node holding its knowledge card with
-   every name blanked out; the control script activates that node, so the host answers from the card in a
-   single model call and cannot leak a name it never sees. The script itself spots a correct guess
-   (the secret's name or alias) or a give-up and reveals the answer.
+2. The child asks yes-or-no questions. The control script selects the puzzle's card node and passes the same
+   fixed answer privately on every question turn. The host answers from that card and established facts,
+   keeping the name secret until a correct guess, a give-up or the question limit. The script spots direct
+   name or alias guesses; the host can also recognize an equivalent answer instead of rejecting every
+   phrasing the script did not match. Every turn uses a single model call.
 3. Each puzzle allows 20 questions and at most 3 small hints (on request, or after 5 `不是` in a row).
 4. A correct guess reveals the answer, praises the child and moves one level up; giving up or running out of
    questions reveals the answer and keeps the level. The next message opens the next puzzle.
@@ -47,14 +48,18 @@ a level before any repeats.
 ## Tests
 
 - Smoke: opening, RealTime round trip, and a RealTime question-turn first response within the standard 2 s text / 3 s audio.
-- Quality: one scripted path — opening, a `是` answer, refusing to name the secret, safety literals,
+- Quality: the level-up path — opening, a `是` answer, refusing to name the secret, safety literals,
   a small hint for a big-hint request, a `不是` answer, a correct guess of `爱因斯坦` with level-up praise,
   then English play on level 2 (`Helen Keller`) through `I give up.`
+  Additional fact questions in `tests.first.facts` keep the same answer and reject uncertain replies.
+  Optional `guess_variants`, `wrong_guess` and `speech_regression` add fresh Workspace rounds for
+  natural guesses, simulated ASR spelling, a wrong guess followed by give-up, and real push-to-talk
+  ASR input. Those rounds emit their latest committed reply and assert the same secret throughout.
 - Soak: the Tester relays the same path in Chinese, reloads the Workspace, and checks that
   `继续上次的内容` opens level 2, puzzle 3; its judge verifies yes-or-no facts, secret keeping and hint size.
 
 Knowledge cards live in `cards/guess/world-figures/`, one `<谜底>.txt` per puzzle; each
-puzzle gets its own prompt node, so the host only ever reads the current (nameless) card.
+puzzle gets its own prompt node, so the host only ever reads the current card and fixed answer.
 Regenerate after editing a card or `puzzles.json`:
 
 ```sh

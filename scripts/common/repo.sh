@@ -14,8 +14,8 @@ require_command() {
 	}
 }
 
-# require_python_yaml exits when python3 cannot import PyYAML, the only
-# third-party module the repository scripts use.
+# require_python_yaml exits when python3 cannot import PyYAML, which the
+# declarative resource checks use.
 require_python_yaml() {
 	require_command python3
 	python3 -c 'import yaml' 2>/dev/null || {

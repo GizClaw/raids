@@ -13,6 +13,8 @@ Chat 的天气、日期 live 探针只检查语音回复可用性，关键词本
 在 GizClaw v0.26.0 Eino 引擎和 HTTP Tool 执行器中验证请求映射、真实调用计数、随机受控结果传入回答，
 并拒绝没有调用搜索的虚构天气/日期回答。它同时检查用户与助手都进入异步记忆观察、闲聊不调用搜索。
 
+10 个 `guess-*` 的标准 quality 文件都包含固定谜底回归：确定的正反属性、自然说法与同音转写猜中、猜错后认输揭晓同一答案，以及全英语文字和中英语音输入。语音通过 `server.speech.synthesize` 和 push-to-talk ASR 执行；属性与揭晓断言只检查助手的 `/reply`，另外保存并输出 `/transcript`，避免把孩子的转写混入回答判断。每组使用独立 Workspace，结束后读回最新历史；这些步骤随 `make test-e2e TIER=quality RAID=<guess-raid>` 和 `RAID=all` 执行。服务端回归结果与 H106 真机验收分别记录。
+
 测试布局为 `tests/giztest/{smoke,quality,soak}/<raid>.<implementation>.giztest.yaml`，每个文件只运行一个实现，共 340 个三档文件。implementation 与 workflow 文件名一致，例如 `eino`、`eino.multi-role` 和 Journey 的 `eino-history`。文档名为 `<raid>.<tier>.<implementation>`。另有 `device/` 的 75 个设备流程测试、`h106/` 的 2 个外部设备测试和 `safety-fence/` 的 1 个安全围栏测试，合计 418 个 `.giztest.yaml`；`reports/` 仅存运行产物，不计入用例。
 
 | 档位 | 文件数 | 定义 |

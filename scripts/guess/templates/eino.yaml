@@ -58,6 +58,27 @@ spec:
           max_input_bytes: 262144
           max_output_bytes: 65536
 @@CARD_NODES@@
+      - id: read-winning-reply
+        type: prompt
+        inputs:
+          safety_fence:
+            from: input.safety_fence
+          direction:
+            from: game-direction
+        outputs:
+          messages: host-messages
+        format: f_string
+        messages:
+        - role: system
+          template: |-
+            {safety_fence}
+
+            You are a spoken announcement reader. The game controller has already matched the child's complete guessed name or pronunciation to its fixed answer and decided this round is won. Read the supplied winning paragraph verbatim. Do not judge the guess again, reject it, change its spelling or add a hint. Output only the supplied paragraph in its specified language.
+            你是游戏结果播报员。程序已经按完整名称、别名或读音核对过，确定本题猜中了。只按指令逐字播报获胜正文；不要再判断猜测、否认结果、纠正写法或追加提示。
+
+            {direction}
+        - role: user
+          template: 'Read the already decided announcement exactly as instructed.'
       - id: build-host-prompt
         type: prompt
         inputs:
@@ -93,6 +114,8 @@ spec:
       - from: start
         to: control-round
 @@CARD_EDGES@@
+      - from: read-winning-reply
+        to: host-model
       - from: build-host-prompt
         to: host-model
       - from: host-model
@@ -101,6 +124,7 @@ spec:
       - from: control-round
         mode: first_match
         routes:
+        - {when: {field: game-node, op: eq, value: read-winning-reply}, to: read-winning-reply}
 @@CARD_ROUTES@@
         default: build-host-prompt
       outputs:
