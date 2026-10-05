@@ -102,17 +102,17 @@ class GiztestCapabilityTest(unittest.TestCase):
 
     def test_cross_file_parity_rejects_input_gate_capture_and_cleanup_drift(self):
         with tempfile.TemporaryDirectory() as tmp:
-            left = os.path.join(tmp, 'flowcraft.yaml'); right = os.path.join(tmp, 'eino.yaml')
-            source = {'variables': {}, 'steps': [{**audio_step(), 'id': 'flowcraft_response', 'client': 'flowcraft'}],
-                      'finally': [rpc('flowcraft', 'run.stop')]}
+            left = os.path.join(tmp, 'eino_history.yaml'); right = os.path.join(tmp, 'eino.yaml')
+            source = {'variables': {}, 'steps': [{**audio_step(), 'id': 'eino_history_response', 'client': 'eino_history'}],
+                      'finally': [rpc('eino_history', 'run.stop')]}
             with open(left, 'w', encoding='utf-8') as f:
                 yaml.safe_dump(source, f, allow_unicode=True, sort_keys=False)
-            baseline = json.loads(json.dumps(source).replace('flowcraft', 'eino'))
+            baseline = json.loads(json.dumps(source).replace('eino_history', 'eino'))
 
             def compare(doc):
                 with open(right, 'w', encoding='utf-8') as f:
                     yaml.safe_dump(doc, f, allow_unicode=True, sort_keys=False)
-                layout.compare_files(left, right, 'flowcraft', 'eino', {'flowcraft': True, 'eino': True})
+                layout.compare_files(left, right, 'eino_history', 'eino', {'eino_history': True, 'eino': True})
             compare(baseline)
             mutations = [
                 lambda d: d['steps'][0]['peer_stream'].update({'input': 'different input'}),
@@ -165,7 +165,7 @@ class GiztestCapabilityTest(unittest.TestCase):
         self.rejected(layout.check_workspace_order, {'steps': [create], 'finally': [delete, delete]}, 'fixture')
 
     def test_variant_ownership_does_not_overlap(self):
-        for engine in ('flowcraft', 'eino'):
+        for engine in ('eino',):
             multi = f'{engine}_multi_role'
             for implementation in (engine, multi):
                 peer = {'id': f'{implementation}_response', 'client': f'{implementation}__transitions'}
@@ -177,7 +177,7 @@ class GiztestCapabilityTest(unittest.TestCase):
     def test_live_workflow_capabilities(self):
         for file in glob.glob('workflows/learn-*/raid.json'):
             raid = os.path.basename(os.path.dirname(file))
-            self.assertEqual({'flowcraft': True, 'eino': True}, layout.tts_capabilities(raid))
+            self.assertEqual({'eino': True}, layout.tts_capabilities(raid))
         self.assertEqual({'eino_history': True, 'eino_memory_async': True,
                           'eino_memory_recall': True}, layout.tts_capabilities('journey-guide'))
 
@@ -213,7 +213,7 @@ class GiztestCapabilityTest(unittest.TestCase):
         self.assertNotEqual(text_step(), audio_step())  # Same-capability comparisons keep all audio fields.
 
     def test_child_quality_rejects_exam_inputs_and_contract_drift(self):
-        doc = layout.load_yaml('tests/giztest/quality/story-aesop.flowcraft.multi-role.giztest.yaml')
+        doc = layout.load_yaml('tests/giztest/quality/story-aesop.eino.multi-role.giztest.yaml')
         layout.check_child_quality(doc, 'fixture')
         changed = copy.deepcopy(doc)
         step = next(s for s in changed['steps'] if s.get('peer_stream') is not None)
@@ -225,7 +225,7 @@ class GiztestCapabilityTest(unittest.TestCase):
         self.rejected(layout.check_child_quality, changed, 'fixture')
 
     def test_multi_role_review_requires_captured_reply_and_safety_redirect(self):
-        doc = layout.load_yaml('tests/giztest/quality/story-aesop.flowcraft.multi-role.giztest.yaml')
+        doc = layout.load_yaml('tests/giztest/quality/story-aesop.eino.multi-role.giztest.yaml')
         layout.check_multi_role_review(doc, 'fixture')
         missing = copy.deepcopy(doc)
         next(s for s in missing['steps'] if s['id'].endswith('_review_history')).pop('capture', None)

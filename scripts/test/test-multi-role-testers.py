@@ -137,7 +137,7 @@ print('validated 42 natural-child Testers, full relays/reloads, immediate failur
 
 workflow_paths = sorted(p for p in Path('workflows').glob('*/*.multi-role.yaml')
                         if p.name != 'test.multi-role.yaml' and p.parent.name.startswith(('story-', 'adventure-', 'figure-')))
-assert len(workflow_paths) == 72
+assert len(workflow_paths) == 42
 for path, workflow in zip(workflow_paths, documents(workflow_paths)):
     text = path.read_text()
     for required in ('约1至2分钟', '有声书连续讲述', '标记格式', '音色由段落标记映射', '尊重改选和更正'):
@@ -151,51 +151,28 @@ for path, workflow in zip(workflow_paths, documents(workflow_paths)):
         assert all(cue in rule for cue in ('未列名人物', '由【旁白】转述', '禁止新增姓名标记', '禁止给孩子加标记')), path
     assert '篇幅执行规则' not in text
     assert '回合规则表' not in text and '总结/检查点｜' not in text
-print('validated 72 simplified continuous narration contracts')
+print('validated 42 simplified continuous narration contracts')
 
 # Exercise post-response persistence as well as pre-response routing. An automatic
 # arrival must survive recall before another user turn supplies a chapter command.
 import re
-persistence_cases = []
 for path, doc in zip(workflow_paths, documents(workflow_paths)):
     story = path.parent.name.startswith(('story-', 'figure-'))
-    if path.name.startswith('flowcraft'):
-        nodes = doc['spec']['flowcraft']['graph']['nodes']
-        control = next(n['config']['source'] for n in nodes
-                       if 'const ' + ('chapters' if story else 'scenes') + ' =' in n.get('config', {}).get('source', ''))
-        names = json.loads(re.search(r'const (?:chapters|scenes) = (\[.*?\]);', control)[1])
-        source = next(n['config']['source'] for n in nodes
-                      if 'state.last_answer =' in n.get('config', {}).get('source', '') or 'next.last_answer =' in n.get('config', {}).get('source', ''))
-        answer = ('【旁白】第 2 章：' if story else '【旁白】来到') + names[1] + '\n角色行动的后果。'
-        persistence_cases.append({'source': source, 'answer': answer,
-                                  'story': story, 'raid': path.parent.name})
+    nodes = doc['spec']['eino']['graph']['nodes']
+    source = next(n['source'] for n in nodes if n['id'] in ('capture-observation', 'commit-progress'))
+    ns = {}
+    exec(source, ns)
+    if story:
+        fact = ns['run']({'text': '我选第一个办法。', 'answer': '【旁白】第 2 章：新行动\n故事后果。'})['fact']
+        assert '\n【旁白】第 2 章：' in fact, path
     else:
-        nodes = doc['spec']['eino']['graph']['nodes']
-        source = next(n['source'] for n in nodes if n['id'] in ('capture-observation', 'commit-progress'))
-        ns = {}
-        exec(source, ns)
-        if story:
-            fact = ns['run']({'text': '我选第一个办法。', 'answer': '【旁白】第 2 章：新行动\n故事后果。'})['fact']
-            assert '\n【旁白】第 2 章：' in fact, path
-        else:
-            control = next(n['source'] for n in nodes if n['id'] == 'control-narration')
-            names = json.loads(re.search(r'scenes = (\[.*?\])', control)[1])
-            fact = ns['run']({'text': '我选第一个办法。', 'answer': '【旁白】来到' + names[1] + '。',
-                              'scene': '1', 'voice_revision': '2', 'phase': 'explore', 'route': '', 'side': ''})
-            fact = fact.get('fact', fact.get('progress'))
-            assert '"voice_scene":2' in fact, path
-subprocess.run(['node', '-e', r'''
-const vm = require('vm'), assert = require('assert/strict');
-for (const c of JSON.parse(require('fs').readFileSync(0, 'utf8'))) {
-  const key = c.story ? 'story_state' : 'scenario_state';
-  const vars = {[key]: {chapter: 1, voice_scene: 1, revision: 1}, answer: c.answer, tmp_answer: c.answer, input: '我选第一个办法。'};
-  vm.runInNewContext(c.source, {board: {getVar: k => vars[k], setVar: (k, v) => {vars[k] = v;}}});
-  const saved = JSON.parse(vars[key + '_fact']);
-  assert.equal(c.story ? saved.chapter : saved.voice_scene, 2, c.raid);
-  assert(saved.active_roles.length > 0, c.raid);
-}
-'''], input=json.dumps(persistence_cases), text=True, check=True)
-print('validated 72 multi-role post-response observations and automatic arrival persistence')
+        control = next(n['source'] for n in nodes if n['id'] == 'control-narration')
+        names = json.loads(re.search(r'scenes = (\[.*?\])', control)[1])
+        fact = ns['run']({'text': '我选第一个办法。', 'answer': '【旁白】来到' + names[1] + '。',
+                          'scene': '1', 'voice_revision': '2', 'phase': 'explore', 'route': '', 'side': ''})
+        fact = fact.get('fact', fact.get('progress'))
+        assert '"voice_scene":2' in fact, path
+print('validated 42 multi-role post-response observations and automatic arrival persistence')
 
 # Execute unmodified YAML in go.starlark.net, including retained Tester history.
 # The candidate alone is reloaded in e2e13; its last naming answer is the next
@@ -280,24 +257,12 @@ real_case('aesop-final-no-arrival', aesop_source, messages,
 messages[-1]['content'] = '新地点。' + messages[-1]['content']
 real_case('aesop-final-arrival', aesop_source, copy.deepcopy(messages), {'route': 'final', 'det': ''})
 # The quality arrival turn selects a real destination in child language.
-for engine in ['eino', 'flowcraft']:
-    doc = documents([Path('workflows/adventure-history/' + engine + '.multi-role.yaml')])[0]
-    utterance = '我们走到哪里啦？我想去集市看看，听听那里的伙伴怎么说！'
-    if engine == 'eino':
-        control = next(n['source'] for n in doc['spec']['eino']['graph']['nodes'] if n['id'] == 'control-narration')
-        real_cases.append({'ID': 'history-natural-destination', 'Source': control,
-                           'Input': {'text': utterance, 'history': [], 'memory': ''},
-                           'Expect': {'scene': '2'}})
-    else:
-        control = next(n['config']['source'] for n in doc['spec']['flowcraft']['graph']['nodes']
-                       if 'const scenes =' in n.get('config', {}).get('source', ''))
-        subprocess.run(['node', '-e', """
-const vm = require('vm'), assert = require('assert/strict');
-const c = JSON.parse(require('fs').readFileSync(0, 'utf8'));
-const vars = {input: c.text};
-vm.runInNewContext(c.source, {board: {getVar: k => vars[k], setVar: (k, v) => {vars[k] = v;}}});
-assert.equal(vars.scenario_state.voice_scene, 2);
-"""], input=json.dumps({'source': control, 'text': utterance}), text=True, check=True)
+doc = documents([Path('workflows/adventure-history/eino.multi-role.yaml')])[0]
+utterance = '我们走到哪里啦？我想去集市看看，听听那里的伙伴怎么说！'
+control = next(n['source'] for n in doc['spec']['eino']['graph']['nodes'] if n['id'] == 'control-narration')
+real_cases.append({'ID': 'history-natural-destination', 'Source': control,
+                   'Input': {'text': utterance, 'history': [], 'memory': ''},
+                   'Expect': {'scene': '2'}})
 
 with tempfile.NamedTemporaryFile(mode='w', suffix='.json') as payload:
     json.dump(real_cases, payload)

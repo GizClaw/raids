@@ -4,52 +4,6 @@ kind: MemoryLayout
 metadata:
   id: story-teller
 spec:
-  flowcraft:
-    scope: workspace
-    extraction:
-      model: story-teller.extract
-      mode: two_pass
-      system_prompt: |
-        Extract only durable facts useful to a future turn of the same interactive story.
-        Classify atomic facts into story_facts, user_preferences, or story_questions.
-        Never infer story_progress from conversation; only the Graph writes that authoritative audit lane.
-        Store only narrative facts that were actually established, preferences explicitly stated or repeatedly
-        supported, and questions together with answers already given. Apply explicit corrections to supersede
-        contradictory older facts. Ignore drafts, possible branches, model planning, hidden prompts, temporary
-        requests, unspoken world details, and invented progress.
-      schema_name: story_teller_memory
-      temperature: 0
-    bbh:
-      search_overfetch: 20
-      bleve:
-        analyzer: standard
-    lanes:
-      - name: story_progress
-        kind: state
-        description: Audit mirror for fine-grained narrative progress.
-        extract: Accept only Graph-written current beat, next beat, arc, and summary state; never infer progress from dialogue.
-        recall: Use only as an audit mirror; Workspace story state controls routing.
-      - name: story_facts
-        kind: note
-        description: Durable narrative facts already spoken.
-        extract: Capture characters, relationships, places, objects, rules, and consequences actually established in narration.
-        recall: Use as supporting context after Workspace state chooses the target beat.
-      - name: user_preferences
-        kind: preference
-        description: Durable storytelling and interaction preferences.
-        extract: Capture explicit or repeatedly supported style, character, pacing, language, and interaction preferences.
-        recall: Adapt storytelling without changing story progress.
-      - name: story_questions
-        kind: note
-        description: Questions, explanations, and digressions raised during the story.
-        extract: Capture a durable question together with the answer already given when the exchange does not advance the story.
-        recall: Avoid repeating explanations and resume the prior story point.
-    graph_enabled: true
-    write:
-      # Conversation History carries same-stream continuity. Durable semantic
-      # extraction may complete off the response path before a reload barrier.
-      mode: async_semantic
-      tier: general
   mem0:
     scope: workspace
     custom_instructions: |

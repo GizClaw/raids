@@ -330,7 +330,7 @@ def generate(repo: Path, out: Path, raids: Sequence[str]) -> list[str]:
         card = cards[grade]
         body, index = card_text(grade, card, cards)
         rules = tutor_rules(grade)
-        flowcraft_prompt, eino_prompt = shared.learning_prompts(rules, body, index)
+        eino_prompt = shared.learning_prompt(rules, body, index)
         route = route_for(grade, card)
         name = grade_name(grade)
         manifest = shared.render_raid_manifest(
@@ -345,7 +345,6 @@ def generate(repo: Path, out: Path, raids: Sequence[str]) -> list[str]:
             voice_description="Science tutor voice",
         )
         workflow_dir = out / "workflows" / raid
-        shared.write_text(workflow_dir / "flowcraft.yaml", shared.render_flowcraft(repo, raid, flowcraft_prompt))
         shared.write_text(
             workflow_dir / "eino.yaml",
             shared.render_eino(repo, raid, eino_prompt, "孩子的年级、已经学过的科学主题、实验观察、误解更正和明确要求记住的信息"),
@@ -353,10 +352,10 @@ def generate(repo: Path, out: Path, raids: Sequence[str]) -> list[str]:
         shared.write_text(workflow_dir / "test.yaml", shared.render_tester(repo, raid, route, tester_rules(grade, raid, card), body))
         shared.write_json(workflow_dir / "raid.json", manifest)
         shared.write_json(workflow_dir / "knowledge.json", card)
-        shared.write_text(workflow_dir / "README.md", render_readme(grade, raid, manifest, card, route, len(flowcraft_prompt)))
+        shared.write_text(workflow_dir / "README.md", render_readme(grade, raid, manifest, card, route, len(eino_prompt)))
         for filename, text in shared.render_giztests(
             repo, raid, len(route), ROUTES[grade]["next"], f"我{name}，给我讲一个有趣的科学知识吧。", opening(grade)
         ).items():
             shared.write_text(out / "tests" / "giztest" / filename, text)
-        generated.append(f"{raid}: {sum(len(volume['units']) for volume in card['volumes'])} units, prompt chars {len(flowcraft_prompt)}")
+        generated.append(f"{raid}: {sum(len(volume['units']) for volume in card['volumes'])} units, prompt chars {len(eino_prompt)}")
     return generated

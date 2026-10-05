@@ -470,7 +470,7 @@ def check_story_transition(file, client):
 def check_smoke(doc, file, raid, capabilities):
     for step in steps(doc):
         expect = step.get('expect', {})
-        if re.fullmatch(r'(?:flowcraft|eino).*_realtime_roundtrip', step['id']):
+        if re.fullmatch(r'eino.*_realtime_roundtrip', step['id']):
             # `is False` keeps every audio gate when the capability is unknown.
             capability = capabilities.get(step['client'].split('__')[0])
             want = {k: v for k, v in ROUNDTRIP_EXPECT.items() if capability is not False or not AUDIO_PATH.search(k)}
@@ -556,10 +556,10 @@ def check_file(file, tier, workflow_aliases):
 
 
 # Figure raids ship one Eino multi-role implementation; every other realtime raid
-# checks its original Flowcraft and Eino clients. Returns the clients checked.
+# checks its native clients. Returns the clients checked.
 def check_realtime(file, manifest, raid):
     capabilities = tts_capabilities(raid)
-    keys = ['eino-multi-role'] if raid.startswith('figure-') else ['flowcraft', 'eino']
+    keys = ['eino-multi-role'] if raid.startswith('figure-') else ['eino']
     for key in keys:
         engine = key.replace('-', '_')
         implementation = manifest['implementations'][key]
@@ -598,17 +598,15 @@ def validate():
         check([stem(f, '.giztest.yaml') for f in files] == expected_files, f'{tier}: raid inventory mismatch')
         for file in files:
             check_file(file, tier, workflow_aliases)
-        for raid in tier_raids:
-            variants = inventory(raid)
-            capabilities = tts_capabilities(raid)
-            if not capabilities:
-                continue
-            for suffix, impl in variants.items():
-                peer = 'flowcraft' if raid == 'journey-guide' else 'flowcraft' + suffix.removeprefix('eino')
-                if suffix.startswith('eino') and peer in variants:
-                    compare_files(f'tests/giztest/{tier}/{raid}.{peer}.giztest.yaml',
-                                  f'tests/giztest/{tier}/{raid}.{suffix}.giztest.yaml', variants[peer], impl, capabilities)
-        print(f'validated {tier}: {len(files)} files and implementation parity')
+        if 'journey-guide' in tier_raids:
+            variants = inventory('journey-guide')
+            capabilities = tts_capabilities('journey-guide')
+            baseline = 'eino-history'
+            for suffix in ('eino-memory-async', 'eino-memory-recall'):
+                compare_files(f'tests/giztest/{tier}/journey-guide.{baseline}.giztest.yaml',
+                              f'tests/giztest/{tier}/journey-guide.{suffix}.giztest.yaml',
+                              variants[baseline], variants[suffix], capabilities)
+        print(f'validated {tier}: {len(files)} files and native Journey parity')
     realtime_count = 0
     for file in sorted(glob.glob('workflows/*/raid.json')):
         manifest = load_json(file)
@@ -623,15 +621,15 @@ def validate():
             check(t['file'].split('/')[2:3] == [t.get('tier')] and len(names) == 1 and names[0] in implementations and
                   t['file'] == f"tests/giztest/{t.get('tier')}/{raid}.{stem(implementations[names[0]]['file'])}.giztest.yaml",
                   f'{file}: implementation registration mismatch')
-    check(realtime_count == 112, f'expected 112 story/adventure/figure/learn RealTime clients, found {realtime_count}')
+    check(realtime_count == 62, f'expected 62 story/adventure/figure/learn RealTime clients, found {realtime_count}')
     print(f'validated {realtime_count} RealTime clients with ASR and audio response gates')
     for prefix in ('story', 'adventure', 'figure'):
-        for engine in ('flowcraft', 'eino'):
+        for engine in ('eino',):
             for file in sorted(glob.glob(f'workflows/{prefix}-*/{engine}.multi-role.yaml')):
                 source = read(file)
                 check('旁白叙述与角色第一人称台词分段' in source, f'{file}: missing continuous dialogue contract')
                 check('每轮只由一人发声' not in source, f'{file}: obsolete single-speaker contract')
-    for engine in ('flowcraft', 'eino'):
+    for engine in ('eino',):
         source = read(f'workflows/adventure-history/{engine}.multi-role.yaml')
         check('情境重现声明不替代角色自述' in source, f'history {engine}: reenactment boundary missing')
         check('正文第一句必须逐字' not in source, f'history {engine}: rigid scene opening')

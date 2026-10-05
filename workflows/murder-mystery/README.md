@@ -7,8 +7,7 @@ Long-form detective mystery with free investigation, testimony checks, evidence 
 ## Workspace safety fence
 
 Every player-facing system prompt starts with the Workspace fence, then a
-blank line and the scenario instructions: Flowcraft uses `${board.safety_fence}`;
-Eino binds `input.safety_fence` and renders `{safety_fence}` with `f_string`.
+blank line and the scenario instructions: Eino binds `input.safety_fence` and renders `{safety_fence}` with `f_string`.
 This includes drafts forwarded by published scripts and all available character/host paths.
 With empty fence text, only two leading newlines remain. Internal routing/memory nodes and
 Tester Workflows do not receive the variable. See the root
@@ -19,7 +18,6 @@ Tester Workflows do not receive the variable. See the root
 | File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |
 | --- | --- | --- | --- | --- | --- |
 | `eino.yaml` | `eino-murder-mystery` | eino | adventure | `eino-murder-mystery.model` | `eino-murder-mystery.game-master` |
-| `flowcraft.yaml` | `flowcraft-murder-mystery` | flowcraft | adventure | `flowcraft-murder-mystery.model` | `flowcraft-murder-mystery.game-master` |
 
 Install the Workflow resource and add a flat `spec.workflows` binding to its Workflow ID. Bind the slots above under `spec.resources.models` and `spec.resources.voices`; use `category:*` tags for discovery.
 
@@ -29,7 +27,6 @@ Install the Workflow resource and add a flat `spec.workflows` binding to its Wor
 Tester: `test.yaml` (`murder-mystery-test`, eino), shared by every implementation; one Giztest scenario per implementation:
 
 - `tests/giztest/soak/murder-mystery.eino.giztest.yaml` (relay, with reload, timeout 99m)
-- `tests/giztest/soak/murder-mystery.flowcraft.giztest.yaml` (relay, with reload, timeout 99m)
 
 The route has 26 target responses:
 
@@ -73,4 +70,3 @@ make test-e2e RAID=murder-mystery PARALLEL=2
 Continuous multi-character narration is available separately; original implementations remain unchanged.
 
 - `eino.multi-role.yaml`: `eino-murder-mystery-multi-role`; Voice aliases: `eino-murder-mystery-mr.game-master`, `eino-murder-mystery-mr.housekeeper`, `eino-murder-mystery-mr.chef`, `eino-murder-mystery-mr.heir`, `eino-murder-mystery-mr.lawyer`.
-- `flowcraft.multi-role.yaml`: `flowcraft-murder-mystery-multi-role`; Voice aliases: `flowcraft-murder-mystery-mr.game-master`, `flowcraft-murder-mystery-mr.housekeeper`, `flowcraft-murder-mystery-mr.chef`, `flowcraft-murder-mystery-mr.heir`, `flowcraft-murder-mystery-mr.lawyer`.

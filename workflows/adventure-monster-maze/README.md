@@ -7,8 +7,7 @@ Escape a friendly monster maze using direction, shape, and logic puzzles.
 ## Workspace safety fence
 
 Every player-facing system prompt starts with the Workspace fence, then a
-blank line and the scenario instructions: Flowcraft uses `${board.safety_fence}`;
-Eino binds `input.safety_fence` and renders `{safety_fence}` with `f_string`.
+blank line and the scenario instructions: Eino binds `input.safety_fence` and renders `{safety_fence}` with `f_string`.
 This covers all narrator/character paths, prompt branches, and available variants.
 With empty fence text, only two leading newlines remain. Internal routing/memory nodes and
 Tester Workflows do not receive the variable. See the root
@@ -19,7 +18,6 @@ Tester Workflows do not receive the variable. See the root
 | File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |
 | --- | --- | --- | --- | --- | --- |
 | `eino.yaml` | `eino-adventure-monster-maze` | eino | adventure | `eino-adventure-monster-maze.model` | `eino-adventure-monster-maze.adventure-guide` |
-| `flowcraft.yaml` | `flowcraft-adventure-monster-maze` | flowcraft | adventure | `flowcraft-adventure-monster-maze.model` | `flowcraft-adventure-monster-maze.adventure-guide` |
 
 Install the Workflow resource and add a flat `spec.workflows` binding to its Workflow ID. Bind the slots above under `spec.resources.models` and `spec.resources.voices`; use `category:*` tags for discovery.
 
@@ -29,7 +27,6 @@ Install the Workflow resource and add a flat `spec.workflows` binding to its Wor
 Tester: `test.yaml` (`adventure-monster-maze-test`, eino), shared by every implementation; one Giztest scenario per implementation:
 
 - `tests/giztest/soak/adventure-monster-maze.eino.giztest.yaml` (relay, with reload, timeout 55m)
-- `tests/giztest/soak/adventure-monster-maze.flowcraft.giztest.yaml` (relay, with reload, timeout 55m)
 
 The route has 13 target responses:
 
@@ -60,4 +57,3 @@ make test-e2e RAID=adventure-monster-maze PARALLEL=2
 Continuous multi-character narration is available separately; original implementations remain unchanged.
 
 - `eino.multi-role.yaml`: `eino-adventure-monster-maze-multi-role`; Voice aliases: `eino-adventure-monster-maze-mr.adventure-guide`, `eino-adventure-monster-maze-mr.little-monster`, `eino-adventure-monster-maze-mr.gatekeeper`, `eino-adventure-monster-maze-mr.riddle-spirit`.
-- `flowcraft.multi-role.yaml`: `flowcraft-adventure-monster-maze-multi-role`; Voice aliases: `flowcraft-adventure-monster-maze-mr.adventure-guide`, `flowcraft-adventure-monster-maze-mr.little-monster`, `flowcraft-adventure-monster-maze-mr.gatekeeper`, `flowcraft-adventure-monster-maze-mr.riddle-spirit`.

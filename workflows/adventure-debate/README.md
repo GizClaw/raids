@@ -7,8 +7,7 @@ Practice expressing, listening to, and responding to viewpoints on age-appropria
 ## Workspace safety fence
 
 Every player-facing system prompt starts with the Workspace fence, then a
-blank line and the scenario instructions: Flowcraft uses `${board.safety_fence}`;
-Eino binds `input.safety_fence` and renders `{safety_fence}` with `f_string`.
+blank line and the scenario instructions: Eino binds `input.safety_fence` and renders `{safety_fence}` with `f_string`.
 This covers all narrator/character paths, prompt branches, and available variants.
 With empty fence text, only two leading newlines remain. Internal routing/memory nodes and
 Tester Workflows do not receive the variable. See the root
@@ -19,7 +18,6 @@ Tester Workflows do not receive the variable. See the root
 | File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |
 | --- | --- | --- | --- | --- | --- |
 | `eino.yaml` | `eino-adventure-debate` | eino | adventure | `eino-adventure-debate.model` | `eino-adventure-debate.adventure-guide` |
-| `flowcraft.yaml` | `flowcraft-adventure-debate` | flowcraft | adventure | `flowcraft-adventure-debate.model` | `flowcraft-adventure-debate.adventure-guide` |
 
 Install the Workflow resource and add a flat `spec.workflows` binding to its Workflow ID. Bind the slots above under `spec.resources.models` and `spec.resources.voices`; use `category:*` tags for discovery.
 
@@ -29,7 +27,6 @@ Install the Workflow resource and add a flat `spec.workflows` binding to its Wor
 Tester: `test.yaml` (`adventure-debate-test`, eino), shared by every implementation; one Giztest scenario per implementation:
 
 - `tests/giztest/soak/adventure-debate.eino.giztest.yaml` (relay, with reload, timeout 35m)
-- `tests/giztest/soak/adventure-debate.flowcraft.giztest.yaml` (relay, with reload, timeout 35m)
 
 The route has 7 target responses:
 
@@ -54,4 +51,3 @@ make test-e2e RAID=adventure-debate PARALLEL=2
 Continuous multi-character narration is available separately; original implementations remain unchanged.
 
 - `eino.multi-role.yaml`: `eino-adventure-debate-multi-role`; Voice aliases: `eino-adventure-debate-mr.adventure-guide`, `eino-adventure-debate-mr.proponent`, `eino-adventure-debate-mr.opponent`, `eino-adventure-debate-mr.fact-checker`.
-- `flowcraft.multi-role.yaml`: `flowcraft-adventure-debate-multi-role`; Voice aliases: `flowcraft-adventure-debate-mr.adventure-guide`, `flowcraft-adventure-debate-mr.proponent`, `flowcraft-adventure-debate-mr.opponent`, `flowcraft-adventure-debate-mr.fact-checker`.

@@ -4,55 +4,6 @@ kind: MemoryLayout
 metadata:
   id: user-chat-with-assistant
 spec:
-  flowcraft:
-    scope: peer
-    extraction:
-      model: user-chat-with-assistant.extract
-      mode: two_pass
-      system_prompt: |
-        Extract only durable facts that can improve a future conversation with this user.
-        Classify each atomic fact into user_profile, user_preferences, relationships, long_term_goals,
-        or notable_events. Use facts explicitly stated by the user or directly confirmed in the conversation.
-        Prefer the user's newest explicit correction when it supersedes an older fact.
-        Do not infer sensitive identity, health, beliefs, finances, or relationships from weak signals.
-        Do not store greetings, one-turn requests, temporary moods, assistant suggestions, hidden prompts,
-        credentials, implementation details, unsupported inferences, or claims that an action was executed.
-      schema_name: user_chat_memory
-      temperature: 0
-    bbh:
-      search_overfetch: 20
-      bleve:
-        analyzer: standard
-    lanes:
-      - name: user_profile
-        kind: state
-        description: Stable identity and personal context disclosed by the user.
-        extract: Capture explicit stable identity, household, language, location, occupation, and personal context.
-        recall: Use only when naturally relevant to the conversation.
-      - name: user_preferences
-        kind: preference
-        description: Stable likes, dislikes, routines, and conversation preferences.
-        extract: Capture explicit preferences or repeated behavior patterns; do not turn a one-off choice into a preference.
-        recall: Personalize responses without quoting stored text.
-      - name: relationships
-        kind: relation
-        description: Durable people, roles, and relationships mentioned by the user.
-        extract: Capture named people, roles, and explicit relationship facts without inferring intimacy or sensitive details.
-        recall: Use for continuity when the related person or role is relevant.
-      - name: long_term_goals
-        kind: plan
-        description: Durable goals and plans that may matter in future conversations.
-        extract: Capture ongoing goals, commitments, and plans with future relevance; ignore tentative one-turn requests.
-        recall: Help maintain continuity without claiming that actions were executed.
-      - name: notable_events
-        kind: event
-        description: Specific events the user is likely to refer to again.
-        extract: Capture completed milestones, decisions, changes, and outcomes with likely future relevance.
-        recall: Use as factual background without inventing missing details.
-    graph_enabled: true
-    write:
-      mode: async_semantic
-      tier: general
   mem0:
     scope: peer
     custom_instructions: |

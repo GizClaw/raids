@@ -4,50 +4,6 @@ kind: MemoryLayout
 metadata:
   id: adventure
 spec:
-  flowcraft:
-    scope: workspace
-    extraction:
-      enabled: true
-      model: adventure.extract
-      mode: single_pass
-      schema_name: adventure_memory
-      temperature: 0
-      system_prompt: |
-        Extract only durable investigation facts visible in the conversation: confirmed case state,
-        discoveries actually presented to the player, witness statements, accepted player actions, and
-        explicit player corrections. Keep names, numbers, negation, source, and uncertainty. A newest
-        explicit correction supersedes its older conflicting value. Do not store proposed actions,
-        hidden solution details, speculation, flavor text, or a clue the assistant did not actually reveal.
-    bbh:
-      search_overfetch: 24
-      bleve: {analyzer: standard}
-    lanes:
-      - name: case_state
-        kind: state
-        description: Current visible phase and established case state.
-        extract: Keep only the newest explicitly established visible state.
-        recall: Use as continuity context, never as a hidden command route.
-      - name: discoveries
-        kind: note
-        description: Clues and physical findings already revealed to the player.
-        extract: Store each revealed clue with its source and qualifiers; replace explicitly corrected values.
-        recall: Use only already-visible clues and honor the newest correction.
-      - name: interviews
-        kind: event
-        description: Questions asked and witness statements already heard by the player.
-        extract: Store the witness, statement, and uncertainty without inventing testimony.
-        recall: Preserve interview continuity and expose contradictions rather than resolving them silently.
-      - name: player_corrections
-        kind: state
-        description: Explicit corrections and current authoritative values supplied by the player.
-        extract: Store the new value and what it supersedes; newest correction wins.
-        recall: Apply before any older discovery, interview, or narration.
-    graph_enabled: true
-    write:
-      # Conversation History carries same-stream continuity. Durable semantic
-      # extraction may complete off the response path before a reload barrier.
-      mode: async_semantic
-      tier: general
   mem0:
     scope: workspace
     custom_instructions: |

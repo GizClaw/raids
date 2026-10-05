@@ -7,16 +7,16 @@ all 20 packages offline and compares every generated file with the catalog.
 
 `subject_*.py` owns curriculum rules, card text, routes, and README content.
 `shared.py` renders the common structure using the original
-`workflows/adventure-science/{flowcraft,eino,test}.yaml` skeletons. The files in
+`workflows/adventure-science/{eino,test}.yaml` skeletons. The files in
 `templates/` are independent Giztest tier templates; they are not agent system
 prompt templates.
 
-The Flowcraft and Eino rendering helpers prepend the Workspace safety fence
+The Eino rendering helper prepends the Workspace safety fence
 to the tutor's system prompt, then a blank line and the subject prompt. The
 Eino skeleton supplies `inputs.safety_fence.from: input.safety_fence`, alongside
 its existing history and memory bindings; `render_eino` preserves those inputs
 while replacing the system template with `{safety_fence}` plus subject text.
-`render_flowcraft` similarly prefixes `${board.safety_fence}`. Subject prompt
+Subject prompt
 character counts describe the subject text, excluding the dynamic fence.
 `implementation_table` supplies the shared README explanation.
 

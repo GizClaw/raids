@@ -19,6 +19,7 @@ require_command jq
 cd "$root"
 
 require_python_yaml
+python3 scripts/test/catalog-closure.py
 python3 scripts/test/test_safety_fences.py
 python3 scripts/test/safety_fences.py
 
@@ -53,7 +54,7 @@ while IFS= read -r line; do
 	export "$name=raids-static-validation"
 done <.env.example
 
-files="$(find $resource_dirs -type f -name '*.yaml' -print | LC_ALL=C sort)"
+files="$(find $resource_dirs runtime-profile.example.yaml -type f -name '*.yaml' -print | LC_ALL=C sort)"
 test -n "$files" || {
 	printf 'no applyable Resource files found\n' >&2
 	exit 1
@@ -85,7 +86,7 @@ python3 scripts/test/giztest_layout.py
 # chain using parsed YAML, not aggregate text counts.
 python3 scripts/test/voice-bindings.py
 
-# Execute every declared routing suite against both real engine scripts.
+# Execute every declared routing suite against the real native controller.
 require_command node
 python3 scripts/test/routing-sources.py | node scripts/test/test-routing.js
 
@@ -100,7 +101,7 @@ for package in workflows/story-* workflows/figure-*; do
 	# Figure raids ship only the Eino multi-role implementation.
 	case "$package" in
 	workflows/figure-*) engines='eino.multi-role' ;;
-	*) engines='eino flowcraft eino.multi-role flowcraft.multi-role' ;;
+	*) engines='eino eino.multi-role' ;;
 	esac
 	for engine in $engines; do
 		case "$engine" in *.multi-role) continuation='故事自然推进' ;; *) continuation='并紧接新章开场' ;; esac

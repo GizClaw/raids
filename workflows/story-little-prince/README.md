@@ -5,8 +5,7 @@ Use an original planetary journey to discuss companionship, responsibility, imag
 ## Workspace safety fence
 
 Every player-facing system prompt starts with the Workspace fence, then a
-blank line and the scenario instructions: Flowcraft uses `${board.safety_fence}`;
-Eino binds `input.safety_fence` and renders `{safety_fence}` with `f_string`.
+blank line and the scenario instructions: Eino binds `input.safety_fence` and renders `{safety_fence}` with `f_string`.
 This covers all narrator/character paths, prompt branches, and available variants.
 With empty fence text, only two leading newlines remain. Internal routing/memory nodes and
 Tester Workflows do not receive the variable. See the root
@@ -33,17 +32,14 @@ Tester Workflows do not receive the variable. See the root
 
 | Workflow | Engine | Output | Voice roles |
 | --- | --- | --- | --- |
-| `flowcraft-story-little-prince` | Flowcraft | text + TTS | `storyteller`, `little-prince`, `rose` mapped to three distinct public Voices |
 | `eino-story-little-prince` | Eino | text + audio | `eino-story-little-prince.storyteller` (single default Voice) |
 
-Flowcraft selects exactly one published node per external response. Chapter entry/transition and invalid speaker selection fall back to `storyteller`; direct in-scene requests may select `little-prince` or `rose`.
 
 ## Acceptance
 
-- Paired Flowcraft and Eino relays each require 16 continuous target responses with a reload before response 9.
+- Eino relays require 16 continuous target responses with a reload before response 9.
 - Milestones: 8, 16; intermediate segments end in strict `CHECKPOINT PASS` and the final segment ends in strict `PASS`.
-- `flowcraft.roles.giztest.yaml` creates isolated narrator/little-prince/rose Workspaces and requires text EOS, audio EOS, non-empty Opus, timing evidence, and direct, speaker-label-free role text.
-- `flowcraft.transitions.giztest.yaml` and `eino.transitions.giztest.yaml` prove an opening that names the setting, both characters, and how to play; ordinary progress; a negated choice that stays in chapter 1; an option-only answer that is told to say “进入下一章”; a “进入下一章” request whose chapter 2 heading is followed by story text in the same reply; and same-chapter continuation without a repeated heading.
+- `tests/giztest/quality/story-little-prince.eino.giztest.yaml` prove an opening that names the setting, both characters, and how to play; ordinary progress; a negated choice that stays in chapter 1; an option-only answer that is told to say “进入下一章”; a “进入下一章” request whose chapter 2 heading is followed by story text in the same reply; and same-chapter continuation without a repeated heading.
 - Final live evidence must come from the e2e deployment through `edge-bj-01.e2e.gizclaw.com:9821`; dev evidence is diagnostic only.
 
 ```sh
@@ -56,4 +52,3 @@ GIZCLAW=/absolute/path/to/gizclaw-with-safety-fence GIZCLAW_TEST_CLI=/absolute/p
 Continuous multi-character narration is available separately; original implementations remain unchanged.
 
 - `eino.multi-role.yaml`: `eino-story-little-prince-multi-role`; Voice aliases: `eino-story-little-prince-mr.storyteller`, `eino-story-little-prince-mr.little-prince`, `eino-story-little-prince-mr.rose`, `eino-story-little-prince-mr.fox`, `eino-story-little-prince-mr.pilot`.
-- `flowcraft.multi-role.yaml`: `flowcraft-story-little-prince-multi-role`; Voice aliases: `flowcraft-story-little-prince-mr.storyteller`, `flowcraft-story-little-prince-mr.little-prince`, `flowcraft-story-little-prince-mr.rose`, `flowcraft-story-little-prince-mr.fox`, `flowcraft-story-little-prince-mr.pilot`.

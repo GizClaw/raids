@@ -19,32 +19,16 @@ class SafetyFencesTest(unittest.TestCase):
         return safety_fences.errors(self.fixtures[driver], f'workflows/fixture/{driver}.yaml')
 
     def test_valid_player_prompts_and_unfenced_internal_nodes(self):
-        for driver in ('flowcraft', 'eino'):
+        for driver in ('eino',):
             self.assertEqual([], self.errors(driver))
 
-    def test_flowcraft_missing_misplaced_or_labelled_fence(self):
-        for prefix in ['', 'Safety: ', 'Original instructions\n\n']:
-            self.nodes('flowcraft')[0]['config']['system_prompt'] = prefix + ('Speak.' if prefix == '' else '${board.safety_fence}\n\nSpeak.')
-            self.assertEqual(1, len(self.errors('flowcraft')))
 
     def test_internal_fence_does_not_cover_player_reply(self):
-        self.nodes('flowcraft')[0]['config']['system_prompt'] = 'Speak.'
-        self.nodes('flowcraft')[1]['config']['system_prompt'] = '${board.safety_fence}\n\nReturn JSON.'
-        self.assertEqual(1, len(self.errors('flowcraft')))
         self.nodes('eino')[0]['messages'][0]['template'] = 'Speak.'
         self.nodes('eino')[2].update({**self.nodes('eino')[0], 'id': 'extract-memory', 'outputs': {'messages': 'memory-messages'}})
         self.nodes('eino')[2]['messages'] = [{'role': 'system', 'template': '{safety_fence}\n\nExtract.'}]
         self.assertEqual(1, len(self.errors('eino')))
 
-    def test_draft_forwarded_by_published_script(self):
-        draft = self.nodes('flowcraft')[0]
-        draft['publish'] = False
-        draft['config']['output_key'] = 'draft'
-        self.nodes('flowcraft').append({'id': 'publish', 'type': 'script', 'publish': True,
-                                        'config': {'source': 'host.emit("token", {content: board.getVar("draft")});'}})
-        self.assertEqual([], self.errors('flowcraft'))
-        draft['config']['system_prompt'] = 'Speak.'
-        self.assertEqual(1, len(self.errors('flowcraft')))
 
     def test_eino_requires_binding_and_matching_system_variable(self):
         prompt = self.nodes('eino')[0]
@@ -75,22 +59,18 @@ class SafetyFencesTest(unittest.TestCase):
                 self.assertEqual([], self.errors('eino'))
 
     def test_every_published_role_and_prompt_branch_is_checked(self):
-        for driver in ('flowcraft', 'eino'):
+        for driver in ('eino',):
             extra = copy.deepcopy(self.nodes(driver)[0])
             extra['id'] = 'another-player-path'
-            if driver == 'flowcraft':
-                extra['config']['system_prompt'] = 'Speak.'
-            else:
-                extra['inputs'].pop('safety_fence', None)
+            extra['inputs'].pop('safety_fence', None)
             self.nodes(driver).append(extra)
             self.assertRegex(''.join(self.errors(driver)), 'another-player-path')
 
     def test_discovery_includes_variants_but_excludes_testers_and_giztests(self):
         with tempfile.TemporaryDirectory(prefix='safety-fence-fixture') as root:
             os.makedirs(f'{root}/raid')
-            names = ['flowcraft.yaml', 'flowcraft.multi-role.yaml', 'eino.yaml', 'eino.multi-role.yaml', 'eino-memory-async.yaml',
-                     'flowcraft-extra.yaml', 'conversation.yaml', 'zh-en.yaml']
-            for name in names + ['test.yaml', 'test.multi-role.yaml', 'tester.yaml', 'eino.giztest.yaml', 'flowcraft.giztest.yaml']:
+            names = ['eino.yaml', 'eino.multi-role.yaml', 'eino-memory-async.yaml', 'eino-extra.yaml', 'conversation.yaml', 'zh-en.yaml']
+            for name in names + ['test.yaml', 'test.multi-role.yaml', 'tester.yaml', 'eino.giztest.yaml']:
                 with open(f'{root}/raid/{name}', 'w', encoding='utf-8') as f:
                     f.write('{}')
             self.assertEqual(sorted(names), [os.path.basename(file) for file in safety_fences.files(root)])
@@ -107,7 +87,7 @@ class SafetyFencesTest(unittest.TestCase):
         self.assertRegex(''.join(safety_fences.errors({'spec': {'driver': 'other'}}, 'workflows/fixture/x.yaml')), 'unknown driver')
 
     def test_no_player_path_fails_closed(self):
-        for driver in ('flowcraft', 'eino'):
+        for driver in ('eino',):
             self.nodes(driver).clear()
             self.assertRegex(''.join(self.errors(driver)), 'no player reply prompt')
 

@@ -18,9 +18,8 @@ Tester Workflows do not receive the variable. See the root
 Install the Workflow resource and add a flat `spec.workflows` binding to its Workflow ID. Bind the slots above under `spec.resources.models` and `spec.resources.voices`; use `category:*` tags for discovery.
 
 Both public profiles bind it as `spec.workflows.general-assistant`
-(聊天助手), tagged `category:assistants`. It bound `flowcraft-chat-assistant` until the
-Flowcraft implementation was removed, so a consumer that overrides that alias
-or keys assets by Workflow ID must switch to `eino-chat-assistant`.
+(聊天助手), tagged `category:assistants`. Consumers that override that public
+alias must resolve it to `eino-chat-assistant`.
 
 It is a plain ASR → LLM → TTS pipeline: the shared `asr` Model transcribes
 speech, `eino-chat-assistant.model` answers, and the Voice adapter speaks the

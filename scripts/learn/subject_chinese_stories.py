@@ -271,20 +271,20 @@ story labels, the copyright boundary, unknown-detail handling, and durable memor
     return "\n".join(lines)
 
 
-def prompts_for(card: Mapping[str, Any]) -> tuple[str, str, str, int | None]:
+def prompts_for(card: Mapping[str, Any]) -> tuple[str, str, int | None]:
     # Summaries stay whole: a cut-off gist invites the model to invent the rest.
     body = card_text(card)
-    flowcraft_prompt, eino_prompt = shared.learning_prompts(tutor_rules(), body, "")
-    if len(flowcraft_prompt) > MAX_PROMPT_CHARS:
-        raise ValueError(f"story prompt is {len(flowcraft_prompt)} characters; budget is {MAX_PROMPT_CHARS}")
-    return body, flowcraft_prompt, eino_prompt, None
+    eino_prompt = shared.learning_prompt(tutor_rules(), body, "")
+    if len(eino_prompt) > MAX_PROMPT_CHARS:
+        raise ValueError(f"story prompt is {len(eino_prompt)} characters; budget is {MAX_PROMPT_CHARS}")
+    return body, eino_prompt, None
 
 
 def generate(repo: Path, out: Path, raids: Sequence[str]) -> list[str]:
     if list(raids) != [RAID]:
         raise ValueError(f"unsupported Chinese stories raids: {', '.join(raids)}")
     card = load_card(repo)
-    body, flowcraft_prompt, eino_prompt, gist_limit = prompts_for(card)
+    body, eino_prompt, gist_limit = prompts_for(card)
     eino_prompt = eino_prompt.replace(
         "相关长期记忆只用于承接已确认的学习进度；",
         "相关长期记忆只用于承接已确认的年级、已学的内容和答题情况；",
@@ -304,7 +304,6 @@ def generate(repo: Path, out: Path, raids: Sequence[str]) -> list[str]:
         voice_description="Story tutor voice",
     )
     workflow_dir = out / "workflows" / RAID
-    shared.write_text(workflow_dir / "flowcraft.yaml", shared.render_flowcraft(repo, RAID, flowcraft_prompt))
     shared.write_text(
         workflow_dir / "eino.yaml",
         shared.render_eino(repo, RAID, eino_prompt, "孩子的年级、已学的内容、答题情况、更正和明确要求记住的信息"),
@@ -312,12 +311,12 @@ def generate(repo: Path, out: Path, raids: Sequence[str]) -> list[str]:
     shared.write_text(workflow_dir / "test.yaml", shared.render_tester(repo, RAID, route, tester_rules(RAID, card), body))
     shared.write_json(workflow_dir / "raid.json", manifest)
     shared.write_json(workflow_dir / "knowledge.json", card)
-    shared.write_text(workflow_dir / "README.md", render_readme(RAID, manifest, card, route, len(flowcraft_prompt), gist_limit))
+    shared.write_text(workflow_dir / "README.md", render_readme(RAID, manifest, card, route, len(eino_prompt), gist_limit))
     for filename, text in shared.render_giztests(repo, RAID, len(route), "曹冲称象", "我三年级，给我讲一个寓言故事吧。", OPENING).items():
         shared.write_text(out / "tests" / "giztest" / filename, text)
     return [
         f"{RAID}: {sum(len(card[key]) for key in CATEGORIES[:-1])} entries/groups, "
-        f"card chars {len(body)}, prompt chars {len(flowcraft_prompt)}, gist limit {gist_limit}"
+        f"card chars {len(body)}, prompt chars {len(eino_prompt)}, gist limit {gist_limit}"
     ]
 
 

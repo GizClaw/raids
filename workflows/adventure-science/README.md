@@ -7,8 +7,7 @@ Practice hypotheses and evidence through safe experiments and thought experiment
 ## Workspace safety fence
 
 Every player-facing system prompt starts with the Workspace fence, then a
-blank line and the scenario instructions: Flowcraft uses `${board.safety_fence}`;
-Eino binds `input.safety_fence` and renders `{safety_fence}` with `f_string`.
+blank line and the scenario instructions: Eino binds `input.safety_fence` and renders `{safety_fence}` with `f_string`.
 This covers all narrator/character paths, prompt branches, and available variants.
 With empty fence text, only two leading newlines remain. Internal routing/memory nodes and
 Tester Workflows do not receive the variable. See the root
@@ -19,7 +18,6 @@ Tester Workflows do not receive the variable. See the root
 | File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |
 | --- | --- | --- | --- | --- | --- |
 | `eino.yaml` | `eino-adventure-science` | eino | adventure | `eino-adventure-science.model` | `eino-adventure-science.adventure-guide` |
-| `flowcraft.yaml` | `flowcraft-adventure-science` | flowcraft | adventure | `flowcraft-adventure-science.model` | `flowcraft-adventure-science.adventure-guide` |
 
 Install the Workflow resource and add a flat `spec.workflows` binding to its Workflow ID. Bind the slots above under `spec.resources.models` and `spec.resources.voices`; use `category:*` tags for discovery.
 
@@ -29,7 +27,6 @@ Install the Workflow resource and add a flat `spec.workflows` binding to its Wor
 Tester: `test.yaml` (`adventure-science-test`, eino), shared by every implementation; one Giztest scenario per implementation:
 
 - `tests/giztest/soak/adventure-science.eino.giztest.yaml` (relay, with reload, timeout 35m)
-- `tests/giztest/soak/adventure-science.flowcraft.giztest.yaml` (relay, with reload, timeout 35m)
 
 The route has 7 target responses:
 
@@ -54,4 +51,3 @@ make test-e2e RAID=adventure-science PARALLEL=2
 Continuous multi-character narration is available separately; original implementations remain unchanged.
 
 - `eino.multi-role.yaml`: `eino-adventure-science-multi-role`; Voice aliases: `eino-adventure-science-mr.adventure-guide`, `eino-adventure-science-mr.experimenter`, `eino-adventure-science-mr.observer`, `eino-adventure-science-mr.safety-teacher`.
-- `flowcraft.multi-role.yaml`: `flowcraft-adventure-science-multi-role`; Voice aliases: `flowcraft-adventure-science-mr.adventure-guide`, `flowcraft-adventure-science-mr.experimenter`, `flowcraft-adventure-science-mr.observer`, `flowcraft-adventure-science-mr.safety-teacher`.

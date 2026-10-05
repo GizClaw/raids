@@ -17,7 +17,7 @@ TEMPLATES = HERE / "templates"
 # The puzzle for (level, puzzle number) is items[(puzzle - 1) * step % len(items)].
 # A step coprime with the pool size walks the whole level before any repeat.
 STEP_CHOICES = (7, 5, 3, 11, 13)
-MAX_RAID_ID = 47  # flowcraft-<raid>.model must fit a 63-byte alias
+MAX_RAID_ID = 47  # Keep the existing catalog ID limit; eino-<raid>.model fits 63 bytes.
 TIERS = ("smoke", "quality", "soak")
 JUDGE_DIMS = ["instruction_following", "factuality", "secret_keeping", "hint_size", "language_match"]
 

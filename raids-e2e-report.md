@@ -1,5 +1,7 @@
 # Raids E2E 逐剧本表现
 
+> 历史验收记录：以下数据只对应 2026-09-08 的 GizClaw 0.16.2 环境，不描述当前 catalog 配置或 v0.26.0 验收。旧引擎名称保留用于证据溯源。
+
 **环境** GizClaw 0.16.2（build b110c39f）· E2E 集群 · 2026-09-08 · `gizclaw test run --parallel 6` · eino 31/31、flowcraft 30/30 通过。
 
 两条路径的差别只在 RuntimeProfile 绑定；记忆驱动都是 `volc_mem0`，ASR 都是 `volc-bigasr-sauc`，TTS 供应商相同：

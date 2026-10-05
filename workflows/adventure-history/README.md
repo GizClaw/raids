@@ -7,8 +7,7 @@ Explore historical settings as a time observer and understand cause and effect.
 ## Workspace safety fence
 
 Every player-facing system prompt starts with the Workspace fence, then a
-blank line and the scenario instructions: Flowcraft uses `${board.safety_fence}`;
-Eino binds `input.safety_fence` and renders `{safety_fence}` with `f_string`.
+blank line and the scenario instructions: Eino binds `input.safety_fence` and renders `{safety_fence}` with `f_string`.
 This covers all narrator/character paths, prompt branches, and available variants.
 With empty fence text, only two leading newlines remain. Internal routing/memory nodes and
 Tester Workflows do not receive the variable. See the root
@@ -19,7 +18,6 @@ Tester Workflows do not receive the variable. See the root
 | File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |
 | --- | --- | --- | --- | --- | --- |
 | `eino.yaml` | `eino-adventure-history` | eino | adventure | `eino-adventure-history.model` | `eino-adventure-history.adventure-guide` |
-| `flowcraft.yaml` | `flowcraft-adventure-history` | flowcraft | adventure | `flowcraft-adventure-history.model` | `flowcraft-adventure-history.adventure-guide` |
 
 Install the Workflow resource and add a flat `spec.workflows` binding to its Workflow ID. Bind the slots above under `spec.resources.models` and `spec.resources.voices`; use `category:*` tags for discovery.
 
@@ -29,7 +27,6 @@ Install the Workflow resource and add a flat `spec.workflows` binding to its Wor
 Tester: `test.yaml` (`adventure-history-test`, eino), shared by every implementation; one Giztest scenario per implementation:
 
 - `tests/giztest/soak/adventure-history.eino.giztest.yaml` (relay, with reload, timeout 35m)
-- `tests/giztest/soak/adventure-history.flowcraft.giztest.yaml` (relay, with reload, timeout 35m)
 
 The route has 7 target responses:
 
@@ -54,4 +51,3 @@ make test-e2e RAID=adventure-history PARALLEL=2
 Continuous multi-character narration is available separately; original implementations remain unchanged.
 
 - `eino.multi-role.yaml`: `eino-adventure-history-multi-role`; Voice aliases: `eino-adventure-history-mr.adventure-guide`, `eino-adventure-history-mr.historian`, `eino-adventure-history-mr.artisan`, `eino-adventure-history-mr.market-guide`.
-- `flowcraft.multi-role.yaml`: `flowcraft-adventure-history-multi-role`; Voice aliases: `flowcraft-adventure-history-mr.adventure-guide`, `flowcraft-adventure-history-mr.historian`, `flowcraft-adventure-history-mr.artisan`, `flowcraft-adventure-history-mr.market-guide`.
