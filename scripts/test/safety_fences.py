@@ -5,9 +5,7 @@ import sys
 
 import yaml
 
-# Check prompt placement, not model compliance. Trace the catalog's published
-# models and the Flowcraft draft -> board.getVar -> published script pattern.
-FLOWCRAFT_PREFIX = '${board.safety_fence}\n\n'
+# Check prompt placement, not model compliance, for the published native models.
 # Realtime drivers substitute ${input.safety_fence} in instructions and trim
 # the result, so an off fence leaves no leading blank line. The dotted name
 # is not expanded as an environment variable when manifests are applied.
@@ -66,21 +64,6 @@ def fenced_prompt(node):
                for key, binding in node.get('inputs', {}).items())
 
 
-def flowcraft_nodes(graph):
-    nodes = graph['nodes']
-    publishers = [node for node in nodes if node.get('type') == 'script' and node.get('publish') is True]
-    selected = []
-    for node in nodes:
-        if node.get('type') != 'llm' or truthy(node.get('config', {}).get('json_mode')):
-            continue
-        output = dig(node, 'config', 'output_key')
-        if node.get('publish') is True or (truthy(output) and any(
-                re.search(rf'''board\.getVar\(\s*["']{re.escape(output)}["']\s*\)''', text(dig(publisher, 'config', 'source')), re.ASCII)
-                for publisher in publishers)):
-            selected.append(node)
-    return selected
-
-
 def eino_nodes(graph):
     nodes = graph['nodes']
     published = [output.get('node') for output in graph.get('outputs', []) if output.get('mime_type') == 'text/plain']
@@ -101,21 +84,18 @@ def errors(document, file):
         if text(dig(spec, driver.replace('-', '_'), 'instructions')).startswith(REALTIME_PREFIX):
             return []
         return [f'{file}: realtime instructions must start with ${{input.safety_fence}} followed by a blank line']
-    if driver not in ('eino', 'flowcraft'):
+    if driver != 'eino':
         return [f'{file}: unknown driver {text(driver)}; review safety fence coverage']
     graph = spec[driver]['graph']
-    nodes = flowcraft_nodes(graph) if driver == 'flowcraft' else eino_nodes(graph)
+    nodes = eino_nodes(graph)
     if not nodes:
         return [f'{file}: no player reply prompt found; review the publish path for safety fence coverage']
     found = []
     for node in nodes:
-        if driver == 'flowcraft':
-            fenced = text(dig(node, 'config', 'system_prompt')).startswith(FLOWCRAFT_PREFIX)
-        else:
-            fenced = fenced_prompt(node)
+        fenced = fenced_prompt(node)
         if fenced:
             continue
-        binding = '${board.safety_fence}' if driver == 'flowcraft' else 'input.safety_fence with a matching template variable'
+        binding = 'input.safety_fence with a matching template variable'
         found.append(f"{file}: {node['id']}: player system prompt must start with {binding} followed by a blank line")
     return found
 

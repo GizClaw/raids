@@ -9,11 +9,9 @@ Explore grade 4 People's Education Press primary math through Math Corner topics
 | File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |
 | --- | --- | --- | --- | --- | --- |
 | `eino.yaml` | `eino-learn-math-grade4` | eino | learner | `eino-learn-math-grade4.model` | `eino-learn-math-grade4.tutor` |
-| `flowcraft.yaml` | `flowcraft-learn-math-grade4` | flowcraft | learner | `flowcraft-learn-math-grade4.model` | `flowcraft-learn-math-grade4.tutor` |
 
 The tutor's system prompt starts with the Workspace safety fence, followed by a
-blank line and the learning rules and knowledge card. Flowcraft references
-`${board.safety_fence}`; Eino binds `input.safety_fence` and renders
+blank line and the learning rules and knowledge card. Eino binds `input.safety_fence` and renders
 `{safety_fence}` with `f_string`. With empty fence text, only two leading newlines remain.
 Tester and memory nodes do not receive this variable. See the
 [Workspace safety fence contract](../../README.md#workspace-safety-fence),
@@ -26,7 +24,7 @@ Install the Workflow resource and add a flat `spec.workflows` binding to its Wor
 This raid is one of six grade-scoped `learn-math-grade*` packages. Its prompt
 embeds the units, verified extension problems, puzzles, mathematical culture,
 and mathematician facts for 人教版小学数学四年级, plus a title-only unit index
-for every other grade, about 3790 characters in total. The tutor checks
+for every other grade, about 3763 characters in total. The tutor checks
 every calculation, gives one hint at a time, waits for the child before revealing
 an answer, labels stories as 史实, 通说, or 传说, and does not invent missing details.
 

@@ -33,17 +33,17 @@ jobs:
             scripts/test/starlark/go.sum
             scripts/test/chat-assistant/go.sum
 
-      - name: Download GizClaw v0.24.2
+      - name: Download GizClaw v0.26.0
         env:
-          GIZCLAW_ASSET: gizclaw_0.24.2_amd64.deb
-          GIZCLAW_SHA256: 9ed3858b2f6fd9a21fba91d6cf42335987d82820a02f1388697cc3c09474f679
+          GIZCLAW_ASSET: gizclaw_0.26.0_amd64.deb
+          GIZCLAW_SHA256: bb2d6b4ec3ea2c676e2f123fc391ac709e945a0bf461829a81c460afe6bd11b4
         run: |
           set -euo pipefail
           package="$RUNNER_TEMP/$GIZCLAW_ASSET"
-          root="$RUNNER_TEMP/gizclaw-v0.24.2"
+          root="$RUNNER_TEMP/gizclaw-v0.26.0"
           curl --fail --location --retry 3 \
             --output "$package" \
-            "https://github.com/GizClaw/gizclaw/releases/download/v0.24.2/$GIZCLAW_ASSET"
+            "https://github.com/GizClaw/gizclaw/releases/download/v0.26.0/$GIZCLAW_ASSET"
           printf '%s  %s\n' "$GIZCLAW_SHA256" "$package" | sha256sum --check --status
           dpkg-deb --extract "$package" "$root"
           printf 'GIZCLAW=%s\n' "$root/usr/bin/gizclaw" >> "$GITHUB_ENV"

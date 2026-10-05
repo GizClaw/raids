@@ -45,18 +45,13 @@ CARD_AS_OUTLINE = (
 )
 
 
-def learning_prompts(rules: str, body: str, index: str) -> tuple[str, str]:
+def learning_prompt(rules: str, body: str, index: str) -> str:
     rules = rules + "\n" + CARD_AS_OUTLINE
-    flowcraft = "\n".join([
-        rules, "知识卡：", body, index,
-        "可核对的长期学习进度：${board.scenario_memory}",
-        "回复必须与上面已确认的学习进度一致，不得推翻孩子已确认的年级、已学的内容或孩子的更正。",
-    ])
     eino = "\n".join([
         rules, "知识卡：", body, index, "",
         "相关长期记忆只用于承接已确认的学习进度；为空时忽略，不得让旧记忆覆盖孩子当前的更正：", "{memory}",
     ])
-    return flowcraft, eino
+    return eino
 
 
 def replace_once(text: str, old: str, new: str, *, label: str) -> str:
@@ -73,36 +68,6 @@ def replace_block(text: str, start_marker: str, end_marker: str, body: str) -> s
     except ValueError as error:
         raise ValueError("template block markers changed") from error
     return text[:start] + body + text[end:]
-
-
-def render_flowcraft(repo: Path, raid: str, system_prompt: str) -> str:
-    text = read_text(repo / "workflows" / ADVENTURE / "flowcraft.yaml")
-    text = text.replace(ADVENTURE, raid)
-    text = text.replace("adventure-guide", "tutor")
-    text = text.replace("memory: adventure", "memory: learner")
-    text = replace_once(
-        text,
-        "            lanes:\n            - story_progress",
-        "            lanes:\n            - learning_events",
-        label="Flowcraft recall lane",
-    )
-    text = replace_once(
-        text,
-        "                lane: story_progress\n                kind: state",
-        "                lane: learning_events\n                kind: event",
-        label="Flowcraft observation lane",
-    )
-    text = text.replace('"raid_scenario_state_v2"', '"learn_progress_v1"')
-    text = text.replace("'Confirmed scenario history:'", "'Confirmed learning history:'")
-    text = replace_block(
-        text,
-        "system_prompt: |-\n",
-        "\n          track_steps: true",
-        indent("${board.safety_fence}\n\n" + system_prompt, 12),
-    )
-    if "adventure" in text.replace("memory_observe", ""):
-        raise ValueError("Flowcraft learn rendering left an adventure reference")
-    return text
 
 
 def render_eino(repo: Path, raid: str, system_prompt: str, memory_description: str) -> str:
@@ -189,7 +154,7 @@ def render_giztests(
     }
     rendered = {}
     for tier in ("smoke", "quality", "soak"):
-        for engine in ("flowcraft", "eino"):
+        for engine in ("eino",):
             text = read_text(repo / "scripts/learn/templates" / f"{tier}.{engine}.giztest.yaml")
             for key, value in values.items():
                 text = text.replace(f"@@{key}@@", value)
@@ -214,12 +179,12 @@ def render_raid_manifest(
         json.dumps(manifest, ensure_ascii=False).replace(ADVENTURE, raid).replace("adventure-guide", "tutor")
     )
     manifest["implementations"] = {
-        engine: manifest["implementations"][engine] for engine in ("eino", "flowcraft")
+        engine: manifest["implementations"][engine] for engine in ("eino",)
     }
     # Learn packages have no multi-role variants or variant Testers.
     manifest.pop("testers", None)
     for implementation in manifest["implementations"].values():
-        # The original Eino/Flowcraft tutor owns only its default Voice.
+        # The Eino tutor owns only its default Voice.
         voices = implementation["parameters"]["voices"]
         implementation["parameters"]["voices"] = {
             alias: value for alias, value in voices.items() if alias.endswith(".tutor")
@@ -228,19 +193,19 @@ def render_raid_manifest(
         {"file": f"tests/giztest/{tier}/{raid}.{engine}.giztest.yaml", "tier": tier,
          "implementations": [engine]}
         for tier in ("smoke", "quality", "soak")
-        for engine in ("eino", "flowcraft")
+        for engine in ("eino",)
     ]
     manifest["category"] = "learn"
     manifest["title"] = dict(title)
     manifest["summary"] = dict(summary)
     manifest["rating"]["age"] = ["child"]
     manifest["tags"] = list(tags)
-    for engine in ("eino", "flowcraft"):
+    for engine in ("eino",):
         implementation = manifest["implementations"][engine]
         implementation["memory"]["layout_id"] = "learner"
         for model in implementation["parameters"]["models"].values():
             model["role"] = "tutor"
-    for engine in ("eino", "flowcraft"):
+    for engine in ("eino",):
         voice = manifest["implementations"][engine]["parameters"]["voices"]
         voice[f"{engine}-{raid}.tutor"]["description"] = voice_description
     manifest["tester"]["route"] = {
@@ -262,11 +227,9 @@ def implementation_table(raid: str) -> str:
     return f"""| File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |
 | --- | --- | --- | --- | --- | --- |
 | `eino.yaml` | `eino-{raid}` | eino | learner | `eino-{raid}.model` | `eino-{raid}.tutor` |
-| `flowcraft.yaml` | `flowcraft-{raid}` | flowcraft | learner | `flowcraft-{raid}.model` | `flowcraft-{raid}.tutor` |
 
 The tutor's system prompt starts with the Workspace safety fence, followed by a
-blank line and the learning rules and knowledge card. Flowcraft references
-`${{board.safety_fence}}`; Eino binds `input.safety_fence` and renders
+blank line and the learning rules and knowledge card. Eino binds `input.safety_fence` and renders
 `{{safety_fence}}` with `f_string`. With empty fence text, only two leading newlines remain.
 Tester and memory nodes do not receive this variable. See the
 [Workspace safety fence contract](../../README.md#workspace-safety-fence),

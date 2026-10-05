@@ -9,11 +9,9 @@ Explore verified primary Chinese textbook stories through classical texts, fable
 | File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |
 | --- | --- | --- | --- | --- | --- |
 | `eino.yaml` | `eino-learn-chinese-stories` | eino | learner | `eino-learn-chinese-stories.model` | `eino-learn-chinese-stories.tutor` |
-| `flowcraft.yaml` | `flowcraft-learn-chinese-stories` | flowcraft | learner | `flowcraft-learn-chinese-stories.model` | `flowcraft-learn-chinese-stories.tutor` |
 
 The tutor's system prompt starts with the Workspace safety fence, followed by a
-blank line and the learning rules and knowledge card. Flowcraft references
-`${board.safety_fence}`; Eino binds `input.safety_fence` and renders
+blank line and the learning rules and knowledge card. Eino binds `input.safety_fence` and renders
 `{safety_fence}` with `f_string`. With empty fence text, only two leading newlines remain.
 Tester and memory nodes do not receive this variable. See the
 [Workspace safety fence contract](../../README.md#workspace-safety-fence),
@@ -24,7 +22,7 @@ Install the Workflow resource and add a flat `spec.workflows` binding to its Wor
 ## Knowledge card
 
 This single all-grades raid covers 统编版小学语文一至六年级文言文、寓言与
-成语故事，以及快乐读书吧书目. Its generated prompt is 7032
+成语故事，以及快乐读书吧书目. Its generated prompt is 7014
 characters. Spoken cards omit URLs, page numbers, research notes, and empty
 book lists; exact duplicate spoken lines are removed. Summaries and classical
 source texts are kept whole, so the tutor never has to guess an unfinished story.

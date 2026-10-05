@@ -61,7 +61,7 @@ for file in sorted(glob.glob('workflows/*/raid.json')):
         aliases = list(dict.fromkeys(a for a in [*bindings.values(), adapter.get('default_voice'), driver_voice] if a is not None))
         for node_id in adapter.get('node_voices', {}).keys():
             node = next((n for n in spec['graph']['nodes'] if n.get('id') == node_id), None)
-            check(node is not None and (engine != 'flowcraft' or node.get('publish') is True), f'{workflow}: Voice bound to missing/unpublished node {node_id}')
+            check(node is not None, f'{workflow}: Voice bound to missing/unpublished node {node_id}')
         slots = dig(impl, 'parameters', 'voices') or {}
         check(sorted(aliases) == sorted(slots.keys()), f'{workflow}: Voice aliases differ from manifest slots')
         for profile_name, profile in profiles.items():
@@ -93,7 +93,7 @@ for file in sorted(glob.glob('workflows/*/raid.json')):
             speaker_maps[engine] = adapter['speaker_voices']
             check(adapter['speaker_voices']['旁白'] == adapter['default_voice'], f'{workflow}: narrator mismatch')
             nodes = spec['graph']['nodes']
-            outputs = [n for n in nodes if (n.get('publish') is True if engine == 'flowcraft' else n.get('type') == 'chat_model')]
+            outputs = [n for n in nodes if n.get('type') == 'chat_model']
             check(len(outputs) == 1, f'{workflow}: expected one narration LLM')
             source = read(workflow)
             check('约1至2分钟' in source and '不输出其它【】标记' in source, f'{workflow}: missing narration contract')
@@ -104,9 +104,4 @@ for file in sorted(glob.glob('workflows/*/raid.json')):
             check(probe is not None and num_eq(dig(probe, 'expect', '/text', 'min_length'), 1) and 'non_empty' not in dig(probe, 'expect', '/text'), f'{workflow}: missing non-empty gate')
             check(all(m in dig(probe, 'expect', '/text', 'not_contains') for m in ('【', '】')) and num_eq(dig(probe, 'expect', '/audio_integrity/streams', 'equals'), 1) and num_eq(dig(probe, 'expect', '/audio_pacing/underruns', 'equals'), 0), f'{workflow}: missing playback/marker gates')
         count += 1
-    if len(speaker_maps) == 2:
-        check(list(speaker_maps['flowcraft'].keys()) == list(speaker_maps['eino'].keys()), f'{raid}: engine speaker names differ')
-        for p in profiles.values():
-            for speaker, alias_name in speaker_maps['flowcraft'].items():
-                check(dig(p, 'resources', 'voices', alias_name, 'resource_id') == dig(p, 'resources', 'voices', speaker_maps['eino'][speaker], 'resource_id'), f'{raid}: engine Voice mismatch for {speaker}')
 print(f'validated all workflow Voice bindings and {count} multi-role implementations')

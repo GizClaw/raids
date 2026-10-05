@@ -7,8 +7,7 @@ Manage an undersea research base while exploring ocean ecosystems.
 ## Workspace safety fence
 
 Every player-facing system prompt starts with the Workspace fence, then a
-blank line and the scenario instructions: Flowcraft uses `${board.safety_fence}`;
-Eino binds `input.safety_fence` and renders `{safety_fence}` with `f_string`.
+blank line and the scenario instructions: Eino binds `input.safety_fence` and renders `{safety_fence}` with `f_string`.
 This covers all narrator/character paths, prompt branches, and available variants.
 With empty fence text, only two leading newlines remain. Internal routing/memory nodes and
 Tester Workflows do not receive the variable. See the root
@@ -19,7 +18,6 @@ Tester Workflows do not receive the variable. See the root
 | File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |
 | --- | --- | --- | --- | --- | --- |
 | `eino.yaml` | `eino-adventure-undersea-base` | eino | adventure | `eino-adventure-undersea-base.model` | `eino-adventure-undersea-base.adventure-guide` |
-| `flowcraft.yaml` | `flowcraft-adventure-undersea-base` | flowcraft | adventure | `flowcraft-adventure-undersea-base.model` | `flowcraft-adventure-undersea-base.adventure-guide` |
 
 Install the Workflow resource and add a flat `spec.workflows` binding to its Workflow ID. Bind the slots above under `spec.resources.models` and `spec.resources.voices`; use `category:*` tags for discovery.
 
@@ -29,7 +27,6 @@ Install the Workflow resource and add a flat `spec.workflows` binding to its Wor
 Tester: `test.yaml` (`adventure-undersea-base-test`, eino), shared by every implementation; one Giztest scenario per implementation:
 
 - `tests/giztest/soak/adventure-undersea-base.eino.giztest.yaml` (relay, with reload, timeout 35m)
-- `tests/giztest/soak/adventure-undersea-base.flowcraft.giztest.yaml` (relay, with reload, timeout 35m)
 
 The route has 7 target responses:
 
@@ -54,4 +51,3 @@ make test-e2e RAID=adventure-undersea-base PARALLEL=2
 Continuous multi-character narration is available separately; original implementations remain unchanged.
 
 - `eino.multi-role.yaml`: `eino-adventure-undersea-base-multi-role`; Voice aliases: `eino-adventure-undersea-base-mr.adventure-guide`, `eino-adventure-undersea-base-mr.biologist`, `eino-adventure-undersea-base-mr.engineer`, `eino-adventure-undersea-base-mr.diver`.
-- `flowcraft.multi-role.yaml`: `flowcraft-adventure-undersea-base-multi-role`; Voice aliases: `flowcraft-adventure-undersea-base-mr.adventure-guide`, `flowcraft-adventure-undersea-base-mr.biologist`, `flowcraft-adventure-undersea-base-mr.engineer`, `flowcraft-adventure-undersea-base-mr.diver`.

@@ -243,11 +243,6 @@ def generate(repo: Path, out: Path, raids: Sequence[str]) -> list[str]:
         card = cards[grade]
         body, index = card_text(grade, card, all_poems)
         rules = tutor_rules(grade)
-        flowcraft_prompt = "\n".join([
-            rules + "\n" + shared.CARD_AS_OUTLINE, "知识卡：", body, index,
-            "可核对的长期学习进度：${board.scenario_memory}",
-            "回复必须与上面已确认的学习进度一致，不得推翻孩子已确认的年级、已学的诗或孩子的更正。",
-        ])
         eino_prompt = "\n".join([
             rules + "\n" + shared.CARD_AS_OUTLINE, "知识卡：", body, index, "",
             "相关长期记忆只用于承接已确认的学习进度；为空时忽略，不得让旧记忆覆盖孩子当前的更正：", "{memory}",
@@ -266,7 +261,6 @@ def generate(repo: Path, out: Path, raids: Sequence[str]) -> list[str]:
             voice_description="Poetry tutor voice",
         )
         workflow_dir = out / "workflows" / raid
-        shared.write_text(workflow_dir / "flowcraft.yaml", shared.render_flowcraft(repo, raid, flowcraft_prompt))
         shared.write_text(
             workflow_dir / "eino.yaml",
             shared.render_eino(
@@ -279,9 +273,9 @@ def generate(repo: Path, out: Path, raids: Sequence[str]) -> list[str]:
         shared.write_text(workflow_dir / "test.yaml", shared.render_tester(repo, raid, route, tester_rules(grade, raid, by_title), body))
         shared.write_json(workflow_dir / "raid.json", manifest)
         shared.write_json(workflow_dir / "knowledge.json", card)
-        shared.write_text(workflow_dir / "README.md", render_readme(grade, raid, manifest, card, route, len(flowcraft_prompt)))
+        shared.write_text(workflow_dir / "README.md", render_readme(grade, raid, manifest, card, route, len(eino_prompt)))
         realtime_text = f"我{NUM[grade - 1]}年级，给我讲讲《{by_title[ROUTES[grade][0]]['title']}》吧。"
         for name, text in shared.render_giztests(repo, raid, len(route), ROUTES[grade][1], realtime_text, opening(grade)).items():
             shared.write_text(out / "tests" / "giztest" / name, text)
-        generated.append(f"{raid}: {len(card['poems'])} poems, prompt chars {len(flowcraft_prompt)}")
+        generated.append(f"{raid}: {len(card['poems'])} poems, prompt chars {len(eino_prompt)}")
     return generated

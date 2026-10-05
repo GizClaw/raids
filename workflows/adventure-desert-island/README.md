@@ -7,8 +7,7 @@ Learn safety priorities, rescue signaling, and resource planning on a fictional 
 ## Workspace safety fence
 
 Every player-facing system prompt starts with the Workspace fence, then a
-blank line and the scenario instructions: Flowcraft uses `${board.safety_fence}`;
-Eino binds `input.safety_fence` and renders `{safety_fence}` with `f_string`.
+blank line and the scenario instructions: Eino binds `input.safety_fence` and renders `{safety_fence}` with `f_string`.
 This covers all narrator/character paths, prompt branches, and available variants.
 With empty fence text, only two leading newlines remain. Internal routing/memory nodes and
 Tester Workflows do not receive the variable. See the root
@@ -19,7 +18,6 @@ Tester Workflows do not receive the variable. See the root
 | File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |
 | --- | --- | --- | --- | --- | --- |
 | `eino.yaml` | `eino-adventure-desert-island` | eino | adventure | `eino-adventure-desert-island.model` | `eino-adventure-desert-island.adventure-guide` |
-| `flowcraft.yaml` | `flowcraft-adventure-desert-island` | flowcraft | adventure | `flowcraft-adventure-desert-island.model` | `flowcraft-adventure-desert-island.adventure-guide` |
 
 Install the Workflow resource and add a flat `spec.workflows` binding to its Workflow ID. Bind the slots above under `spec.resources.models` and `spec.resources.voices`; use `category:*` tags for discovery.
 
@@ -29,7 +27,6 @@ Install the Workflow resource and add a flat `spec.workflows` binding to its Wor
 Tester: `test.yaml` (`adventure-desert-island-test`, eino), shared by every implementation; one Giztest scenario per implementation:
 
 - `tests/giztest/soak/adventure-desert-island.eino.giztest.yaml` (relay, with reload, timeout 35m)
-- `tests/giztest/soak/adventure-desert-island.flowcraft.giztest.yaml` (relay, with reload, timeout 35m)
 
 The route has 7 target responses:
 
@@ -54,4 +51,3 @@ make test-e2e RAID=adventure-desert-island PARALLEL=2
 Continuous multi-character narration is available separately; original implementations remain unchanged.
 
 - `eino.multi-role.yaml`: `eino-adventure-desert-island-multi-role`; Voice aliases: `eino-adventure-desert-island-mr.adventure-guide`, `eino-adventure-desert-island-mr.scout`, `eino-adventure-desert-island-mr.signal-officer`, `eino-adventure-desert-island-mr.safety-officer`.
-- `flowcraft.multi-role.yaml`: `flowcraft-adventure-desert-island-multi-role`; Voice aliases: `flowcraft-adventure-desert-island-mr.adventure-guide`, `flowcraft-adventure-desert-island-mr.scout`, `flowcraft-adventure-desert-island-mr.signal-officer`, `flowcraft-adventure-desert-island-mr.safety-officer`.

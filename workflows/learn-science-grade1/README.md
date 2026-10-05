@@ -9,11 +9,9 @@ Explore grade 1 Educational Science Press primary science through safe home expe
 | File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |
 | --- | --- | --- | --- | --- | --- |
 | `eino.yaml` | `eino-learn-science-grade1` | eino | learner | `eino-learn-science-grade1.model` | `eino-learn-science-grade1.tutor` |
-| `flowcraft.yaml` | `flowcraft-learn-science-grade1` | flowcraft | learner | `flowcraft-learn-science-grade1.model` | `flowcraft-learn-science-grade1.tutor` |
 
 The tutor's system prompt starts with the Workspace safety fence, followed by a
-blank line and the learning rules and knowledge card. Flowcraft references
-`${board.safety_fence}`; Eino binds `input.safety_fence` and renders
+blank line and the learning rules and knowledge card. Eino binds `input.safety_fence` and renders
 `{safety_fence}` with `f_string`. With empty fence text, only two leading newlines remain.
 Tester and memory nodes do not receive this variable. See the
 [Workspace safety fence contract](../../README.md#workspace-safety-fence),
@@ -26,7 +24,7 @@ Install the Workflow resource and add a flat `spec.workflows` binding to its Wor
 This raid is one of six grade-scoped `learn-science-grade*` packages. Its prompt
 embeds the units, safe home experiments, checked facts, common misconceptions,
 and scientist facts for 教科版小学科学一年级, plus a title-only unit index for
-every other grade, about 3003 characters in total. Every experiment
+every other grade, about 2976 characters in total. Every experiment
 includes its safety rule. The tutor asks for a prediction before revealing an
 observation, corrects misconceptions gently, labels scientist stories, and does
 not invent missing details.

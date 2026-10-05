@@ -5,8 +5,7 @@ Explore oceans, technology, and unknown creatures aboard an imagined submarine.
 ## Workspace safety fence
 
 Every player-facing system prompt starts with the Workspace fence, then a
-blank line and the scenario instructions: Flowcraft uses `${board.safety_fence}`;
-Eino binds `input.safety_fence` and renders `{safety_fence}` with `f_string`.
+blank line and the scenario instructions: Eino binds `input.safety_fence` and renders `{safety_fence}` with `f_string`.
 This covers all narrator/character paths, prompt branches, and available variants.
 With empty fence text, only two leading newlines remain. Internal routing/memory nodes and
 Tester Workflows do not receive the variable. See the root
@@ -33,17 +32,14 @@ Tester Workflows do not receive the variable. See the root
 
 | Workflow | Engine | Output | Voice roles |
 | --- | --- | --- | --- |
-| `flowcraft-story-twenty-thousand-leagues` | Flowcraft | text + TTS | `storyteller`, `nemo`, `aronnax` mapped to three distinct public Voices |
 | `eino-story-twenty-thousand-leagues` | Eino | text + audio | `eino-story-twenty-thousand-leagues.storyteller` (single default Voice) |
 
-Flowcraft selects exactly one published node per external response. Chapter entry/transition and invalid speaker selection fall back to `storyteller`; direct in-scene requests may select `nemo` or `aronnax`.
 
 ## Acceptance
 
-- Paired Flowcraft and Eino relays each require 16 continuous target responses with a reload before response 9.
+- Eino relays require 16 continuous target responses with a reload before response 9.
 - Milestones: 8, 16; intermediate segments end in strict `CHECKPOINT PASS` and the final segment ends in strict `PASS`.
-- `flowcraft.roles.giztest.yaml` creates isolated narrator/nemo/aronnax Workspaces and requires text EOS, audio EOS, non-empty Opus, timing evidence, and direct, speaker-label-free role text.
-- `flowcraft.transitions.giztest.yaml` and `eino.transitions.giztest.yaml` prove an opening that names the setting, both characters, and how to play; ordinary progress; a negated choice that stays in chapter 1; an option-only answer that is told to say “进入下一章”; a “进入下一章” request whose chapter 2 heading is followed by story text in the same reply; and same-chapter continuation without a repeated heading.
+- `tests/giztest/quality/story-twenty-thousand-leagues.eino.giztest.yaml` prove an opening that names the setting, both characters, and how to play; ordinary progress; a negated choice that stays in chapter 1; an option-only answer that is told to say “进入下一章”; a “进入下一章” request whose chapter 2 heading is followed by story text in the same reply; and same-chapter continuation without a repeated heading.
 - Final live evidence must come from the e2e deployment through `edge-bj-01.e2e.gizclaw.com:9821`; dev evidence is diagnostic only.
 
 ```sh
@@ -56,4 +52,3 @@ GIZCLAW=/absolute/path/to/gizclaw-with-safety-fence GIZCLAW_TEST_CLI=/absolute/p
 Continuous multi-character narration is available separately; original implementations remain unchanged.
 
 - `eino.multi-role.yaml`: `eino-story-twenty-thousand-leagues-multi-role`; Voice aliases: `eino-story-twenty-thousand-leagues-mr.storyteller`, `eino-story-twenty-thousand-leagues-mr.nemo`, `eino-story-twenty-thousand-leagues-mr.aronnax`, `eino-story-twenty-thousand-leagues-mr.conseil`, `eino-story-twenty-thousand-leagues-mr.ned-land`.
-- `flowcraft.multi-role.yaml`: `flowcraft-story-twenty-thousand-leagues-multi-role`; Voice aliases: `flowcraft-story-twenty-thousand-leagues-mr.storyteller`, `flowcraft-story-twenty-thousand-leagues-mr.nemo`, `flowcraft-story-twenty-thousand-leagues-mr.aronnax`, `flowcraft-story-twenty-thousand-leagues-mr.conseil`, `flowcraft-story-twenty-thousand-leagues-mr.ned-land`.

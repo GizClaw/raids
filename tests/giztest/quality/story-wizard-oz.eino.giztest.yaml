@@ -41,7 +41,7 @@ variables:
     direction: input
     type: string
     generate: token
-  eino_case5_flowcraft_workspace:
+  eino_case5_eino_workspace:
     direction: input
     type: string
     generate: token
@@ -364,17 +364,17 @@ steps:
     method: server.register
     request:
       token: "${registration_token}"
-- id: eino_case5_stop_create_flowcraft_workspace
+- id: eino_case5_stop_create_eino_workspace
   client: eino__case5
   rpc:
     method: server.run.stop
     request: {}
-- id: eino_case5_create_flowcraft_workspace
+- id: eino_case5_create_eino_workspace
   client: eino__case5
   rpc:
     method: server.workspace.create
     request:
-      name: "${eino_case5_flowcraft_workspace}"
+      name: "${eino_case5_eino_workspace}"
       workflow_name: eino-story-wizard-oz
       parameters:
         eino_workspace_parameters:
@@ -388,18 +388,18 @@ steps:
   rpc:
     method: server.run.status
     request: {}
-- id: eino_case5_select_flowcraft_workspace
+- id: eino_case5_select_eino_workspace
   client: eino__case5
   rpc:
     method: server.run.workspace.set
     request:
-      workspace_name: "${eino_case5_flowcraft_workspace}"
+      workspace_name: "${eino_case5_eino_workspace}"
 - id: eino__transitions_setup_keepalive_20
   client: eino__transitions
   rpc:
     method: server.run.status
     request: {}
-- id: eino_case5_warmup_flowcraft_workspace
+- id: eino_case5_warmup_eino_workspace
   client: eino__case5
   rpc:
     method: server.run.workspace.reload
@@ -423,7 +423,7 @@ steps:
       idle_timeout: 90s
       require_text: true
       require_audio: true
-  - id: eino_case5_restart_flowcraft_in_english
+  - id: eino_case5_restart_eino_in_english
     client: eino__case5
     peer_stream:
       mode: text
@@ -460,7 +460,7 @@ steps:
       maximum: 6000
     "/eino_roles_probe_narrator/first_audio_ms":
       maximum: 90000
-    "/eino_case5_restart_flowcraft_in_english/text":
+    "/eino_case5_restart_eino_in_english/text":
       contains_all:
       - 'Chapter 1: The Yellow Brick Fork'
       - 'The yellow brick road splits three ways: courage, wisdom, or helping one
@@ -468,15 +468,15 @@ steps:
       not_contains:
       - 第 1 章
       - 黄砖岔路
-    "/eino_case5_restart_flowcraft_in_english/text_eos":
+    "/eino_case5_restart_eino_in_english/text_eos":
       equals: true
-    "/eino_case5_restart_flowcraft_in_english/audio_eos":
+    "/eino_case5_restart_eino_in_english/audio_eos":
       equals: true
-    "/eino_case5_restart_flowcraft_in_english/audio_bytes":
+    "/eino_case5_restart_eino_in_english/audio_bytes":
       minimum: 1
-    "/eino_case5_restart_flowcraft_in_english/first_text_ms":
+    "/eino_case5_restart_eino_in_english/first_text_ms":
       maximum: 6000
-    "/eino_case5_restart_flowcraft_in_english/first_audio_ms":
+    "/eino_case5_restart_eino_in_english/first_audio_ms":
       maximum: 90000
 - id: suite_responses_6
   parallel:
@@ -496,7 +496,7 @@ steps:
       idle_timeout: 90s
       require_text: true
       require_audio: true
-  - id: eino_case5_continue_flowcraft_in_english_without_restart
+  - id: eino_case5_continue_eino_in_english_without_restart
     client: eino__case5
     peer_stream:
       mode: text
@@ -537,7 +537,7 @@ steps:
       maximum: 6000
     "/eino_roles_probe_dorothy/first_audio_ms":
       maximum: 90000
-    "/eino_case5_continue_flowcraft_in_english_without_restart/text":
+    "/eino_case5_continue_eino_in_english_without_restart/text":
       contains_all:
       - 'Dorothy says:'
       - Dorothy continues
@@ -548,15 +548,15 @@ steps:
       - 第 1 章
       - 黄砖岔路
       min_length: 20
-    "/eino_case5_continue_flowcraft_in_english_without_restart/text_eos":
+    "/eino_case5_continue_eino_in_english_without_restart/text_eos":
       equals: true
-    "/eino_case5_continue_flowcraft_in_english_without_restart/audio_eos":
+    "/eino_case5_continue_eino_in_english_without_restart/audio_eos":
       equals: true
-    "/eino_case5_continue_flowcraft_in_english_without_restart/audio_bytes":
+    "/eino_case5_continue_eino_in_english_without_restart/audio_bytes":
       minimum: 1
-    "/eino_case5_continue_flowcraft_in_english_without_restart/first_text_ms":
+    "/eino_case5_continue_eino_in_english_without_restart/first_text_ms":
       maximum: 6000
-    "/eino_case5_continue_flowcraft_in_english_without_restart/first_audio_ms":
+    "/eino_case5_continue_eino_in_english_without_restart/first_audio_ms":
       maximum: 90000
 - id: suite_responses_7
   parallel:
@@ -675,12 +675,12 @@ finally:
     method: server.workspace.delete
     request:
       name: "${eino_roles_tin_man_workspace}"
-- id: eino_case5_delete_flowcraft_workspace
+- id: eino_case5_delete_eino_workspace
   client: eino__case5
   rpc:
     method: server.workspace.delete
     request:
-      name: "${eino_case5_flowcraft_workspace}"
+      name: "${eino_case5_eino_workspace}"
 - id: eino__transitions_delete
   client: eino__transitions
   rpc:

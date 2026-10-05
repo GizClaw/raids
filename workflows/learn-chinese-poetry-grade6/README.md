@@ -9,11 +9,9 @@ Explore every classical poem in China's grade 6 primary Chinese textbooks — au
 | File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |
 | --- | --- | --- | --- | --- | --- |
 | `eino.yaml` | `eino-learn-chinese-poetry-grade6` | eino | learner | `eino-learn-chinese-poetry-grade6.model` | `eino-learn-chinese-poetry-grade6.tutor` |
-| `flowcraft.yaml` | `flowcraft-learn-chinese-poetry-grade6` | flowcraft | learner | `flowcraft-learn-chinese-poetry-grade6.model` | `flowcraft-learn-chinese-poetry-grade6.tutor` |
 
 The tutor's system prompt starts with the Workspace safety fence, followed by a
-blank line and the learning rules and knowledge card. Flowcraft references
-`${board.safety_fence}`; Eino binds `input.safety_fence` and renders
+blank line and the learning rules and knowledge card. Eino binds `input.safety_fence` and renders
 `{safety_fence}` with `f_string`. With empty fence text, only two leading newlines remain.
 Tester and memory nodes do not receive this variable. See the
 [Workspace safety fence contract](../../README.md#workspace-safety-fence),
@@ -26,7 +24,7 @@ Install the Workflow resource and add a flat `spec.workflows` binding to its Wor
 This raid is one of six grade-scoped `learn-chinese-poetry-grade*` packages.
 Its prompt embeds the full verified entries for every classical poem in 统编版
 六年级 (课文, 语文园地·日积月累, 古诗词诵读) plus a title index of
-every other grade's poems, about 6716 characters in total. Any poem a child
+every other grade's poems, about 6690 characters in total. Any poem a child
 mentions is taught and recited normally: in-grade poems are recited verbatim
 from the card with their background labelled 有记载 (史实), 一般认为 (通说), or
 传说; poems from other grades are recited only when the tutor is certain of

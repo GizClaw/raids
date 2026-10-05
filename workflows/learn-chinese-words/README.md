@@ -9,11 +9,9 @@ Explore verified primary Chinese textbook treasures through proverb and two-part
 | File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |
 | --- | --- | --- | --- | --- | --- |
 | `eino.yaml` | `eino-learn-chinese-words` | eino | learner | `eino-learn-chinese-words.model` | `eino-learn-chinese-words.tutor` |
-| `flowcraft.yaml` | `flowcraft-learn-chinese-words` | flowcraft | learner | `flowcraft-learn-chinese-words.model` | `flowcraft-learn-chinese-words.tutor` |
 
 The tutor's system prompt starts with the Workspace safety fence, followed by a
-blank line and the learning rules and knowledge card. Flowcraft references
-`${board.safety_fence}`; Eino binds `input.safety_fence` and renders
+blank line and the learning rules and knowledge card. Eino binds `input.safety_fence` and renders
 `{safety_fence}` with `f_string`. With empty fence text, only two leading newlines remain.
 Tester and memory nodes do not receive this variable. See the
 [Workspace safety fence contract](../../README.md#workspace-safety-fence),
@@ -25,7 +23,7 @@ Install the Workflow resource and add a flat `spec.workflows` binding to its Wor
 
 This single all-grades raid covers 统编版小学语文一至六年级. Its prompt embeds
 checked proverbs, 歇后语, quotations, 对子/对联, and character stories from
-语文园地·日积月累 and 识字课, about 5149 characters in total. Spoken
+语文园地·日积月累 and 识字课, about 5131 characters in total. Spoken
 cards omit URLs, page numbers, and research notes. Exact duplicate spoken lines
 are removed without changing the normalized research record.
 

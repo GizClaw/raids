@@ -7,8 +7,7 @@ Solve maps, codes, and observation clues in a cooperative treasure hunt.
 ## Workspace safety fence
 
 Every player-facing system prompt starts with the Workspace fence, then a
-blank line and the scenario instructions: Flowcraft uses `${board.safety_fence}`;
-Eino binds `input.safety_fence` and renders `{safety_fence}` with `f_string`.
+blank line and the scenario instructions: Eino binds `input.safety_fence` and renders `{safety_fence}` with `f_string`.
 This covers all narrator/character paths, prompt branches, and available variants.
 With empty fence text, only two leading newlines remain. Internal routing/memory nodes and
 Tester Workflows do not receive the variable. See the root
@@ -19,7 +18,6 @@ Tester Workflows do not receive the variable. See the root
 | File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |
 | --- | --- | --- | --- | --- | --- |
 | `eino.yaml` | `eino-adventure-treasure` | eino | adventure | `eino-adventure-treasure.model` | `eino-adventure-treasure.adventure-guide` |
-| `flowcraft.yaml` | `flowcraft-adventure-treasure` | flowcraft | adventure | `flowcraft-adventure-treasure.model` | `flowcraft-adventure-treasure.adventure-guide` |
 
 Install the Workflow resource and add a flat `spec.workflows` binding to its Workflow ID. Bind the slots above under `spec.resources.models` and `spec.resources.voices`; use `category:*` tags for discovery.
 
@@ -29,7 +27,6 @@ Install the Workflow resource and add a flat `spec.workflows` binding to its Wor
 Tester: `test.yaml` (`adventure-treasure-test`, eino), shared by every implementation; one Giztest scenario per implementation:
 
 - `tests/giztest/soak/adventure-treasure.eino.giztest.yaml` (relay, with reload, timeout 35m)
-- `tests/giztest/soak/adventure-treasure.flowcraft.giztest.yaml` (relay, with reload, timeout 35m)
 
 The route has 7 target responses:
 
@@ -54,4 +51,3 @@ make test-e2e RAID=adventure-treasure PARALLEL=2
 Continuous multi-character narration is available separately; original implementations remain unchanged.
 
 - `eino.multi-role.yaml`: `eino-adventure-treasure-multi-role`; Voice aliases: `eino-adventure-treasure-mr.adventure-guide`, `eino-adventure-treasure-mr.cartographer`, `eino-adventure-treasure-mr.codebreaker`, `eino-adventure-treasure-mr.old-sailor`.
-- `flowcraft.multi-role.yaml`: `flowcraft-adventure-treasure-multi-role`; Voice aliases: `flowcraft-adventure-treasure-mr.adventure-guide`, `flowcraft-adventure-treasure-mr.cartographer`, `flowcraft-adventure-treasure-mr.codebreaker`, `flowcraft-adventure-treasure-mr.old-sailor`.

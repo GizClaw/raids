@@ -54,10 +54,6 @@ def main():
         einos = [v for v in implementations.values() if v["driver"] == "eino"]
         if not einos:
             continue
-        flow = implementations.get("flowcraft")
-        # Eino-only raids (guess-*) have no Flowcraft Voice to mirror; their
-        # own default Voice alias fixes the role.
-        flow_alias = default_voice(manifest.parent / flow["file"]) if flow else None
         for impl in einos:
             path = manifest.parent / impl["file"]
             # Multi-role resource IDs retain the full suffix; aliases use -mr
@@ -65,7 +61,7 @@ def main():
             namespace = impl["workflow_id"]
             if impl["file"].endswith(".multi-role.yaml"):
                 namespace = namespace.removesuffix("-multi-role") + "-mr"
-            role = (flow_alias or default_voice(path)).split(".", 1)[1]
+            role = default_voice(path).split(".", 1)[1]
             alias = namespace + "." + role
             assert default_voice(path) == alias, f"{path}: wrong Voice namespace/role"
             declared = impl["parameters"]["voices"]
@@ -74,8 +70,6 @@ def main():
             for profile, bindings in profiles.items():
                 assert alias in bindings, f"{profile}: missing {alias}"
                 assert bindings[alias] in voice_ids, f"{profile}: unresolved {alias}"
-                if flow_alias:
-                    assert bindings[alias] == bindings[flow_alias], f"{profile}: default Voice mismatch for {alias}"
             count += 1
     assert count > 0, "no spoken Eino implementations found"
     print(f"validated {count} Eino default Voices, manifests and profile bindings")

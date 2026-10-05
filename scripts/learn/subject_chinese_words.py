@@ -249,7 +249,7 @@ def generate(repo: Path, out: Path, raids: Sequence[str]) -> list[str]:
         raise ValueError(f"unsupported Chinese words raids: {', '.join(raids)}")
     card = load_card(repo)
     body = card_text(card)
-    flowcraft_prompt, eino_prompt = shared.learning_prompts(tutor_rules(), body, "")
+    eino_prompt = shared.learning_prompt(tutor_rules(), body, "")
     eino_prompt = eino_prompt.replace(
         "相关长期记忆只用于承接已确认的学习进度；",
         "相关长期记忆只用于承接已确认的年级、已学的内容和答题情况；",
@@ -269,7 +269,6 @@ def generate(repo: Path, out: Path, raids: Sequence[str]) -> list[str]:
         voice_description="Chinese tutor voice",
     )
     workflow_dir = out / "workflows" / RAID
-    shared.write_text(workflow_dir / "flowcraft.yaml", shared.render_flowcraft(repo, RAID, flowcraft_prompt))
     shared.write_text(
         workflow_dir / "eino.yaml",
         shared.render_eino(
@@ -282,12 +281,12 @@ def generate(repo: Path, out: Path, raids: Sequence[str]) -> list[str]:
     shared.write_text(workflow_dir / "test.yaml", shared.render_tester(repo, RAID, route, tester_rules(RAID, card), body))
     shared.write_json(workflow_dir / "raid.json", manifest)
     shared.write_json(workflow_dir / "knowledge.json", card)
-    shared.write_text(workflow_dir / "README.md", render_readme(RAID, manifest, card, route, len(flowcraft_prompt)))
+    shared.write_text(workflow_dir / "README.md", render_readme(RAID, manifest, card, route, len(eino_prompt)))
     for filename, text in shared.render_giztests(repo, RAID, len(route), "对韵歌", "我二年级，我们来猜谚语吧。", OPENING).items():
         shared.write_text(out / "tests" / "giztest" / filename, text)
     return [
         f"{RAID}: {sum(len(card[key]) for key in CATEGORIES[:-1])} entries, "
-        f"card chars {len(body)}, prompt chars {len(flowcraft_prompt)}"
+        f"card chars {len(body)}, prompt chars {len(eino_prompt)}"
     ]
 
 

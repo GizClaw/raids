@@ -65,7 +65,7 @@ def main() -> int:
                 clean = False
     for tier in ("smoke", "quality", "soak"):
         for raid in raids:
-            expected_names = {f"{raid}.{engine}.giztest.yaml" for engine in ("flowcraft", "eino")}
+            expected_names = {f"{raid}.{engine}.giztest.yaml" for engine in ("eino",)}
             for root in (expected_root, actual_root):
                 names = {p.name for p in (root / "tests/giztest" / tier).glob(f"{raid}.*giztest.yaml")}
                 if names != expected_names:
