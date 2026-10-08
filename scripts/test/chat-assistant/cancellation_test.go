@@ -116,3 +116,16 @@ func TestUnrelatedCancellationDoesNotBlockNumericAnswer(t *testing.T) {
 		}
 	}
 }
+
+func TestCompletedBrightnessDoesNotCreateLaterCancellationState(t *testing.T) {
+	for _, history := range [][]map[string]string{
+		{{"role": "user", "content": "把屏幕亮度设为30%"}, {"role": "assistant", "content": "已设为30%"}, {"role": "user", "content": "不用了"}},
+		{{"role": "user", "content": "把屏幕亮度设为30"}, {"role": "assistant", "content": "已设为30%"}, {"role": "user", "content": "不用了"}},
+		{{"role": "user", "content": "帮我调一下屏幕亮度"}, {"role": "assistant", "content": "多少百分比？"}, {"role": "user", "content": "30%"}, {"role": "assistant", "content": "已设为30%"}, {"role": "user", "content": "不用了"}},
+	} {
+		answer, _, _ := run(t, "30", "casual", guardHistory(history))
+		if answer != "我会称呼你为米娜。" {
+			t.Fatalf("completed brightness kept a pending value: %q", answer)
+		}
+	}
+}

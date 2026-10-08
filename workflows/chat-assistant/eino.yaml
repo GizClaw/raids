@@ -79,6 +79,16 @@ spec:
                   text = text.replace(unit, "")
               return len(text) > 0 and all([c in "0123456789零一二两三四五六七八九十百点." for c in text.codepoints()])
 
+          def value_supplied(text):
+              tail = text.split("亮度")[-1]
+              if bare_value(tail):
+                  return True
+              for cue in ["设为", "设成", "调到", "调成", "调为", "改为", "改成", "改到", "到", "为"]:
+                  index = tail.find(cue)
+                  if index >= 0 and bare_value(tail[index + len(cue):]):
+                      return True
+              return False
+
           def run(input):
               was_cancelled = False
               brightness_active = False
@@ -91,7 +101,11 @@ spec:
                       brightness_active = False
                   elif new_request(text):
                       was_cancelled = False
-                      brightness_active = True
+                      brightness_active = not value_supplied(text)
+                  elif brightness_active and bare_value(text):
+                      # The user's supplied slot ends this pending-value context.
+                      # A later unrelated cancellation must not reactivate it.
+                      brightness_active = False
                   elif not cancelled(text) and not bare_value(text) and "亮度" not in text and text not in ["好", "好的", "嗯", "哦", "行", "收到", "知道了", "明白", "明白了", "谢谢"]:
                       # A different user task ends this brightness context.
                       # Its later cancellation/numeric answer belongs to that task.

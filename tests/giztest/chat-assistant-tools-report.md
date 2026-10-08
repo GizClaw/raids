@@ -23,6 +23,7 @@ the MHS/ClientTool endpoints are Giztest handlers, not physical H106 hardware.
 | --- | --- |
 | 28 device/dialog scenarios × two Profiles × three repetitions | 168/168 PASS |
 | Review follow-up: scoped cancellation, new request and unrelated numeric answer | 18/18 PASS |
+| Pending-value follow-up: complete requests and supplied slots leave no stale cancellation state | unit PASS + 18/18 focused dialogs PASS |
 | Reply turns, including real model clarification and follow-up | 246/246 PASS |
 | Actual device mutation receipts | 108; exact targets/arguments/call counts |
 | Original Chat smoke | PASS |
@@ -38,6 +39,10 @@ and ends that context on an unrelated task while preserving acknowledgments.
 Its changed paths passed the additional 18-task native run and deterministic
 negative-control unit tests. The generator now contains 29 scenarios (58
 documents; 174 tasks at the default repetition), including that new boundary.
+Pending state now ends when a request includes its value or the user supplies
+the missing value; a later unrelated cancellation does not hijack numeric
+conversation. Complete-target/value and slot-completion negative controls are
+covered by native unit tests, with another 18-task live follow-up.
 
 Device replies' first-text time was 3,557 ms median, 6,362 ms P95 and 11,750 ms
 maximum. These measure the complete reply path, including memory, native model
@@ -97,5 +102,6 @@ Ignored local receipts:
 - `reports/raids-chat-22b83cfa33/tools.json`: complete 168-task run.
 - `reports/raids-chat-216c259196/{smoke,quality,soak}.json`: standard tiers.
 - `reports/raids-chat-b9e2c01e92/tools.json`: 18-task review regression.
+- `reports/raids-chat-d7f6497051/tools.json`: pending-value follow-up.
 - `reports/chat-release-qualification.json`: matching-source audit and summary.
 - Each run retains `giztest-inputs.zip`, source hashes and redacted container logs.
