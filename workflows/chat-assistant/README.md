@@ -23,8 +23,8 @@ alias must resolve it to `eino-chat-assistant`.
 
 It is a plain ASR → LLM → TTS pipeline: the shared `asr` Model transcribes
 speech, `eino-chat-assistant.model` answers, and the Voice adapter speaks the
-reply. It recalls and observes `user-chat-with-assistant` memory, and it can
-search the web.
+reply. It recalls and observes `user-chat-with-assistant` memory, searches the
+web, and uses the current device's available control Tools.
 
 The asynchronous observation includes both the captured user input and the
 generated assistant reply, so confirmed facts present in the reply remain
@@ -32,11 +32,16 @@ available to the existing Memory layout.
 
 ## Web search
 
-`spec.toolkit.tool_ids` allows one Tool, `volc-web-search`
-([`tools/volc-web-search.yaml`](../../tools/volc-web-search.yaml), runtime name
-`web_search`); the RuntimeProfile must bind it under `resources.tools`
-(`web-search` in both public profiles). The Model decides when to search. The
-system prompt tells it to search for current weather/date queries, news,
+GizClaw v0.27.0 injects Tools from the RuntimeProfile Workflow binding. Both
+public profiles and `runtime-profile.example.yaml` set
+`web.search` in `spec.workflows.general-assistant.toolkit.tool_names` and bind
+`spec.resources.tools.web.search.resource_id: volc-web-search`
+([`tools/volc-web-search.yaml`](../../tools/volc-web-search.yaml)). The alias
+`web.search` maps to the Model function name `web_search`, matching the prompt.
+The Workflow itself carries no fixed Tool ID. A product Profile must select the
+alias explicitly; omitting the selection gives Chat no Tools. Workspace
+`toolkit.tool_names` can narrow the Profile selection. The Model decides when
+to search. The system prompt tells it to search for current weather/date queries, news,
 sports, prices and uncertain facts. User-supplied facts to remember, confirm or
 correct are answered directly, including future plans and dates; confirmations
 contain only the requested new fields. Chat, common knowledge and facts already
@@ -57,7 +62,65 @@ plus the search (about 1s) and adds 5–25K prompt tokens of results. A timeout
 response or a response over 1 MiB fails the turn. Eino gets no clock input, so
 the Model takes dates from search results.
 
+## Device tools
+
+The same three Profiles declare H106 `display.main` (display) and `led.status`
+(status light) in `spec.mhs.v0.devices`. They bind `screen.get` / `light.get`
+to fixed MHS reads, and `screen.brightness` / `light.brightness` to fixed MHS
+writes exposing only `brightness_percent`. H106 supports 0–100 in 10-percent
+steps; its device validator enforces the steps beyond the generic HWD schema.
+Tool descriptions require clarification instead of silent rounding.
+These are current-device operations;
+the status light is not a room lamp. Products with other hardware must change
+both the manifest and matching Tool bindings.
+
+`music.status`, `music.playlist`, `music.play`, `music.stop` and
+`workflow.switch` bind predefined ClientTool procedures through
+`client_tool.name`. The runtime builds their schemas from the protocol.
+Music uses the device's existing playlist; named-song selection reads the list
+and uses the returned zero-based index. Playback acceptance does not by itself
+confirm actual playback. Switching selects a bound `workflow_name` alias;
+`kickoff` stays omitted/false unless the user explicitly requests opening speech.
+
+Chat selects all ten aliases, including web search. Only observed, online
+capabilities are sent to the model. Devices must report installed ClientTool
+handlers and concrete MHS instances/write fields; unknown or unsupported
+capabilities are discoverable as unavailable. Missing brightness targets/values
+and ambiguous programs require clarification. Cancellation clears the previous
+operation; an isolated later number must not revive it.
+
+The bounded `guard-cancelled-value` Starlark node replays only real user
+History. After cancellation it sends bare numeric replies directly to a
+deterministic clarification, bypassing the model and every Tool. A new explicit
+brightness request can reopen the operation; assistant messages, status queries
+and recorded preferences cannot. `primary_output_mode: first_output` lets that
+safe branch speak through the same default Voice while normal model output
+continues streaming.
+
+The Profiles enable `toolkit.verification_model: eino-chat-assistant.model`
+for GizClaw's independent operation-intent and final-reply checks. Each check
+adds a provider request and buffers final text until accepted. Primary selection
+still uses Doubao's native ToolCall mechanism. This configuration and the
+controlled runtime tests do not establish live-model accuracy or physical-device
+acceptance.
+
 ## Testing
+
+Run the released Docker runtime with real provider credentials and the shipped
+default/testing Profiles:
+
+```sh
+RAIDS_CHAT_E2E_CREDENTIAL_FILE=/path/to/provider.env make test-e2e-chat-assistant
+```
+
+This target covers 28 device/dialog scenarios across both Profiles, three
+repetitions by default, plus the original smoke, quality and soak files. Exact
+typed receipts prove MHS target/value and ClientTool procedure/parameters;
+per-turn counts also reject premature, extra and cross-Peer actions. Read checks
+accept both Arabic and spoken Chinese numbers. Empty-playlist playback is an
+authorized attempt that must adopt the real protocol failure, not claim success.
+The original stream timing and audio gates are preserved. Reports and failed
+attempts remain under `tests/giztest/reports/`; physical H106 acceptance is separate.
 
 Reply length is not a pass/fail metric. Numeric brevity hints are judged by their
 intent and content, without exact counting. Exact-answer requests retain literal
@@ -70,8 +133,8 @@ Tester: `test.yaml` (`chat-assistant-test`, eino); one Giztest scenario per tier
 The quality tier also checks web search live: it asks for Shanghai's weather
 and today's date and fails on missing weather/date words, an offline refusal
 such as “无法联网”, or a first text later than 15s. Those two probes need
-`tools/volc-web-search.yaml`, the testing profile's `web-search` binding and a
-`search_api_key` in `volc-credential`.
+`tools/volc-web-search.yaml`, the testing profile's `web.search` binding and Chat
+`toolkit.tool_names` selection, and a `search_api_key` in `volc-credential`.
 
 The live weather/date keyword checks establish spoken response availability;
 they do not prove that search executed. `make test-unit-chat-assistant` also

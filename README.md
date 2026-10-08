@@ -47,11 +47,12 @@ reference in that catalog contains the exact target Resource ID, so consumers
 submit the selected graph without name lookup or reference rewriting.
 
 Generic Admin `metadata.name` is unsupported. RuntimeProfile map keys remain
-Peer-facing aliases scoped by that profile; each binding points to an Admin
-Resource ID and does not create an alternate Admin selector.
+Peer-facing aliases scoped by that profile. Model and Voice bindings point to
+Admin Resource IDs. A Tool binding selects exactly one HTTP Resource ID, fixed
+MHS instance/operation, or predefined ClientTool procedure.
 
 Every RuntimeProfile alias — Workflow, Model, Voice
-and memory binding keys, and `app_config` keys — is 1-63 bytes of
+Tool and memory binding keys, and `app_config` keys — is 1-63 bytes of
 dot-separated lowercase kebab-case segments, for example
 `learn.chinese-poetry-grade1-eino` or `story.animal-kingdom`. Underscores and
 uppercase letters are rejected. GizClaw v0.18.15 enforces this when a Server
@@ -146,7 +147,7 @@ a recognized player reply path fails and needs an explicit coverage review
 when adding a new graph shape.
 
 **Runtime dependency:** the fence needs **GizClaw v0.20.2** or later for both
-validation and serving; CI now pins v0.26.0 with Profile-defined string IDs. Earlier releases reject Eino's
+validation and serving; CI now pins v0.27.0 with Profile-defined string IDs. Earlier releases reject Eino's
 `input.safety_fence` binding as undeclared.
 
 This contract covers every raid with Eino implementations and
@@ -163,7 +164,7 @@ and the `testing` profile's `safety_fences` deployed; run it with
 ### Tools
 
 `tools/` holds Tool resources that a chat Model can call during a turn. The
-only one is `volc-web-search` (runtime name `web_search`), an `http_request`
+only one is `volc-web-search` (private resource invoke name `web_search`), an `http_request`
 Tool for Volcengine's Doubao Search Custom API
 (`https://open.feedcoopapi.com/search_api/web_search`). It authenticates with
 `auth.method: volc_search`, so GizClaw reads `search_api_key` from
@@ -174,21 +175,71 @@ and `count: 3`, because an HTTP Tool cannot set fixed body fields. An optional
 results are ranked by relevance, not date, so “最近/最新” news needs it. The
 Tool returns the response's `Result` object.
 
-A RuntimeProfile makes a Tool available by binding it under
-`resources.tools`; both public profiles bind `web-search` to
-`volc-web-search`. A Workflow's `spec.toolkit.tool_ids` narrows those bindings
-by canonical Tool ID. From GizClaw v0.23.3 Tools are opt-in: a Workflow
-without `toolkit` gets none, including the v0.26.0 that CI pins. Earlier
-releases give such a Workflow every profile Tool. Eino Workflows that must
-not search retain `tool_ids: []`, which explicitly grants no Tools. Eino
-`chat_model` nodes attach the exposed Tools to each Model call and let the Model decide when
-to call them. Only `eino-chat-assistant` allows `volc-web-search`; its prompt
+A RuntimeProfile binds `resources.tools.web.search` to `volc-web-search` and
+explicitly injects that alias through
+`workflows.general-assistant.toolkit.tool_names`. Both public
+profiles and the product example use this GizClaw v0.27.0 contract. The alias
+maps to the Model function name `web_search`; the HTTP resource's private
+`invoke_name` does not select model identity. Workflow bindings without
+`toolkit.tool_names` get no Tools, and Workspace `toolkit.tool_names` can only
+narrow that selection. The Workflow resource's legacy `tool_ids` grants no
+authority. Eino `chat_model` nodes attach the exposed Tools to each Model call
+and let the Model decide when to call them. Only the `general-assistant` binding selects search; its prompt
 lists what needs a search (weather, news, dates, prices, “今天/最新”) and what
 does not (chat, common knowledge, facts already in the conversation or memory).
 `make test-unit-resources` validates `tools/`, and `APPLY=1 make test-e2e`
 applies it before the Workflows. The chat-assistant quality tier asks for
 live weather and today's date, and fails on an offline refusal such as
 “无法联网”.
+
+### Device tools
+
+The public profiles and product example also bind nine inner Tools for Chat:
+
+| Profile alias | Fixed source |
+| --- | --- |
+| `screen.get` / `screen.brightness` | MHS `display.main`, read / write `brightness_percent` |
+| `light.get` / `light.brightness` | MHS `led.status`, read / write `brightness_percent` |
+| `music.status` | ClientTool `audioplayer.get` |
+| `music.playlist` | ClientTool `audioplayer.playlist.get` |
+| `music.play` / `music.stop` | ClientTool `audioplayer.play` / `audioplayer.stop` |
+| `workflow.switch` | ClientTool `run.workspace.set` |
+
+`spec.mhs.v0.devices` declares the H106 screen and status-light instance IDs.
+Products with different hardware must replace the manifest and matching Tool
+bindings. Only `brightness_percent` is exposed for writes; H106 does not support
+the generic HWD `enabled` field. H106 accepts brightness in 10-percent steps;
+the generated HWD schema bounds integers to 0–100, while the device enforces
+its step constraint. Tool descriptions require clarification instead of silent
+rounding. These aliases are injected only into
+`general-assistant`, alongside `web.search`. The runtime generates argument
+schemas and dispatches directly to the current authenticated Peer. There are no
+synthetic Admin Tool resources or HTTP calls back to GizClaw.
+
+Configured capability and observed support are separate. The current device
+must report the MHS instances/write fields and installed ClientTool handlers.
+Unknown, unsupported or offline capabilities remain discoverable through
+`server.tool.list/get` with `available: false` and an unavailability reason,
+and are omitted from model Tool definitions.
+
+Music plays the existing device playlist. Song selection first reads that
+playlist and uses its zero-based index; it does not search for music or generate
+media URLs. Program selection uses a bound Profile `workflow_name` alias.
+Omitted/false `kickoff` selects the program without starting opening speech;
+true requires an explicit request for the new agent to speak first.
+
+Chat also selects `toolkit.verification_model: eino-chat-assistant.model`.
+GizClaw v0.27.0 uses a separate model request to check device-operation intent
+and final replies against conversation and Tool results. These checks add
+latency and provider cost, and buffer final text until accepted. The normal
+Chat model still emits native ToolCalls; this is not a Match node.
+
+Chat also has a deterministic cancellation guard over real user History.
+A bare percentage after a cancelled brightness request produces a clarification
+without entering the model or invoking any Tool. Only a new explicit brightness
+request reopens the numeric follow-up; assistant text, state queries and
+preferences do not supply that authority. Normal model replies keep streaming
+through the graph's first-output mode.
 
 ### Runtime alias ownership
 
@@ -535,9 +586,9 @@ product explicitly selects it.
 The MemoryLayout definitions require a GizClaw build containing the MemoryLayout contract
 merged by [GizClaw #590](https://github.com/GizClaw/gizclaw/pull/590).
 
-## GizClaw 0.26.0 compatibility
+## GizClaw 0.27.0 compatibility
 
-The catalog requires **GizClaw v0.26.0** for configuration validation and serving.
+The catalog requires **GizClaw v0.27.0** for configuration validation and serving.
 CI pins that release and its published package SHA256; native contract tests use
 the matching immutable Go module. Flowcraft was retired upstream in
 [GizClaw #1451](https://github.com/GizClaw/gizclaw/pull/1451). Current catalog
@@ -549,18 +600,21 @@ i18n, age ratings and bare/category tags retain their identities; entries now
 resolve to their existing Eino implementations. Exact tag matching remains AND.
 Workspace creation names only the alias. Model, Voice, Tool and Memory ownership
 remains explicit. Retired implementation aliases and extraction Model slots are
-removed; the native HTTP search Tool and its canonical allow-list remain.
+removed. Chat selects HTTP search and inner device Tools through the Profile's
+`web.search` alias and per-Workflow injection list. Product-owned Profiles must
+configure that selection when upgrading; the old Workflow fixed-ID list no
+longer grants search access.
 
 Memory uses the self-hosted Mem0 connection described above. Server-owned Eino
-History and optional persistent State use `services.agent_host.eino.history_store`
-and `services.agent_host.eino.state_store`. Existing database contents are not
+History and optional persistent State use `services.agent_host.persistence.history_store`
+and `services.agent_host.persistence.state_store`. Existing database contents are not
 rewritten by these catalog files. An environment must validate its bindings and
 perform real recall/reload acceptance before activating this catalog.
 
 ## Static resource validation
 
 Raids uses the released GizClaw binary as the only authority for declarative
-Resource format validation. With GizClaw v0.26.0 or later on `PATH`, validate
+Resource format validation. With GizClaw v0.27.0 or later on `PATH`, validate
 every applyable catalog Resource with:
 
 ```sh
@@ -586,12 +640,14 @@ Every public Make target dispatches to the same-named script under
 `scripts/<group>/<target>.sh`; the Makefile itself only declares targets,
 default variables, and exports. `make help` lists the complete surface:
 `test-unit-resources`, `test-unit-learn`, `test-unit-guess`, `test-unit-figure`,
-`test-unit-voices`, `test-unit-chat-assistant`, and `test-e2e`. CI runs each
+`test-unit-voices`, `test-unit-chat-assistant`, `test-e2e`, and
+`test-e2e-chat-assistant`. CI runs each
 `test-unit-*` target as its own step; there is no aggregate target.
 
 `make test-unit-chat-assistant` loads the shipped Chat Workflow, profiles, Tool
-and quality probe inputs into the GizClaw v0.26.0 Eino runtime. A scripted Model
-and HTTP transport fixture replace the external providers. The real HTTP Tool
+and quality probe inputs into the GizClaw v0.27.0 Eino runtime. A scripted Model
+and HTTP transport fixture replace the external providers. The real Tool
+catalog and AgentHost ToolInvoker resolve the shipped Profile alias; the HTTP
 executor must receive the mapped search request, return an unpredictable result,
 and feed it into the final answer. A fabricated weather/date answer is rejected
 when no search ran; a casual turn makes no search request. The completed turn's
@@ -600,8 +656,41 @@ two-fact write, without waiting for Memory completion. The real self-hosted
 Mem0 adapter submits that batch to a local HTTP fixture so its batch request,
 source identity and scope contract are covered. This target requires Go 1.26.4 and downloads
 pinned Go modules on the first run; it uses no provider credentials or live
-deployment, and its source and checksums are maintained under
+deployment. This text/HTTP suite disables CGO and does not test native audio
+codecs. It also checks both public Profiles and the product example, that
+unselected Workflows receive no Tools, and that omitted/empty Profile selection
+or an empty Workspace selection prevents search. Device transport fixtures
+exercise generated MHS/ClientTool schemas, fixed target/procedure dispatch and
+unpredictable returned receipts. Missing/out-of-range values, target/procedure
+overrides, unsupported H106 fields, unbound programs, unavailable capabilities
+and revoked selections must not dispatch. These deterministic checks do not run
+the live semantic verifier or qualify physical hardware. Its source and checksums are maintained under
 `scripts/test/chat-assistant/`.
+
+`make test-e2e-chat-assistant` starts disposable Docker Server/Edge containers
+using the released GizClaw v0.27.0 image, plus pinned Mem0 and PostgreSQL images.
+It applies the complete original default/testing closure, runs real Doubao
+conversations against Giztest's typed MHS/ClientTool handlers, and then runs
+the unchanged Chat smoke, quality and soak files. Generated cases check exact
+targets, parameters and call counts after each user turn, missing-slot follow-up,
+cancellation, music playlist selection, failure replies, Workflow switching,
+Workspace narrowing and isolation between two Peers. The 28 scenarios run on
+both public Profiles, three times each by default. Static CI validates their
+56 generated documents without running providers.
+
+```sh
+RAIDS_CHAT_E2E_CREDENTIAL_FILE=/path/to/provider.env make test-e2e-chat-assistant
+```
+
+The input file supplies the six `GIZCLAW_VOLC_*` variables declared in
+`.env.example`; values stay in process/container environments. The harness
+archives generated Giztest inputs, full synthetic reply/device receipts,
+source hashes and container logs under `tests/giztest/reports/raids-chat-*/`.
+It removes its own containers, networks, volumes and ephemeral admin identities
+on completion. It does not Apply to the configured Dev/E2E deployment or qualify
+physical H106 hardware. `RAIDS_CHAT_E2E_REPEAT`, `RAIDS_CHAT_E2E_FILTER` and
+`RAIDS_CHAT_E2E_STANDARD=none|smoke|quality|soak|all` select focused reruns;
+`PARALLEL` controls simultaneous tasks.
 
 Chat and Journey reply length is not a pass/fail metric. Numeric brevity hints
 are judged by their intent and content, without exact counting; exact-answer
@@ -633,7 +722,7 @@ Go module downloads are disabled. Offline validation cannot establish real
 provider voice switching, timing, interruption or audible continuity.
 
 Passing this check establishes schema, binding, and deterministic routing
-contracts, not live behavior. CI pins the immutable v0.26.0 Linux package
+contracts, not live behavior. CI pins the immutable v0.27.0 Linux package
 and verifies its published SHA-256 digest before validation.
 `make test-unit-voices` separately requires exactly 635 MiniMax Voice files and exactly one
 `model: speech-2.6-turbo` field in each. Per-file schema validation alone does
@@ -717,7 +806,7 @@ Smoke retains the 2-second first-text / 3-second first-audio probes and the orig
 Default General Assistant intentionally keep Memory extraction
 asynchronous. Same-Workspace turn continuity and reload recall come from the
 GizClaw Eino History store; deployments must configure
-`services.agent_host.eino.history_store`. Memory supplies longer-lived
+`services.agent_host.persistence.history_store`. Memory supplies longer-lived
 semantic recall and must not become a per-turn response barrier.
 
 [Murder Mystery](workflows/murder-mystery/README.md) remains a free-investigation

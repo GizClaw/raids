@@ -1,0 +1,33 @@
+service:
+  max_concurrency: 32
+  api_key: "${MEM0_API_KEY}"
+  thinking: disabled
+  embedding_protocol: ark_multimodal
+memory:
+  version: v1.1
+  history_db_path: /tmp/mem0-history.sqlite
+  llm:
+    provider: openai
+    config:
+      model: doubao-seed-2-1-lite-260915
+      api_key: "${VOLC_ARK_API_KEY}"
+      openai_base_url: https://ark.cn-beijing.volces.com/api/v3
+      temperature: 0.1
+      max_tokens: 8192
+      service_tier: fast
+  embedder:
+    provider: openai
+    config:
+      model: doubao-embedding-vision-251215
+      api_key: "${VOLC_ARK_API_KEY}"
+      openai_base_url: https://ark.cn-beijing.volces.com/api/v3
+      embedding_dims: 1024
+  vector_store:
+    provider: pgvector
+    config:
+      connection_string: postgres://gizclaw_mem0:gizclaw_mem0@postgres:5432/gizclaw_mem0?sslmode=disable
+      collection_name: raids_chat_e2e
+      embedding_model_dims: 1024
+      hnsw: true
+      minconn: 2
+      maxconn: 16

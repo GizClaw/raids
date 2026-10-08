@@ -4,6 +4,17 @@ kind: RuntimeProfile
 metadata:
   id: testing
 spec:
+  # H106 instance IDs. Products with other hardware must replace these IDs/HWDs.
+  # Runtime also requires the current device to report the matching capability.
+  mhs:
+    v0:
+      devices:
+      - id: display.main
+        hwd: display
+        description: Main screen
+      - id: led.status
+        hwd: led
+        description: Status light
   workflows:
     eino-adventure-castle-mystery:
       resource_id: eino-adventure-castle-mystery
@@ -1079,6 +1090,19 @@ spec:
       tags: ["category:assistants", "assistants"]
     general-assistant:
       resource_id: eino-chat-assistant
+      toolkit:
+        tool_names:
+        - web.search
+        - screen.get
+        - screen.brightness
+        - light.get
+        - light.brightness
+        - music.status
+        - music.playlist
+        - music.play
+        - music.stop
+        - workflow.switch
+        verification_model: eino-chat-assistant.model
       i18n:
         en:
           display_name: Chat Assistant
@@ -3411,9 +3435,54 @@ spec:
         resource_id: doubao-seed-2-1-lite
         i18n: {en: {display_name: Judge}, zh-CN: {display_name: judge}}
     tools:
-      web-search:
+      web.search:
         resource_id: volc-web-search
         i18n: {en: {display_name: Web Search}, zh-CN: {display_name: 联网搜索}}
+      screen.get:
+        mhs: {id: display.main, operation: read}
+        i18n:
+          en: {display_name: Read Screen, description: Read the current device's main screen settings.}
+          zh-CN: {display_name: 读取屏幕, description: 读取当前设备主屏幕的亮度等实际状态。}
+      screen.brightness:
+        mhs: {id: display.main, operation: write, fields: [brightness_percent]}
+        i18n:
+          en: {display_name: Screen Brightness, description: Set H106 main screen brightness from 0 to 100 in steps of 10 percent. Ask for a missing target or value; never silently round another percentage.}
+          zh-CN: {display_name: 屏幕亮度, description: 仅调整当前 H106 主屏幕亮度，支持 0 到 100 且为 10 的整数倍；目标或数值不明确先追问，其他数值先说明可用档位并确认，不擅自取整。}
+      light.get:
+        mhs: {id: led.status, operation: read}
+        i18n:
+          en: {display_name: Read Status Light, description: Read the current device's status light settings.}
+          zh-CN: {display_name: 读取状态灯, description: 读取当前设备状态灯的亮度等实际状态，不代表其他灯具。}
+      light.brightness:
+        mhs: {id: led.status, operation: write, fields: [brightness_percent]}
+        i18n:
+          en: {display_name: Status Light Brightness, description: Set the H106 status light from 0 to 100 in steps of 10 percent. Does not control other lamps; never silently round another percentage.}
+          zh-CN: {display_name: 状态灯亮度, description: 仅调整当前 H106 状态灯亮度，支持 0 到 100 且为 10 的整数倍；不控制房间灯，目标或数值不明确先追问，其他数值先说明可用档位并确认，不擅自取整。}
+      music.status:
+        client_tool: {name: audioplayer.get}
+        i18n:
+          en: {display_name: Playback Status, description: Read actual audio player state before describing playback as started or stopped.}
+          zh-CN: {display_name: 播放状态, description: 读取当前设备播放器的实际状态；接收播放请求不等于已经开始播放。}
+      music.playlist:
+        client_tool: {name: audioplayer.playlist.get}
+        i18n:
+          en: {display_name: Read Playlist, description: Read the installed playlist before selecting a requested song by its zero-based index.}
+          zh-CN: {display_name: 读取播放列表, description: 读取当前设备的真实播放列表；按歌名选歌或切歌前先读取，用返回列表中从零开始的 index，不编造曲目或地址。}
+      music.play:
+        client_tool: {name: audioplayer.play}
+        i18n:
+          en: {display_name: Play Music, description: Play from the existing device playlist. Ordinary play MUST omit index entirely; never supply null or a guessed default index. Read the playlist before selecting a requested song.}
+          zh-CN: {display_name: 播放音乐, description: 播放当前设备已有列表；普通播放必须使用空参数并省略 index，不传 null 或猜测默认索引。指定曲目先读取列表；不会搜索歌曲或创建音乐地址。}
+      music.stop:
+        client_tool: {name: audioplayer.stop}
+        i18n:
+          en: {display_name: Stop Music, description: Stop current device audio playback while retaining its playlist.}
+          zh-CN: {display_name: 停止音乐, description: 停止当前设备播放器并保留播放列表；仅按用户当前明确的停止请求执行。}
+      workflow.switch:
+        client_tool: {name: run.workspace.set}
+        i18n:
+          en: {display_name: Switch Workflow, description: Select the requested bound workflow alias. Clarify an ambiguous program. Omit kickoff unless opening speech is explicitly requested.}
+          zh-CN: {display_name: 切换剧本, description: 按用户要求选择已绑定的 workflow_name alias；剧本不明确先追问。默认省略 kickoff，只有明确要求新剧本先开口才设置 true；不猜测资源 ID 或 workspace_name。}
     memories:
       user-chat-with-assistant:
         layout_id: user-chat-with-assistant
