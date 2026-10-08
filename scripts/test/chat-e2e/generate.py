@@ -49,6 +49,7 @@ def cases():
         {"id": "vague-target-and-value", "turns": [turn("有点暗，调亮一点。", ask="屏幕|状态灯|哪|多少|百分")]},
         {"id": "cancel-slots", "turns": [turn("帮我调屏幕亮度。", ask="多少|百分|数值"), turn("算了，不调了。"), turn("30%。", ask="什么|哪|屏幕|状态灯|确认|用途|数值")]},
         {"id": "new-request-after-cancel", "turns": [turn("帮我调屏幕亮度。", ask="多少|百分|数值"), turn("算了，不调了。"), turn("30%。", ask="屏幕|状态灯|哪"), turn("重新帮我调状态灯亮度。", ask="多少|百分|数值"), turn("40%。", light(40))]},
+        {"id": "unrelated-cancel-number", "turns": [turn("介绍一下绿色。"), turn("不用了。"), turn("我们来做加法，你问我20加10等于几，让我答。"), {**turn("30。"), "not_contains": ["屏幕", "状态灯", "调整已取消"]}]},
         {"id": "correction", "turns": [turn("把屏幕亮度设为30%。", screen(30)), turn("改成60%。", screen(60))]},
         {"id": "negative-request", "turns": [turn("不要把屏幕亮度改到30%，保持不动。")]},
         {"id": "record-preference", "turns": [turn("记住我喜欢屏幕亮度30%，现在不要调整。")]},
@@ -165,6 +166,8 @@ def document(case, profile_name, repeat):
             current["expect"]["/text"] = {"pattern": item["ask"]}
         if item.get("contains"):
             current["expect"].setdefault("/text", {})["contains"] = item["contains"]
+        if item.get("not_contains"):
+            current["expect"].setdefault("/text", {})["not_contains"] = item["not_contains"]
         steps.append(current)
         for group, args in item["actions"]:
             totals[group].append(args)

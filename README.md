@@ -674,9 +674,9 @@ conversations against Giztest's typed MHS/ClientTool handlers, and then runs
 the unchanged Chat smoke, quality and soak files. Generated cases check exact
 targets, parameters and call counts after each user turn, missing-slot follow-up,
 cancellation, music playlist selection, failure replies, Workflow switching,
-Workspace narrowing and isolation between two Peers. The 28 scenarios run on
+Workspace narrowing and isolation between two Peers. The 29 scenarios run on
 both public Profiles, three times each by default. Static CI validates their
-56 generated documents without running providers.
+58 generated documents without running providers.
 
 ```sh
 RAIDS_CHAT_E2E_CREDENTIAL_FILE=/path/to/provider.env make test-e2e-chat-assistant

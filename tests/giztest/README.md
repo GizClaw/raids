@@ -17,8 +17,8 @@ default、testing 与示例 Profile 现为 Chat 配置 10 个 Tool alias：联�
 
 `RAIDS_CHAT_E2E_CREDENTIAL_FILE=/path/to/provider.env make test-e2e-chat-assistant`
 另起独立 Docker Server/Edge（正式 0.27.0 镜像）、Mem0/PostgreSQL，应用仓库原始 default/testing 闭包。
-28 类真实模型对话在两个 Profile 上默认各重复 3 次，逐轮核对实际 MHS/ClientTool 目标、参数和调用次数，包括缺槽追问、取消、播放列表、空列表失败回传、切换剧本、Workspace 收窄和两个 Peer 隔离，随后运行原有 Chat smoke/quality/soak。
-生成的 56 个文档由静态 CI 校验；运行输入、真实回复与设备协议 receipts、源文件哈希及日志保存在忽略的 `reports/raids-chat-*/`，每次失败也保留。
+29 类真实模型对话在两个 Profile 上默认各重复 3 次，逐轮核对实际 MHS/ClientTool 目标、参数和调用次数，包括缺槽追问、取消、播放列表、空列表失败回传、切换剧本、Workspace 收窄和两个 Peer 隔离，随后运行原有 Chat smoke/quality/soak。
+生成的 58 个文档由静态 CI 校验；运行输入、真实回复与设备协议 receipts、源文件哈希及日志保存在忽略的 `reports/raids-chat-*/`，每次失败也保留。
 凭据只进入进程/容器环境；完成后清理该测试项目的容器、网络、volume 和临时身份，不修改线上配置。原有延迟和音频门槛不变，设备协议夹具通过不代表 H106 真机通过。
 
 10 个 `guess-*` 的标准 quality 文件都包含固定谜底回归：确定的正反属性、自然说法与同音转写猜中、猜错后认输揭晓同一答案，以及全英语文字和中英语音输入。语音通过 `server.speech.synthesize` 和 push-to-talk ASR 执行；属性与揭晓断言只检查助手的 `/reply`，另外保存并输出 `/transcript`，避免把孩子的转写混入回答判断。每组使用独立 Workspace，结束后读回最新历史；这些步骤随 `make test-e2e TIER=quality RAID=<guess-raid>` 和 `RAID=all` 执行。服务端回归结果与 H106 真机验收分别记录。

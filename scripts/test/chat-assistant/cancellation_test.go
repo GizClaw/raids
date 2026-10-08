@@ -59,6 +59,14 @@ func TestCancelledValuesCannotReachModel(t *testing.T) {
 	}
 }
 
+func TestAcknowledgmentDoesNotReopenCancelledRequest(t *testing.T) {
+	history := []map[string]string{{"role": "user", "content": "帮我调屏幕亮度。"}, {"role": "user", "content": "算了，不调了。"}, {"role": "user", "content": "好的。"}}
+	answer, _, _ := run(t, "30%", "model-must-not-run", guardHistory(history))
+	if !strings.Contains(answer, "已取消") {
+		t.Fatalf("acknowledgment reopened a cancelled operation: %q", answer)
+	}
+}
+
 func TestNewExplicitRequestReopensAfterCancellation(t *testing.T) {
 	history := []map[string]string{
 		{"role": "user", "content": "帮我调屏幕亮度。"},
@@ -92,6 +100,19 @@ func TestStateQueriesAndPreferencesDoNotReopenCancelledRequest(t *testing.T) {
 		answer, _, _ := run(t, "30%", "model-must-not-run", guardHistory(history))
 		if !strings.Contains(answer, "已取消") {
 			t.Fatalf("statement or preference reopened an operation: %q", text)
+		}
+	}
+}
+
+func TestUnrelatedCancellationDoesNotBlockNumericAnswer(t *testing.T) {
+	for _, history := range [][]map[string]string{
+		{{"role": "user", "content": "介绍一下伊索寓言。"}, {"role": "user", "content": "不用了。"}},
+		{{"role": "user", "content": "帮我调屏幕亮度。"}, {"role": "user", "content": "算了，不调了。"}, {"role": "user", "content": "我们改聊数学，问我一个加法题。"}, {"role": "user", "content": "不用了。"}},
+		{{"role": "user", "content": "帮我调屏幕亮度。"}, {"role": "user", "content": "我们换个话题，介绍一下音乐。"}, {"role": "user", "content": "不用了。"}},
+	} {
+		answer, _, _ := run(t, "30", "casual", guardHistory(history))
+		if answer != "我会称呼你为米娜。" {
+			t.Fatalf("unrelated cancellation blocked a numeric conversation answer: %q", answer)
 		}
 	}
 }

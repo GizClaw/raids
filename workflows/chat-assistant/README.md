@@ -90,10 +90,12 @@ and ambiguous programs require clarification. Cancellation clears the previous
 operation; an isolated later number must not revive it.
 
 The bounded `guard-cancelled-value` Starlark node replays only real user
-History. After cancellation it sends bare numeric replies directly to a
+History. After an active brightness request is cancelled it sends bare numeric replies directly to a
 deterministic clarification, bypassing the model and every Tool. A new explicit
 brightness request can reopen the operation; assistant messages, status queries
-and recorded preferences cannot. `primary_output_mode: first_output` lets that
+and recorded preferences cannot. Cancelling an unrelated task cannot create
+brightness state; switching user topics clears that context, while acknowledgments
+preserve an actual cancellation. `primary_output_mode: first_output` lets that
 safe branch speak through the same default Voice while normal model output
 continues streaming.
 
@@ -113,7 +115,7 @@ default/testing Profiles:
 RAIDS_CHAT_E2E_CREDENTIAL_FILE=/path/to/provider.env make test-e2e-chat-assistant
 ```
 
-This target covers 28 device/dialog scenarios across both Profiles, three
+This target covers 29 device/dialog scenarios across both Profiles, three
 repetitions by default, plus the original smoke, quality and soak files. Exact
 typed receipts prove MHS target/value and ClientTool procedure/parameters;
 per-turn counts also reject premature, extra and cross-Peer actions. Read checks
