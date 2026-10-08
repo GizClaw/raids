@@ -141,3 +141,10 @@ python3 scripts/test/device-flow.py --check
 python3 scripts/test/raid-manifests.py --check
 
 "$GIZCLAW_TEST_CLI" test validate -f tests/giztest
+
+# Generated real-model/device scenarios are validated without starting Docker
+# or loading credentials. Runtime inputs and receipts are archived by the E2E runner.
+chat_tests="$(mktemp -d "${TMPDIR:-/tmp}/raids-chat-tool-tests.XXXXXXXX")"
+trap 'rm -rf "$chat_tests"' EXIT HUP INT TERM
+python3 scripts/test/chat-e2e/generate.py "$chat_tests"
+"$GIZCLAW_TEST_CLI" test validate -f "$chat_tests"

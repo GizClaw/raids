@@ -33,17 +33,17 @@ jobs:
             scripts/test/starlark/go.sum
             scripts/test/chat-assistant/go.sum
 
-      - name: Download GizClaw v0.26.0
+      - name: Download GizClaw v0.27.0
         env:
-          GIZCLAW_ASSET: gizclaw_0.26.0_amd64.deb
-          GIZCLAW_SHA256: bb2d6b4ec3ea2c676e2f123fc391ac709e945a0bf461829a81c460afe6bd11b4
+          GIZCLAW_ASSET: gizclaw_0.27.0_amd64.deb
+          GIZCLAW_SHA256: 43f586263624c460d207adb74fc39f326527b45eef9e4272d164ca394dbc0aec
         run: |
           set -euo pipefail
           package="$RUNNER_TEMP/$GIZCLAW_ASSET"
-          root="$RUNNER_TEMP/gizclaw-v0.26.0"
+          root="$RUNNER_TEMP/gizclaw-v0.27.0"
           curl --fail --location --retry 3 \
             --output "$package" \
-            "https://github.com/GizClaw/gizclaw/releases/download/v0.26.0/$GIZCLAW_ASSET"
+            "https://github.com/GizClaw/gizclaw/releases/download/v0.27.0/$GIZCLAW_ASSET"
           printf '%s  %s\n' "$GIZCLAW_SHA256" "$package" | sha256sum --check --status
           dpkg-deb --extract "$package" "$root"
           printf 'GIZCLAW=%s\n' "$root/usr/bin/gizclaw" >> "$GITHUB_ENV"
@@ -63,5 +63,5 @@ jobs:
       - name: Check catalog Voice invariants
         run: make test-unit-voices
 
-      - name: Check Chat memory and controlled search results
+      - name: Check Chat memory, search and device Tool contracts
         run: make test-unit-chat-assistant

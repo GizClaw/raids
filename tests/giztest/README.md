@@ -10,8 +10,16 @@ Chat/Journey 不把回复字数作为通过或失败标准，重载后的回复�
 
 Chat 的天气、日期 live 探针只检查语音回复可用性，关键词本身不证明搜索已执行。
 `make test-unit-chat-assistant` 另用仓库真实 Workflow、Tool、profile 与这两个输入，
-在 GizClaw v0.26.0 Eino 引擎和 HTTP Tool 执行器中验证请求映射、真实调用计数、随机受控结果传入回答，
+在 GizClaw v0.27.0 Eino 引擎、Profile alias 目录、AgentHost ToolInvoker 和 HTTP Tool 执行器中验证请求映射、真实调用计数、随机受控结果传入回答，
 并拒绝没有调用搜索的虚构天气/日期回答。它同时检查用户与助手都进入异步记忆观察、闲聊不调用搜索。
+default、testing 与示例 Profile 现为 Chat 配置 10 个 Tool alias：联网搜索、屏幕/状态灯读取及亮度写入、播放状态/列表/播放/停止，以及切换 Workflow；同时启用 `verification_model`，会增加模型请求和最终回复等待时间。
+受控设备 transport 测试覆盖真实目录生成的参数 schema、固定实例/程序、结果回传、缺值/越界/换目标/不支持字段拒绝、能力未知/离线过滤及撤权。它不运行真实模型的语义检查，也不代表 Docker E2E 或 H106 真机验收；H106 产品 Profile 仍由 deploy 管理。
+
+`RAIDS_CHAT_E2E_CREDENTIAL_FILE=/path/to/provider.env make test-e2e-chat-assistant`
+另起独立 Docker Server/Edge（正式 0.27.0 镜像）、Mem0/PostgreSQL，应用仓库原始 default/testing 闭包。
+29 类真实模型对话在两个 Profile 上默认各重复 3 次，逐轮核对实际 MHS/ClientTool 目标、参数和调用次数，包括缺槽追问、取消、播放列表、空列表失败回传、切换剧本、Workspace 收窄和两个 Peer 隔离，随后运行原有 Chat smoke/quality/soak。
+生成的 58 个文档由静态 CI 校验；运行输入、真实回复与设备协议 receipts、源文件哈希及日志保存在忽略的 `reports/raids-chat-*/`，每次失败也保留。
+凭据只进入进程/容器环境；完成后清理该测试项目的容器、网络、volume 和临时身份，不修改线上配置。原有延迟和音频门槛不变，设备协议夹具通过不代表 H106 真机通过。
 
 10 个 `guess-*` 的标准 quality 文件都包含固定谜底回归：确定的正反属性、自然说法与同音转写猜中、猜错后认输揭晓同一答案，以及全英语文字和中英语音输入。语音通过 `server.speech.synthesize` 和 push-to-talk ASR 执行；属性与揭晓断言只检查助手的 `/reply`，另外保存并输出 `/transcript`，避免把孩子的转写混入回答判断。每组使用独立 Workspace，结束后读回最新历史；这些步骤随 `make test-e2e TIER=quality RAID=<guess-raid>` 和 `RAID=all` 执行。服务端回归结果与 H106 真机验收分别记录。
 
@@ -39,7 +47,7 @@ make test-unit-resources
 make test-unit-voices
 ```
 
-默认 `TIER=all RAID=all PARALLEL=4 APPLY=0`。`TIER` 只接受 `smoke|quality|soak|device|all`，`RAID` 接受 raid 名或 `all`；选中 raid 时逐档选择 `<raid>.*.giztest.yaml`，通过 `gizclaw test run --parallel "$PARALLEL"` 并发运行文件。`all` 跳过不适用档，显式选择不存在的档会失败。H106 不进入 `make test-e2e`，按其设备环境单独执行 `gizclaw test run tests/giztest/h106`。安全围栏测试同样不进入 `make test-e2e`：它要求服务端不低于 GizClaw v0.26.0、已部署带围栏的 `eino-chat-assistant` 以及 testing RuntimeProfile 的 `spec.safety_fences`，用 `gizclaw test run tests/giztest/safety-fence` 单独执行。同一句“原样复述辱骂”的请求在 off Workspace 中必须照说（对照组），在 child Workspace 中必须拒绝，两轮回复从 Workspace 历史读回并打印到运行日志。联网搜索的 live 回复探针位于 `tests/giztest/quality/chat-assistant.eino.giztest.yaml`，由 `make test-e2e TIER=quality RAID=chat-assistant` 选择，也包含在该 raid 的 `TIER=all` 中。运行前需部署 `tools/volc-web-search.yaml`、testing RuntimeProfile 的 `web-search` 绑定和带 `search_api_key` 的 `volc-credential`；上海天气和今天日期两问必须含天气/日期词且不得出现“无法联网”类拒答，搜索回合首字上限 15s。实际工具调用与结果传递另由上文的受控测试验证。`REPORT` 可指定 JSON 路径，默认写入 `reports/`。
+默认 `TIER=all RAID=all PARALLEL=4 APPLY=0`。`TIER` 只接受 `smoke|quality|soak|device|all`，`RAID` 接受 raid 名或 `all`；选中 raid 时逐档选择 `<raid>.*.giztest.yaml`，通过 `gizclaw test run --parallel "$PARALLEL"` 并发运行文件。`all` 跳过不适用档，显式选择不存在的档会失败。H106 不进入 `make test-e2e`，按其设备环境单独执行 `gizclaw test run tests/giztest/h106`。安全围栏测试同样不进入 `make test-e2e`：它要求服务端不低于 GizClaw v0.27.0、已部署带围栏的 `eino-chat-assistant` 以及 testing RuntimeProfile 的 `spec.safety_fences`，用 `gizclaw test run tests/giztest/safety-fence` 单独执行。同一句“原样复述辱骂”的请求在 off Workspace 中必须照说（对照组），在 child Workspace 中必须拒绝，两轮回复从 Workspace 历史读回并打印到运行日志。联网搜索的 live 回复探针位于 `tests/giztest/quality/chat-assistant.eino.giztest.yaml`，由 `make test-e2e TIER=quality RAID=chat-assistant` 选择，也包含在该 raid 的 `TIER=all` 中。运行前需部署 `tools/volc-web-search.yaml`、testing RuntimeProfile 的 `web.search` 绑定和 `general-assistant.toolkit.tool_names` 授权和带 `search_api_key` 的 `volc-credential`；上海天气和今天日期两问必须含天气/日期词且不得出现“无法联网”类拒答，搜索回合首字上限 15s。实际工具调用与结果传递另由上文的受控测试验证。`REPORT` 可指定 JSON 路径，默认写入 `reports/`。
 
 `APPLY=1` 的原行为保持：使用 `GIZCLAW_CONTEXT` 应用全部 Tools、workflows、testing RuntimeProfile 与 testing token，再执行选中的测试。它需要 Admin 权限，普通运行只需 Peer 接入点与 token。
 

@@ -51,10 +51,24 @@ for (kind, identifier), document in resources.items():
         continue
     spec = document["spec"]
     bindings = spec["resources"]
-    for group, resource_kind in (("models", "Model"), ("voices", "Voice"), ("tools", "Tool")):
+    for group, resource_kind in (("models", "Model"), ("voices", "Voice")):
         for alias, binding in bindings.get(group, {}).items():
             check((resource_kind, binding["resource_id"]) in resources,
                   f"{identifier}: unresolved {group}.{alias}")
+    devices = {device["id"]: device for device in spec.get("mhs", {}).get("v0", {}).get("devices", [])}
+    for alias, binding in bindings.get("tools", {}).items():
+        sources = [source for source in ("resource_id", "mhs", "client_tool") if source in binding]
+        check(len(sources) == 1, f"{identifier}: tools.{alias} must select exactly one source")
+        if sources[0] == "resource_id":
+            check(("Tool", binding["resource_id"]) in resources, f"{identifier}: unresolved tools.{alias}")
+        elif sources[0] == "mhs":
+            target = binding["mhs"]
+            check(target["id"] in devices, f"{identifier}: tools.{alias} references undeclared MHS instance")
+            check(target["operation"] in ("read", "write"), f"{identifier}: tools.{alias} invalid MHS operation")
+            check(bool(target.get("fields")) if target["operation"] == "write" else "fields" not in target,
+                  f"{identifier}: tools.{alias} must select write fields and omit them for reads")
+        else:
+            check(bool(binding["client_tool"].get("name")), f"{identifier}: tools.{alias} missing ClientTool name")
     for alias, binding in bindings.get("memories", {}).items():
         layout = resources.get(("MemoryLayout", binding["layout_id"]))
         check(layout is not None, f"{identifier}: unresolved MemoryLayout {alias}")
@@ -66,9 +80,13 @@ for (kind, identifier), document in resources.items():
         workflow = resources.get(("Workflow", binding["resource_id"]))
         check(workflow is not None, f"{identifier}: unresolved Workflow {alias}")
         workflow_spec = workflow["spec"]
-        allowed = workflow_spec.get("toolkit", {}).get("tool_ids", [])
-        tool_ids = {v["resource_id"] for v in bindings.get("tools", {}).values()}
-        check(set(allowed) <= tool_ids, f"{identifier}/{alias}: Tool allow-list is not bound")
+        allowed = binding.get("toolkit", {}).get("tool_names", [])
+        check(set(allowed) <= bindings.get("tools", {}).keys(),
+              f"{identifier}/{alias}: injected Tool alias is not bound")
+        verifier = binding.get("toolkit", {}).get("verification_model")
+        if verifier:
+            check(verifier in bindings.get("models", {}),
+                  f"{identifier}/{alias}: unresolved Tool verification Model")
         if workflow_spec.get("memory") is not None:
             check(workflow_spec["memory"] in bindings.get("memories", {}),
                   f"{identifier}/{alias}: unresolved Memory alias")

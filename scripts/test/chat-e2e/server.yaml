@@ -1,0 +1,69 @@
+identity:
+  private-key: ${E2E_SERVER_PRIVATE_KEY}
+webrtc:
+  listen: 0.0.0.0:9820
+  endpoint: server:9820
+http:
+  listeners:
+    - listen: 0.0.0.0:9820
+edge-nodes:
+  - ${E2E_EDGE_PUBLIC_KEY}
+admin-public-key: ${E2E_ADMIN_PUBLIC_KEY}
+storage:
+  memory: {kind: memory}
+  local-files: {kind: filesystem.dir, dir: data/objects}
+  agenthost-files: {kind: filesystem.dir, dir: data/agenthost}
+  business-db: {kind: sqlite, dir: data/business.sqlite}
+stores:
+  peers: {kind: keyvalue, storage: memory, prefix: peers}
+  api-keys: {kind: keyvalue, storage: memory, prefix: api-keys}
+  peer-runs: {kind: sql, storage: business-db}
+  peer-usage: {kind: sql, storage: business-db}
+  eino-state: {kind: sql, storage: business-db}
+  credentials: {kind: sql, storage: business-db}
+  firmwares: {kind: sql, storage: business-db}
+  runtime-profiles: {kind: sql, storage: business-db}
+  memory-layouts: {kind: sql, storage: business-db}
+  agenthost: {kind: objectstore, storage: agenthost-files}
+  provider-tenants: {kind: sql, storage: business-db}
+  models: {kind: sql, storage: business-db}
+  voices: {kind: sql, storage: business-db}
+  workspaces: {kind: sql, storage: business-db}
+  workspace-history: {kind: log.mutable, storage: business-db, table: workspace_history, ttl: 720h}
+  agent-history: {kind: log.mutable, storage: business-db, table: agent_history, ttl: 720h}
+  workspace-history-assets: {kind: objectstore, storage: local-files, prefix: workspace-history, ttl: 720h}
+  workflows: {kind: sql, storage: business-db}
+  tools: {kind: sql, storage: business-db}
+  workspace-assets: {kind: objectstore, storage: local-files, prefix: workspaces}
+  contacts: {kind: sql, storage: business-db}
+  friends: {kind: keyvalue, storage: memory, prefix: friends}
+  friend-groups: {kind: keyvalue, storage: memory, prefix: friend-groups}
+services:
+  peer: {store: peers}
+  peer_run: {store: peer-runs}
+  peer_usage: {store: peer-usage}
+  api_key: {store: api-keys}
+  credential: {store: credentials}
+  firmware: {store: firmwares}
+  runtime_profile: {store: runtime-profiles}
+  model: {store: models}
+  voice: {store: voices}
+  memory_layout: {store: memory-layouts}
+  provider_tenants: {store: provider-tenants}
+  workflow: {store: workflows}
+  workspace:
+    store: workspaces
+    history_store: workspace-history
+    history_assets_store: workspace-history-assets
+    assets_store: workspace-assets
+  toolkit: {store: tools}
+  contact: {store: contacts}
+  friend: {store: friends}
+  friend_group: {store: friend-groups}
+  agent_host:
+    runtime_store: agenthost
+    persistence: {state_store: eino-state, history_store: agent-history}
+  system_log:
+    level: info
+    sinks:
+      - {kind: stderr}

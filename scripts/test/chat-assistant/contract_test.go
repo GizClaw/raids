@@ -13,6 +13,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -22,6 +23,8 @@ import (
 	genxeino "github.com/GizClaw/gizclaw-go/pkgs/genx/transformers/eino"
 	"github.com/GizClaw/gizclaw-go/pkgs/gizclaw/api/apitypes"
 	"github.com/GizClaw/gizclaw-go/pkgs/gizclaw/services/ai/workflow/einoconfig"
+	"github.com/GizClaw/gizclaw-go/pkgs/gizclaw/services/runtime/agenthost"
+	"github.com/GizClaw/gizclaw-go/pkgs/gizclaw/services/runtime/toolcatalog"
 	"github.com/GizClaw/gizclaw-go/pkgs/gizclaw/services/runtime/toolkit"
 	"github.com/GizClaw/gizclaw-go/pkgs/giztools"
 	"github.com/GizClaw/gizclaw-go/pkgs/store/memory"
@@ -31,6 +34,8 @@ import (
 	"github.com/cloudwego/eino/schema"
 	"github.com/goccy/go-yaml"
 	"github.com/google/jsonschema-go/jsonschema"
+	"github.com/jmoiron/sqlx"
+	_ "modernc.org/sqlite"
 )
 
 // Read the shipped resources; no copy of the graph or HTTP mapping is maintained here.
@@ -75,30 +80,53 @@ type fixture struct {
 	memoryBatches [][]string
 }
 
-func searchToolkit(t *testing.T, f *fixture, mutations ...func(*giztools.HTTPOperation)) *genx.Toolkit {
+func chatProfile(t *testing.T, path string) apitypes.RuntimeProfile {
+	t.Helper()
+	doc := document(t, path)
+	profile := apitypes.RuntimeProfile{Id: doc["metadata"].(map[string]any)["id"].(string)}
+	decode(t, doc["spec"], &profile.Spec)
+	return profile
+}
+
+func searchToolkit(t *testing.T, f *fixture, mutations ...func(*toolkit.HTTPRequest)) *agenthost.ToolkitInvoker {
+	t.Helper()
+	profile := chatProfile(t, "runtime-profiles/default.yaml")
+	return profileSearchToolkit(t, f, &profile, nil, mutations...)
+}
+
+func profileSearchToolkit(t *testing.T, f *fixture, profile *apitypes.RuntimeProfile, policy *apitypes.ToolkitPolicy, mutations ...func(*toolkit.HTTPRequest)) *agenthost.ToolkitInvoker {
 	t.Helper()
 	resource := document(t, "tools/volc-web-search.yaml")
-	spec := resource["spec"].(map[string]any)
-	var public apitypes.ToolHTTPRequest
-	decode(t, spec["http"], &public)
-	var argument jsonschema.Schema
-	decode(t, spec["input_schema"], &argument)
-	timeout, err := time.ParseDuration(public.Timeout)
+	var spec apitypes.ToolSpec
+	decode(t, resource["spec"], &spec)
+	tool, err := toolkit.FromSpec(resource["metadata"].(map[string]any)["id"].(string), spec)
 	if err != nil {
 		t.Fatal(err)
 	}
-	operation := giztools.HTTPOperation{
-		URL: public.Url, Method: string(public.Method), Timeout: timeout,
-		ResponsePointer: public.ResponsePointer, MaxResponseBytes: int64(public.MaxResponseBytes),
-	}
-	for _, binding := range *public.Body {
-		required := binding.Required == nil || *binding.Required
-		operation.Body = append(operation.Body, giztools.HTTPBinding{
-			ArgumentPointer: binding.ArgumentPointer, Target: binding.Target, Required: required,
-		})
-	}
+	// Provider credentials are replaced locally; the binding and HTTP executor
+	// still pass through the actual v0.27.0 catalog and AgentHost invoker.
+	tool.HTTP.Auth = toolkit.HTTPAuth{Method: "none"}
+	// The model name must come from web.search, never this private resource name.
+	tool.InvokeName = "fixture_private_search"
 	for _, mutate := range mutations {
-		mutate(&operation)
+		mutate(tool.HTTP)
+	}
+	db, err := sqlx.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.SetMaxOpenConns(1)
+	t.Cleanup(func() {
+		if err := db.Close(); err != nil {
+			t.Error(err)
+		}
+	})
+	server := &toolkit.Server{DB: db}
+	if err := server.Initialize(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := server.CreateTool(t.Context(), tool); err != nil {
+		t.Fatal(err)
 	}
 	executor := giztools.HTTPExecutor{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
 		f.requests++
@@ -118,21 +146,17 @@ func searchToolkit(t *testing.T, f *fixture, mutations ...func(*giztools.HTTPOpe
 		return &http.Response{StatusCode: 200, Header: http.Header{"Content-Type": {"application/json"}},
 			Body: io.NopCloser(bytes.NewReader(data))}, nil
 	})}
-	tool := &genx.FuncTool{Name: spec["invoke_name"].(string), Description: spec["description"].(string), Argument: &argument,
-		Invoke: func(ctx context.Context, _ *genx.FuncCall, input string) (any, error) {
-			result, err := executor.Invoke(ctx, operation, json.RawMessage(input), nil)
-			if err != nil {
-				return nil, err
+	return &agenthost.ToolkitInvoker{
+		Catalog: &toolcatalog.Catalog{Tools: server}, HTTP: executor,
+		Owner: func(context.Context) (string, error) { return "chat-contract-owner", nil },
+		Scope: func(_ context.Context, owner string) (apitypes.RuntimeProfile, []string, error) {
+			if owner != "chat-contract-owner" {
+				return apitypes.RuntimeProfile{}, nil, errors.New("unexpected owner")
 			}
-			var value any
-			err = json.Unmarshal(result, &value)
-			return value, err
-		}}
-	toolkit, err := genx.NewToolkit(tool)
-	if err != nil {
-		t.Fatal(err)
+			names, err := toolcatalog.Selection(*profile, "general-assistant", "eino-chat-assistant", policy)
+			return *profile, names, err
+		},
 	}
-	return toolkit
 }
 
 type scriptedModel struct {
@@ -149,6 +173,9 @@ func (m *scriptedModel) Generate(ctx context.Context, input []*schema.Message, o
 	return r.Recv()
 }
 func (m *scriptedModel) Stream(_ context.Context, input []*schema.Message, opts ...model.Option) (*schema.StreamReader[*schema.Message], error) {
+	if m.mode == "model-must-not-run" {
+		return nil, errors.New("cancelled value reached the model and could authorize a tool")
+	}
 	options := model.GetCommonOptions(nil, opts...)
 	if len(options.Tools) != 1 || options.Tools[0].Name != "web_search" {
 		return nil, errors.New("the Model did not receive the declared search Tool")
@@ -226,14 +253,16 @@ func run(t *testing.T, input, mode string, mutations ...func(*genxeino.GraphDefi
 	if workflow["memory"] != "user-chat-with-assistant" {
 		t.Fatal("Chat Memory layout changed")
 	}
-	ids := workflow["toolkit"].(map[string]any)["tool_ids"].([]any)
-	if len(ids) != 1 || ids[0] != "volc-web-search" {
-		t.Fatal("Workflow search allow-list changed")
+	if _, exists := workflow["toolkit"]; exists {
+		t.Fatal("Chat Tool authority must live in the RuntimeProfile binding")
 	}
-	for _, path := range []string{"runtime-profiles/default.yaml", "runtime-profiles/testing.yaml"} {
-		profile := document(t, path)["spec"].(map[string]any)
-		tools := profile["resources"].(map[string]any)["tools"].(map[string]any)
-		if tools["web-search"].(map[string]any)["resource_id"] != ids[0] {
+	for _, path := range []string{"runtime-profiles/default.yaml", "runtime-profiles/testing.yaml", "runtime-profile.example.yaml"} {
+		profile := chatProfile(t, path)
+		names, err := toolcatalog.Selection(profile, "general-assistant", "eino-chat-assistant", nil)
+		if err != nil || !slices.Contains(names, "web.search") {
+			t.Fatalf("%s: Chat search selection = %v, %v", path, names, err)
+		}
+		if (*profile.Spec.Resources.Tools)["web.search"].ResourceId != "volc-web-search" {
 			t.Fatal("unbound search Tool")
 		}
 	}
@@ -446,9 +475,8 @@ func TestOptionalSearchTimeRange(t *testing.T) {
 		if err := toolkit.ValidateToolArgs(catalogTool, args); err == nil {
 			t.Fatalf("invalid time range passed the runtime authorizer: %s", invalid)
 		}
-		_, err := searchToolkit(t, f).InvokeTool(t.Context(), "web_search",
-			args)
-		if err == nil || f.requests != 0 {
+		result, err := searchToolkit(t, f).InvokeTool(t.Context(), "web_search", args)
+		if err != nil || !bytes.Contains(result, []byte(`"invalid_arguments"`)) || f.requests != 0 {
 			t.Fatalf("invalid time range reached HTTP executor: %s", invalid)
 		}
 	}
@@ -496,16 +524,94 @@ func TestObservationOracleRejectsMissingAssistantCandidate(t *testing.T) {
 
 func TestSearchRejectsBrokenResponsePointer(t *testing.T) {
 	f := &fixture{query: "上海天气", fact: "仅存在于HTTP响应中的事实"}
-	toolkit := searchToolkit(t, f, func(operation *giztools.HTTPOperation) {
+	toolkit := searchToolkit(t, f, func(operation *toolkit.HTTPRequest) {
 		pointer := "/Result/missing"
 		operation.ResponsePointer = &pointer
 	})
-	_, err := toolkit.InvokeTool(t.Context(), "web_search",
+	result, err := toolkit.InvokeTool(t.Context(), "web_search",
 		json.RawMessage(`{"query":"上海天气","search_type":"web","count":3}`))
 	if f.requests != 1 {
 		t.Fatalf("broken pointer test did not execute HTTP: requests=%d", f.requests)
 	}
-	if err == nil {
-		t.Fatal("broken response pointer was accepted by the real HTTP Tool executor")
+	if err != nil || !bytes.Contains(result, []byte(`"http_failure"`)) {
+		t.Fatalf("broken response pointer passed: result=%s, error=%v", result, err)
+	}
+}
+
+func TestProfileSearchInjectionAndOptOut(t *testing.T) {
+	for _, path := range []string{"runtime-profiles/default.yaml", "runtime-profiles/testing.yaml", "runtime-profile.example.yaml"} {
+		t.Run(path, func(t *testing.T) {
+			profile := chatProfile(t, path)
+			f := &fixture{query: "天气", fact: "实际工具结果"}
+			invoker := profileSearchToolkit(t, f, &profile, nil)
+			definitions, err := invoker.ResolveTools(t.Context())
+			if err != nil || len(definitions) != 1 || definitions[0].Name != "web_search" {
+				t.Fatalf("search definitions=%v, error=%v", definitions, err)
+			}
+			catalog, err := invoker.ResolveCatalog(t.Context())
+			if err != nil {
+				t.Fatalf("search catalog=%v, error=%v", catalog, err)
+			}
+			foundSearch := false
+			for _, tool := range catalog {
+				if tool.Alias == "web.search" {
+					foundSearch = tool.HTTP != nil && tool.HTTP.ID == "volc-web-search" && tool.Available
+				} else if tool.Available || tool.Reason != "capability_unknown" {
+					t.Fatalf("unobserved device tool became available: %+v", tool)
+				}
+			}
+			if !foundSearch {
+				t.Fatal("bound search was not available")
+			}
+			for alias, binding := range profile.Spec.Workflows {
+				if binding.ResourceId == "eino-chat-assistant" {
+					continue
+				}
+				names, err := toolcatalog.Selection(profile, alias, binding.ResourceId, nil)
+				if err != nil || len(names) != 0 {
+					t.Fatalf("non-Chat Workflow %s gained tools: %v, %v", alias, names, err)
+				}
+			}
+			args := json.RawMessage(`{"query":"天气","search_type":"web","count":3}`)
+			result, err := invoker.InvokeTool(t.Context(), "fixture_private_search", args)
+			if err != nil || !bytes.Contains(result, []byte(`"unavailable"`)) || f.requests != 0 {
+				t.Fatalf("private resource name bypassed alias policy: %s, %v", result, err)
+			}
+			for _, mode := range []string{"omitted", "empty", "workspace-empty"} {
+				changed := profile
+				binding := changed.Spec.Workflows["general-assistant"]
+				changed.Spec.Workflows = apitypes.RuntimeProfileWorkflows{"general-assistant": binding}
+				var policy *apitypes.ToolkitPolicy
+				switch mode {
+				case "omitted":
+					binding.Toolkit = nil
+				case "empty":
+					binding.Toolkit = &apitypes.RuntimeProfileToolSelection{ToolNames: &[]string{}}
+				case "workspace-empty":
+					policy = &apitypes.ToolkitPolicy{ToolNames: &[]string{}}
+				}
+				changed.Spec.Workflows["general-assistant"] = binding
+				restricted := profileSearchToolkit(t, f, &changed, policy)
+				definitions, err := restricted.ResolveTools(t.Context())
+				if err != nil || len(definitions) != 0 {
+					t.Fatalf("%s exposed search: %v, %v", mode, definitions, err)
+				}
+				result, err := restricted.InvokeTool(t.Context(), "web_search", args)
+				if err != nil || !bytes.Contains(result, []byte(`"unavailable"`)) || f.requests != 0 {
+					t.Fatalf("%s allowed a search: %s, %v", mode, result, err)
+				}
+			}
+			result, err = invoker.InvokeTool(t.Context(), "web_search", args)
+			if err != nil || !bytes.Contains(result, []byte(f.fact)) || f.requests != 1 {
+				t.Fatalf("selected alias failed to search: %s, %v, requests=%d", result, err, f.requests)
+			}
+			binding := profile.Spec.Workflows["general-assistant"]
+			binding.Toolkit = nil
+			profile.Spec.Workflows["general-assistant"] = binding
+			result, err = invoker.InvokeTool(t.Context(), "web_search", args)
+			if err != nil || !bytes.Contains(result, []byte(`"unavailable"`)) || f.requests != 1 {
+				t.Fatalf("revoked alias still searched: %s, %v, requests=%d", result, err, f.requests)
+			}
+		})
 	}
 }

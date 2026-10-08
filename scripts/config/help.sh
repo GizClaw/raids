@@ -19,6 +19,7 @@ printf '%s\n' \
   '' \
   'Integration test (live deployment):' \
   '  test-e2e               run the Giztest corpus against a provisioned deployment' \
+  '  test-e2e-chat-assistant  run isolated released Docker runtime, real providers and device receipts' \
   '' \
   'Variables:' \
   '  GIZCLAW=gizclaw        GizClaw CLI used for validation and Admin apply' \
@@ -28,4 +29,7 @@ printf '%s\n' \
   '  PARALLEL=4             concurrent Giztest tasks for test-e2e' \
   '  APPLY=0                APPLY=1 applies the testing closure before test-e2e (needs Admin context)' \
   '  GIZCLAW_CONTEXT        Admin context used when APPLY=1' \
-  '  REPORT                 Giztest JSON report path (default: tests/giztest/reports/<timestamp>.json)'
+  '  REPORT                 Giztest JSON report path (default: tests/giztest/reports/<timestamp>.json)' \
+  '  RAIDS_CHAT_E2E_CREDENTIAL_FILE  provider env file for isolated Chat Docker E2E; never archived' \
+  '  RAIDS_CHAT_E2E_REPEAT=3  repetitions per device scenario and public Profile' \
+  '  RAIDS_CHAT_E2E_STANDARD=all  none|smoke|quality|soak|all; device scenarios always run'
