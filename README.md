@@ -253,6 +253,16 @@ is disabled by default; the supported values are `enabled` and `disabled`.
 Tester judges allow 1024 output tokens so longer reviews can include a verdict.
 The speech input path still uses ASR; this Model remains text-only.
 
+`doubao-seed-2-1-lite-audio` is a separate, opt-in Model resource for native
+audio input to the same upstream model. It sets `support_text_only: false`
+to select GizClaw's Doubao audio/transcript adapter, keeps the `fast` service
+tier and disables thinking by default. Ark lists this upstream model under
+[audio understanding](https://docs.volcengine.com/docs/82379/1553576?lang=zh).
+For an Eino Workflow to pass audio directly, bind its Model alias to this
+resource, set `audio_transcript: true` on the root Graph's `chat_model` node,
+omit `voice_adapter.asr_model`, and use push-to-talk input. The existing public
+Workflow bindings continue to use the text-only Model and ASR.
+
 RuntimeProfile Model and Voice aliases are opaque flat keys. Dots make
 ownership visible; they do not create nested maps, fallback, wildcard, or
 prefix lookup. Workflow-owned slots use the canonical Workflow
