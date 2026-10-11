@@ -1,0 +1,30 @@
+apiVersion: gizclaw.admin/v1alpha1
+kind: RuntimeProfile
+metadata:
+  id: podcast-demo
+spec:
+  workflows:
+    podcast:
+      resource_id: eino-podcast
+      ptt_asr_model: asr
+      realtime_asr_model: asr
+      i18n:
+        zh-CN:
+          display_name: 一直讲的播客
+          description: 从日常科学开始，持续产生新内容，随时打断或换主题。
+        en:
+          display_name: Continuous Podcast
+          description: A continuous science podcast you can interrupt or redirect.
+      tags: ["category:podcast", "podcast"]
+  resources:
+    models:
+      asr:
+        resource_id: volc-bigasr-sauc
+        i18n: {en: {display_name: Speech Recognition}, zh-CN: {display_name: 语音识别}}
+      eino-podcast.model:
+        resource_id: doubao-seed-2-1-lite
+        i18n: {en: {display_name: Podcast Model}, zh-CN: {display_name: 播客模型}}
+    voices:
+      eino-podcast.host:
+        resource_id: volc-tenant:volc-cn-beijing:zh_female_qingxinnvsheng_uranus_bigtts
+        i18n: {en: {display_name: Podcast Host}, zh-CN: {display_name: 播客主持人}}

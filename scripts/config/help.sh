@@ -16,6 +16,7 @@ printf '%s\n' \
   '  test-unit-figure       regenerate figure-* raids and fail on committed-output drift' \
   '  test-unit-voices       check catalog-wide Voice invariants (MiniMax synthesis model)' \
   '  test-unit-chat-assistant  run the shipped Eino graph with controlled search and Memory fixtures' \
+  '  test-unit-podcast      validate the continuous podcast example (requires continuation-enabled GizClaw)' \
   '' \
   'Integration test (live deployment):' \
   '  test-e2e               run the Giztest corpus against a provisioned deployment' \

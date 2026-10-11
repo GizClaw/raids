@@ -760,6 +760,12 @@ release, and Beijing Default E2E remain separate evidence.
 
 ## Raid packages
 
+The [continuous podcast example](examples/podcast/README.md) provides an isolated
+Profile for narration that keeps generating until interrupted and stores each
+model-generated section as a separate History entry while playback continues. It requires a GizClaw build with
+`eino.conversation.continue_from`; the pinned v0.27.0 catalog validator does not
+support it. Use `make test-unit-podcast GIZCLAW=/path/to/gizclaw` with that build.
+
 Every scenario is one package directory `workflows/<raid>/`: one Workflow per
 engine implementation (`eino.yaml`, `eino.multi-role.yaml`, …), the scenario's single
 original relay Tester (`test.yaml`, id `<raid>-test`), a `raid.json` manifest, and a

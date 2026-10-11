@@ -1,0 +1,114 @@
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata:
+  id: eino-podcast
+spec:
+  driver: eino
+  eino:
+    voice_adapter:
+      default_voice: eino-podcast.host
+    conversation:
+      initiative: peer
+      continue_from: keep-speaking
+    limits:
+      max_output_bytes: 4194304
+    graph:
+      name: continuous-podcast
+      compile:
+        node_trigger_mode: any_predecessor
+        max_run_steps: 8
+      state:
+        fields:
+        - {name: keep-speaking, type: boolean, merge: replace}
+        - {name: recent, type: messages, merge: replace}
+        - {name: mode, type: string, merge: replace}
+        - {name: messages, type: messages, merge: replace}
+        - {name: answer, type: string, merge: replace}
+      nodes:
+      - id: prepare
+        type: script
+        inputs:
+          text: {from: input.text}
+          messages: {from: input.messages}
+        outputs:
+          continue: keep-speaking
+          recent: recent
+          mode: mode
+        language: starlark
+        entrypoint: run
+        limits:
+          max_execution_steps: 100000
+          timeout: 500ms
+          max_input_bytes: 16777216
+          max_output_bytes: 131072
+        source: |
+          def run(input):
+              # Stop commands are whole utterances or the opening clause,
+              # never a keyword inside a topic such as “火车为什么会停止”.
+              text = input.get("text", "").strip().lower()
+              for mark in ["，", "。", "！", "？", ",", ".", "!", "?", "\n"]:
+                  text = text.split(mark)[0]
+              text = "".join(text.split())
+              for prefix in ["麻烦你", "请你", "请"]:
+                  if text.startswith(prefix):
+                      text = text[len(prefix):]
+                      break
+              for suffix in ["好不好", "可以吗", "好吗", "吧"]:
+                  if text.endswith(suffix):
+                      text = text[:-len(suffix)]
+                      break
+              stopped = text in ["停", "停下", "停一下", "先停", "先停一下", "停一停", "暂停", "先暂停", "暂停一下", "暂停播放", "停止", "停止播放", "停止播客", "暂停播客", "等一下", "等一等", "别说了", "先别说了", "别讲了", "不用讲了", "不要继续了", "结束", "结束播客", "关闭播客", "stop", "pause", "stopplease", "stopthepodcast", "stopthepodcastplease", "stoptalking"]
+              recent = []
+              for message in input.get("messages", [])[-8:]:
+                  role = message.get("role", "")
+                  content = message.get("content", "")
+                  if role in ["user", "assistant"] and content and not (role == "user" and content == input.get("text", "")):
+                      # A previous uninterrupted history may be very long;
+                      # only its tail belongs in the next model request.
+                      content = "".join(list(content.codepoints())[-1200:])
+                      recent.append({"role": role, "content": content})
+              return {"continue": not stopped, "recent": recent, "mode": "暂停，只说：好，先停在这里。" if stopped else "连续播讲"}
+      - id: prompt
+        type: prompt
+        inputs:
+          safety_fence: {from: input.safety_fence}
+          request: {from: input.text}
+          mode: {from: mode}
+          recent: {from: recent}
+        outputs:
+          messages: messages
+        format: f_string
+        messages:
+        - role: system
+          template: |
+            {safety_fence}
+
+            你是一位温暖、有好奇心的中文播客主持人。节目默认讲日常生活里的科学，听众指定主题时按其主题讲。
+            当前控制状态：{mode}
+            当前听众要求：{request}
+            控制状态为暂停时，只说“好，先停在这里。”，不再展开任何内容。
+            连续播讲时，每次只讲一个小知识点，正文控制在150到200字之间，以完整句子结尾。系统会自动让你继续生成，听众不需要说“继续”。
+            承接已经讲过的内容，增加新解释、具体例子或新角度；一个话题讲充分后，顺势过渡到相关的新话题，不重复同一组事实。
+            开始时直接从一个有趣的现象讲起；后续生成直接承接上文，不重复开场白、问候或自我介绍，不念“第几段”“下一期”或内部生成提示。
+            不输出标题、列表、分析、舞台说明或说话人标签。不要以提问、选择题、“还想听吗”“要不要继续”或节目结束语收尾，也不要等待听众回答。
+            听众打断提问或换主题时，先回应最新要求，再沿新内容继续；说“继续”时，从既有历史末尾承接，不重新开场。
+            讲述常识和有把握的事实，区分科学事实、推测和传说；无法核实的近期新闻、日期或数字不要编造。
+        - placeholder: recent
+        - role: user
+          template: "{request}"
+      - id: narrate
+        type: chat_model
+        inputs:
+          messages: {from: messages}
+        outputs:
+          text: answer
+        model: eino-podcast.model
+        max_tokens: 512
+      edges:
+      - {from: start, to: prepare}
+      - {from: prepare, to: prompt}
+      - {from: prompt, to: narrate}
+      - {from: narrate, to: end}
+      branches: []
+      outputs:
+      - {node: narrate, field: answer, name: assistant, mime_type: text/plain, primary: true}
