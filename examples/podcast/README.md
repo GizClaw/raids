@@ -15,13 +15,13 @@ podcast and continue saving one entry per generation.
 ## Runtime requirement
 
 Use a GizClaw build from commit
-[`f9ddb10bef2ed1cf427749d618e62c5f871c942c`](https://github.com/GizClaw/gizclaw/commit/f9ddb10bef2ed1cf427749d618e62c5f871c942c)
-or a later version containing that change. It implements
+[`856e9be7fcb0a9055dbdc7949a7d5913698f85b8`](https://github.com/GizClaw/gizclaw/commit/856e9be7fcb0a9055dbdc7949a7d5913698f85b8)
+or a later version containing these changes. It implements
 `spec.eino.conversation.continue_from`, backed by the Eino transformer's
-`Config.ContinueFrom`. The repository's pinned v0.27.0 release does not support
-this property. The example has its own Profile and validation target so it can
-be exercised with the accompanying engine change before being selected by the
-public catalog.
+`Config.ContinueFrom`, and uses `conversation.initiative` for the opening party.
+The repository's pinned v0.27.0 release does not support these fields. This
+example stays outside the public catalog and has its own Profile and validation
+target for the required engine build.
 
 The Graph generates a short section per execution. The runtime repeats it
 within the same turn, preserving the last eight generated sections as model
