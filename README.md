@@ -263,6 +263,37 @@ resource, set `audio_transcript: true` on the root Graph's `chat_model` node,
 omit `voice_adapter.asr_model`, and use push-to-talk input. The existing public
 Workflow bindings continue to use the text-only Model and ASR.
 
+The catalog also provides these text chat choices for consuming profiles:
+
+| Model resource ID | Upstream model | Default thinking |
+| --- | --- | --- |
+| `doubao-seed-2-1-pro` | `doubao-seed-2-1-pro-260915` | enabled |
+| `deepseek-v4-pro` | `deepseek-v4-pro` | enabled |
+| `deepseek-flash` | `deepseek-flash` | enabled |
+| `deepseek-flash-non-thinking` | `deepseek-flash` | disabled |
+
+Seed 2.1 Pro follows Ark's
+[model list](https://docs.volcengine.com/docs/ark/model-list?lang=zh) and
+[thinking mode contract](https://docs.volcengine.com/docs/ark/deep-thinking?lang=zh).
+It uses the default service tier; the Lite resource's `fast` setting is
+specific to Lite. DeepSeek's current
+`deepseek-flash` API alias serves V4.1 Flash; the older `deepseek-v4-flash`
+name is a compatibility route to the same current Flash model, as described
+in the [provider change log](https://api-docs.deepseek.com/updates/).
+Both new Flash resources select text chat only.
+
+Seed 2.1 Pro and DeepSeek V4 Pro enable thinking by default. DeepSeek V4 Pro
+uses its existing `deepseek-v4-pro` resource. Flash also has a separate
+non-thinking resource for tool-call follow-ups that do not replay DeepSeek's
+`reasoning_content`. The Flash resources reuse the existing DeepSeek Tenant
+and Credential. To select one of these Models, a
+consumer applies the Model and sets its RuntimeProfile binding's
+`resource_id`; for example, `spec.resources.models.llm.resource_id` can select
+`doubao-seed-2-1-pro`. Chat Completions requests still use the profile alias
+`llm`. Public Workflow bindings retain their existing selections. Consumers
+that pin a Raids release must update that catalog pin and apply their Model
+resources before a new Model is available on a Server.
+
 RuntimeProfile Model and Voice aliases are opaque flat keys. Dots make
 ownership visible; they do not create nested maps, fallback, wildcard, or
 prefix lookup. Workflow-owned slots use the canonical Workflow
