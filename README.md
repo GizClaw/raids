@@ -273,6 +273,23 @@ prefix lookup. Workflow-owned slots use the canonical Workflow
 ```
 
 `asr` is the only shared Model alias, and every ASR-capable Workflow uses it.
+The catalog provides two separate Volc streaming speech recognition Models:
+
+| Model resource ID | ASR version | Provider resource ID |
+| --- | --- | --- |
+| `volc-bigasr-sauc` | 1.0 (BigASR) | `volc.bigasr.sauc.duration` |
+| `volc-seedasr-sauc` | 2.0 (Seed ASR) | `volc.seedasr.sauc.duration` |
+
+Both use `api_mode: asr` and the `volc-cn-beijing` Tenant. Volc selects the
+version through the provider resource ID, as documented in its
+[streaming ASR API](https://docs.volcengine.com/docs/DoubaoVoice/LargemodelstreamingautomaticspeechrecognitionAPI?lang=zh).
+The public default/testing Profiles and `runtime-profile.example.yaml` keep
+`asr` bound to `volc-bigasr-sauc` (1.0). To select 2.0, change only
+`spec.resources.models.asr.resource_id` to `volc-seedasr-sauc` in the consuming
+RuntimeProfile; existing Workflows continue to use the shared `asr` alias.
+The Tenant declares both duration resource IDs; the consuming speech credential
+must have access to the selected service.
+
 MemoryLayout policies describe the extraction scope and instructions for each
 supported provider. For self-hosted Mem0, the service owns the extraction Model
 and embedding configuration; the RuntimeProfile binds only its endpoint and
