@@ -267,8 +267,8 @@ The catalog also provides these text chat choices for consuming profiles:
 
 | Model resource ID | Upstream model | Default thinking |
 | --- | --- | --- |
-| `doubao-seed-2-1-pro` | `doubao-seed-2-1-pro-260915` | disabled |
-| `deepseek-v4-pro-non-thinking` | `deepseek-v4-pro` | disabled |
+| `doubao-seed-2-1-pro` | `doubao-seed-2-1-pro-260915` | enabled |
+| `deepseek-v4-pro` | `deepseek-v4-pro` | enabled |
 | `deepseek-flash` | `deepseek-flash` | enabled |
 | `deepseek-flash-non-thinking` | `deepseek-flash` | disabled |
 
@@ -282,9 +282,11 @@ name is a compatibility route to the same current Flash model, as described
 in the [provider change log](https://api-docs.deepseek.com/updates/).
 Both new Flash resources select text chat only.
 
-The non-thinking resources give assistants a separate default for tool-call
-follow-ups that do not replay DeepSeek's `reasoning_content`. They reuse the
-existing DeepSeek Tenant and Credential. To select one of these Models, a
+Seed 2.1 Pro and DeepSeek V4 Pro enable thinking by default. DeepSeek V4 Pro
+uses its existing `deepseek-v4-pro` resource. Flash also has a separate
+non-thinking resource for tool-call follow-ups that do not replay DeepSeek's
+`reasoning_content`. The Flash resources reuse the existing DeepSeek Tenant
+and Credential. To select one of these Models, a
 consumer applies the Model and sets its RuntimeProfile binding's
 `resource_id`; for example, `spec.resources.models.llm.resource_id` can select
 `doubao-seed-2-1-pro`. Chat Completions requests still use the profile alias
