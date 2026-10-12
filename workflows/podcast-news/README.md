@@ -56,4 +56,8 @@ This fixture verifies wiring; live search and provider behavior remain separate.
 The current native Tool mechanism is driven by the Model's ToolCalls. A live
 acceptance must confirm actual search invocations and reported sources; prompt
 placement and offline schema checks alone do not prove search was executed.
+GizClaw v0.31.5 shares a 32-call Tool budget across the entire user turn.
+Long news runs require an engine with independently bounded Tool budgets for
+each generated section; otherwise they can terminate when that shared budget
+is exhausted.
 Physical-device audio and echo cancellation need their own qualification.
