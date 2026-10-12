@@ -49,6 +49,9 @@ variables:
     max_bytes: 16777216
     media_type: audio/ogg
     codec: opus
+  heard_news_opening:
+    direction: output
+    type: string
   listener_question_audio:
     direction: output
     type: audio
@@ -201,6 +204,7 @@ steps:
       first_audio_timeout: 55s
   capture:
     heard_news_audio: /hear_continuous_news/audio
+    heard_news_opening: /start_continuous_news/reply
   expect:
     /hear_continuous_news/text:
       min_length: 100
@@ -223,6 +227,8 @@ steps:
       minimum: 0
     /start_continuous_news/transcript:
       pattern: 科技|人工智能|航天|AI
+    /start_continuous_news/reply:
+      min_length: 20
     /start_continuous_news/audio_integrity/max_active:
       equals: 1
     /start_continuous_news/audio_integrity/violations:
@@ -231,11 +237,11 @@ steps:
   client: persona
   timeout: 100s
   peer_stream:
-    mode: push-to-talk
-    input: ${heard_news_audio}
-    # Replay a buffered recording promptly so the host is still narrating
-    # when the listener asks. A small packet spacing avoids a zero-delay burst.
-    pacing: 1ms
+    # This is actual text received from the host in this same narration turn.
+    # Keep the full recording for playback; do not replay several minutes of
+    # audio through a short-utterance ASR just to form a factual question.
+    mode: text
+    input: ${heard_news_opening}
     require_text: true
     require_audio: true
   capture:
@@ -251,8 +257,6 @@ steps:
       - 测试
     /audio_bytes:
       minimum: 1
-    /transcript:
-      min_length: 100
 - id: host_answers_listener
   client: podcast
   timeout: 90s
