@@ -125,9 +125,11 @@ captured from that same turn's actual text output and generates a factual
 question about it. This long variant uses text for that handoff: replaying the
 entire recording through the deployed short-utterance ASR timed out at
 finalization. The listener's question, host answer and continuation request
-still use actual captured audio and PTT. The host's response requires an
-observed interruption of its active
-narration. After the factual answer, the persona hears
+still use actual captured audio and PTT. After sustained narration, the host
+must switch to one finite factual answer. The v0.31.5 Server answered the
+question but did not produce the newer runner's `interrupt_observed` marker;
+that marker is not treated as proof of interruption on this deployment.
+After the factual answer, the persona hears
 the explanation and says “继续”; the test requires another 120 seconds of
 continuous narration. It then sends the persona's spoken “停一下” and checks
 that playback stays quiet. Run this file with `--output` for the long report.
