@@ -137,9 +137,10 @@ steps:
     host_interest_question_audio: /audio
   expect:
     /reply:
-      pattern: 想听|领域|什么|哪
+      pattern: 想.*听|方向|领域
       contains_all:
-      - 新闻
+      - 科技
+      - 国际
     /audio_integrity/max_active:
       equals: 1
     /audio_integrity/violations:
@@ -150,6 +151,7 @@ steps:
   peer_stream:
     mode: push-to-talk
     input: ${host_interest_question_audio}
+    pacing: 20ms
     require_text: true
     require_audio: true
   capture:
@@ -164,8 +166,7 @@ steps:
       - PASS
       - FAIL
     /transcript:
-      contains_all:
-      - 新闻
+      pattern: 想.*听|方向|领域|话题
 - id: continuous_news
   timeout: 115s
   parallel:
@@ -180,6 +181,7 @@ steps:
     peer_stream:
       mode: push-to-talk
       input: ${listener_interest_audio}
+      pacing: 20ms
       completion: first_response
       require_text: true
       require_audio: true
@@ -219,6 +221,7 @@ steps:
   peer_stream:
     mode: push-to-talk
     input: ${heard_news_audio}
+    pacing: 20ms
     require_text: true
     require_audio: true
   capture:
@@ -240,6 +243,7 @@ steps:
   peer_stream:
     mode: push-to-talk
     input: ${listener_question_audio}
+    pacing: 20ms
     require_text: true
     require_audio: true
   capture:
@@ -260,6 +264,7 @@ steps:
   peer_stream:
     mode: push-to-talk
     input: ${host_answer_audio}
+    pacing: 20ms
     require_text: true
     require_audio: true
   expect:

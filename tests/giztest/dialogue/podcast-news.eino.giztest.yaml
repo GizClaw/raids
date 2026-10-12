@@ -1,7 +1,7 @@
 # User Story:
 # As a real news podcast listener persona,
-# I want to answer the host's interest question and ask about the news I actually hear,
-# So that two Workflows hold a spoken dialogue without prerecorded topic replies or spoken test instructions.
+# I want to interrupt several minutes of actual narration, ask a factual question, and request continued playback,
+# So that the native report proves a long spoken dialogue and sustained resume between two Workflows.
 version: gizclaw.test/v1alpha1
 name: podcast-news.dialogue.eino
 clients:
@@ -76,8 +76,14 @@ variables:
     max_bytes: 16777216
     media_type: audio/ogg
     codec: opus
+  stop_request_audio:
+    direction: output
+    type: audio
+    max_bytes: 16777216
+    media_type: audio/ogg
+    codec: opus
 repeat: 1
-timeout: 8m
+timeout: 15m
 steps:
 - id: podcast_register
   client: podcast
@@ -143,9 +149,10 @@ steps:
     host_interest_question_audio: /audio
   expect:
     /reply:
-      pattern: 想听|领域|什么|哪
+      pattern: 想.*听|方向|领域
       contains_all:
-      - 新闻
+      - 科技
+      - 国际
     /audio_integrity/max_active:
       equals: 1
     /audio_integrity/violations:
@@ -156,6 +163,7 @@ steps:
   peer_stream:
     mode: push-to-talk
     input: ${host_interest_question_audio}
+    pacing: 20ms
     require_text: true
     require_audio: true
   capture:
@@ -170,29 +178,27 @@ steps:
       - PASS
       - FAIL
     /transcript:
-      contains_all:
-      - 新闻
+      pattern: 想.*听|方向|领域|话题
 - id: continuous_news
-  timeout: 115s
+  timeout: 270s
   parallel:
   - id: hear_continuous_news
     client: podcast
     peer_stream:
       mode: listen
-      duration: 55s
+      duration: 180s
   - id: start_continuous_news
     client: podcast
     delay: 250ms
     peer_stream:
       mode: push-to-talk
       input: ${listener_interest_audio}
+      pacing: 20ms
       completion: first_response
       require_text: true
       require_audio: true
       first_text_timeout: 50s
       first_audio_timeout: 55s
-  capture:
-    heard_news_audio: /hear_continuous_news/audio
   expect:
     /hear_continuous_news/text:
       min_length: 100
@@ -208,7 +214,7 @@ steps:
     /hear_continuous_news/audio_bytes:
       minimum: 1
     /hear_continuous_news/last_event_ms:
-      minimum: 50000
+      minimum: 175000
     /hear_continuous_news/audio_pacing/underruns:
       equals: 0
     /hear_continuous_news/audio_pacing/minimum_buffer_ms:
@@ -219,33 +225,63 @@ steps:
       equals: 1
     /start_continuous_news/audio_integrity/violations:
       equals: 0
-- id: listener_asks_about_news
-  client: persona
-  timeout: 90s
+- id: hear_recent_news_for_question
+  client: podcast
+  timeout: 45s
   peer_stream:
-    mode: push-to-talk
-    input: ${heard_news_audio}
-    require_text: true
-    require_audio: true
+    mode: listen
+    duration: 30s
   capture:
-    listener_question: /reply
-    listener_question_audio: /audio
+    heard_news_audio: /audio
   expect:
-    /reply:
+    /audio_bytes:
+      minimum: 1
+    /last_event_ms:
+      minimum: 25000
+    /audio_pacing/underruns:
+      equals: 0
+    /audio_pacing/minimum_buffer_ms:
+      minimum: 0
+- id: listener_asks_while_host_is_speaking
+  timeout: 100s
+  parallel:
+  - id: hear_host_during_question
+    client: podcast
+    peer_stream:
+      mode: listen
+      duration: 45s
+  - id: listener_asks_about_news
+    client: persona
+    peer_stream:
+      mode: push-to-talk
+      input: ${heard_news_audio}
+      pacing: 20ms
+      require_text: true
+      require_audio: true
+  capture:
+    listener_question: /listener_asks_about_news/reply
+    listener_question_audio: /listener_asks_about_news/audio
+  expect:
+    /listener_asks_about_news/reply:
       pattern: '[？?]|来源|计划|哪|是不是'
       not_contains:
       - 主持人仍在播报
       - 现在立刻用语音
       - 你刚听到
       - 测试
-    /audio_bytes:
+    /listener_asks_about_news/audio_bytes:
       minimum: 1
+    /hear_host_during_question/audio_bytes:
+      minimum: 1
+    /hear_host_during_question/last_event_ms:
+      minimum: 40000
 - id: host_answers_listener
   client: podcast
   timeout: 90s
   peer_stream:
     mode: push-to-talk
     input: ${listener_question_audio}
+    pacing: 20ms
     require_text: true
     require_audio: true
   capture:
@@ -258,6 +294,27 @@ steps:
       - 今日总览
       - 你想听科技
       - 好，先停在这里。
+    /audio_bytes:
+      minimum: 1
+    /interrupt_observed:
+      equals: true
+- id: listener_responds_to_answer
+  client: persona
+  timeout: 90s
+  peer_stream:
+    mode: push-to-talk
+    input: ${host_answer_audio}
+    pacing: 20ms
+    require_text: true
+    require_audio: true
+  expect:
+    /reply:
+      min_length: 2
+      not_contains:
+      - PASS
+      - FAIL
+      - 测试
+      - 评分
     /audio_bytes:
       minimum: 1
 - id: listener_requests_resume
@@ -274,19 +331,20 @@ steps:
       contains_all:
       - 继续
 - id: resume_news
-  timeout: 100s
+  timeout: 180s
   parallel:
   - id: hear_resume_news
     client: podcast
     peer_stream:
       mode: listen
-      duration: 35s
+      duration: 120s
   - id: start_resume_news
     client: podcast
     delay: 250ms
     peer_stream:
       mode: push-to-talk
       input: ${resume_request_audio}
+      pacing: 20ms
       completion: first_response
       require_text: true
       require_audio: true
@@ -301,7 +359,7 @@ steps:
     /hear_resume_news/audio_bytes:
       minimum: 1
     /hear_resume_news/last_event_ms:
-      minimum: 30000
+      minimum: 115000
     /hear_resume_news/audio_pacing/underruns:
       equals: 0
     /hear_resume_news/audio_pacing/minimum_buffer_ms:
@@ -313,24 +371,46 @@ steps:
       equals: 1
     /start_resume_news/audio_integrity/violations:
       equals: 0
-- id: listener_responds_to_answer
+- id: listener_requests_stop
   client: persona
-  timeout: 90s
+  timeout: 40s
+  peer_stream:
+    mode: text
+    input: 停一下
+    require_text: true
+    require_audio: true
+  capture:
+    stop_request_audio: /audio
+  expect:
+    /reply:
+      contains_all:
+      - 停一下
+- id: host_stops_on_listener_request
+  client: podcast
+  timeout: 40s
   peer_stream:
     mode: push-to-talk
-    input: ${host_answer_audio}
+    input: ${stop_request_audio}
+    pacing: 20ms
     require_text: true
     require_audio: true
   expect:
     /reply:
-      min_length: 2
-      not_contains:
-      - PASS
-      - FAIL
-      - 测试
-      - 评分
+      contains_all:
+      - 先停在这里
+    /transcript:
+      contains_all:
+      - 停一下
     /audio_bytes:
       minimum: 1
+- id: remains_quiet_after_stop
+  client: podcast
+  peer_stream:
+    mode: listen
+    duration: 5s
+  expect:
+    /audio_bytes:
+      equals: 0
 finally:
 - id: podcast_stop
   client: podcast
