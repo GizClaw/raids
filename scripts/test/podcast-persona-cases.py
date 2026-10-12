@@ -22,6 +22,8 @@ case('retain-the-real-interest-reply', {'text': '已着陆。', 'listener': {'tu
 case('bounded-recent-context', {'text': '已着陆。', 'listener': {'turn': 1}, 'messages': [{'role': 'assistant', 'content': '前文'*1000}]*10}, '新闻提问', 2, [{'role': 'assistant', 'content': '前文'*400}]*6)
 case('recover-the-interest-exchange-from-real-replies', {'text': '新闻机构报道，探测器已着陆。', 'messages': [{'role': 'assistant', 'content': '我想听航天新闻。'}]}, '新闻提问', 2)
 case('recover-the-question-exchange-from-real-replies', {'text': '探测器已经完成着陆。', 'messages': [{'role': 'assistant', 'content': '我想听航天新闻。'}, {'role': 'assistant', 'content': '刚才的探测器已经着陆了吗？'}]}, '回应回答', 3)
+case('incoming-asr-is-not-a-prior-listener-reply', {'text': '你想听哪个领域的新闻？', 'messages': [{'role': 'assistant', 'content': '你想听哪个领域的新闻？'}]}, '选择兴趣', 1)
+case('real-interest-reply-recovers-an-overadvanced-phase', {'text': '报道说模型已经发布。', 'listener': {'turn': 2}, 'messages': [{'role': 'assistant', 'content': '我对人工智能新闻感兴趣。'}]}, '新闻提问', 2)
 assert spec['state_persistence']['fields'] == ['listener']
 assert spec['graph']['outputs'][0]['name'] == 'assistant'
 print(json.dumps({'source': node['source'], 'steps': node['limits']['max_execution_steps'], 'cases': cases}, ensure_ascii=False))
