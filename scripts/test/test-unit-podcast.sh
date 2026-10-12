@@ -7,7 +7,7 @@ require_command "$GIZCLAW"
 require_python_yaml
 cd "$root"
 python3 scripts/test/podcast-cases.py | scripts/test/test-starlark-routing.sh
-for node in prepare normalize-batch merge-batch merge-enrichment select-section; do
+for node in prepare parse-collection merge-batch merge-enrichment select-section; do
   python3 scripts/test/podcast-news-cases.py "$node" | scripts/test/test-starlark-routing.sh
 done
 python3 scripts/test/safety_fences.py workflows/podcast/eino.yaml workflows/podcast-news/eino.yaml

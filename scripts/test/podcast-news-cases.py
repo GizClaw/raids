@@ -51,14 +51,15 @@ if node == 'prepare':
     for date in ['2000-02-29', '2024-02-29', '2100-03-01']:
         stamp = int(dt.datetime.fromisoformat(date).replace(tzinfo=dt.timezone(dt.timedelta(hours=8))).timestamp()*1000)
         case('calendar-'+date, dict(text='开始', now_ms=stamp), today=date)
-elif node == 'normalize-batch':
-    sample = {'items':[{'title': '记者说“事实”', 'details':[{'text': "Don't repeat {these} facts", 'url':'https://news.example/?id=1'}]}]}
-    strict = json.dumps(sample,ensure_ascii=False)
-    case('valid-json-preserves-content',dict(text=strict),text=strict)
-    case('python-quotes-preserve-apostrophes',dict(text=repr(sample)),text=strict)
-    case('tool-preamble-not-published',dict(text="{'query':'科技'}\n"+repr(sample)),text=strict)
-    case('markdown-fence-is-internal',dict(text='```json\n'+strict+'\n```'),text=strict)
-    case('quoted-structural-chars',dict(text="{'text':'[braces {inside}]', 'ok':True, 'empty':None}"),text='{"text":"[braces {inside}]", "ok":true, "empty":null}')
+elif node == 'parse-collection':
+    record = "EVENT\nkey:a\ntitle:新闻a\nsource:机构\ndate:2026-10-13\nurl:https://news.example/a\nbrief:说\"AI+\"的新消息\nFACT|机构|2026-10-13|https://news.example/a|Don't repeat {these} facts\nCOMMENT|媒体|2026-10-12|https://media.example/a|具名评论中的\"引号\"\nEND"
+    parsed = dict(key='a',title='新闻a',source='机构',date=today,url='https://news.example/a',brief='说"AI+"的新消息',details=[dict(source='机构',date=today,url='https://news.example/a',text="Don't repeat {these} facts")],comments=[dict(source='媒体',date='2026-10-12',url='https://media.example/a',text='具名评论中的"引号"')])
+    case('quotes-remain-data',dict(text=record,fetch='scan'),result=dict(items=[parsed]))
+    case('tool-preamble-and-fences-ignored',dict(text="{'query':'科技'}\n```\n"+record+'\n```',fetch='scan'),result=dict(items=[parsed]))
+    case('enrichment-preserves-event-key',dict(text=record,fetch='enrich'),result=dict(updates=[parsed]))
+    case('empty-results',dict(text='EMPTY',fetch='scan'),result=dict(items=[]))
+    case('unfinished-record-not-published',dict(text=record.removesuffix('END'),fetch='scan'),result=dict(items=[]))
+    case('tab-separators',dict(text=record.replace('FACT|机构|2026-10-13|https://news.example/a|','FACT\t机构\t2026-10-13\thttps://news.example/a\t'),fetch='scan'),result=dict(items=[parsed]))
 elif node == 'merge-batch':
     saved = dict(batch, items=[], overview=True, enriched=False)
     a,b = item('a'),item('b')

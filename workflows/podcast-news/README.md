@@ -23,11 +23,9 @@ applying that Credential. Ordinary assistant search keeps its existing Tool.
 The graph separates collection from public narration:
 
 1. **Scan once:** request ten `OneDay` results and collect up to five distinct,
-   dated events. Internal collection JSON is never published or spoken. A bounded
-   lexical
-   normalizer accepts complete JSON/Python-style quoted objects and excludes
-   Tool preambles or Markdown fences; it never evaluates content or invents
-   missing fields. Strict JSON decoding and date/source checks follow.
+   dated events. Internal collection records are never published or spoken.
+   A bounded field-record parser treats quotes as data, ignores preambles and
+   rejects unfinished records. Date, source and event checks follow.
 2. **Overview:** briefly present each event's core fact with its source and date.
 3. **Explore:** reuse cached additional facts and attributed comments, one event
    per section. If any story lacks a sourced media comment, supplement the whole

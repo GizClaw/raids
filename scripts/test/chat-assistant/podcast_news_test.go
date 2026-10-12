@@ -46,12 +46,11 @@ type newsHit struct{ ID, Title, SiteName, PublishTime, URL, Snippet, Content str
 // request. The model simulates provider formatting, while queueing, branching,
 // deduplication and HTTP argument mapping execute the unmodified shipped Graph.
 type newsModel struct {
-	pythonFormat bool
-	query        string
-	blockScanAt  int64
-	scans        atomic.Int64
-	blocked      chan struct{}
-	once         sync.Once
+	query       string
+	blockScanAt int64
+	scans       atomic.Int64
+	blocked     chan struct{}
+	once        sync.Once
 }
 
 func (m *newsModel) Generate(ctx context.Context, input []*schema.Message, opts ...model.Option) (*schema.Message, error) {
@@ -92,28 +91,28 @@ func (m *newsModel) Stream(ctx context.Context, input []*schema.Message, opts ..
 					}
 					items = append(items, item)
 				}
-				// The Graph schema uses lowercase JSON property names.
-				var lower []map[string]any
+				var records strings.Builder
 				for _, item := range items {
-					lower = append(lower, wireNewsItem(item))
+					fmt.Fprintf(&records, "EVENT\nkey:%s\ntitle:%s\nsource:%s\ndate:%s\nurl:%s\nbrief:%s\n", item.Key, item.Title, item.Source, item.Date, item.URL, item.Brief)
+					for _, v := range item.Details {
+						fmt.Fprintf(&records, "FACT|%s|%s|%s|%s\n", v.Source, v.Date, v.URL, v.Text)
+					}
+					for _, v := range item.Comments {
+						fmt.Fprintf(&records, "COMMENT|%s|%s|%s|%s\n", v.Source, v.Date, v.URL, v.Text)
+					}
+					records.WriteString("END\n")
 				}
-				data, _ := json.Marshal(map[string]any{"items": lower})
-				if m.pythonFormat {
-					return reply("{'status':'collecting'}\n" + strings.ReplaceAll(string(data), `"`, "'"))
-				}
-				return reply(string(data))
+				return reply(records.String())
 			}
-			updates := []map[string]any{}
+			var records strings.Builder
 			for _, hit := range result.WebResults {
-				value := map[string]any{"text": hit.Content, "source": hit.SiteName, "date": hit.PublishTime[:10], "url": hit.URL}
-				kind := "details"
+				kind := "FACT"
 				if hit.SiteName == "评论机构" {
-					kind = "comments"
+					kind = "COMMENT"
 				}
-				updates = append(updates, map[string]any{"key": hit.ID, kind: []any{value}})
+				fmt.Fprintf(&records, "EVENT\nkey:%s\n%s|%s|%s|%s|%s\nEND\n", hit.ID, kind, hit.SiteName, hit.PublishTime[:10], hit.URL, hit.Content)
 			}
-			data, _ := json.Marshal(map[string]any{"updates": updates})
-			return reply(string(data))
+			return reply(records.String())
 		}
 		number := m.scans.Load()
 		if scan {
@@ -288,8 +287,8 @@ func runNewsUntilInterrupt(t *testing.T, f *fixture, m *newsModel, initial map[s
 	if !strings.HasSuffix(delivered.String(), "好，先停在这里。") {
 		t.Fatalf("interruption output=%q", delivered.String())
 	}
-	if strings.Contains(delivered.String(), `"items"`) || strings.Contains(delivered.String(), `"updates"`) {
-		t.Fatal("internal search JSON leaked into narration")
+	if strings.Contains(delivered.String(), "EVENT\n") || strings.Contains(delivered.String(), "FACT|") || strings.Contains(delivered.String(), "COMMENT|") {
+		t.Fatal("internal collection records leaked into narration")
 	}
 	return delivered.String()
 }
@@ -304,7 +303,7 @@ func TestNewsPodcastOneSearchFeedsOverviewAndThreeDeepDives(t *testing.T) {
 		duplicate.URL = "https://other.example/reprint"
 		return map[string]any{"WebResults": []newsHit{hit("a", nonce, true), duplicate, hit("b", nonce, true), hit("c", nonce, true)}}
 	}}
-	m := &newsModel{query: f.query, pythonFormat: true, blockScanAt: 2, blocked: make(chan struct{})}
+	m := &newsModel{query: f.query, blockScanAt: 2, blocked: make(chan struct{})}
 	output := runNewsUntilInterrupt(t, f, m, nil, 4, "科技新闻")
 	if f.requests != 1 || strings.Count(output, "今日总览。") != 1 || strings.Count(output, "深入。") != 3 {
 		t.Fatalf("searches=%d output=%q", f.requests, output)
