@@ -97,6 +97,15 @@ def check_audio(step, capability, file):
     peer = step.get('peer_stream')
     if peer is None:
         return
+    if peer.get('mode') == 'listen':
+        check(capability and
+              (expected(step, '/audio_bytes').get('minimum') or 0) > 0,
+              f"{file}: {step.get('id')} continuous listening needs audio assertions")
+        routes = expected(step, '/streams').get('equals')
+        transcript = expected(step, '/first_transcript_ms').get('minimum')
+        check(equal(routes, 1) or (equal(routes, 2) and is_number(transcript) and transcript > 0),
+              f"{file}: {step.get('id')} continuous listening needs one narration route plus its asserted ASR route")
+        return
     # require_audio and equals are YAML booleans; `is` keeps 1/0 from passing for true/false.
     if capability:
         check(peer.get('require_audio') is True and (expected(step, '/audio_bytes').get('minimum') or 0) > 0,
@@ -502,7 +511,10 @@ def check_quality(doc, file, raid, suffix):
     check(doc.get('timeout') == ('30m' if long_suite else '10m'),
           f'{file}: quality budget must retain 30m for story/adventure and multi-role murder-mystery, 10m otherwise')
     check(not any(s.get('workspace_relay') is not None for s in steps(doc)), f'{file}: long dialogue relay belongs in soak')
-    check(not any(stream(s).get('completion') == 'first_response' for s in steps(doc)), f'{file}: first-response latency probes belong in smoke')
+    check(not any(stream(s).get('completion') == 'first_response' and
+                  (raid not in ('podcast', 'podcast-news') or
+                   any(path in s.get('expect', {}) for path in ('/first_text_ms', '/first_audio_ms')))
+                  for s in steps(doc)), f'{file}: first-response latency probes belong in smoke')
     check(suffix.endswith('.multi-role') or not any(c.endswith('_tester') for c in doc['clients']), f'{file}: idle Tester client in quality')
 
 

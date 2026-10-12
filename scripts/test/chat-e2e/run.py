@@ -16,7 +16,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[3]
 HERE = Path(__file__).resolve().parent
-IMAGE = "ghcr.io/gizclaw/gizclaw@sha256:122619e0ecc54e2fc7b3718f6ba08148ce868b7f3890b3ff9ee993ea271f5df5"
+IMAGE = "ghcr.io/gizclaw/gizclaw@sha256:0a5b55066684d05d962171d53a7dc23e07bad8a3579d3c8c8c076cd992056974"
 REQUIRED = ["GIZCLAW_VOLC_" + suffix for suffix in
             ["SPEECH_APP_ID", "SPEECH_API_KEY", "ARK_API_KEY", "SEARCH_API_KEY", "OPENAPI_ACCESS_KEY_ID", "OPENAPI_ACCESS_KEY"]]
 

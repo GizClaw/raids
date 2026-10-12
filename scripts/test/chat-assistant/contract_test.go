@@ -95,6 +95,10 @@ func searchToolkit(t *testing.T, f *fixture, mutations ...func(*toolkit.HTTPRequ
 }
 
 func profileSearchToolkit(t *testing.T, f *fixture, profile *apitypes.RuntimeProfile, policy *apitypes.ToolkitPolicy, mutations ...func(*toolkit.HTTPRequest)) *agenthost.ToolkitInvoker {
+	return workflowSearchToolkit(t, f, profile, "general-assistant", policy, mutations...)
+}
+
+func workflowSearchToolkit(t *testing.T, f *fixture, profile *apitypes.RuntimeProfile, alias string, policy *apitypes.ToolkitPolicy, mutations ...func(*toolkit.HTTPRequest)) *agenthost.ToolkitInvoker {
 	t.Helper()
 	resource := document(t, "tools/volc-web-search.yaml")
 	var spec apitypes.ToolSpec
@@ -104,7 +108,7 @@ func profileSearchToolkit(t *testing.T, f *fixture, profile *apitypes.RuntimePro
 		t.Fatal(err)
 	}
 	// Provider credentials are replaced locally; the binding and HTTP executor
-	// still pass through the actual v0.27.0 catalog and AgentHost invoker.
+	// still pass through the actual pinned catalog and AgentHost invoker.
 	tool.HTTP.Auth = toolkit.HTTPAuth{Method: "none"}
 	// The model name must come from web.search, never this private resource name.
 	tool.InvokeName = "fixture_private_search"
@@ -153,7 +157,7 @@ func profileSearchToolkit(t *testing.T, f *fixture, profile *apitypes.RuntimePro
 			if owner != "chat-contract-owner" {
 				return apitypes.RuntimeProfile{}, nil, errors.New("unexpected owner")
 			}
-			names, err := toolcatalog.Selection(*profile, "general-assistant", "eino-chat-assistant", policy)
+			names, err := toolcatalog.Selection(*profile, alias, profile.Spec.Workflows[alias].ResourceId, policy)
 			return *profile, names, err
 		},
 	}
@@ -568,6 +572,12 @@ func TestProfileSearchInjectionAndOptOut(t *testing.T) {
 					continue
 				}
 				names, err := toolcatalog.Selection(profile, alias, binding.ResourceId, nil)
+				if binding.ResourceId == "eino-podcast-news" {
+					if err != nil || len(names) != 1 || names[0] != "web.search" {
+						t.Fatalf("news Podcast search selection=%v, error=%v", names, err)
+					}
+					continue
+				}
 				if err != nil || len(names) != 0 {
 					t.Fatalf("non-Chat Workflow %s gained tools: %v, %v", alias, names, err)
 				}

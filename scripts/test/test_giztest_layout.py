@@ -201,6 +201,20 @@ class GiztestCapabilityTest(unittest.TestCase):
         step['peer_stream']['completion'] = 'first_response'
         layout.check_audio(step, True, 'fixture')
 
+    def test_continuous_listening_checks_audio_without_a_terminal(self):
+        step = {'id': 'listen', 'peer_stream': {'mode': 'listen', 'duration': '110s'},
+                'expect': {'/audio_bytes': {'minimum': 1}, '/streams': {'equals': 1}}}
+        layout.check_audio(step, True, 'fixture')
+        self.rejected(layout.check_audio, step, False, 'fixture')
+        missing = copy.deepcopy(step)
+        del missing['expect']['/audio_bytes']
+        self.rejected(layout.check_audio, missing, True, 'fixture')
+        multiple = copy.deepcopy(step)
+        multiple['expect']['/streams']['equals'] = 2
+        self.rejected(layout.check_audio, multiple, True, 'fixture')
+        multiple['expect']['/first_transcript_ms'] = {'minimum': 1}
+        layout.check_audio(multiple, True, 'fixture')
+
     def test_projection_preserves_input_and_non_audio_assertions(self):
         self.assertEqual(layout.without_audio([text_step()]), layout.without_audio([audio_step()]))
         for key in ('input', '/text', '/first_text_ms'):

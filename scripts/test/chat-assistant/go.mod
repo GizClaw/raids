@@ -162,4 +162,4 @@ require (
 )
 
 // The engine source matches the immutable CLI release used by repository CI.
-replace github.com/GizClaw/gizclaw-go => github.com/GizClaw/gizclaw-go v0.27.0
+replace github.com/GizClaw/gizclaw-go => github.com/GizClaw/gizclaw-go v0.31.5
