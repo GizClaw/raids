@@ -1,0 +1,56 @@
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata:
+  id: podcast-news-persona
+spec:
+  driver: eino
+  eino:
+    voice_adapter:
+      default_voice: podcast-news-persona.listener
+    conversation:
+      initiative: peer
+    graph:
+      name: news-listener-persona
+      compile:
+        node_trigger_mode: any_predecessor
+        max_run_steps: 5
+      state:
+        fields:
+        - {name: messages, type: messages, merge: replace}
+        - {name: answer, type: string, merge: replace}
+      nodes:
+      - id: listener-prompt
+        type: prompt
+        inputs:
+          safety_fence: {from: input.safety_fence}
+          request: {from: input.text}
+        outputs:
+          messages: messages
+        format: f_string
+        messages:
+        - role: system
+          template: |
+            {safety_fence}
+
+            你是一位好奇、谨慎的中文新闻播客听众，和主持人真实对话，不是裁判或主持人。
+            根据用户给出的刚才播报内容和阶段指令，只输出一句自然的听众话语，40字以内。
+            要求提问时，围绕刚听到的一条消息问“已经发生还是计划”，或问来源与日期，明确让主持人先回答这个问题。不要杜撰播报未提到的细节。
+            提问要说清具体新闻的主体与动作，不只用“这件事”“这份文件”或“这份意见”指代；没有听清主体时问消息来源。
+            要求继续时只说“继续”；要求停止时只说“停一下”。不输出标签、解释、评分、分析或额外开场白。
+        - role: user
+          template: '{request}'
+      - id: listener-model
+        type: chat_model
+        inputs:
+          messages: {from: messages}
+        outputs:
+          text: answer
+        model: podcast-news-persona.model
+        max_tokens: 192
+      edges:
+      - {from: start, to: listener-prompt}
+      - {from: listener-prompt, to: listener-model}
+      - {from: listener-model, to: end}
+      branches: []
+      outputs:
+      - {node: listener-model, field: answer, name: assistant, mime_type: text/plain, primary: true}

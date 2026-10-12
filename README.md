@@ -798,9 +798,11 @@ release, and Beijing Default E2E remain separate evidence.
 The continuous [science podcast](workflows/podcast/README.md) and
 [news podcast](workflows/podcast-news/README.md) are normal catalog packages.
 Both public Profiles select them under `category:podcasts`. The news host asks
-for an interest, searches fresh news in each generation, and reports sourced
-facts with minimal opinion. Both retain continuous playback, per-generation
-History, pause, resume and topic changes.
+for an interest, searches a batch of fresh news, and plays its overview and
+sourced details across multiple generations with minimal opinion. Both support
+continuous playback, pause, resume and topic changes. The news host also answers
+listener questions before continuing; see each package's runtime and History
+requirements.
 
 Every scenario is one package directory `workflows/<raid>/`: one Workflow per
 engine implementation (`eino.yaml`, `eino.multi-role.yaml`, …), the scenario's relay Tester when it has a turn-based relay (`test.yaml`,

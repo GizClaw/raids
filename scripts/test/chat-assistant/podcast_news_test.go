@@ -46,11 +46,13 @@ type newsHit struct{ ID, Title, SiteName, PublishTime, URL, Snippet, Content str
 // request. The model simulates provider formatting, while queueing, branching,
 // deduplication and HTTP argument mapping execute the unmodified shipped Graph.
 type newsModel struct {
-	query       string
-	blockScanAt int64
-	scans       atomic.Int64
-	blocked     chan struct{}
-	once        sync.Once
+	query        string
+	blockScanAt  int64
+	interruption string
+	scans        atomic.Int64
+	questions    atomic.Int64
+	blocked      chan struct{}
+	once         sync.Once
 }
 
 func (m *newsModel) Generate(ctx context.Context, input []*schema.Message, opts ...model.Option) (*schema.Message, error) {
@@ -138,7 +140,19 @@ func (m *newsModel) Stream(ctx context.Context, input []*schema.Message, opts ..
 			return reply(text)
 		}
 	}
-	material := strings.TrimPrefix(last.Content, "只播报以下缓存材料：")
+	if strings.Contains(system, "当前状态：回答提问。") {
+		if !strings.Contains(last.Content, "问题："+m.interruption) {
+			return nil, errors.New("listener question missing from the answering request")
+		}
+		_, material, ok := strings.Cut(last.Content, "已有来源材料：")
+		var items []newsItem
+		if !ok || json.Unmarshal([]byte(material), &items) != nil || len(items) == 0 {
+			return nil, errors.New("answer lost the cached source material")
+		}
+		m.questions.Add(1)
+		return reply("答复。" + items[0].Source + items[0].Date + "报道，" + items[0].Brief + "。")
+	}
+	material := strings.TrimPrefix(last.Content, "播报以下新闻事实：")
 	if strings.Contains(system, "当前状态：今日总览。") {
 		var items []newsItem
 		if err := json.Unmarshal([]byte(material), &items); err != nil {
@@ -268,7 +282,11 @@ func runNewsUntilInterrupt(t *testing.T, f *fixture, m *newsModel, initial map[s
 	case <-ctx.Done():
 		t.Fatal("next batch did not begin after consumption")
 	}
-	push("停一下")
+	interruption := m.interruption
+	if interruption == "" {
+		interruption = "停一下"
+	}
+	push(interruption)
 	if err := b.Done(genx.Usage{}); err != nil {
 		t.Fatal(err)
 	}
@@ -284,13 +302,28 @@ func runNewsUntilInterrupt(t *testing.T, f *fixture, m *newsModel, initial map[s
 			delivered.WriteString(string(text))
 		}
 	}
-	if !strings.HasSuffix(delivered.String(), "好，先停在这里。") {
+	if interruption == "停一下" && !strings.HasSuffix(delivered.String(), "好，先停在这里。") {
 		t.Fatalf("interruption output=%q", delivered.String())
 	}
 	if strings.Contains(delivered.String(), "EVENT\n") || strings.Contains(delivered.String(), "FACT|") || strings.Contains(delivered.String(), "COMMENT|") {
 		t.Fatal("internal collection records leaked into narration")
 	}
 	return delivered.String()
+}
+
+func TestNewsPodcastQuestionInterruptsAndKeepsCachedSourcesWithoutSearch(t *testing.T) {
+	nonce := newsNonce(t)
+	date := newsDate()
+	h := hit("a", nonce, true)
+	item := wireNewsItem(newsItem{Key: h.ID, Title: h.Title, Source: h.SiteName, Date: date, URL: h.URL, Brief: h.Snippet, Details: []newsMaterial{{Text: h.Content, Source: h.SiteName, Date: date, URL: h.URL}}, Comments: []newsMaterial{}})
+	initial := map[string]any{"topic": "科技新闻", "today": date, "day": (time.Now().UnixMilli() + 28800000) / 86400000, "items": []any{item}, "cursor": 0, "overview": true, "enriched": true, "seen": []any{}}
+	f := &fixture{query: "should-not-search", count: 10}
+	m := &newsModel{query: f.query, blockScanAt: 1, blocked: make(chan struct{}), interruption: "停一下，刚才那条消息的来源是哪家媒体？请先回答我。"}
+	output := runNewsUntilInterrupt(t, f, m, initial, 2, "继续")
+	want := "答复。新闻机构" + newsDate() + "报道，概要" + nonce + "a。"
+	if f.requests != 0 || m.questions.Load() != 1 || strings.Count(output, "今日总览。") != 1 || !strings.HasSuffix(output, want) {
+		t.Fatalf("searches=%d answers=%d output=%q", f.requests, m.questions.Load(), output)
+	}
 }
 
 func TestNewsPodcastOneSearchFeedsOverviewAndThreeDeepDives(t *testing.T) {

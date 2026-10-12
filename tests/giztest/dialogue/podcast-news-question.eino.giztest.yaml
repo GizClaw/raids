@@ -1,0 +1,282 @@
+# User Story:
+# As a news podcast listener persona,
+# I want to interrupt live narration with a spoken factual question and stop,
+# So that two real Workflows record the host and listener voices and answer the interruption.
+version: gizclaw.test/v1alpha1
+name: podcast-news.dialogue.question.eino
+clients:
+  podcast:
+    identity: ephemeral
+    connection: webrtc
+    access_point: ${endpoint}
+  persona:
+    identity: ephemeral
+    connection: webrtc
+    access_point: ${endpoint}
+variables:
+  endpoint:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_ENDPOINT
+  registration_token:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_REGISTRATION_TOKEN
+    secret: true
+  podcast_workspace:
+    direction: input
+    type: string
+    generate: token
+  persona_workspace:
+    direction: input
+    type: string
+    generate: token
+  heard_news:
+    direction: output
+    type: string
+  answer:
+    direction: output
+    type: string
+  persona_question_brief_audio:
+    direction: output
+    type: audio
+    max_bytes: 16777216
+    media_type: audio/ogg
+    codec: opus
+  persona_stop_brief_audio:
+    direction: output
+    type: audio
+    max_bytes: 16777216
+    media_type: audio/ogg
+    codec: opus
+repeat: 1
+timeout: 8m
+steps:
+- id: podcast_register
+  client: podcast
+  rpc:
+    method: server.register
+    request:
+      token: ${registration_token}
+- id: podcast_create
+  client: podcast
+  rpc:
+    method: server.workspace.create
+    request:
+      name: ${podcast_workspace}
+      workflow_name: podcast-news
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+          safety_fence_level: 'off'
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+- id: podcast_select
+  client: podcast
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: ${podcast_workspace}
+- id: persona_register
+  client: persona
+  rpc:
+    method: server.register
+    request:
+      token: ${registration_token}
+- id: persona_create
+  client: persona
+  rpc:
+    method: server.workspace.create
+    request:
+      name: ${persona_workspace}
+      workflow_name: podcast-news-persona
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+          safety_fence_level: 'off'
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+- id: persona_select
+  client: persona
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: ${persona_workspace}
+- id: podcast_choose_interest
+  client: podcast
+  timeout: 30s
+  peer_stream:
+    mode: text
+    input: 开始
+    require_text: true
+    require_audio: true
+    wait_for_history: true
+  expect:
+    /reply:
+      contains_all:
+      - 科技
+      - 国际
+      - 新闻
+- id: continuous_news
+  timeout: 100s
+  parallel:
+  - id: hear_continuous_news
+    client: podcast
+    peer_stream:
+      mode: listen
+      duration: 35s
+  - id: start_continuous_news
+    client: podcast
+    delay: 250ms
+    peer_stream:
+      mode: text
+      input: 科技新闻，主要讲人工智能和航天，以事实为主，少说观点。
+      completion: first_response
+      require_text: true
+      require_audio: true
+      first_text_timeout: 45s
+      first_audio_timeout: 50s
+  expect:
+    /hear_continuous_news/text:
+      min_length: 100
+      not_contains:
+      - EVENT
+      - FACT|
+      - COMMENT|
+      - 缓存材料
+    /hear_continuous_news/streams:
+      equals: 1
+    /hear_continuous_news/audio_bytes:
+      minimum: 1
+    /hear_continuous_news/last_event_ms:
+      minimum: 30000
+    /hear_continuous_news/audio_pacing/underruns:
+      equals: 0
+    /hear_continuous_news/audio_pacing/minimum_buffer_ms:
+      minimum: 0
+    /start_continuous_news/reply:
+      min_length: 30
+      pattern: '[0-9]{1,2}月[0-9]{1,2}日'
+  capture:
+    heard_news: /start_continuous_news/reply
+- id: mia_interrupts_with_question_brief
+  client: persona
+  speech:
+    method: server.speech.synthesize
+    request:
+      voice_name: podcast-news-persona.listener
+      text: 主持人仍在播报，现在立刻用语音插话提问。围绕刚听到的一条消息问已经发生还是计划，并明确让主持人先回答这一问。你刚听到的播报开头：${heard_news}
+      accepted_content_types:
+      - audio/ogg
+  save_as: persona_question_brief_audio
+- id: mia_interrupts_with_question
+  timeout: 100s
+  workspace_relay:
+    first_client: persona
+    second_client: podcast
+    input: ${persona_question_brief_audio}
+    media: audio
+    terminal_media: audio
+    idle_timeout: 45s
+    max_turns: 2
+    terminal_client: podcast
+  expect:
+    /completed_turns:
+      equals: 2
+    /turns/persona/count:
+      equals: 1
+    /turns/podcast/count:
+      equals: 1
+    /turns/persona/audio_bytes/min:
+      minimum: 1
+    /turns/podcast/audio_bytes/min:
+      minimum: 1
+    /terminal/text:
+      min_length: 20
+      not_contains:
+      - 今日总览
+      - 这批新闻一共
+      - 你想听科技
+      - 好，先停在这里。
+  capture:
+    answer: /terminal/text
+- id: print_answer
+  output:
+    variable: answer
+- id: mia_interrupts_to_stop_brief
+  client: persona
+  speech:
+    method: server.speech.synthesize
+    request:
+      voice_name: podcast-news-persona.listener
+      text: 现在要求停止，只说“停一下”。
+      accepted_content_types:
+      - audio/ogg
+  save_as: persona_stop_brief_audio
+- id: mia_interrupts_to_stop
+  timeout: 100s
+  workspace_relay:
+    first_client: persona
+    second_client: podcast
+    input: ${persona_stop_brief_audio}
+    media: audio
+    terminal_media: audio
+    idle_timeout: 45s
+    max_turns: 2
+    terminal_client: podcast
+  expect:
+    /completed_turns:
+      equals: 2
+    /turns/persona/count:
+      equals: 1
+    /turns/podcast/count:
+      equals: 1
+    /turns/persona/audio_bytes/min:
+      minimum: 1
+    /turns/podcast/audio_bytes/min:
+      minimum: 1
+    /terminal/text:
+      contains_all:
+      - 停
+      - 这里
+      not_contains:
+      - 今日总览
+      - 据报道
+finally:
+- id: podcast_stop
+  client: podcast
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: podcast_delete_workspace
+  client: podcast
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: ${podcast_workspace}
+- id: podcast_delete_peer
+  client: podcast
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: persona_stop
+  client: persona
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: persona_delete_workspace
+  client: persona
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: ${persona_workspace}
+- id: persona_delete_peer
+  client: persona
+  rpc:
+    method: server.peer.delete
+    request: {}
+report:
+  redact:
+  - registration_token

@@ -39,6 +39,11 @@ if node == 'prepare':
     case('restore-topic-from-history', dict(text='继续', messages=history, now_ms=now), topic='科技新闻', fetch='scan')
     case('cached-resume', dict(text='继续', bulletin=batch, now_ms=now), topic='科技新闻', fetch='none', bulletin=batch)
     case('cached-continuation', dict(text='科技新闻', bulletin=batch, now_ms=now), fetch='none')
+    for text in ['刚才那个发射已经发生了还是计划？请先回答我。', '停一下，这条消息的来源是哪家媒体？', '停一下。这个日期是报道日期还是事件日期？']:
+        case('question-'+text, dict(text=text, bulletin=batch, now_ms=now), mode='回答提问', fetch='none', topic='科技新闻', bulletin=batch)
+    case('question-keeps-exhausted-queue', dict(text='刚才说的是哪天？', bulletin=dict(batch,cursor=2), now_ms=now), mode='回答提问', fetch='none', bulletin=dict(batch,cursor=2))
+    case('question-does-not-become-restored-topic', dict(text='继续', messages=history+[dict(role='user',content='这已经发生了吗？')], now_ms=now), topic='科技新闻', fetch='scan')
+    case('question-context-excludes-internal-records', dict(text='这已经发生了吗？', bulletin=batch, messages=[dict(role='assistant',content='EVENT\nkey:a\nbrief:未播出材料\nEND'),dict(role='assistant',content='实际播报的事实')], now_ms=now), recent=[dict(role='assistant',content='实际播报的事实')])
     exhausted = dict(batch, cursor=2)
     case('refill-only-when-consumed', dict(text='继续', bulletin=exhausted, now_ms=now), fetch='scan')
     missing = dict(batch, enriched=False)
@@ -97,6 +102,7 @@ elif node == 'select-section':
     for mode in ['暂停','选择领域']:
         case('control-'+mode,dict(bulletin=batch,mode=mode),mode=mode,**{'continue':False},bulletin=batch)
     case('explicit-pause-request',dict(bulletin=batch,mode='暂停'),material='停止播讲，不搜索。只原样回复，不增减任何字：好，先停在这里。')
+    case('answer-preserves-queue-and-waits',dict(bulletin=batch,mode='回答提问',request='这已经发生了吗？'),mode='回答提问',**{'continue':False},bulletin=batch,material='先回答听众这一问，答完等待继续。不要重新总览、逐条播报或搜索。\n问题：这已经发生了吗？\n已有来源材料：'+json.dumps(batch['items'],ensure_ascii=False,sort_keys=True,separators=(',',':')))
     case('no-fabrication-empty',dict(bulletin=dict(batch,items=[]),mode='播讲'),mode='暂无新增',**{'continue':False})
     no_details = [dict(item('a'),details=[]),item('b')]
     case('skip-unsupported-deep-dive',dict(bulletin=dict(batch,items=no_details),mode='播讲'),mode='逐条深入',bulletin=dict(batch,items=no_details,cursor=2,seen=[{k:item('b')[k] for k in ['key','title','url','brief']} | dict(day=day,facts=['概要b','新增事实b'])]))

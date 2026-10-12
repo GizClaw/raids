@@ -6,6 +6,11 @@ a brief overview, then automatically explores each story's additional facts,
 background and attributed mainstream-media commentary. “停一下” pauses,
 “继续” resumes, and “换成国际新闻” changes the subject.
 
+An interruption such as “刚才那条消息已经发生了吗？” receives a brief factual
+answer from the cached sources and recent narration. It keeps the topic and
+queue, performs no new search, and waits for “继续” before resuming playback.
+The host uses Deploy's auditioned 陆沉 cast (磁性男嗓 2.0).
+
 Facts take most of the airtime. A media comment is explicitly attributed to its
 organization and date and kept to one or two sentences; reporting a quotation
 does not make it the outlet's own editorial position. Missing commentary is not
@@ -63,12 +68,15 @@ Reliable pause/resume requires an engine that commits selected persistent State
 **after each completely delivered generation and its History record**. GizClaw
 v0.31.5 saves only at successful turn completion: interruption loses uncommitted
 queue progress. [GizClaw #1517](https://github.com/GizClaw/gizclaw/pull/1517)
-implements that fix; it has not been released or deployed. A partially delivered
+implements that fix and is included in v0.31.7. The Beijing E2E Server was still
+v0.31.5 in the 2026-10-13 dual-Workflow run; its resume stage stopped early.
+A partially delivered
 section must not advance the durable cursor; resuming can
 restart that incomplete section. v0.31.5 also shares a 32-call Tool budget across
 one turn; [GizClaw #1516](https://github.com/GizClaw/gizclaw/pull/1516) renews the
-bounded budget per generation. Those runtime changes must be released and
-verified before claiming durable interruption/resume or unlimited operation.
+bounded budget per generation, also released in v0.31.7. Deploy v0.31.7 or later
+and verify pause/resume before claiming durable interruption/resume or unlimited
+operation.
 
 ## Tests
 
@@ -91,6 +99,18 @@ the engine's SQL State/History tests and need deployed E2E verification.
 
 Smoke checks real search, continuous text/audio, source dates, replayable History
 and pause. Quality and soak add PTT/realtime ASR, resume and domain redirection.
+[`test-persona.yaml`](test-persona.yaml) is a second, finite listener Workflow
+bound only in `testing`, with Deploy's 米雅 voice (可爱女生 2.0). The persona
+hears actual news, interrupts the host with a factual question, then asks it to
+continue or stop. The native Giztest relay records both Workspaces and voices.
+With Giztest v0.31.8 or later, run the interruption scenario with
+`gizclaw test run tests/giztest/dialogue/podcast-news-question.eino.giztest.yaml --output /path/to/new-report-directory`
+to export a standalone HTML recording of continuous narration, a spoken
+interruption, a finite factual answer and a spoken stop. The companion
+`podcast-news.eino.giztest.yaml` also requires resumed continuous narration;
+it needs the v0.31.7 State fix. Both are separate from the standard
+smoke/quality/soak inventory. Failed resume receipts remain valid failure
+evidence, rather than qualifying the question-only run as durable resume.
 Supply a deployment endpoint and RegistrationToken with these bindings.
 Search invocation counts and the overview/deep-dive order must also be checked
 against real Server logs and captured History. Physical-device audio and echo
