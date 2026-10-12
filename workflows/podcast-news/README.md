@@ -116,14 +116,16 @@ to export a standalone HTML recording of the opening question and interest
 reply, continuous narration, a spoken interruption, a finite factual answer
 and the listener's response. Each handoff sends the actual captured response audio to
 the other Workspace for PTT recognition. Spoken test instructions are excluded.
-Captured Opus packets are forwarded at their normal 20 ms pacing so the
-ASR input does not drop the tail of a burst-sent utterance.
+Short spoken replies are forwarded at their normal 20 ms packet pacing.
+The long narration recording is replayed to the persona at 1 ms packet spacing
+and requires a substantive ASR transcript, so forming the question does not
+wait for a second real-time playback of the entire recording.
 PTT receipts contain an ASR transcript stream as well as the narration stream.
 The companion
-`podcast-news.eino.giztest.yaml` listens for 210 seconds, forwards only the most
-recent 30 seconds to the persona, verifies the host is
-still speaking while the persona forms its content-specific question, and
-requires an observed interruption. After the factual answer, the persona hears
+`podcast-news.eino.giztest.yaml` keeps one receiving stream open for 210 seconds
+and forwards the captured narration to the persona for a content-specific
+question. The host's response requires an observed interruption of its active
+narration. After the factual answer, the persona hears
 the explanation and says “继续”; the test requires another 120 seconds of
 continuous narration. It then sends the persona's spoken “停一下” and checks
 that playback stays quiet. Run this file with `--output` for the long report.
