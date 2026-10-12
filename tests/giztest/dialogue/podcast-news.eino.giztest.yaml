@@ -1,7 +1,7 @@
 # User Story:
-# As a news podcast listener persona,
-# I want to interrupt live narration with a spoken factual question, then resume and stop,
-# So that two real Workflows verify barge-in, answering and both cast voices.
+# As a real news podcast listener persona,
+# I want to answer the host's interest question and ask about the news I actually hear,
+# So that two Workflows hold a spoken dialogue without prerecorded topic replies or spoken test instructions.
 version: gizclaw.test/v1alpha1
 name: podcast-news.dialogue.eino
 clients:
@@ -31,27 +31,51 @@ variables:
     direction: input
     type: string
     generate: token
-  heard_news:
-    direction: output
-    type: string
-  answer:
-    direction: output
-    type: string
-  persona_question_brief_audio:
+  host_interest_question_audio:
     direction: output
     type: audio
     max_bytes: 16777216
     media_type: audio/ogg
     codec: opus
-  persona_stop_brief_audio:
+  listener_interest_audio:
     direction: output
     type: audio
     max_bytes: 16777216
     media_type: audio/ogg
     codec: opus
-  resume_request:
+  heard_news_audio:
+    direction: output
+    type: audio
+    max_bytes: 16777216
+    media_type: audio/ogg
+    codec: opus
+  listener_question_audio:
+    direction: output
+    type: audio
+    max_bytes: 16777216
+    media_type: audio/ogg
+    codec: opus
+  host_answer_audio:
+    direction: output
+    type: audio
+    max_bytes: 16777216
+    media_type: audio/ogg
+    codec: opus
+  listener_interest:
     direction: output
     type: string
+  listener_question:
+    direction: output
+    type: string
+  host_answer:
+    direction: output
+    type: string
+  resume_request_audio:
+    direction: output
+    type: audio
+    max_bytes: 16777216
+    media_type: audio/ogg
+    codec: opus
 repeat: 1
 timeout: 8m
 steps:
@@ -107,123 +131,148 @@ steps:
     method: server.run.workspace.set
     request:
       workspace_name: ${persona_workspace}
-- id: podcast_choose_interest
+- id: host_asks_listener_interest
   client: podcast
-  timeout: 30s
+  timeout: 40s
   peer_stream:
     mode: text
     input: 开始
     require_text: true
     require_audio: true
-    wait_for_history: true
+  capture:
+    host_interest_question_audio: /audio
   expect:
     /reply:
+      pattern: 想听|领域|什么|哪
       contains_all:
-      - 科技
-      - 国际
+      - 新闻
+    /audio_integrity/max_active:
+      equals: 1
+    /audio_integrity/violations:
+      equals: 0
+- id: listener_answers_interest
+  client: persona
+  timeout: 90s
+  peer_stream:
+    mode: push-to-talk
+    input: ${host_interest_question_audio}
+    require_text: true
+    require_audio: true
+  capture:
+    listener_interest: /reply
+    listener_interest_audio: /audio
+  expect:
+    /reply:
+      min_length: 8
+      pattern: 科技|人工智能|航天|AI
+      not_contains:
+      - 测试
+      - PASS
+      - FAIL
+    /transcript:
+      contains_all:
       - 新闻
 - id: continuous_news
-  timeout: 100s
+  timeout: 115s
   parallel:
   - id: hear_continuous_news
     client: podcast
     peer_stream:
       mode: listen
-      duration: 35s
+      duration: 55s
   - id: start_continuous_news
     client: podcast
     delay: 250ms
     peer_stream:
-      mode: text
-      input: 科技新闻，主要讲人工智能和航天，以事实为主，少说观点。
+      mode: push-to-talk
+      input: ${listener_interest_audio}
       completion: first_response
       require_text: true
       require_audio: true
-      first_text_timeout: 45s
-      first_audio_timeout: 50s
+      first_text_timeout: 50s
+      first_audio_timeout: 55s
+  capture:
+    heard_news_audio: /hear_continuous_news/audio
   expect:
     /hear_continuous_news/text:
       min_length: 100
+      pattern: '[0-9]{1,2}月[0-9]{1,2}日'
       not_contains:
+      - 缓存材料
       - EVENT
       - FACT|
       - COMMENT|
-      - 缓存材料
     /hear_continuous_news/streams:
-      equals: 1
+      minimum: 1
+      maximum: 2
     /hear_continuous_news/audio_bytes:
       minimum: 1
     /hear_continuous_news/last_event_ms:
-      minimum: 30000
+      minimum: 50000
     /hear_continuous_news/audio_pacing/underruns:
       equals: 0
     /hear_continuous_news/audio_pacing/minimum_buffer_ms:
       minimum: 0
-    /start_continuous_news/reply:
-      min_length: 30
-      pattern: '[0-9]{1,2}月[0-9]{1,2}日'
-  capture:
-    heard_news: /start_continuous_news/reply
-- id: mia_interrupts_with_question_brief
+    /start_continuous_news/transcript:
+      pattern: 科技|人工智能|航天|AI
+    /start_continuous_news/audio_integrity/max_active:
+      equals: 1
+    /start_continuous_news/audio_integrity/violations:
+      equals: 0
+- id: listener_asks_about_news
   client: persona
-  speech:
-    method: server.speech.synthesize
-    request:
-      voice_name: podcast-news-persona.listener
-      text: 主持人仍在播报，现在立刻用语音插话提问。围绕刚听到的一条消息问已经发生还是计划，并明确让主持人先回答这一问。你刚听到的播报开头：${heard_news}
-      accepted_content_types:
-      - audio/ogg
-  save_as: persona_question_brief_audio
-- id: mia_interrupts_with_question
-  timeout: 100s
-  workspace_relay:
-    first_client: persona
-    second_client: podcast
-    input: ${persona_question_brief_audio}
-    media: audio
-    terminal_media: audio
-    idle_timeout: 45s
-    max_turns: 2
-    terminal_client: podcast
+  timeout: 90s
+  peer_stream:
+    mode: push-to-talk
+    input: ${heard_news_audio}
+    require_text: true
+    require_audio: true
+  capture:
+    listener_question: /reply
+    listener_question_audio: /audio
   expect:
-    /completed_turns:
-      equals: 2
-    /turns/persona/count:
-      equals: 1
-    /turns/podcast/count:
-      equals: 1
-    /turns/persona/audio_bytes/min:
+    /reply:
+      pattern: '[？?]|来源|计划|哪|是不是'
+      not_contains:
+      - 主持人仍在播报
+      - 现在立刻用语音
+      - 你刚听到
+      - 测试
+    /audio_bytes:
       minimum: 1
-    /turns/podcast/audio_bytes/min:
-      minimum: 1
-    /terminal/text:
+- id: host_answers_listener
+  client: podcast
+  timeout: 90s
+  peer_stream:
+    mode: push-to-talk
+    input: ${listener_question_audio}
+    require_text: true
+    require_audio: true
+  capture:
+    host_answer: /reply
+    host_answer_audio: /audio
+  expect:
+    /reply:
       min_length: 20
       not_contains:
       - 今日总览
-      - 这批新闻一共
       - 你想听科技
       - 好，先停在这里。
-  capture:
-    answer: /terminal/text
-- id: print_answer
-  output:
-    variable: answer
-- id: mia_requests_resume
+    /audio_bytes:
+      minimum: 1
+- id: listener_requests_resume
   client: persona
-  timeout: 30s
   peer_stream:
     mode: text
-    input: 现在要求继续，只说“继续”。
-    require_audio: true
+    input: 继续
     require_text: true
+    require_audio: true
   capture:
-    resume_request: /reply
+    resume_request_audio: /audio
   expect:
     /reply:
       contains_all:
       - 继续
-    /audio_bytes:
-      minimum: 1
 - id: resume_news
   timeout: 100s
   parallel:
@@ -236,22 +285,19 @@ steps:
     client: podcast
     delay: 250ms
     peer_stream:
-      mode: text
-      input: ${resume_request}
+      mode: push-to-talk
+      input: ${resume_request_audio}
       completion: first_response
       require_text: true
       require_audio: true
-      first_text_timeout: 45s
-      first_audio_timeout: 50s
+      first_text_timeout: 50s
+      first_audio_timeout: 55s
   expect:
     /hear_resume_news/text:
       min_length: 40
-      not_contains:
-      - EVENT
-      - FACT|
-      - COMMENT|
     /hear_resume_news/streams:
-      equals: 1
+      minimum: 1
+      maximum: 2
     /hear_resume_news/audio_bytes:
       minimum: 1
     /hear_resume_news/last_event_ms:
@@ -260,45 +306,31 @@ steps:
       equals: 0
     /hear_resume_news/audio_pacing/minimum_buffer_ms:
       minimum: 0
-- id: mia_interrupts_to_stop_brief
-  client: persona
-  speech:
-    method: server.speech.synthesize
-    request:
-      voice_name: podcast-news-persona.listener
-      text: 现在要求停止，只说“停一下”。
-      accepted_content_types:
-      - audio/ogg
-  save_as: persona_stop_brief_audio
-- id: mia_interrupts_to_stop
-  timeout: 100s
-  workspace_relay:
-    first_client: persona
-    second_client: podcast
-    input: ${persona_stop_brief_audio}
-    media: audio
-    terminal_media: audio
-    idle_timeout: 45s
-    max_turns: 2
-    terminal_client: podcast
-  expect:
-    /completed_turns:
-      equals: 2
-    /turns/persona/count:
-      equals: 1
-    /turns/podcast/count:
-      equals: 1
-    /turns/persona/audio_bytes/min:
-      minimum: 1
-    /turns/podcast/audio_bytes/min:
-      minimum: 1
-    /terminal/text:
+    /start_resume_news/transcript:
       contains_all:
-      - 停
-      - 这里
+      - 继续
+    /start_resume_news/audio_integrity/max_active:
+      equals: 1
+    /start_resume_news/audio_integrity/violations:
+      equals: 0
+- id: listener_responds_to_answer
+  client: persona
+  timeout: 90s
+  peer_stream:
+    mode: push-to-talk
+    input: ${host_answer_audio}
+    require_text: true
+    require_audio: true
+  expect:
+    /reply:
+      min_length: 2
       not_contains:
-      - 今日总览
-      - 据报道
+      - PASS
+      - FAIL
+      - 测试
+      - 评分
+    /audio_bytes:
+      minimum: 1
 finally:
 - id: podcast_stop
   client: podcast

@@ -35,6 +35,11 @@ if node == 'prepare':
         case('pause-'+text, dict(text=text, now_ms=now, bulletin=batch), mode='暂停', fetch='none', topic='科技新闻')
     for text in ['科技新闻', '国际新闻', '随便', '讲讲航天的最新消息', '火车停止运营的新闻']:
         case('topic-'+text, dict(text=text, now_ms=now), topic=text, fetch='scan')
+    preference = '科技相关的内容我比较感兴趣，想听人工智能和航天方面的新闻，能先讲今天的重点吗？'
+    case('natural-interest-reply-is-a-topic',dict(text=preference,now_ms=now),topic='科技新闻，主要讲人工智能和航天',mode='播讲',fetch='scan')
+    case('restore-natural-interest-after-interruption',dict(text='继续',messages=[dict(role='user',content=preference)],now_ms=now),topic='科技新闻，主要讲人工智能和航天',fetch='scan')
+    case('natural-topic-change-is-not-a-fact-question',dict(text='我想听人工智能新闻，可以吗？',bulletin=batch,now_ms=now),topic='科技新闻，主要讲人工智能',mode='播讲',fetch='scan')
+    case('an-interest-word-does-not-hide-a-news-question',dict(text='我想听你确认刚才这条人工智能新闻是否已经发布？',bulletin=batch,now_ms=now),topic='科技新闻',mode='回答提问',fetch='none',bulletin=batch)
     history = [dict(role='user', content='科技新闻'), dict(role='user', content='停一下')]
     case('restore-topic-from-history', dict(text='继续', messages=history, now_ms=now), topic='科技新闻', fetch='scan')
     case('cached-resume', dict(text='继续', bulletin=batch, now_ms=now), topic='科技新闻', fetch='none', bulletin=batch)

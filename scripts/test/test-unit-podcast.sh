@@ -10,6 +10,7 @@ python3 scripts/test/podcast-cases.py | scripts/test/test-starlark-routing.sh
 for node in prepare parse-collection merge-batch merge-enrichment select-section; do
   python3 scripts/test/podcast-news-cases.py "$node" | scripts/test/test-starlark-routing.sh
 done
+python3 scripts/test/podcast-persona-cases.py | scripts/test/test-starlark-routing.sh
 python3 scripts/test/safety_fences.py workflows/podcast/eino.yaml workflows/podcast-news/eino.yaml
 "$GIZCLAW" admin validate -f workflows/podcast/eino.yaml
 "$GIZCLAW" admin validate -f workflows/podcast-news/eino.yaml

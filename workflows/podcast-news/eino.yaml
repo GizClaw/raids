@@ -93,6 +93,24 @@ spec:
                   text = tail
               return any([mark in text for mark in ["？", "?", "是不是", "是否", "为什么", "怎么", "哪里", "哪个", "哪天", "几号", "何时", "多少", "什么来源", "什么时间", "还是计划", "已经发生", "先回答", "我想问", "来源是", "出处是"]])
 
+          def interest(text):
+              return any([mark in text for mark in ["想听", "感兴趣", "更关注"]]) and not any([mark in text for mark in ["刚才", "这条", "那条", "这份", "这个", "你提到", "已经", "是否"]])
+
+          def topic_request(text):
+              # A listener can answer conversationally instead of naming a slot.
+              # Keep an interest reply's trailing question out of search keywords.
+              if interest(text) and not any([mark in text for mark in ["国内", "国际", "财经", "体育"]]):
+                  focus = []
+                  if "人工智能" in text or "AI" in text:
+                      focus.append("人工智能")
+                  if "航天" in text:
+                      focus.append("航天")
+                  if focus:
+                      return "科技新闻，主要讲" + "和".join(focus)
+                  if "科技" in text:
+                      return "科技新闻"
+              return text
+
           def calendar(days):
               z = days + 719468
               era = z // 146097
@@ -114,11 +132,11 @@ spec:
               if not topic:
                   for message in messages:
                       content = message.get("content", "")
-                      if message.get("role", "") == "user" and not neutral(content) and not question(content):
-                          topic = content
-              answering = bool(topic) and question(text)
+                      if message.get("role", "") == "user" and not neutral(content) and (not question(content) or interest(content)):
+                          topic = topic_request(content)
+              answering = bool(topic) and question(text) and not interest(text)
               if not neutral(text) and not answering:
-                  topic = text
+                  topic = topic_request(text)
               topic = "".join(list(topic.codepoints())[:240])
               day = (input.get("now_ms", now_millis()) + 28800000) // 86400000
               today = calendar(day)

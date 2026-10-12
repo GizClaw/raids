@@ -100,17 +100,31 @@ the engine's SQL State/History tests and need deployed E2E verification.
 Smoke checks real search, continuous text/audio, source dates, replayable History
 and pause. Quality and soak add PTT/realtime ASR, resume and domain redirection.
 [`test-persona.yaml`](test-persona.yaml) is a second, finite listener Workflow
-bound only in `testing`, with Deploy's 米雅 voice (可爱女生 2.0). The persona
-hears actual news, interrupts the host with a factual question, then asks it to
-continue or stop. The native Giztest relay records both Workspaces and voices.
+bound only in `testing`, with Deploy's 米雅 voice (可爱女生 2.0). The host first
+asks what the listener wants. Its actual reply audio is sent to the persona;
+the persona generates an interest reply, and that reply's audio starts the news
+host. No topic reply is prerecorded in the Giztest. The persona then hears the
+captured narration audio and asks a factual question. The host's answer is sent
+back to the persona, which naturally acknowledges the explanation or thanks
+the host. Giztest cleanup then stops both Workspaces.
+Its dialogue phase persists between these finite responses.
 With Giztest v0.31.8 or later, run the interruption scenario with
 `gizclaw test run tests/giztest/dialogue/podcast-news-question.eino.giztest.yaml --output /path/to/new-report-directory`
-to export a standalone HTML recording of continuous narration, a spoken
-interruption, a finite factual answer and a spoken stop. The companion
+to export a standalone HTML recording of the opening question and interest
+reply, continuous narration, a spoken interruption, a finite factual answer
+and the listener's response. Each handoff sends the actual captured response audio to
+the other Workspace for PTT recognition. Spoken test instructions are excluded.
+PTT receipts contain an ASR transcript stream as well as the narration stream.
+The companion
 `podcast-news.eino.giztest.yaml` also requires resumed continuous narration;
 it needs the v0.31.7 State fix. Both are separate from the standard
 smoke/quality/soak inventory. Failed resume receipts remain valid failure
 evidence, rather than qualifying the question-only run as durable resume.
+`python3 scripts/test/podcast-dialogue-report.py /path/to/report-directory`
+also creates a standalone `news-podcast-dialogue.html` with both speakers'
+actual replies and sequential audio playback. Forwarded copies and parallel
+startup probes remain in the unmodified native report; this dialogue player
+plays each response once.
 Supply a deployment endpoint and RegistrationToken with these bindings.
 Search invocation counts and the overview/deep-dive order must also be checked
 against real Server logs and captured History. Physical-device audio and echo
