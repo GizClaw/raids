@@ -76,6 +76,8 @@ type fixture struct {
 	fact          string
 	query         string
 	body          map[string]any
+	count         int
+	searchResult  func(int, map[string]any) any
 	memoryMu      sync.Mutex
 	memoryBatches [][]string
 }
@@ -100,7 +102,11 @@ func profileSearchToolkit(t *testing.T, f *fixture, profile *apitypes.RuntimePro
 
 func workflowSearchToolkit(t *testing.T, f *fixture, profile *apitypes.RuntimeProfile, alias string, policy *apitypes.ToolkitPolicy, mutations ...func(*toolkit.HTTPRequest)) *agenthost.ToolkitInvoker {
 	t.Helper()
-	resource := document(t, "tools/volc-web-search.yaml")
+	path := "tools/volc-web-search.yaml"
+	if alias == "podcast-news" {
+		path = "tools/volc-news-search.yaml"
+	}
+	resource := document(t, path)
 	var spec apitypes.ToolSpec
 	decode(t, resource["spec"], &spec)
 	tool, err := toolkit.FromSpec(resource["metadata"].(map[string]any)["id"].(string), spec)
@@ -142,11 +148,19 @@ func workflowSearchToolkit(t *testing.T, f *fixture, profile *apitypes.RuntimePr
 			return nil, err
 		}
 		f.body = body
-		if body["Query"] != f.query || body["SearchType"] != "web" || body["Count"] != float64(3) {
+		count := f.count
+		if count == 0 {
+			count = 3
+		}
+		if body["Query"] != f.query || body["SearchType"] != "web" || body["Count"] != float64(count) {
 			return nil, fmt.Errorf("wrong search argument mapping: %#v", body)
 		}
 		// This value exists only in the HTTP fixture, never in the prompt or model's first round.
-		data, _ := json.Marshal(map[string]any{"Result": map[string]string{"fact": f.fact}})
+		var result any = map[string]string{"fact": f.fact}
+		if f.searchResult != nil {
+			result = f.searchResult(f.requests, body)
+		}
+		data, _ := json.Marshal(map[string]any{"Result": result})
 		return &http.Response{StatusCode: 200, Header: http.Header{"Content-Type": {"application/json"}},
 			Body: io.NopCloser(bytes.NewReader(data))}, nil
 	})}
@@ -573,7 +587,7 @@ func TestProfileSearchInjectionAndOptOut(t *testing.T) {
 				}
 				names, err := toolcatalog.Selection(profile, alias, binding.ResourceId, nil)
 				if binding.ResourceId == "eino-podcast-news" {
-					if err != nil || len(names) != 1 || names[0] != "web.search" {
+					if err != nil || len(names) != 1 || names[0] != "news.search" {
 						t.Fatalf("news Podcast search selection=%v, error=%v", names, err)
 					}
 					continue

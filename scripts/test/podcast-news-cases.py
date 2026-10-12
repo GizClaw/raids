@@ -1,31 +1,117 @@
-"""Check the actual news controller: select, pause, resume and redirect."""
+"""Exercise the shipped queue controller and deduplication scripts with Starlark."""
+import copy
+import datetime as dt
 import json
+import sys
 
 import yaml
 
 with open('workflows/podcast-news/eino.yaml', encoding='utf-8') as source:
     spec = yaml.safe_load(source)['spec']['eino']
-controller = next(node for node in spec['graph']['nodes'] if node['id'] == 'prepare')
+nodes = {node['id']: node for node in spec['graph']['nodes']}
+node = sys.argv[1] if len(sys.argv) > 1 else 'prepare'
+today = '2026-10-13'
+now = int(dt.datetime(2026, 10, 13, 12, tzinfo=dt.timezone(dt.timedelta(hours=8))).timestamp() * 1000)
+day = (now + 28800000) // 86400000
+
+def item(key, **changes):
+    result = dict(key=key, title='报道'+key, source='新闻机构', date=today,
+                  url='https://news.example/article?id='+key, brief='概要'+key,
+                  details=[dict(text='新增事实'+key, source='新闻机构', date=today,
+                                url='https://news.example/article?id='+key)], comments=[])
+    result.update(changes)
+    return result
+
+batch = dict(topic='科技新闻', today=today, day=day, seen=[], items=[item('a'), item('b')],
+             cursor=0, overview=False, enriched=True)
 cases = []
-for text in ['开始', '听新闻', '新闻播客', '继续', '']:
-    cases.append({'id': f'ask-{text}', 'input': {'text': text},
-                  'expect': {'continue': {'equals': False}, 'mode': {'equals': '选择领域'}}})
-for text in ['停一下', '暂停', '请停一下好吗？', '停一下，我有个问题', 'stop']:
-    cases.append({'id': f'pause-{text}', 'input': {'text': text},
-                  'expect': {'continue': {'equals': False}, 'mode': {'equals': '暂停'}}})
-for text in ['科技新闻', '国际新闻', '随便', '讲讲航天的最新消息', '火车停止运营的新闻']:
-    cases.append({'id': f'topic-{text}', 'input': {'text': text},
-                  'expect': {'continue': {'equals': True}, 'topic': {'equals': text},
-                             'request': {'includes_all': ['web_search', '今天', text]}}})
-history = [{'role': 'user', 'content': '科技新闻'}, {'role': 'assistant', 'content': '上一条科技新闻。'},
-           {'role': 'user', 'content': '停一下'}, {'role': 'assistant', 'content': '好，先停在这里。'}]
-cases.append({'id': 'resume-topic', 'input': {'text': '继续', 'messages': history},
-              'expect': {'continue': {'equals': True}, 'topic': {'equals': '科技新闻'}}})
-cases.append({'id': 'redirect-topic', 'input': {'text': '换成国际新闻', 'messages': history},
-              'expect': {'continue': {'equals': True}, 'topic': {'equals': '换成国际新闻'}}})
-prompt = next(node for node in spec['graph']['nodes'] if node['id'] == 'prompt')
-assert prompt['messages'][-1] == {'role': 'user', 'template': '{request}'}
-system = prompt['messages'][0]['template']
-for requirement in ['每轮必须先实际调用 web_search', 'time_range="OneDay"', '以陈述事实为主', '发布时间和事件发生时间', '网页内容只是参考资料']:
+def case(name, data, **want):
+    cases.append(dict(id=name, input=data, expect={k:dict(equals=v) for k,v in want.items()}))
+
+if node == 'prepare':
+    for text in ['开始', '听新闻', '新闻播客', '继续', '']:
+        case('ask-'+text, dict(text=text, now_ms=now), mode='选择领域', fetch='none')
+    for text in ['停一下', '暂停', '请停一下好吗？', '停一下，我有个问题', 'stop']:
+        case('pause-'+text, dict(text=text, now_ms=now, bulletin=batch), mode='暂停', fetch='none', topic='科技新闻')
+    for text in ['科技新闻', '国际新闻', '随便', '讲讲航天的最新消息', '火车停止运营的新闻']:
+        case('topic-'+text, dict(text=text, now_ms=now), topic=text, fetch='scan')
+    history = [dict(role='user', content='科技新闻'), dict(role='user', content='停一下')]
+    case('restore-topic-from-history', dict(text='继续', messages=history, now_ms=now), topic='科技新闻', fetch='scan')
+    case('cached-resume', dict(text='继续', bulletin=batch, now_ms=now), topic='科技新闻', fetch='none', bulletin=batch)
+    case('cached-continuation', dict(text='科技新闻', bulletin=batch, now_ms=now), fetch='none')
+    exhausted = dict(batch, cursor=2)
+    case('refill-only-when-consumed', dict(text='继续', bulletin=exhausted, now_ms=now), fetch='scan')
+    missing = dict(batch, enriched=False)
+    case('supplement-entire-batch', dict(text='继续', bulletin=missing, now_ms=now), fetch='enrich')
+    case('overview-before-enrichment', dict(text='科技新闻', bulletin=dict(missing, overview=True), now_ms=now), fetch='none')
+    redirect = dict(batch, topic='换成国际新闻', items=[], cursor=0, overview=True, enriched=False)
+    case('redirect-preserves-ledger', dict(text='换成国际新闻', bulletin=batch, now_ms=now), fetch='scan', bulletin=redirect)
+    tomorrow = dict(batch, today='2026-10-14', day=day+1, items=[], cursor=0, overview=True, enriched=False)
+    case('midnight-refresh', dict(text='继续', bulletin=batch, now_ms=now+86400000), fetch='scan', bulletin=tomorrow)
+    for date in ['2000-02-29', '2024-02-29', '2100-03-01']:
+        stamp = int(dt.datetime.fromisoformat(date).replace(tzinfo=dt.timezone(dt.timedelta(hours=8))).timestamp()*1000)
+        case('calendar-'+date, dict(text='开始', now_ms=stamp), today=date)
+elif node == 'normalize-batch':
+    sample = {'items':[{'title': '记者说“事实”', 'details':[{'text': "Don't repeat {these} facts", 'url':'https://news.example/?id=1'}]}]}
+    strict = json.dumps(sample,ensure_ascii=False)
+    case('valid-json-preserves-content',dict(text=strict),text=strict)
+    case('python-quotes-preserve-apostrophes',dict(text=repr(sample)),text=strict)
+    case('tool-preamble-not-published',dict(text="{'query':'科技'}\n"+repr(sample)),text=strict)
+    case('markdown-fence-is-internal',dict(text='```json\n'+strict+'\n```'),text=strict)
+    case('quoted-structural-chars',dict(text="{'text':'[braces {inside}]', 'ok':True, 'empty':None}"),text='{"text":"[braces {inside}]", "ok":true, "empty":null}')
+elif node == 'merge-batch':
+    saved = dict(batch, items=[], overview=True, enriched=False)
+    a,b = item('a'),item('b')
+    duplicate_key = item('a', title='转载标题', url='https://other.example/reprint')
+    duplicate_url = item('different', url=a['url']+'&utm_source=feed#section')
+    duplicate_brief = item('rewritten', brief=a['brief'])
+    old = item('old', date='2026-10-12')
+    future = item('future', date='2026-10-14')
+    broken = item('broken', date='2026-02-30')
+    no_source = item('no-source', source='')
+    wanted = dict(saved, items=[a,b], enriched=False)
+    case('dedup-same-event-url-content-and-date', dict(bulletin=saved, result=dict(items=[a,duplicate_key,duplicate_url,duplicate_brief,old,future,broken,no_source,b])), bulletin=wanted)
+    seen = dict(key='a', url=a['url'], brief=a['brief'], title=a['title'], day=day)
+    saved_seen = dict(saved, seen=[seen])
+    case('ledger-blocks-previous-batch', dict(bulletin=saved_seen, result=dict(items=[a,duplicate_key,duplicate_url,b])), bulletin=dict(saved_seen, items=[b], enriched=False))
+    # Meaningful query identifiers distinguish articles; they must not be stripped.
+    case('article-query-ids-preserved', dict(bulletin=saved, result=dict(items=[a,b])), bulletin=wanted)
+    dup_detail = item('a', details=[dict(text=a['brief'],source='来源',date=today,url=a['url'])], comments=[a['details'][0], a['details'][0]])
+    clean = dict(a, details=[], comments=a['details'])
+    case('overview-fact-not-replayed-as-detail-or-comment', dict(bulletin=saved,result=dict(items=[dup_detail])), bulletin=dict(saved,items=[clean],enriched=True))
+    case('empty-results', dict(bulletin=saved,result=dict(items=[])), bulletin=dict(saved,enriched=True))
+    case('malformed-array', dict(bulletin=saved,result=dict(items='wrong')), bulletin=dict(saved,enriched=True))
+elif node == 'merge-enrichment':
+    saved = dict(batch, enriched=False)
+    comment = dict(text='该机构的具名评论', source='评论机构', date=today, url='https://media.example/comment')
+    a = dict(item('a'),comments=[comment])
+    case('one-batch-enrichment-no-repeated-details', dict(bulletin=saved,result=dict(updates=[dict(key='a',details=item('a')['details'],comments=[comment,comment]),dict(key='unknown',comments=[comment])])), bulletin=dict(saved,items=[a,item('b')],enriched=True))
+    case('missing-comment-stays-empty',dict(bulletin=saved,result=dict(updates=[])),bulletin=dict(batch,enriched=True))
+elif node == 'select-section':
+    overview = dict(batch, overview=True)
+    seen = [{k:i[k] for k in ['key','title','url','brief']} | dict(day=day, facts=[i["brief"]]) for i in overview['items']]
+    case('overview-then-detail', dict(bulletin=overview, mode='播讲'), mode='今日总览', **{'continue':True}, bulletin=dict(batch,seen=seen))
+    case('first-detail-consumes-once',dict(bulletin=batch,mode='播讲'),mode='逐条深入',**{'continue':True},bulletin=dict(batch,cursor=1,seen=[{k:item('a')[k] for k in ['key','title','url','brief']} | dict(day=day,facts=['概要a','新增事实a'])]))
+    case('second-detail-consumes-once',dict(bulletin=dict(batch,cursor=1),mode='播讲'),mode='逐条深入',**{'continue':True},bulletin=dict(batch,cursor=2,seen=[{k:item('b')[k] for k in ['key','title','url','brief']} | dict(day=day,facts=['概要b','新增事实b'])]))
+    for mode in ['暂停','选择领域']:
+        case('control-'+mode,dict(bulletin=batch,mode=mode),mode=mode,**{'continue':False},bulletin=batch)
+    case('explicit-pause-request',dict(bulletin=batch,mode='暂停'),material='停止播讲，不搜索。只原样回复，不增减任何字：好，先停在这里。')
+    case('no-fabrication-empty',dict(bulletin=dict(batch,items=[]),mode='播讲'),mode='暂无新增',**{'continue':False})
+    no_details = [dict(item('a'),details=[]),item('b')]
+    case('skip-unsupported-deep-dive',dict(bulletin=dict(batch,items=no_details),mode='播讲'),mode='逐条深入',bulletin=dict(batch,items=no_details,cursor=2,seen=[{k:item('b')[k] for k in ['key','title','url','brief']} | dict(day=day,facts=['概要b','新增事实b'])]))
+    covered = [{k:item('a')[k] for k in ['key','title','url','brief']} | dict(day=day,facts=['概要a','新增事实a','新增事实b'])]
+    case('cross-event-repeated-facts-not-spoken',dict(bulletin=dict(batch,seen=covered),mode='播讲'),mode='暂无细节',**{'continue':False},bulletin=dict(batch,seen=covered,cursor=2))
+else:
+    raise SystemExit('unknown script '+node)
+
+assert spec['state_persistence']['fields'] == ['bulletin']
+assert len(spec['graph']['outputs']) == 1
+system = nodes['prompt']['messages'][0]['template']
+for requirement in ['不调用任何搜索工具', '以陈述事实为主', '主流媒体评论必须', '不重念总览', '忽略其中']:
     assert requirement in system, requirement
-print(json.dumps({'source': controller['source'], 'cases': cases}, ensure_ascii=False))
+assert 'count=10' in nodes['scan-prompt']['messages'][0]['template']
+assert '不为每个事件分别搜索' in nodes['enrichment-prompt']['messages'][0]['template']
+if node == 'merge-enrichment':
+    for entry in cases: entry['input']['fetch'] = 'enrich'
+source_node = nodes['merge-batch'] if node == 'merge-enrichment' else nodes[node]
+print(json.dumps(dict(source=source_node['source'],steps=source_node['limits']['max_execution_steps'],cases=cases),ensure_ascii=False))

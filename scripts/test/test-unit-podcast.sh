@@ -7,10 +7,13 @@ require_command "$GIZCLAW"
 require_python_yaml
 cd "$root"
 python3 scripts/test/podcast-cases.py | scripts/test/test-starlark-routing.sh
-python3 scripts/test/podcast-news-cases.py | scripts/test/test-starlark-routing.sh
+for node in prepare normalize-batch merge-batch merge-enrichment select-section; do
+  python3 scripts/test/podcast-news-cases.py "$node" | scripts/test/test-starlark-routing.sh
+done
 python3 scripts/test/safety_fences.py workflows/podcast/eino.yaml workflows/podcast-news/eino.yaml
 "$GIZCLAW" admin validate -f workflows/podcast/eino.yaml
 "$GIZCLAW" admin validate -f workflows/podcast-news/eino.yaml
+"$GIZCLAW" admin validate -f tools/volc-news-search.yaml
 (
   cd scripts/test/chat-assistant
   CGO_ENABLED=0 "${GO:-go}" test -mod=readonly -count=1 -run '^TestNewsPodcast' ./...

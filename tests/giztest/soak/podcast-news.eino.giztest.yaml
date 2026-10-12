@@ -1,7 +1,7 @@
 # User Story:
-# As a podcast listener,
-# I want continuous narration with pause, resume and per-generation History,
-# So that I can hear new content and replay completed sections.
+# As a news podcast listener,
+# I want an overview followed by distinct sourced deep dives,
+# So that one cached news batch plays continuously and I can interrupt it.
 version: gizclaw.test/v1alpha1
 name: podcast-news.soak.eino
 clients:
@@ -170,6 +170,36 @@ steps:
     'on':
     - assertion
     delay: 6s
+  expect:
+    /items/0/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_AGENT
+    /items/0/text:
+      min_length: 80
+      pattern: '[0-9]{1,2}月[0-9]{1,2}日'
+      not_contains:
+      - 我认为
+      - 我觉得
+      - 要不要继续
+    /items/0/replay_available:
+      equals: true
+    /items/1/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_AGENT
+    /items/1/text:
+      min_length: 80
+      pattern: '[0-9]{1,2}月[0-9]{1,2}日'
+      not_contains:
+      - 我认为
+      - 我觉得
+      - 要不要继续
+    /items/1/replay_available:
+      equals: true
+- id: eino_history_while_speaking_capture
+  client: eino
+  rpc:
+    method: server.run.workspace.history
+    request:
+      limit: 100
+      order: PEER_RUN_HISTORY_LIST_REQUEST_ORDER_DESC
   expect:
     /items/0/type:
       equals: PEER_RUN_HISTORY_ENTRY_TYPE_AGENT
