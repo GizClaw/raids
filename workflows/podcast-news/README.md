@@ -71,7 +71,9 @@ Reliable pause/resume requires an engine that commits selected persistent State
 v0.31.5 saves only at successful turn completion: interruption loses uncommitted
 queue progress. [GizClaw #1517](https://github.com/GizClaw/gizclaw/pull/1517)
 implements that fix and is included in v0.31.7. The Beijing E2E Server was still
-v0.31.5 in the 2026-10-13 dual-Workflow run; its resume stage stopped early.
+v0.31.5 in the 2026-10-13 dual-Workflow runs. An earlier resume stage stopped
+early; a later bounded dialogue run completed continued playback and stop.
+That does not qualify checkpointed recovery of the original cached queue.
 A partially delivered
 section must not advance the durable cursor; resuming can
 restart that incomplete section. v0.31.5 also shares a 32-call Tool budget across
