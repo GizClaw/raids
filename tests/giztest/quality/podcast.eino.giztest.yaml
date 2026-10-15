@@ -1,0 +1,420 @@
+# User Story:
+# As a podcast listener,
+# I want continuous narration with pause, resume and per-generation History,
+# So that I can hear new content and replay completed sections.
+version: gizclaw.test/v1alpha1
+name: podcast.quality.eino
+clients:
+  eino:
+    identity: ephemeral
+    connection: webrtc
+    access_point: ${endpoint}
+variables:
+  endpoint:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_ENDPOINT
+  registration_token:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_REGISTRATION_TOKEN
+    secret: true
+  eino_workspace:
+    direction: input
+    type: string
+    generate: token
+  eino_first_section:
+    direction: output
+    type: string
+  eino_second_section:
+    direction: output
+    type: string
+  eino_continuous_playback_audio:
+    direction: output
+    type: audio
+    max_bytes: 16777216
+    media_type: audio/ogg
+    codec: opus
+  eino_resume_audio:
+    direction: output
+    type: audio
+    max_bytes: 16777216
+    media_type: audio/ogg
+    codec: opus
+  eino_redirect_audio:
+    direction: output
+    type: audio
+    max_bytes: 16777216
+    media_type: audio/ogg
+    codec: opus
+  eino_first_section_text:
+    direction: output
+    type: string
+  eino_second_section_text:
+    direction: output
+    type: string
+repeat: 1
+timeout: 10m
+steps:
+- id: eino_register
+  client: eino
+  rpc:
+    method: server.register
+    request:
+      token: ${registration_token}
+- id: eino_create
+  client: eino
+  rpc:
+    method: server.workspace.create
+    request:
+      name: ${eino_workspace}
+      workflow_name: podcast
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+          safety_fence_level: 'off'
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+- id: eino_select
+  client: eino
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: ${eino_workspace}
+- id: eino_continuous_playback_synthesize
+  client: eino
+  speech:
+    method: server.speech.synthesize
+    request:
+      voice_name: eino-podcast.host
+      text: 开始，讲讲天空为什么是蓝的。
+      accepted_content_types:
+      - audio/ogg
+  save_as: eino_continuous_playback_audio
+- id: eino_continuous_playback
+  timeout: 175s
+  parallel:
+  - id: eino_continuous_playback_playback
+    client: eino
+    peer_stream:
+      mode: listen
+      duration: 125s
+  - id: eino_continuous_playback_start
+    client: eino
+    delay: 250ms
+    peer_stream:
+      mode: push-to-talk
+      input: ${eino_continuous_playback_audio}
+      completion: first_response
+      pacing: 20ms
+      require_text: true
+      require_audio: true
+      first_text_timeout: 35s
+      first_audio_timeout: 40s
+  expect:
+    /eino_continuous_playback_playback/text:
+      min_length: 150
+      not_contains:
+      - 【
+      - 】
+    /eino_continuous_playback_playback/streams:
+      equals: 2
+    /eino_continuous_playback_playback/audio_bytes:
+      minimum: 1
+    /eino_continuous_playback_playback/audio_pacing/underruns:
+      equals: 0
+    /eino_continuous_playback_playback/audio_pacing/minimum_buffer_ms:
+      minimum: 0
+    /eino_continuous_playback_start/text:
+      non_empty: true
+    /eino_continuous_playback_start/audio_bytes:
+      minimum: 1
+    /eino_continuous_playback_playback/last_event_ms:
+      minimum: 120000
+    /eino_continuous_playback_playback/first_transcript_ms:
+      minimum: 1
+- id: eino_history_while_speaking
+  client: eino
+  rpc:
+    method: server.run.workspace.history
+    request:
+      limit: 100
+      order: PEER_RUN_HISTORY_LIST_REQUEST_ORDER_DESC
+  retry:
+    attempts: 10
+    'on':
+    - assertion
+    delay: 6s
+  expect:
+    /items/0/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_AGENT
+    /items/0/text:
+      min_length: 80
+    /items/0/replay_available:
+      equals: true
+    /items/1/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_AGENT
+    /items/1/text:
+      min_length: 80
+    /items/1/replay_available:
+      equals: true
+  capture:
+    eino_first_section: /items/0/name
+    eino_second_section: /items/1/name
+    eino_first_section_text: /items/0/text
+    eino_second_section_text: /items/1/text
+- id: eino_pause
+  client: eino
+  timeout: 90s
+  peer_stream:
+    mode: text
+    input: 停一下
+    require_text: true
+    require_audio: true
+    idle_timeout: 60s
+    wait_for_history: true
+  expect:
+    /reply:
+      contains: 好，先停在这里。
+    /text_eos:
+      equals: true
+    /audio_eos:
+      equals: true
+    /audio_bytes:
+      minimum: 1
+    /response_count:
+      minimum: 1
+      maximum: 2
+- id: eino_history_after_pause
+  client: eino
+  rpc:
+    method: server.run.workspace.history
+    request:
+      limit: 100
+      order: PEER_RUN_HISTORY_LIST_REQUEST_ORDER_DESC
+  retry:
+    attempts: 10
+    'on':
+    - assertion
+    delay: 6s
+  expect:
+    /items/0/text:
+      equals: 好，先停在这里。
+    /items/0/replay_available:
+      equals: true
+- id: eino_first_section_audio
+  client: eino
+  rpc_stream:
+    method: server.workspace.history.audio.download
+    request:
+      workspace_name: ${eino_workspace}
+      history_name: ${eino_first_section}
+    max_bytes: 16777216
+  expect:
+    /bytes:
+      minimum: 100
+- id: eino_second_section_audio
+  client: eino
+  rpc_stream:
+    method: server.workspace.history.audio.download
+    request:
+      workspace_name: ${eino_workspace}
+      history_name: ${eino_second_section}
+    max_bytes: 16777216
+  expect:
+    /bytes:
+      minimum: 100
+- id: eino_resume_synthesize
+  client: eino
+  speech:
+    method: server.speech.synthesize
+    request:
+      voice_name: eino-podcast.host
+      text: 继续
+      accepted_content_types:
+      - audio/ogg
+  save_as: eino_resume_audio
+- id: eino_resume
+  timeout: 125s
+  parallel:
+  - id: eino_resume_playback
+    client: eino
+    peer_stream:
+      mode: listen
+      duration: 75s
+  - id: eino_resume_start
+    client: eino
+    delay: 250ms
+    peer_stream:
+      mode: push-to-talk
+      input: ${eino_resume_audio}
+      completion: first_response
+      pacing: 20ms
+      require_text: true
+      require_audio: true
+      first_text_timeout: 35s
+      first_audio_timeout: 40s
+  expect:
+    /eino_resume_playback/text:
+      min_length: 150
+      not_contains:
+      - 【
+      - 】
+    /eino_resume_playback/streams:
+      equals: 2
+    /eino_resume_playback/audio_bytes:
+      minimum: 1
+    /eino_resume_playback/audio_pacing/underruns:
+      equals: 0
+    /eino_resume_playback/audio_pacing/minimum_buffer_ms:
+      minimum: 0
+    /eino_resume_start/text:
+      non_empty: true
+    /eino_resume_start/audio_bytes:
+      minimum: 1
+    /eino_resume_playback/last_event_ms:
+      minimum: 70000
+    /eino_resume_playback/first_transcript_ms:
+      minimum: 1
+- id: eino_pause_resumed
+  client: eino
+  timeout: 90s
+  peer_stream:
+    mode: text
+    input: 暂停
+    require_text: true
+    require_audio: true
+    idle_timeout: 60s
+    wait_for_history: true
+  expect:
+    /reply:
+      contains: 好，先停在这里。
+    /text_eos:
+      equals: true
+    /audio_eos:
+      equals: true
+    /audio_bytes:
+      minimum: 1
+    /response_count:
+      minimum: 1
+      maximum: 2
+- id: eino_redirect_synthesize
+  client: eino
+  speech:
+    method: server.speech.synthesize
+    request:
+      voice_name: eino-podcast.host
+      text: 换个话题，讲讲火星。
+      accepted_content_types:
+      - audio/ogg
+  save_as: eino_redirect_audio
+- id: eino_redirect
+  timeout: 150s
+  parallel:
+  - id: eino_redirect_playback
+    client: eino
+    peer_stream:
+      mode: listen
+      duration: 100s
+  - id: eino_redirect_start
+    client: eino
+    delay: 250ms
+    peer_stream:
+      mode: push-to-talk
+      input: ${eino_redirect_audio}
+      completion: first_response
+      pacing: 20ms
+      require_text: true
+      require_audio: true
+      first_text_timeout: 35s
+      first_audio_timeout: 40s
+  expect:
+    /eino_redirect_playback/text:
+      min_length: 150
+      not_contains:
+      - 【
+      - 】
+    /eino_redirect_playback/streams:
+      equals: 2
+    /eino_redirect_playback/audio_bytes:
+      minimum: 1
+    /eino_redirect_playback/audio_pacing/underruns:
+      equals: 0
+    /eino_redirect_playback/audio_pacing/minimum_buffer_ms:
+      minimum: 0
+    /eino_redirect_start/text:
+      non_empty: true
+    /eino_redirect_start/audio_bytes:
+      minimum: 1
+    /eino_redirect_playback/last_event_ms:
+      minimum: 95000
+    /eino_redirect_playback/first_transcript_ms:
+      minimum: 1
+- id: eino_pause_redirected
+  client: eino
+  timeout: 90s
+  peer_stream:
+    mode: text
+    input: 停一下
+    require_text: true
+    require_audio: true
+    idle_timeout: 60s
+    wait_for_history: true
+  expect:
+    /reply:
+      contains: 好，先停在这里。
+    /text_eos:
+      equals: true
+    /audio_eos:
+      equals: true
+    /audio_bytes:
+      minimum: 1
+    /response_count:
+      minimum: 1
+      maximum: 2
+- id: eino_final_history
+  client: eino
+  rpc:
+    method: server.run.workspace.history
+    request:
+      limit: 100
+      order: PEER_RUN_HISTORY_LIST_REQUEST_ORDER_DESC
+  retry:
+    attempts: 10
+    'on':
+    - assertion
+    delay: 6s
+  expect:
+    /items/0/text:
+      equals: 好，先停在这里。
+    /items/2/text:
+      contains_any:
+      - 火星
+      - 太阳系
+- id: eino_print_first_section
+  output:
+    variable: eino_first_section_text
+- id: eino_print_second_section
+  output:
+    variable: eino_second_section_text
+finally:
+- client: eino
+  rpc:
+    method: server.run.stop
+    request: {}
+  id: eino_stop
+- client: eino
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: ${eino_workspace}
+  id: eino_delete_workspace
+- client: eino
+  rpc:
+    method: server.peer.delete
+    request: {}
+  id: eino_delete_peer
+report:
+  redact:
+  - registration_token

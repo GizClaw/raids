@@ -147,7 +147,7 @@ a recognized player reply path fails and needs an explicit coverage review
 when adding a new graph shape.
 
 **Runtime dependency:** the fence needs **GizClaw v0.20.2** or later for both
-validation and serving; CI now pins v0.27.0 with Profile-defined string IDs. Earlier releases reject Eino's
+validation and serving; CI now pins v0.31.5 with Profile-defined string IDs. Earlier releases reject Eino's
 `input.safety_fence` binding as undeclared.
 
 This contract covers every raid with Eino implementations and
@@ -400,8 +400,9 @@ Workflows select the public MiniMax system Voices `Japanese_CalmLady`,
 [MiniMax system Voice catalog](https://platform.minimaxi.com/docs/faq/system-voice-id)
 classifies for those languages. These bindings add `MiniMaxTenant/minimax-cn`
 and its environment-owned Credential to the default dependency closure; Raids
-contains no credential value. Every public MiniMax Voice selects
-`speech-2.6-turbo` through `spec.provider_data.model`; GizClaw v0.7.0 and later
+contains no credential value. Public MiniMax Voices explicitly select
+`speech-2.6-turbo`, except the CN news announcer Winston, which matches Deploy's
+selected `speech-2.6-hd` cast, through `spec.provider_data.model`. GizClaw v0.7.0 and later
 require that Voice-owned provider model when constructing MiniMax TTS and do
 not substitute a hidden model default.
 
@@ -644,9 +645,13 @@ product explicitly selects it.
 The MemoryLayout definitions require a GizClaw build containing the MemoryLayout contract
 merged by [GizClaw #590](https://github.com/GizClaw/gizclaw/pull/590).
 
-## GizClaw 0.27.0 compatibility
+## GizClaw 0.31.5 compatibility
 
-The catalog requires **GizClaw v0.27.0** for configuration validation and serving.
+The catalog requires **GizClaw v0.31.5** for configuration validation and serving.
+Public Workflow bindings select `ptt_asr_model` and `realtime_asr_model`
+explicitly, preserving their existing ASR choices. Legacy
+`eino.voice_adapter.asr_model` remains accepted by the engine and is ignored;
+consumers must use the Profile bindings for audio input.
 CI pins that release and its published package SHA256; native contract tests use
 the matching immutable Go module. Flowcraft was retired upstream in
 [GizClaw #1451](https://github.com/GizClaw/gizclaw/pull/1451). Current catalog
@@ -672,7 +677,7 @@ perform real recall/reload acceptance before activating this catalog.
 ## Static resource validation
 
 Raids uses the released GizClaw binary as the only authority for declarative
-Resource format validation. With GizClaw v0.27.0 or later on `PATH`, validate
+Resource format validation. With GizClaw v0.31.5 or later on `PATH`, validate
 every applyable catalog Resource with:
 
 ```sh
@@ -703,7 +708,7 @@ default variables, and exports. `make help` lists the complete surface:
 `test-unit-*` target as its own step; there is no aggregate target.
 
 `make test-unit-chat-assistant` loads the shipped Chat Workflow, profiles, Tool
-and quality probe inputs into the GizClaw v0.27.0 Eino runtime. A scripted Model
+and quality probe inputs into the GizClaw v0.31.5 Eino runtime. A scripted Model
 and HTTP transport fixture replace the external providers. The real Tool
 catalog and AgentHost ToolInvoker resolve the shipped Profile alias; the HTTP
 executor must receive the mapped search request, return an unpredictable result,
@@ -726,7 +731,7 @@ the live semantic verifier or qualify physical hardware. Its source and checksum
 `scripts/test/chat-assistant/`.
 
 `make test-e2e-chat-assistant` starts disposable Docker Server/Edge containers
-using the released GizClaw v0.27.0 image, plus pinned Mem0 and PostgreSQL images.
+using the released GizClaw v0.31.5 image, plus pinned Mem0 and PostgreSQL images.
 It applies the complete original default/testing closure, runs real Doubao
 conversations against Giztest's typed MHS/ClientTool handlers, and then runs
 the unchanged Chat smoke, quality and soak files. Generated cases check exact
@@ -780,10 +785,11 @@ Go module downloads are disabled. Offline validation cannot establish real
 provider voice switching, timing, interruption or audible continuity.
 
 Passing this check establishes schema, binding, and deterministic routing
-contracts, not live behavior. CI pins the immutable v0.27.0 Linux package
+contracts, not live behavior. CI pins the immutable v0.31.5 Linux package
 and verifies its published SHA-256 digest before validation.
-`make test-unit-voices` separately requires exactly 635 MiniMax Voice files and exactly one
-`model: speech-2.6-turbo` field in each. Per-file schema validation alone does
+`make test-unit-voices` separately requires exactly 635 MiniMax Voice files and
+exactly one explicit model field in each: `speech-2.6-hd` for the CN Winston
+news announcer, `speech-2.6-turbo` for the others. Per-file schema validation alone does
 not prove other runtime-only requirements such as cross-resource references or
 aliases resolve, provider credentials work, or a live Server
 will accept and run the complete catalog. Apply, runtime, `make test-e2e`,
@@ -791,16 +797,19 @@ release, and Beijing Default E2E remain separate evidence.
 
 ## Raid packages
 
-The [continuous podcast example](examples/podcast/README.md) provides an isolated
-Profile for narration that keeps generating until interrupted and stores each
-model-generated section as a separate History entry while playback continues. It requires a GizClaw build with
-`eino.conversation.continue_from`; the pinned v0.27.0 catalog validator does not
-support it. Use `make test-unit-podcast GIZCLAW=/path/to/gizclaw` with that build.
+The continuous [science podcast](workflows/podcast/README.md) and
+[news podcast](workflows/podcast-news/README.md) are normal catalog packages.
+Both public Profiles select them under `category:podcasts`. The news host asks
+for an interest, searches a batch of fresh news, and plays its overview and
+sourced details across multiple generations with minimal opinion. Both support
+continuous playback, pause, resume and topic changes. The news host also answers
+listener questions before continuing; see each package's runtime and History
+requirements.
 
 Every scenario is one package directory `workflows/<raid>/`: one Workflow per
-engine implementation (`eino.yaml`, `eino.multi-role.yaml`, …), the scenario's single
-original relay Tester (`test.yaml`, id `<raid>-test`), a `raid.json` manifest, and a
-README. `raid.json` declares the implementations and the slots each needs —
+engine implementation (`eino.yaml`, `eino.multi-role.yaml`, …), the scenario's relay Tester when it has a turn-based relay (`test.yaml`,
+id `<raid>-test`), a `raid.json` manifest, and a README. Continuous podcasts
+use timed listening and interruption Giztests instead of a turn-based relay. `raid.json` declares the implementations and the slots each needs —
 model aliases, voice aliases, Tool aliases, MemoryLayout — without binding them to concrete
 resources; rating (`raids-age-v2`), category, and tags make the catalog
 filterable. It is descriptive metadata for consumers and reviewers, not an
@@ -1019,7 +1028,8 @@ timestamps, account status, and raw provider responses are not source
 resources and are also excluded.
 
 The MiniMax CN and Global snapshots make the TTS provider model explicit on
-each Voice; the current public catalogs select `speech-2.6-turbo`. Volc Voice
+each Voice; the public catalogs select `speech-2.6-turbo` except the explicitly
+selected CN Winston news announcer, which uses `speech-2.6-hd`. Volc Voice
 identity is generation-specific: the filename stem, `metadata.id` suffix, and
 `provider_data.voice_id` preserve the provider's exact `voice_type`, while
 `provider_data.resource_id` distinguishes `seed-tts-1.0`, `seed-tts-2.0`, and

@@ -1,0 +1,321 @@
+# User Story:
+# As a real news podcast listener persona,
+# I want to answer the host's interest question and ask about the news I actually hear,
+# So that two Workflows hold a spoken dialogue without prerecorded topic replies or spoken test instructions.
+version: gizclaw.test/v1alpha1
+name: podcast-news.dialogue.question.eino
+clients:
+  podcast:
+    identity: ephemeral
+    connection: webrtc
+    access_point: ${endpoint}
+  persona:
+    identity: ephemeral
+    connection: webrtc
+    access_point: ${endpoint}
+variables:
+  endpoint:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_ENDPOINT
+  registration_token:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_REGISTRATION_TOKEN
+    secret: true
+  podcast_workspace:
+    direction: input
+    type: string
+    generate: token
+  persona_workspace:
+    direction: input
+    type: string
+    generate: token
+  host_interest_question_audio:
+    direction: output
+    type: audio
+    max_bytes: 16777216
+    media_type: audio/ogg
+    codec: opus
+  listener_interest_audio:
+    direction: output
+    type: audio
+    max_bytes: 16777216
+    media_type: audio/ogg
+    codec: opus
+  heard_news_audio:
+    direction: output
+    type: audio
+    max_bytes: 16777216
+    media_type: audio/ogg
+    codec: opus
+  listener_question_audio:
+    direction: output
+    type: audio
+    max_bytes: 16777216
+    media_type: audio/ogg
+    codec: opus
+  host_answer_audio:
+    direction: output
+    type: audio
+    max_bytes: 16777216
+    media_type: audio/ogg
+    codec: opus
+  listener_interest:
+    direction: output
+    type: string
+  listener_question:
+    direction: output
+    type: string
+  host_answer:
+    direction: output
+    type: string
+repeat: 1
+timeout: 8m
+steps:
+- id: podcast_register
+  client: podcast
+  rpc:
+    method: server.register
+    request:
+      token: ${registration_token}
+- id: podcast_create
+  client: podcast
+  rpc:
+    method: server.workspace.create
+    request:
+      name: ${podcast_workspace}
+      workflow_name: podcast-news
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+          safety_fence_level: 'off'
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+- id: podcast_select
+  client: podcast
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: ${podcast_workspace}
+- id: persona_register
+  client: persona
+  rpc:
+    method: server.register
+    request:
+      token: ${registration_token}
+- id: persona_create
+  client: persona
+  rpc:
+    method: server.workspace.create
+    request:
+      name: ${persona_workspace}
+      workflow_name: podcast-news-persona
+      parameters:
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+          safety_fence_level: 'off'
+          conversation:
+            initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
+- id: persona_select
+  client: persona
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: ${persona_workspace}
+- id: host_asks_listener_interest
+  client: podcast
+  timeout: 40s
+  peer_stream:
+    mode: text
+    input: 开始
+    require_text: true
+    require_audio: true
+  capture:
+    host_interest_question_audio: /audio
+  expect:
+    /reply:
+      pattern: 想.*听|方向|领域
+      contains_all:
+      - 科技
+      - 国际
+      - 北京时间
+      - 程正声
+      - 正声新闻
+    /audio_integrity/max_active:
+      equals: 1
+    /audio_integrity/violations:
+      equals: 0
+- id: listener_answers_interest
+  client: persona
+  timeout: 90s
+  peer_stream:
+    mode: push-to-talk
+    input: ${host_interest_question_audio}
+    pacing: 20ms
+    require_text: true
+    require_audio: true
+  capture:
+    listener_interest: /reply
+    listener_interest_audio: /audio
+  expect:
+    /reply:
+      min_length: 4
+      max_length: 12
+      pattern: 科技|人工智能|航天|AI
+      not_contains:
+      - 测试
+      - PASS
+      - FAIL
+    /transcript:
+      pattern: 想.*听|方向|领域|话题
+- id: continuous_news
+  timeout: 115s
+  parallel:
+  - id: hear_continuous_news
+    client: podcast
+    peer_stream:
+      mode: listen
+      duration: 55s
+  - id: start_continuous_news
+    client: podcast
+    delay: 250ms
+    peer_stream:
+      mode: push-to-talk
+      input: ${listener_interest_audio}
+      pacing: 20ms
+      completion: first_response
+      require_text: true
+      require_audio: true
+      first_text_timeout: 50s
+      first_audio_timeout: 55s
+  capture:
+    heard_news_audio: /hear_continuous_news/audio
+  expect:
+    /hear_continuous_news/text:
+      min_length: 100
+      pattern: '[0-9]{1,2}月[0-9]{1,2}日'
+      not_contains:
+      - 缓存材料
+      - EVENT
+      - FACT|
+      - COMMENT|
+    /hear_continuous_news/streams:
+      minimum: 1
+      maximum: 2
+    /hear_continuous_news/audio_bytes:
+      minimum: 1
+    /hear_continuous_news/last_event_ms:
+      minimum: 50000
+    /hear_continuous_news/audio_pacing/underruns:
+      equals: 0
+    /hear_continuous_news/audio_pacing/minimum_buffer_ms:
+      minimum: 0
+    /start_continuous_news/transcript:
+      pattern: 科技|人工智能|航天|AI
+    /start_continuous_news/audio_integrity/max_active:
+      equals: 1
+    /start_continuous_news/audio_integrity/violations:
+      equals: 0
+- id: listener_asks_about_news
+  client: persona
+  timeout: 90s
+  peer_stream:
+    mode: push-to-talk
+    input: ${heard_news_audio}
+    pacing: 20ms
+    require_text: true
+    require_audio: true
+  capture:
+    listener_question: /reply
+    listener_question_audio: /audio
+  expect:
+    /reply:
+      pattern: '[？?]|来源|计划|哪|是不是'
+      max_length: 24
+      not_contains:
+      - 主持人仍在播报
+      - 现在立刻用语音
+      - 你刚听到
+      - 测试
+    /audio_bytes:
+      minimum: 1
+- id: host_answers_listener
+  client: podcast
+  timeout: 90s
+  peer_stream:
+    mode: push-to-talk
+    input: ${listener_question_audio}
+    pacing: 20ms
+    require_text: true
+    require_audio: true
+  capture:
+    host_answer: /reply
+    host_answer_audio: /audio
+  expect:
+    /reply:
+      min_length: 20
+      not_contains:
+      - 今日总览
+      - 你想听科技
+      - 好，先停在这里。
+    /audio_bytes:
+      minimum: 1
+- id: listener_responds_to_answer
+  client: persona
+  timeout: 90s
+  peer_stream:
+    mode: push-to-talk
+    input: ${host_answer_audio}
+    pacing: 20ms
+    require_text: true
+    require_audio: true
+  expect:
+    /reply:
+      min_length: 2
+      max_length: 8
+      not_contains:
+      - PASS
+      - FAIL
+      - 测试
+      - 评分
+    /audio_bytes:
+      minimum: 1
+finally:
+- id: podcast_stop
+  client: podcast
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: podcast_delete_workspace
+  client: podcast
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: ${podcast_workspace}
+- id: podcast_delete_peer
+  client: podcast
+  rpc:
+    method: server.peer.delete
+    request: {}
+- id: persona_stop
+  client: persona
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: persona_delete_workspace
+  client: persona
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: ${persona_workspace}
+- id: persona_delete_peer
+  client: persona
+  rpc:
+    method: server.peer.delete
+    request: {}
+report:
+  redact:
+  - registration_token

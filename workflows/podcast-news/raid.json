@@ -1,0 +1,93 @@
+{
+  "schema": "raids.raid/v1alpha1",
+  "id": "podcast-news",
+  "category": "podcast",
+  "title": {
+    "zh-CN": "新闻播客",
+    "en": "News Podcast"
+  },
+  "summary": {
+    "zh-CN": "先扫描今日新闻，再逐条深入事实、背景和具名媒体评论，随时暂停或换领域。",
+    "en": "Scan today’s headlines, then explore each story’s facts, background and attributed media commentary."
+  },
+  "rating": {
+    "age": [
+      "teen",
+      "adult",
+      "senior"
+    ],
+    "scheme": "raids-age-v2",
+    "content": []
+  },
+  "tags": [
+    "podcast",
+    "continuous",
+    "news",
+    "web-search"
+  ],
+  "language": [
+    "zh-CN"
+  ],
+  "implementations": {
+    "eino": {
+      "file": "eino.yaml",
+      "workflow_id": "eino-podcast-news",
+      "driver": "eino",
+      "input": [
+        "text",
+        "push-to-talk",
+        "realtime"
+      ],
+      "parameters": {
+        "models": {
+          "eino-podcast-news.model": {
+            "kind": "llm",
+            "role": "host",
+            "description": "Batch news collection with native search Tool calls"
+          },
+          "eino-podcast-news.narration": {
+            "kind": "llm",
+            "role": "host",
+            "description": "News narration and factual answers without function Tool definitions"
+          }
+        },
+        "voices": {
+          "eino-podcast-news.host": {
+            "role": "host",
+            "language": "zh-CN",
+            "description": "Podcast host voice"
+          }
+        },
+        "tools": {
+          "news.search": {
+            "tool_id": "volc-news-search",
+            "description": "Batch news and media commentary search, cached across playback sections"
+          }
+        }
+      }
+    }
+  },
+  "tests": [
+    {
+      "file": "tests/giztest/smoke/podcast-news.eino.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "eino"
+      ]
+    },
+    {
+      "file": "tests/giztest/quality/podcast-news.eino.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "eino"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/podcast-news.eino.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "eino"
+      ]
+    }
+  ]
+}

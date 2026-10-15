@@ -1,0 +1,83 @@
+{
+  "schema": "raids.raid/v1alpha1",
+  "id": "podcast",
+  "category": "podcast",
+  "title": {
+    "zh-CN": "连续播客",
+    "en": "Continuous Podcast"
+  },
+  "summary": {
+    "zh-CN": "持续讲述日常科学，自动续讲，随时打断、恢复或换话题。",
+    "en": "Continuous science narration with pause, resume and topic changes."
+  },
+  "rating": {
+    "age": [
+      "preschool",
+      "child",
+      "teen",
+      "adult",
+      "senior"
+    ],
+    "scheme": "raids-age-v2",
+    "content": []
+  },
+  "tags": [
+    "podcast",
+    "continuous",
+    "science"
+  ],
+  "language": [
+    "zh-CN"
+  ],
+  "implementations": {
+    "eino": {
+      "file": "eino.yaml",
+      "workflow_id": "eino-podcast",
+      "driver": "eino",
+      "input": [
+        "text",
+        "push-to-talk",
+        "realtime"
+      ],
+      "parameters": {
+        "models": {
+          "eino-podcast.model": {
+            "kind": "llm",
+            "role": "host",
+            "description": "Streaming Chinese narration"
+          }
+        },
+        "voices": {
+          "eino-podcast.host": {
+            "role": "host",
+            "language": "zh-CN",
+            "description": "Podcast host voice"
+          }
+        }
+      }
+    }
+  },
+  "tests": [
+    {
+      "file": "tests/giztest/smoke/podcast.eino.giztest.yaml",
+      "tier": "smoke",
+      "implementations": [
+        "eino"
+      ]
+    },
+    {
+      "file": "tests/giztest/quality/podcast.eino.giztest.yaml",
+      "tier": "quality",
+      "implementations": [
+        "eino"
+      ]
+    },
+    {
+      "file": "tests/giztest/soak/podcast.eino.giztest.yaml",
+      "tier": "soak",
+      "implementations": [
+        "eino"
+      ]
+    }
+  ]
+}

@@ -100,6 +100,11 @@ for (kind, identifier), document in resources.items():
         adapter = eino.get("voice_adapter", {})
         if adapter.get("asr_model"):
             check(adapter["asr_model"] in bindings["models"], f"{identifier}/{alias}: unresolved ASR")
+            check("ptt_asr_model" in binding and "realtime_asr_model" in binding,
+                  f"{identifier}/{alias}: declare both Profile input-mode choices; the legacy Workflow ASR field is ignored")
+        for mode in ("ptt_asr_model", "realtime_asr_model"):
+            if binding.get(mode):
+                check(binding[mode] in bindings["models"], f"{identifier}/{alias}: unresolved {mode}")
         voices = list(adapter.get("node_voices", {}).values()) + list(adapter.get("speaker_voices", {}).values())
         if adapter.get("default_voice"):
             voices.append(adapter["default_voice"])

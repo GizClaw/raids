@@ -1,4 +1,4 @@
-// Execute the unmodified Workflow script with the same no-predeclared environment as Eino.
+// Execute unmodified Workflow scripts with the JSON and clock builtins used by Eino v0.31.5.
 package main
 
 import (
@@ -6,9 +6,21 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
+	starlarkjson "go.starlark.net/lib/json"
 	"go.starlark.net/starlark"
 )
+
+var predeclared = starlark.StringDict{
+	"json": starlarkjson.Module,
+	"now_millis": starlark.NewBuiltin("now_millis", func(_ *starlark.Thread, _ *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+		if err := starlark.UnpackArgs("now_millis", args, kwargs); err != nil {
+			return nil, err
+		}
+		return starlark.MakeInt64(time.Now().UnixMilli()), nil
+	}),
+}
 
 func value(v any) starlark.Value {
 	switch x := v.(type) {
@@ -67,7 +79,7 @@ func main() {
 			steps = data.Steps
 		}
 		t.SetMaxExecutionSteps(steps)
-		globals, err := starlark.ExecFile(t, "controller.star", data.Source, nil)
+		globals, err := starlark.ExecFile(t, "controller.star", data.Source, predeclared)
 		if err != nil {
 			panic(err)
 		}

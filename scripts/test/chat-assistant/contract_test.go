@@ -76,6 +76,8 @@ type fixture struct {
 	fact          string
 	query         string
 	body          map[string]any
+	count         int
+	searchResult  func(int, map[string]any) any
 	memoryMu      sync.Mutex
 	memoryBatches [][]string
 }
@@ -95,8 +97,16 @@ func searchToolkit(t *testing.T, f *fixture, mutations ...func(*toolkit.HTTPRequ
 }
 
 func profileSearchToolkit(t *testing.T, f *fixture, profile *apitypes.RuntimeProfile, policy *apitypes.ToolkitPolicy, mutations ...func(*toolkit.HTTPRequest)) *agenthost.ToolkitInvoker {
+	return workflowSearchToolkit(t, f, profile, "general-assistant", policy, mutations...)
+}
+
+func workflowSearchToolkit(t *testing.T, f *fixture, profile *apitypes.RuntimeProfile, alias string, policy *apitypes.ToolkitPolicy, mutations ...func(*toolkit.HTTPRequest)) *agenthost.ToolkitInvoker {
 	t.Helper()
-	resource := document(t, "tools/volc-web-search.yaml")
+	path := "tools/volc-web-search.yaml"
+	if alias == "podcast-news" {
+		path = "tools/volc-news-search.yaml"
+	}
+	resource := document(t, path)
 	var spec apitypes.ToolSpec
 	decode(t, resource["spec"], &spec)
 	tool, err := toolkit.FromSpec(resource["metadata"].(map[string]any)["id"].(string), spec)
@@ -104,7 +114,7 @@ func profileSearchToolkit(t *testing.T, f *fixture, profile *apitypes.RuntimePro
 		t.Fatal(err)
 	}
 	// Provider credentials are replaced locally; the binding and HTTP executor
-	// still pass through the actual v0.27.0 catalog and AgentHost invoker.
+	// still pass through the actual pinned catalog and AgentHost invoker.
 	tool.HTTP.Auth = toolkit.HTTPAuth{Method: "none"}
 	// The model name must come from web.search, never this private resource name.
 	tool.InvokeName = "fixture_private_search"
@@ -138,11 +148,19 @@ func profileSearchToolkit(t *testing.T, f *fixture, profile *apitypes.RuntimePro
 			return nil, err
 		}
 		f.body = body
-		if body["Query"] != f.query || body["SearchType"] != "web" || body["Count"] != float64(3) {
+		count := f.count
+		if count == 0 {
+			count = 3
+		}
+		if body["Query"] != f.query || body["SearchType"] != "web" || body["Count"] != float64(count) {
 			return nil, fmt.Errorf("wrong search argument mapping: %#v", body)
 		}
 		// This value exists only in the HTTP fixture, never in the prompt or model's first round.
-		data, _ := json.Marshal(map[string]any{"Result": map[string]string{"fact": f.fact}})
+		var result any = map[string]string{"fact": f.fact}
+		if f.searchResult != nil {
+			result = f.searchResult(f.requests, body)
+		}
+		data, _ := json.Marshal(map[string]any{"Result": result})
 		return &http.Response{StatusCode: 200, Header: http.Header{"Content-Type": {"application/json"}},
 			Body: io.NopCloser(bytes.NewReader(data))}, nil
 	})}
@@ -153,7 +171,7 @@ func profileSearchToolkit(t *testing.T, f *fixture, profile *apitypes.RuntimePro
 			if owner != "chat-contract-owner" {
 				return apitypes.RuntimeProfile{}, nil, errors.New("unexpected owner")
 			}
-			names, err := toolcatalog.Selection(*profile, "general-assistant", "eino-chat-assistant", policy)
+			names, err := toolcatalog.Selection(*profile, alias, profile.Spec.Workflows[alias].ResourceId, policy)
 			return *profile, names, err
 		},
 	}
@@ -568,6 +586,12 @@ func TestProfileSearchInjectionAndOptOut(t *testing.T) {
 					continue
 				}
 				names, err := toolcatalog.Selection(profile, alias, binding.ResourceId, nil)
+				if binding.ResourceId == "eino-podcast-news" {
+					if err != nil || len(names) != 1 || names[0] != "news.search" {
+						t.Fatalf("news Podcast search selection=%v, error=%v", names, err)
+					}
+					continue
+				}
 				if err != nil || len(names) != 0 {
 					t.Fatalf("non-Chat Workflow %s gained tools: %v, %v", alias, names, err)
 				}

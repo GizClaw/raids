@@ -22,8 +22,8 @@ require_python_yaml
 python3 scripts/test/catalog-closure.py
 python3 scripts/test/test_safety_fences.py
 python3 scripts/test/safety_fences.py
-python3 scripts/test/safety_fences.py examples/podcast/eino.yaml
 python3 scripts/test/podcast-cases.py | scripts/test/test-starlark-routing.sh
+python3 scripts/test/podcast-news-cases.py | scripts/test/test-starlark-routing.sh
 
 for dir in $resource_dirs; do
 	test -d "$dir" || {

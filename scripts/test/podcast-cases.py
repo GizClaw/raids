@@ -4,7 +4,7 @@ import json
 import yaml
 
 
-with open('examples/podcast/eino.yaml', encoding='utf-8') as source:
+with open('workflows/podcast/eino.yaml', encoding='utf-8') as source:
     workflow = yaml.safe_load(source)['spec']['eino']
 controller = next(node for node in workflow['graph']['nodes'] if node['id'] == 'prepare')
 prompt = next(node for node in workflow['graph']['nodes'] if node['id'] == 'prompt')

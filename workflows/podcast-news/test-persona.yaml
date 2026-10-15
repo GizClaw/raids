@@ -1,0 +1,178 @@
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata:
+  id: podcast-news-persona
+spec:
+  driver: eino
+  eino:
+    voice_adapter:
+      default_voice: podcast-news-persona.listener
+    conversation:
+      initiative: peer
+    state_persistence:
+      fields: [listener]
+    graph:
+      name: news-listener-persona
+      compile:
+        node_trigger_mode: any_predecessor
+        max_run_steps: 7
+      state:
+        fields:
+        - {name: listener, type: object, merge: replace}
+        - {name: mode, type: string, merge: replace}
+        - {name: instruction, type: string, merge: replace}
+        - {name: recent, type: messages, merge: replace}
+        - {name: messages, type: messages, merge: replace}
+        - {name: answer, type: string, merge: replace}
+        - {name: reply, type: string, merge: replace}
+        - {name: heard, type: string, merge: replace}
+      nodes:
+      - id: listener-prepare
+        type: script
+        inputs:
+          listener: {from: listener}
+          text: {from: input.text}
+          messages: {from: input.messages}
+        outputs:
+          listener: listener
+          mode: mode
+          instruction: instruction
+          recent: recent
+          heard: heard
+        language: starlark
+        entrypoint: run
+        limits:
+          max_execution_steps: 100000
+          timeout: 500ms
+          max_input_bytes: 1048576
+          max_output_bytes: 65536
+        source: |
+          def command(text):
+              text = text.strip()
+              if len(text) > 64:
+                  return ""
+              return "".join([c for c in text.strip().codepoints() if c not in " \t\r\n，。！？,.!?"])
+
+          def run(input):
+              saved = input.get("listener", {})
+              turn = saved.get("turn", 0)
+              text = input.get("text", "")
+              recovered = 0
+              # Older runtimes can lose a State checkpoint. The listener's own
+              # actual replies still identify which exchange has happened.
+              for message in input.get("messages", []):
+                  if message.get("role", "") == "assistant":
+                      previous = message.get("content", "")
+                      # ASR can include the incoming utterance as an assistant
+                      # transcript. It is not a previous listener reply.
+                      if previous == text:
+                          continue
+                      if command(previous) in ["继续", "接着讲"]:
+                          # A fresh listening interval follows the latest resume.
+                          recovered = 1
+                      elif any([mark in previous for mark in ["想听", "感兴趣", "更关注", "给我播", "听点", "来点", "先听"]]):
+                          recovered = max(recovered, 1)
+                      elif (recovered == 1 and previous.strip() and len(list(previous.codepoints())) <= 24) or any([mark in previous for mark in ["？", "?", "想确认", "先回答", "重复", "再说", "没听清", "听不清", "重讲", "重说"]]):
+                          # A short listener follow-up after choosing or resuming
+                          # also includes punctuation-free clarification requests.
+                          recovered = max(recovered, 2)
+              if recovered:
+                  turn = recovered
+              compact = command(text)
+              mode = "选择兴趣" if turn == 0 else "新闻提问" if turn == 1 else "回应回答"
+              if compact in ["继续", "接着讲"]:
+                  mode = "继续收听"
+              elif compact in ["停一下", "暂停", "停止"]:
+                  mode = "结束收听"
+              recent = []
+              for message in input.get("messages", [])[-6:]:
+                  role = message.get("role", "")
+                  content = message.get("content", "")
+                  if role in ["user", "assistant"] and content and not (role == "user" and content == text):
+                      recent.append({"role": role, "content": "".join(list(content.codepoints())[-800:])})
+              instructions = {
+                  "选择兴趣": "直接说想听科技新闻，清楚说出科技，12字以内。只报选题，别补充要求或解释理由。",
+                  "新闻提问": "根据刚收到内容的最后一条新闻插一句短问题，24字以内。只问其中一个具体事实是否已发生，或问日期、来源。别回头问早先已经讨论过的新闻。保留必要的主体名，不复述整条新闻，不铺垫。没听清就简短请对方重复。",
+                  "回应回答": "听懂了就简短应一声，8字以内，例如嗯，明白了。别复述答案或总结感想。",
+                  "继续收听": "只说：继续。",
+                  "结束收听": "只说：停一下。",
+              }
+              heard = text
+              if mode == "新闻提问" and len(list(text.codepoints())) > 600:
+                  heard = "".join(list(text.codepoints())[-600:])
+                  parts = heard.split("。", 1)
+                  if len(parts) == 2:
+                      heard = parts[1]
+              next_turn = 1 if mode == "继续收听" else min(turn + 1, 3)
+              return {"listener": {"turn": next_turn}, "mode": mode, "instruction": instructions[mode], "recent": recent, "heard": heard}
+      - id: listener-prompt
+        type: prompt
+        inputs:
+          safety_fence: {from: input.safety_fence}
+          request: {from: heard}
+          mode: {from: mode}
+          instruction: {from: instruction}
+          recent: {from: recent}
+        outputs:
+          messages: messages
+        format: f_string
+        messages:
+        - role: system
+          template: |
+            {safety_fence}
+
+            你是一位边做事边听新闻的普通听众，说话随意、简短，想到问题才插一句。
+            输入就是主持人刚对你说的话，不是测试人员的指令。当前交流阶段：{mode}。只说一句口语回复，服从当前阶段的字数限制。
+            这次回复的唯一任务：{instruction}
+            不杜撰新闻细节，不代替主持人播新闻。别重复主持人的话，别用总结、客套和书面表达凑满一句。
+            不输出阶段名称、测试说明、角色标签、评分、分析、思考过程或额外开场白，不把听众回复说成旁白叙述。
+        - placeholder: recent
+        - role: user
+          template: '{request}'
+      - id: listener-model
+        type: chat_model
+        inputs:
+          messages: {from: messages}
+        outputs:
+          text: answer
+        model: podcast-news-persona.model
+        max_tokens: 80
+      - id: listener-reply
+        type: script
+        inputs:
+          mode: {from: mode}
+          answer: {from: answer}
+        outputs:
+          reply: reply
+        language: starlark
+        entrypoint: run
+        limits:
+          max_execution_steps: 10000
+          timeout: 100ms
+          max_input_bytes: 8192
+          max_output_bytes: 8192
+        source: |
+          def run(input):
+              # Keep controls actionable even if the model just acknowledges.
+              mode = input.get("mode", "")
+              if mode == "继续收听":
+                  return {"reply": "继续。"}
+              if mode == "结束收听":
+                  return {"reply": "停一下。"}
+              answer = input.get("answer", "").strip()
+              limits = {"选择兴趣": 12, "新闻提问": 24, "回应回答": 8}
+              fallback = {"选择兴趣": "想听科技新闻。", "新闻提问": "刚才那条消息的来源是哪家？", "回应回答": "嗯，明白了。"}
+              # A prompt cannot guarantee a length bound. Use a complete short
+              # utterance instead of cutting a sentence or a proper name.
+              if mode in limits and (not answer or len(list(answer.codepoints())) > limits[mode]):
+                  answer = fallback[mode]
+              return {"reply": answer}
+      edges:
+      - {from: start, to: listener-prepare}
+      - {from: listener-prepare, to: listener-prompt}
+      - {from: listener-prompt, to: listener-model}
+      - {from: listener-model, to: listener-reply}
+      - {from: listener-reply, to: end}
+      branches: []
+      outputs:
+      - {node: listener-reply, field: reply, name: assistant, mime_type: text/plain, primary: true}

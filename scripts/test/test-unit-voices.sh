@@ -2,8 +2,8 @@
 set -euo pipefail
 
 # Catalog-wide Voice invariants that a per-file schema validation cannot see.
-# MiniMax synthesis must never fall back to the server default speech-2.6-hd,
-# so every MiniMax system Voice declares provider_data.model explicitly.
+# MiniMax synthesis must never fall back to a server model default. Winston's
+# selected Deploy cast explicitly uses HD; other system Voices retain Turbo.
 cd "$(dirname -- "${BASH_SOURCE[0]}")/../.."
 
 python3 scripts/test/testing_voices.py
@@ -27,10 +27,14 @@ fi
 
 failed=0
 while IFS= read -r file; do
+  voice_model="$expected_model"
+  if [[ "$file" == 'voices/minimax-cn/Chinese%20%28Mandarin%29_Male_Announcer.yaml' ]]; then
+    voice_model='speech-2.6-hd'
+  fi
   model_count="$(grep -Ec '^[[:space:]]+model:' "$file" || true)"
-  expected_count_in_file="$(grep -Fxc "    model: ${expected_model}" "$file" || true)"
+  expected_count_in_file="$(grep -Fxc "    model: ${voice_model}" "$file" || true)"
   if [[ "$model_count" != 1 || "$expected_count_in_file" != 1 ]]; then
-    printf '%s must contain exactly one model: %s field\n' "$file" "$expected_model" >&2
+    printf '%s must contain exactly one model: %s field\n' "$file" "$voice_model" >&2
     failed=1
   fi
 done < <(find "${voice_dirs[@]}" -type f -name '*.yaml' -print | LC_ALL=C sort)
@@ -39,6 +43,6 @@ if [[ "$failed" != 0 ]]; then
   exit 1
 fi
 
-printf 'validated %s MiniMax Voices with model %s\n' "$actual_count" "$expected_model"
+printf 'validated %s MiniMax Voices: Winston uses HD, others use %s\n' "$actual_count" "$expected_model"
 
 python3 scripts/test/check-eino-voices.py
