@@ -9,9 +9,11 @@ background and attributed mainstream-media commentary. “停一下” pauses,
 An interruption such as “刚才那条消息已经发生了吗？” receives a brief factual
 answer from the cached sources and recent narration. It keeps the topic and
 queue, performs no new search, and waits for “继续” before resuming playback.
-The host and test listener both use 周怀远 (Arthur), the male cast selected as
+The host uses 周怀远 (Arthur), the male cast selected as
 Forge's article narrator in Deploy's `aigc/settings/voice_cast.json`:
 `zh_male_ruyayichen_saturn_bigtts` with `seed-tts-2.0`.
+The test listener uses Deploy's female 米雅 (Mia) cast,
+`saturn_zh_female_keainvsheng_tob`, so the speakers are audibly distinct.
 
 Facts take most of the airtime. A media comment is explicitly attributed to its
 organization and date and kept to one or two sentences; reporting a quotation
@@ -104,7 +106,7 @@ the engine's SQL State/History tests and need deployed E2E verification.
 Smoke checks real search, continuous text/audio, source dates, replayable History
 and pause. Quality and soak add PTT/realtime ASR, resume and domain redirection.
 [`test-persona.yaml`](test-persona.yaml) is a second, finite listener Workflow
-bound only in `testing`, with the same Forge narrator voice. The host first
+bound only in `testing`, with the female listener voice. The host first
 asks what the listener wants. Its actual reply audio is sent to the persona;
 the persona generates an interest reply, and that reply's audio starts the news
 host. No topic reply is prerecorded in the Giztest. The persona then hears the
