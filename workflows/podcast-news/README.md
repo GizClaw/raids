@@ -119,8 +119,11 @@ The listener speaks like an ordinary person: the interest reply is at most
 12 characters, a single factual question at most 24, and an acknowledgment at
 most eight. It avoids repeating the news, listing listening requirements or
 summarizing the host's answer. A final script emits “继续” and “停一下” exactly
-for those control phases, preserving the model's other short replies. Both dialogue
-scenarios check these response lengths against actual model output.
+for those control phases, preserving the model's other short replies.
+If a model reply exceeds its phase's length bound, the script uses a complete
+short interest reply, source question or acknowledgment rather than truncating
+a sentence. Both dialogue scenarios check these response lengths against actual
+model output.
 With Giztest v0.31.8 or later, run the interruption scenario with
 `gizclaw test run tests/giztest/dialogue/podcast-news-question.eino.giztest.yaml --output /path/to/new-report-directory`
 to export a standalone HTML recording of the opening question and interest

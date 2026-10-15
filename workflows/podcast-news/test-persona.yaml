@@ -139,7 +139,14 @@ spec:
                   return {"reply": "继续。"}
               if mode == "结束收听":
                   return {"reply": "停一下。"}
-              return {"reply": input.get("answer", "").strip()}
+              answer = input.get("answer", "").strip()
+              limits = {"选择兴趣": 12, "新闻提问": 24, "回应回答": 8}
+              fallback = {"选择兴趣": "想听人工智能新闻。", "新闻提问": "刚才那条消息的来源是哪家？", "回应回答": "嗯，明白了。"}
+              # A prompt cannot guarantee a length bound. Use a complete short
+              # utterance instead of cutting a sentence or a proper name.
+              if mode in limits and (not answer or len(list(answer.codepoints())) > limits[mode]):
+                  answer = fallback[mode]
+              return {"reply": answer}
       edges:
       - {from: start, to: listener-prepare}
       - {from: listener-prepare, to: listener-prompt}
