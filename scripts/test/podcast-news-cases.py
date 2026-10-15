@@ -127,6 +127,15 @@ elif node == 'checkpoint-playback':
     case('empty-search-waits-instead-of-spinning',dict(bulletin=dict(batch,items=[]),keep_speaking=False),needs_search=False)
     covered=[dict(key='a',url=item('a')['url'],brief='概要a',day=day,facts=['概要a','新增事实a','概要b','新增事实b'])]
     case('covered-facts-are-not-pending-content',dict(bulletin=dict(batch,seen=covered),keep_speaking=True),needs_search=True)
+elif node == 'plan-prefetch':
+    def plan(bulletin, speaking=True, mode='逐条深入'):
+        return dict(bulletin=bulletin,prefetch=speaking,mode=mode,material='已取出的当前播报段')
+    case('more-cached-facts-disable-prefetch',plan(batch),needed=False,fetch='none')
+    case('missing-comments-with-cached-facts-disable-prefetch',plan(dict(batch,enriched=False)),needed=False,fetch='none')
+    case('reserved-last-section-enriches-in-parallel',plan(dict(batch,cursor=2,enriched=False)),needed=True,fetch='enrich')
+    case('reserved-last-section-scans-in-parallel',plan(dict(batch,cursor=2)),needed=True,fetch='scan')
+    for mode in ['暂停','回答提问','选择领域','暂无新增']:
+        case('finite-turn-never-prefetches-'+mode,plan(dict(batch,items=[]),False,mode),needed=False,fetch='none')
 elif node == 'select-section':
     overview = dict(batch, overview=True)
     seen = [{k:i[k] for k in ['key','title','url','brief']} | dict(day=day, facts=[i["brief"]]) for i in overview['items']]

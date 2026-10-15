@@ -179,7 +179,7 @@ require (
 )
 
 // The engine source matches the immutable CLI release used by repository CI.
-replace github.com/GizClaw/gizclaw-go => github.com/GizClaw/gizclaw-go v0.31.5
+replace github.com/GizClaw/gizclaw-go => github.com/GizClaw/gizclaw-go v0.31.7
 
 replace github.com/pion/sctp => github.com/GizClaw/pion-sctp v0.0.0-20260930221805-07dcddc21e92
 

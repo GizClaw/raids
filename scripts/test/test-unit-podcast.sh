@@ -7,7 +7,7 @@ require_command "$GIZCLAW"
 require_python_yaml
 cd "$root"
 python3 scripts/test/podcast-cases.py | scripts/test/test-starlark-routing.sh
-for node in prepare parse-collection merge-batch merge-enrichment select-section checkpoint-playback; do
+for node in prepare parse-collection merge-batch merge-enrichment select-section checkpoint-playback plan-prefetch; do
   python3 scripts/test/podcast-news-cases.py "$node" | scripts/test/test-starlark-routing.sh
 done
 python3 scripts/test/podcast-persona-cases.py | scripts/test/test-starlark-routing.sh

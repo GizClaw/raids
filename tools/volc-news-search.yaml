@@ -5,7 +5,7 @@ metadata:
 spec:
   type: http_request
   invoke_name: news_search
-  description: 为新闻播客一次取回10条报道或评论，供多次播放。仅当 Workflow State 标记 needs_search=true 且缓存中的未播新闻、事实和评论均耗尽时才调用。用户说继续本身不是检索理由；仍有未播内容时禁止调用，也不为缺少评论而提前检索。
+  description: 为新闻播客一次取回10条报道或评论，供多次播放。仅当 Workflow State 的 needs_search=true 且没有尚未安排播报的内容，或 prefetch-needed=true 表示已取出缓存最后一段并授权并行预取时调用。当前最后一段可以边播边搜；仍有后续缓存时禁止调用。用户说继续本身不是检索理由，也不为缺少评论而提前检索。
   input_schema:
     type: object
     properties:

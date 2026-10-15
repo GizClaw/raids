@@ -53,6 +53,7 @@ type newsModel struct {
 	questions    atomic.Int64
 	sections     atomic.Int64
 	blocked      chan struct{}
+	onDelivered  func(string)
 	once         sync.Once
 }
 
@@ -271,16 +272,21 @@ func runNewsUntilInterrupt(t *testing.T, f *fixture, m *newsModel, initial map[s
 	push(text)
 	var delivered strings.Builder
 	completed := 0
+	seenMessages := make(map[string]bool)
 	for completed < sections {
 		chunk, err := output.Next()
 		if err != nil {
 			t.Fatal(err)
 		}
-		if chunk.Ctrl != nil && chunk.Ctrl.MessageEnd {
-			completed++
-		}
 		if text, ok := chunk.Part.(genx.Text); ok {
 			delivered.WriteString(string(text))
+			if text != "" && chunk.Ctrl != nil && !seenMessages[chunk.Ctrl.MessageID] {
+				completed++
+				seenMessages[chunk.Ctrl.MessageID] = true
+			}
+			if m.onDelivered != nil {
+				m.onDelivered(string(text))
+			}
 		}
 	}
 	select {
@@ -326,7 +332,7 @@ func runNewsUntilInterrupt(t *testing.T, f *fixture, m *newsModel, initial map[s
 	return delivered.String()
 }
 
-func TestNewsPodcastDefersEnrichmentUntilAllCachedFactsAreSpoken(t *testing.T) {
+func TestNewsPodcastDoesNotPrefetchWhileOtherCachedSectionsRemain(t *testing.T) {
 	nonce := newsNonce(t)
 	day := (time.Now().UnixMilli() + 28800000) / 86400000
 	items, seen := []any{}, []any{}
@@ -338,8 +344,8 @@ func TestNewsPodcastDefersEnrichmentUntilAllCachedFactsAreSpoken(t *testing.T) {
 	initial := map[string]any{"topic": "科技新闻", "today": newsDate(), "day": day, "items": items, "cursor": 0, "overview": false, "enriched": false, "seen": seen}
 	m := &newsModel{query: "科技背景评论", blockScanAt: 1, blocked: make(chan struct{})}
 	f := &fixture{query: m.query, count: 10, searchResult: func(_ int, body map[string]any) any {
-		if m.sections.Load() != 2 || body["TimeRange"] != "OneWeek" {
-			t.Errorf("searched before cached facts were exhausted: sections=%d request=%v", m.sections.Load(), body)
+		if n := m.sections.Load(); n < 1 || n > 2 || body["TimeRange"] != "OneWeek" {
+			t.Errorf("prefetch ran before reserving the last cached section: sections=%d request=%v", n, body)
 		}
 		comment := hit("a", nonce, false)
 		comment.SiteName, comment.Content = "评论机构", "补充观点"+nonce
@@ -351,6 +357,56 @@ func TestNewsPodcastDefersEnrichmentUntilAllCachedFactsAreSpoken(t *testing.T) {
 		}
 	})
 	if f.requests != 1 || strings.Contains(output, "今日总览") || strings.Count(output, "新增事实"+nonce) != 2 || strings.Count(output, "补充观点"+nonce) != 1 {
+		t.Fatalf("searches=%d output=%s", f.requests, output)
+	}
+}
+
+func TestNewsPodcastPrefetchStartsBeforeCurrentPlaybackEnds(t *testing.T) {
+	nonce := newsNonce(t)
+	date := newsDate()
+	h := hit("a", nonce, true)
+	item := wireNewsItem(newsItem{Key: h.ID, Title: h.Title, Source: h.SiteName, Date: date, URL: h.URL, Brief: h.Snippet,
+		Details: []newsMaterial{{Text: "新增事实" + nonce + "a", Source: h.SiteName, Date: date, URL: h.URL}}})
+	initial := map[string]any{"topic": "科技新闻", "today": date, "day": (time.Now().UnixMilli() + 28800000) / 86400000,
+		"items": []any{item}, "cursor": 0, "overview": false, "enriched": true, "seen": []any{}}
+	entered, primaryDelivered := make(chan struct{}), make(chan struct{})
+	var release sync.Once
+	defer release.Do(func() { close(primaryDelivered) })
+	m := &newsModel{query: "并行预取新闻", blockScanAt: 2, blocked: make(chan struct{})}
+	m.onDelivered = func(text string) {
+		if strings.Contains(text, "新增事实"+nonce+"a") {
+			// Keep the consumer on this section rather than acknowledging its
+			// MessageEnd. Refilling only after playback completes deadlocks here.
+			select {
+			case <-entered:
+			case <-time.After(3 * time.Second):
+				t.Error("prefetch waited for the current playback to finish")
+			}
+			release.Do(func() { close(primaryDelivered) })
+		}
+	}
+	f := &fixture{query: m.query, count: 10, searchResult: func(_ int, body map[string]any) any {
+		close(entered)
+		// A search-before-narration graph cannot publish primary text while
+		// this response waits; both the reply and HTTP must make progress.
+		select {
+		case <-primaryDelivered:
+		case <-time.After(3 * time.Second):
+			t.Error("primary delivery waited for the background HTTP response")
+		}
+		if body["TimeRange"] != "OneDay" {
+			t.Errorf("prefetch range=%v", body)
+		}
+		return map[string]any{"WebResults": []newsHit{hit("b", nonce, true)}}
+	}}
+	output := runNewsUntilInterrupt(t, f, m, initial, 3, "继续", func(snapshot genxeino.StateSnapshot) {
+		b := snapshot.Fields["bulletin"].(map[string]any)
+		receipt, ok := b["prefetch_receipt"].(map[string]any)
+		if !ok || receipt["kind"] != "scan" || receipt["remaining_after_reservation"] != int64(0) {
+			t.Errorf("prefetch completion was not checkpointed: %v", b)
+		}
+	})
+	if f.requests != 1 || strings.Count(output, "新增事实"+nonce+"a") != 1 || strings.Count(output, "新增事实"+nonce+"b") != 1 {
 		t.Fatalf("searches=%d output=%s", f.requests, output)
 	}
 }

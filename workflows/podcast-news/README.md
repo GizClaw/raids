@@ -49,13 +49,30 @@ The graph separates collection from public narration:
 3. **Explore:** reuse cached additional facts and attributed comments, one event
    per section, keeping unspoken cached facts for later sections of the same
    story. Each section consumes at most two facts and one attributed comment.
-   Missing media commentary does not authorize a new search while any cached
-   facts or comments remain. After all cached material is consumed, supplement
+   Missing media commentary does not authorize a new search while later cached
+   sections remain. When the final section has been reserved for playback, supplement
    the whole batch at most once with ten `OneWeek` results if commentary is
    missing. New enrichment rewinds the cursor; the fact ledger excludes all
    already-spoken material. Never search once per section or cached event.
-4. **Refill:** scan again only after consuming the queue. Previously covered
+4. **Refill:** reserve the final cached section, then prepare the next batch
+   while that section's audio is playing. Previously covered
    events and facts remain excluded across batches and changes of domain.
+
+`plan-prefetch` checks the queue after reserving the current section. If any
+later overview, fact or comment remains, `prefetch-needed` stays false. An empty
+remainder enables one batch refill; saying “继续” does not itself enable it.
+The narrator streams text into the existing voice pipeline first. As soon as
+that section's text is complete, the refill runs while its generated audio is
+still playing. Collection uses separate messages, result and bulletin fields;
+only the narrator is published as assistant speech. The completed refill is
+merged before the next delivered-generation checkpoint. Its `prefetch_receipt`
+records the reserved material, zero remaining backlog and collection times.
+
+This is playback overlapping a refill within one Graph invocation. The Graph
+waits for the refill before advancing its checkpoint; a search slower than the
+remaining audio can still leave a gap. Interruption cancels an unfinished refill
+and preserves the last delivered checkpoint. Pause and factual answers do not
+start background collection.
 
 The queue rejects duplicate normalized event identifiers, canonical article
 URLs (including tracking variants), and identical brief content. A separate
@@ -89,8 +106,10 @@ Changing domains resets the queue while preserving the ledger.
 
 The controller checks actual unspoken overview/details/comments, not just the
 number of queued events. `prepare` enables a collection branch only when there
-is no pending material. `select-section` disables search during narration, and
-`checkpoint-playback` updates the next-generation flag after narration. The
+is no pending material. `select-section` disables foreground search during
+narration; `plan-prefetch` separately authorizes a refill only after reserving
+the last section. `checkpoint-playback` updates the next-generation flag after
+narration and refill. The
 runtime commits that flag, phase and cursor together after successful delivery.
 Pause, factual answers and an empty result leave automatic search disabled.
 Model and Voice slots are
@@ -109,6 +128,10 @@ bounded Tool budget per generation, also released in v0.31.7. The Workflow
 requires v0.31.7 or later. Bounded playback and dialogue acceptance remain
 separate from qualification of durable original-queue recovery and unlimited
 operation.
+
+The local text/HTTP contract module pins v0.31.7, including the delivered-State
+fix. Giztest validation and recording use the separately selected CLI release;
+the long-test runner uses the v0.33.2 build described below.
 
 ## Tests
 
