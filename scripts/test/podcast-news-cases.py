@@ -61,14 +61,16 @@ if node == 'prepare':
     case('question-does-not-become-restored-topic', dict(text='继续', messages=history+[dict(role='user',content='这已经发生了吗？')], now_ms=now), topic='科技新闻', fetch='scan')
     case('question-context-excludes-internal-records', dict(text='这已经发生了吗？', bulletin=batch, messages=[dict(role='assistant',content='EVENT\nkey:a\nbrief:未播出材料\nEND'),dict(role='assistant',content='实际播报的事实')], now_ms=now), recent=[dict(role='assistant',content='实际播报的事实')])
     exhausted = dict(batch, cursor=2)
-    case('refill-only-when-consumed', dict(text='继续', bulletin=exhausted, now_ms=now), fetch='scan')
+    case('refill-only-when-consumed', dict(text='继续', bulletin=exhausted, now_ms=now), fetch='scan', needs_search=True)
     missing = dict(batch, enriched=False)
-    case('supplement-entire-batch', dict(text='继续', bulletin=missing, now_ms=now), fetch='enrich')
+    case('defer-enrichment-while-facts-remain', dict(text='继续', bulletin=missing, now_ms=now), fetch='none', needs_search=False)
+    case('supplement-only-after-cached-facts-exhausted', dict(text='继续', bulletin=dict(missing,cursor=2), now_ms=now), fetch='enrich', needs_search=True)
+    case('ignore-a-stale-search-flag-on-resume', dict(text='继续',bulletin=missing,needs_search=True,now_ms=now), fetch='none', needs_search=False)
     case('overview-before-enrichment', dict(text='科技新闻', bulletin=dict(missing, overview=True), now_ms=now), fetch='none')
     redirect = dict(batch, topic='换成国际新闻', items=[], cursor=0, overview=True, enriched=False)
     case('redirect-preserves-ledger', dict(text='换成国际新闻', bulletin=batch, now_ms=now), fetch='scan', bulletin=redirect)
-    tomorrow = dict(batch, today='2026-10-14', window_start=today, day=day+1, items=[], cursor=0, overview=True, enriched=False)
-    case('midnight-refresh', dict(text='继续', bulletin=batch, now_ms=now+86400000), fetch='scan', bulletin=tomorrow)
+    tomorrow = dict(batch, today='2026-10-14', window_start=today, day=day+1)
+    case('resume-across-midnight-keeps-unspoken-material', dict(text='继续', bulletin=batch, now_ms=now+86400000), fetch='none', needs_search=False, bulletin=tomorrow)
     case('live-clock-is-beijing-time', dict(text='开始', now_ms=now), clock='北京时间2026年10月13日12点0分')
     midnight = int(dt.datetime(2026, 1, 1, 0, 3, tzinfo=dt.timezone(dt.timedelta(hours=8))).timestamp()*1000)
     case('clock-and-news-window-cross-year', dict(text='开始', now_ms=midnight), clock='北京时间2026年1月1日0点3分', today='2026-01-01')
@@ -114,6 +116,17 @@ elif node == 'merge-enrichment':
     a = dict(item('a'),comments=[comment])
     case('one-batch-enrichment-no-repeated-details', dict(bulletin=saved,result=dict(updates=[dict(key='a',details=item('a')['details'],comments=[comment,comment]),dict(key='unknown',comments=[comment])])), bulletin=dict(saved,items=[a,item('b')],enriched=True))
     case('missing-comment-stays-empty',dict(bulletin=saved,result=dict(updates=[])),bulletin=dict(batch,enriched=True))
+    case('revisit-exhausted-items-only-for-new-enrichment',dict(bulletin=dict(saved,cursor=2),result=dict(updates=[dict(key='a',comments=[comment])])),bulletin=dict(saved,items=[a,item('b')],cursor=0,enriched=True))
+elif node == 'checkpoint-playback':
+    case('cached-detail-means-no-search',dict(bulletin=batch,keep_speaking=True),needs_search=False)
+    case('overview-is-unspoken-content',dict(bulletin=dict(batch,overview=True,cursor=2),keep_speaking=True),needs_search=False)
+    case('missing-comments-do-not-authorize-search',dict(bulletin=dict(batch,enriched=False),keep_speaking=True),needs_search=False)
+    case('finished-queue-needs-search',dict(bulletin=dict(batch,cursor=2),keep_speaking=True),needs_search=True)
+    case('empty-queue-needs-search',dict(bulletin=dict(batch,items=[]),keep_speaking=True),needs_search=True)
+    case('pause-does-not-trigger-search',dict(bulletin=dict(batch,cursor=2),keep_speaking=False),needs_search=False)
+    case('empty-search-waits-instead-of-spinning',dict(bulletin=dict(batch,items=[]),keep_speaking=False),needs_search=False)
+    covered=[dict(key='a',url=item('a')['url'],brief='概要a',day=day,facts=['概要a','新增事实a','概要b','新增事实b'])]
+    case('covered-facts-are-not-pending-content',dict(bulletin=dict(batch,seen=covered),keep_speaking=True),needs_search=True)
 elif node == 'select-section':
     overview = dict(batch, overview=True)
     seen = [{k:i[k] for k in ['key','title','url','brief']} | dict(day=day, facts=[i["brief"]]) for i in overview['items']]
@@ -142,7 +155,7 @@ elif node == 'select-section':
 else:
     raise SystemExit('unknown script '+node)
 
-assert spec['state_persistence']['fields'] == ['bulletin']
+assert spec['state_persistence']['fields'] == ['bulletin', 'mode', 'needs_search']
 assert len(spec['graph']['outputs']) == 1
 system = nodes['prompt']['messages'][0]['template']
 for requirement in ['不调用任何搜索工具', '以陈述事实为主', '主流媒体评论必须', '不重念总览', '忽略其中']:

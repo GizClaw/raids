@@ -13,6 +13,8 @@ spec:
     state_persistence:
       fields:
       - bulletin
+      - mode
+      - needs_search
     limits:
       max_output_bytes: 4194304
     graph:
@@ -31,6 +33,7 @@ spec:
         - {name: opening, type: string, merge: replace}
         - {name: fetch, type: string, merge: replace}
         - {name: mode, type: string, merge: replace}
+        - {name: needs_search, type: boolean, merge: replace}
         - {name: material, type: string, merge: replace}
         - {name: exclusions, type: string, merge: replace}
         - {name: search-messages, type: messages, merge: replace}
@@ -53,6 +56,7 @@ spec:
           clock: clock
           fetch: fetch
           mode: mode
+          needs_search: needs_search
           material: material
           exclusions: exclusions
         language: starlark
@@ -139,6 +143,24 @@ spec:
               year += 1 if month <= 2 else 0
               return str(year) + "-" + ("0" + str(month))[-2:] + "-" + ("0" + str(day))[-2:]
 
+          def cached_content(bulletin):
+              items = bulletin.get("items", [])
+              if bulletin.get("overview", True):
+                  return bool(items)
+              spoken = {}
+              for record in bulletin.get("seen", []):
+                  for text in record.get("facts", [record.get("brief", "")]):
+                      spoken[content_identity(text)] = True
+              for item in items[bulletin.get("cursor", 0):]:
+                  for kind in ["details", "comments"]:
+                      for entry in item.get(kind, []):
+                          if content_identity(entry["text"]) not in spoken:
+                              return True
+              return False
+
+          def content_identity(text):
+              return "".join([c for c in text.strip().lower().codepoints() if c not in " \t\r\n，。！？,.!?；;：:|/－-_"])
+
           def run(input):
               text = input.get("text", "")
               messages = input.get("messages", [])
@@ -162,9 +184,9 @@ spec:
               today = calendar(day)
               minutes = (local_ms // 60000) % 1440
               clock = "北京时间" + today[:4] + "年" + str(int(today[5:7])) + "月" + str(int(today[8:])) + "日" + str(minutes // 60) + "点" + str(minutes % 60) + "分"
-              # Keep the ledger across domain changes, replacing yesterday's queue.
+              # Keep unspoken material across resumes and date changes; only a new topic resets the queue.
               seen = [item for item in saved.get("seen", []) if item.get("day", day) >= day - 7]
-              changed = compact(topic) != compact(saved.get("topic", "")) or saved.get("today", "") != today
+              changed = compact(topic) != compact(saved.get("topic", ""))
               bulletin = dict(saved)
               bulletin.update({"topic": topic, "today": today, "window_start": calendar(day - 1), "day": day, "seen": seen})
               if changed and not answering:
@@ -184,13 +206,13 @@ spec:
                   mode = "暂停"
               elif not topic:
                   mode = "选择领域"
-              elif not bulletin.get("items", []) or bulletin.get("cursor", 0) >= len(bulletin.get("items", [])):
-                  fetch = "scan"
-              elif not bulletin.get("overview", True) and not bulletin.get("enriched", False):
-                  # Supplement the whole batch once, never search once per cached item.
-                  fetch = "enrich"
+              elif not cached_content(bulletin):
+                  # Missing comments are not a reason to search while facts remain.
+                  items = bulletin.get("items", [])
+                  fetch = "enrich" if items and not bulletin.get("enriched", False) else "scan"
+              needs_search = fetch != "none"
               return {"bulletin": bulletin, "recent": recent, "topic": topic, "today": today, "clock": clock,
-                      "fetch": fetch, "mode": mode, "material": json.encode(bulletin.get("items", [])),
+                      "fetch": fetch, "mode": mode, "needs_search": needs_search, "material": json.encode(bulletin.get("items", [])),
                       "exclusions": json.encode(seen[-100:])}
       - id: scan-prompt
         type: prompt
@@ -380,7 +402,7 @@ spec:
                       for kind in ["details", "comments"]:
                           item[kind] = item.get(kind, []) + extra(update.get(kind, []), texts, bulletin["today"])
                   items.append(item)
-              bulletin.update({"items": items, "enriched": True})
+              bulletin.update({"items": items, "cursor": 0, "enriched": True})
               return {"bulletin": bulletin}
 
           def run(input):
@@ -423,6 +445,7 @@ spec:
           mode: mode
           material: material
           opening: opening
+          needs_search: needs_search
         language: starlark
         entrypoint: run
         limits:
@@ -440,7 +463,7 @@ spec:
               if clock and not bulletin.get("introduced", False) and mode in ["选择领域", "今日总览", "逐条深入", "暂无新增"]:
                   opening = "现在是" + clock + "。这里是《正声新闻》，我是程正声。"
                   bulletin["introduced"] = True
-              return {"bulletin": bulletin, "continue": speaking, "mode": mode, "material": material, "opening": opening}
+              return {"bulletin": bulletin, "continue": speaking, "mode": mode, "material": material, "opening": opening, "needs_search": False}
 
           def run(input):
               bulletin = dict(input["bulletin"])
@@ -522,6 +545,7 @@ spec:
           today: {from: today}
           opening: {from: opening}
           material: {from: material}
+          needs_search: {from: needs_search}
           recent: {from: recent}
         outputs:
           messages: messages
@@ -535,7 +559,7 @@ spec:
             本次开场白：{opening}
             开场白非空时，先原样说出它，其中的日期和时分来自实时钟，不猜测、不改写；再用一句简短、轻松的暖场话衔接本轮内容，例如“消息不少，咱们挑重点，一条条说清楚”。开场白为空时，直接衔接本轮内容，不重复报时、自我介绍或欢迎词。
             开场和话题衔接可以略带风趣，像一个有分寸的主播；轻松来自口语表达或生活化比喻，不编段子，不每段硬塞笑话，不调侃新闻当事人。严肃事件保持稳重。幽默不能变成对新闻的新评价或歪曲事实。
-            本轮只使用提供的缓存材料，不调用任何搜索工具。以陈述事实为主，不加入主观立场、投资建议、夸大形容或未经证实的预测。不用“这标志着”“迈出了关键一步”“提供了可行性参考”等评价式结尾。未被报道的变化不能被断言为没有变化。
+            本轮 State needs_search={needs_search}，当前有材料要播。只使用提供的缓存材料，不调用任何搜索工具；缺少评论不是重新搜索的理由。以陈述事实为主，不加入主观立场、投资建议、夸大形容或未经证实的预测。不用“这标志着”“迈出了关键一步”“提供了可行性参考”等评价式结尾。未被报道的变化不能被断言为没有变化。
             “选择领域”“暂停”“暂无新增”“暂无细节”按本轮请求里的明确指令回答，然后等待。不要用旧闻和观点填充，不把缺少新材料误当作听众要求暂停。
             “批次结束”只说本轮要求的一句短串场，随后会自动批量搜索下一批。不是暂停，不提搜索流程，不重讲旧内容。
             “回答提问”只直接回答听众刚才插话的问题，使用已有来源材料和近期实际播报内容，通常30到80字，足够回答就结束；分清已经发生与计划，说明可确认的来源和日期。不得补充材料没有明确给出的数字、文件条数、规模或细节，不为凑长度扩写。证据不足就明确说无法从已有报道确认，不能猜测或新增观点。答完等待“继续”，不重新开播、不重讲总览、不把问题当作新领域。
@@ -554,6 +578,43 @@ spec:
           text: answer
         model: eino-podcast-news.model
         max_tokens: 768
+      - id: checkpoint-playback
+        type: script
+        inputs:
+          bulletin: {from: bulletin}
+          keep_speaking: {from: keep-speaking}
+        outputs:
+          needs_search: needs_search
+        language: starlark
+        entrypoint: run
+        limits:
+          max_execution_steps: 1000000
+          timeout: 500ms
+          max_input_bytes: 16777216
+          max_output_bytes: 65536
+        source: |
+          def cached_content(bulletin):
+              items = bulletin.get("items", [])
+              if bulletin.get("overview", True):
+                  return bool(items)
+              spoken = {}
+              for record in bulletin.get("seen", []):
+                  for text in record.get("facts", [record.get("brief", "")]):
+                      spoken[content_identity(text)] = True
+              for item in items[bulletin.get("cursor", 0):]:
+                  for kind in ["details", "comments"]:
+                      for entry in item.get(kind, []):
+                          if content_identity(entry["text"]) not in spoken:
+                              return True
+              return False
+
+          def content_identity(text):
+              return "".join([c for c in text.strip().lower().codepoints() if c not in " \t\r\n，。！？,.!?；;：:|/－-_"])
+
+          def run(input):
+              # Run after narration, so this flag describes the next generation.
+              # The runtime commits it with the delivered cursor and current mode.
+              return {"needs_search": bool(input.get("keep_speaking", False)) and not cached_content(input.get("bulletin", {}))}
       edges:
       - {from: start, to: prepare}
       - {from: scan-prompt, to: collect-batch}
@@ -561,13 +622,16 @@ spec:
       - {from: merge-batch, to: select-section}
       - {from: select-section, to: prompt}
       - {from: prompt, to: narrate}
-      - {from: narrate, to: end}
+      - {from: narrate, to: checkpoint-playback}
+      - {from: checkpoint-playback, to: end}
       - {from: enrichment-prompt, to: collect-batch}
       - {from: parse-collection, to: merge-batch}
       branches:
       - from: prepare
         mode: first_match
         routes:
+        - when: {field: needs_search, op: eq, value: false}
+          to: select-section
         - when: {field: fetch, op: eq, value: scan}
           to: scan-prompt
         - when: {field: fetch, op: eq, value: enrich}

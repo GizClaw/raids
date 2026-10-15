@@ -49,10 +49,11 @@ The graph separates collection from public narration:
 3. **Explore:** reuse cached additional facts and attributed comments, one event
    per section, keeping unspoken cached facts for later sections of the same
    story. Each section consumes at most two facts and one attributed comment.
-   If any story lacks a sourced media comment, supplement the whole
-   batch
-   once with ten `OneWeek` results. Never search once per playback section or
-   once per cached event.
+   Missing media commentary does not authorize a new search while any cached
+   facts or comments remain. After all cached material is consumed, supplement
+   the whole batch at most once with ten `OneWeek` results if commentary is
+   missing. New enrichment rewinds the cursor; the fact ledger excludes all
+   already-spoken material. Never search once per section or cached event.
 4. **Refill:** scan again only after consuming the queue. Previously covered
    events and facts remain excluded across batches and changes of domain.
 
@@ -75,9 +76,20 @@ automatically and is interruptible throughout.
 ## State and engine requirements
 
 `bulletin` persists the topic, cached stories, cursor and seven days of covered
-event/fact identities in the Workspace's Eino State store. Yesterday's remaining
-queue is refreshed on the next iteration. Changing domains resets the queue
-while preserving that ledger. Model and Voice slots are
+event/fact identities in the Workspace's Eino State store. `mode` records the
+current playback/control phase, and `needs_search` records whether the next
+generation needs more material. A resume reads the remaining queue; neither
+“继续”, a missing comment nor crossing midnight resets usable material or
+permits a search. Original source dates remain attached to that cached news.
+Changing domains resets the queue while preserving the ledger.
+
+The controller checks actual unspoken overview/details/comments, not just the
+number of queued events. `prepare` enables a collection branch only when there
+is no pending material. `select-section` disables search during narration, and
+`checkpoint-playback` updates the next-generation flag after narration. The
+runtime commits that flag, phase and cursor together after successful delivery.
+Pause, factual answers and an empty result leave automatic search disabled.
+Model and Voice slots are
 `eino-podcast-news.model` and `eino-podcast-news.host`; PTT/realtime ASR select
 `asr` from the Profile. Playback and History follow the
 [continuous podcast contract](../podcast/README.md#continuous-playback-and-history).
@@ -104,11 +116,12 @@ make test-e2e RAID=podcast-news TIER=soak
 ```
 
 The unmodified Starlark scripts cover control, batch depletion, enrichment,
-midnight refresh, date validation, event/URL/fact deduplication and restoration.
+resume across midnight, date validation, event/URL/fact deduplication and restoration.
 Native Eino executes the shipped Graph through the Profile catalog and real HTTP
 executor with unpredictable fixture news. Contracts verify one search for an
 overview plus three deep dives, refill only after exhaustion, cross-batch dedup,
-one batch enrichment with attributed comments, interruption, and restoration
+enrichment deferred until all cached facts have been spoken, persisted control
+phase/search permission, attributed comments, interruption, and restoration
 of a remaining queue with no search or repeated overview. The restoration test
 starts from an existing snapshot; actual per-generation State commits belong to
 the engine's SQL State/History tests and need deployed E2E verification.

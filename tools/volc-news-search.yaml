@@ -5,7 +5,7 @@ metadata:
 spec:
   type: http_request
   invoke_name: news_search
-  description: 为新闻播客一次搜索一批报道或评论，返回10条网页的标题、站点、发布时间、摘要和正文。只在一批新闻耗尽或需要批量补充深入材料时调用；缓存新闻逐条播报时不调用。
+  description: 为新闻播客一次取回10条报道或评论，供多次播放。仅当 Workflow State 标记 needs_search=true 且缓存中的未播新闻、事实和评论均耗尽时才调用。用户说继续本身不是检索理由；仍有未播内容时禁止调用，也不为缺少评论而提前检索。
   input_schema:
     type: object
     properties:

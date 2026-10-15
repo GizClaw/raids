@@ -51,6 +51,7 @@ type newsModel struct {
 	interruption string
 	scans        atomic.Int64
 	questions    atomic.Int64
+	sections     atomic.Int64
 	blocked      chan struct{}
 	once         sync.Once
 }
@@ -175,6 +176,7 @@ func (m *newsModel) Stream(ctx context.Context, input []*schema.Message, opts ..
 	for _, comment := range item.Comments {
 		text += comment.Source + comment.Date + "的评论认为，" + comment.Text + "。"
 	}
+	m.sections.Add(1)
 	return reply(text)
 }
 func wireNewsItem(item newsItem) map[string]any {
@@ -227,7 +229,7 @@ func hit(key, nonce string, details bool) newsHit {
 	return h
 }
 
-func runNewsUntilInterrupt(t *testing.T, f *fixture, m *newsModel, initial map[string]any, sections int, text string) string {
+func runNewsUntilInterrupt(t *testing.T, f *fixture, m *newsModel, initial map[string]any, sections int, text string, inspect ...func(genxeino.StateSnapshot)) string {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
@@ -308,7 +310,59 @@ func runNewsUntilInterrupt(t *testing.T, f *fixture, m *newsModel, initial map[s
 	if strings.Contains(delivered.String(), "EVENT\n") || strings.Contains(delivered.String(), "FACT|") || strings.Contains(delivered.String(), "COMMENT|") {
 		t.Fatal("internal collection records leaked into narration")
 	}
+	if len(inspect) > 0 {
+		snapshot, err := state.Load(ctx, "news-contract")
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, check := range inspect {
+			check(snapshot)
+		}
+	}
 	return delivered.String()
+}
+
+func TestNewsPodcastDefersEnrichmentUntilAllCachedFactsAreSpoken(t *testing.T) {
+	nonce := newsNonce(t)
+	day := (time.Now().UnixMilli() + 28800000) / 86400000
+	items, seen := []any{}, []any{}
+	for _, key := range []string{"a", "b"} {
+		h := hit(key, nonce, true)
+		items = append(items, wireNewsItem(newsItem{Key: h.ID, Title: h.Title, Source: h.SiteName, Date: newsDate(), URL: h.URL, Brief: h.Snippet, Details: []newsMaterial{{Text: "新增事实" + nonce + key, Source: h.SiteName, Date: newsDate(), URL: h.URL}}}))
+		seen = append(seen, map[string]any{"key": h.ID, "url": h.URL, "brief": h.Snippet, "day": day, "facts": []any{h.Snippet}})
+	}
+	initial := map[string]any{"topic": "科技新闻", "today": newsDate(), "day": day, "items": items, "cursor": 0, "overview": false, "enriched": false, "seen": seen}
+	m := &newsModel{query: "科技背景评论", blockScanAt: 1, blocked: make(chan struct{})}
+	f := &fixture{query: m.query, count: 10, searchResult: func(_ int, body map[string]any) any {
+		if m.sections.Load() != 2 || body["TimeRange"] != "OneWeek" {
+			t.Errorf("searched before cached facts were exhausted: sections=%d request=%v", m.sections.Load(), body)
+		}
+		comment := hit("a", nonce, false)
+		comment.SiteName, comment.Content = "评论机构", "补充观点"+nonce
+		return map[string]any{"WebResults": []newsHit{comment}}
+	}}
+	output := runNewsUntilInterrupt(t, f, m, initial, 3, "继续", func(snapshot genxeino.StateSnapshot) {
+		if snapshot.Fields["mode"] != "暂停" || snapshot.Fields["needs_search"] != false {
+			t.Errorf("playback control and search permission were not persisted: %v", snapshot.Fields)
+		}
+	})
+	if f.requests != 1 || strings.Contains(output, "今日总览") || strings.Count(output, "新增事实"+nonce) != 2 || strings.Count(output, "补充观点"+nonce) != 1 {
+		t.Fatalf("searches=%d output=%s", f.requests, output)
+	}
+}
+
+func TestNewsPodcastResumeAcrossDateChangeUsesRemainingQueue(t *testing.T) {
+	nonce := newsNonce(t)
+	yesterday := time.Now().In(time.FixedZone("Beijing", 8*3600)).AddDate(0, 0, -1)
+	h := hit("a", nonce, false)
+	item := wireNewsItem(newsItem{Key: h.ID, Title: h.Title, Source: h.SiteName, Date: yesterday.Format("2006-01-02"), URL: h.URL, Brief: h.Snippet, Details: []newsMaterial{{Text: "剩余事实" + nonce, Source: h.SiteName, Date: yesterday.Format("2006-01-02"), URL: h.URL}}})
+	initial := map[string]any{"topic": "科技新闻", "today": yesterday.Format("2006-01-02"), "day": (yesterday.UnixMilli() + 28800000) / 86400000, "items": []any{item}, "cursor": 0, "overview": false, "enriched": true, "seen": []any{}}
+	f := &fixture{query: "must-not-search", count: 10}
+	m := &newsModel{query: f.query, blockScanAt: 1, blocked: make(chan struct{})}
+	output := runNewsUntilInterrupt(t, f, m, initial, 1, "继续")
+	if f.requests != 0 || strings.Contains(output, "今日总览") || strings.Count(output, "剩余事实"+nonce) != 1 {
+		t.Fatalf("date change triggered a search instead of resuming: searches=%d output=%s", f.requests, output)
+	}
 }
 
 func TestNewsPodcastQuestionInterruptsAndKeepsCachedSourcesWithoutSearch(t *testing.T) {
