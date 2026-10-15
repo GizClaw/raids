@@ -70,10 +70,12 @@ spec:
                       if command(previous) in ["继续", "接着讲"]:
                           # A fresh listening interval follows the latest resume.
                           recovered = 1
-                      elif any([mark in previous for mark in ["？", "?", "想确认", "先回答"]]) and not any([mark in previous for mark in ["想听", "感兴趣", "更关注"]]):
-                          recovered = max(recovered, 2)
                       elif any([mark in previous for mark in ["想听", "感兴趣", "更关注", "给我播", "听点", "来点", "先听"]]):
                           recovered = max(recovered, 1)
+                      elif (recovered == 1 and previous.strip() and len(list(previous.codepoints())) <= 24) or any([mark in previous for mark in ["？", "?", "想确认", "先回答", "重复", "再说", "没听清", "听不清", "重讲", "重说"]]):
+                          # A short listener follow-up after choosing or resuming
+                          # also includes punctuation-free clarification requests.
+                          recovered = max(recovered, 2)
               if recovered:
                   turn = recovered
               compact = command(text)

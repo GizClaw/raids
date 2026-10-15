@@ -44,6 +44,9 @@ case('recover-a-short-colloquial-interest-reply', {'text': '报道说模型已�
 resumed = [{'role': 'assistant', 'content': '我想听人工智能新闻。'}, {'role': 'assistant', 'content': '模型发布了吗？'}, {'role': 'assistant', 'content': '哦，明白。'}, {'role': 'assistant', 'content': '继续。'}]
 case('ask-about-the-new-resumed-broadcast', {'text': '另一机构的探测器已经着陆。', 'listener': {'turn': 1}, 'messages': resumed}, '新闻提问', 2)
 case('acknowledge-the-second-answer', {'text': '探测器已经完成着陆。', 'listener': {'turn': 2}, 'messages': resumed+[{'role': 'assistant', 'content': '探测器已经着陆了吗？'}]}, '回应回答', 3)
+case('acknowledge-a-repeated-live-broadcast', {'text': '好，我再重复一遍刚才的新闻。', 'listener': {'turn': 2}, 'messages': resumed+[{'role': 'assistant', 'content': '请重复一遍。'}]}, '回应回答', 3)
+case('recover-a-clarification-without-a-checkpoint', {'text': '好，再说一下这条消息。', 'messages': [{'role': 'assistant', 'content': '请重复一遍。'}]}, '回应回答', 3)
+case('recover-a-punctuation-free-followup-after-resume', {'text': '报道说的是下个月才发售。', 'listener': {'turn': 2}, 'messages': resumed+[{'role': 'assistant', 'content': '这是已经发售了吧。'}]}, '回应回答', 3)
 case('use-the-recent-broadcast-tail', {'text': '早先的报道。'*150+'刚收到的新闻，探测器已着陆。', 'listener': {'turn': 1}}, '新闻提问', 2, heard=('早先的报道。'*150+'刚收到的新闻，探测器已着陆。')[-600:].split('。',1)[1])
 assert spec['state_persistence']['fields'] == ['listener']
 assert spec['graph']['outputs'][0]['name'] == 'assistant'

@@ -167,6 +167,9 @@ requires another 120 seconds of continuous narration. It extracts and
 transcribes that capture's new 20-second tail, then performs a second generated
 question, host answer and acknowledgment. The persona's resume phase rearms
 question generation, so the second question uses the newly received news.
+History recovery counts a short follow-up after resuming even without a question
+mark, including “请重复一遍”. The response to that clarification is acknowledged
+in the answer phase rather than incorrectly starting another question phase.
 After a second spoken “继续”, another 60-second narration window is required.
 It then sends the persona's spoken “停一下” and checks
 that playback stays quiet. Text relay exposes per-client text metrics and
