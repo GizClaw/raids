@@ -105,7 +105,7 @@ variables:
     direction: output
     type: string
 repeat: 1
-timeout: 20m
+timeout: 25m
 steps:
 - id: podcast_register
   client: podcast
@@ -223,7 +223,7 @@ steps:
     /audio_integrity/violations:
       equals: 0
 - id: continuous_news
-  timeout: 270s
+  timeout: 300s
   capture:
     heard_news_audio: /audio
     live_news_window: ''
@@ -244,11 +244,11 @@ steps:
     /audio_bytes:
       minimum: 1
     /last_event_ms:
-      minimum: 205000
+      minimum: 235000
   client: podcast
   peer_stream:
     mode: listen
-    duration: 210s
+    duration: 240s
 - id: first_start_tail_transcription
   client: persona
   timeout: 10s
@@ -454,13 +454,13 @@ steps:
       contains_all:
       - 继续
 - id: resume_after_second_question
-  timeout: 120s
+  timeout: 360s
   parallel:
   - id: hear_second_resume_news
     client: podcast
     peer_stream:
       mode: listen
-      duration: 60s
+      duration: 300s
   - id: start_second_resume_news
     client: podcast
     delay: 250ms
@@ -482,7 +482,7 @@ steps:
     /hear_second_resume_news/audio_bytes:
       minimum: 1
     /hear_second_resume_news/last_event_ms:
-      minimum: 55000
+      minimum: 295000
     /start_second_resume_news/transcript:
       contains_all:
       - 继续

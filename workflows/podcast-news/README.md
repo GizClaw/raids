@@ -66,8 +66,12 @@ parameters such as article IDs are preserved. Search relevance order is not
 chronological order, so primary report dates are checked against today's and
 yesterday's Beijing dates, with today's reports first.
 
-The overview is about 200–300 Chinese characters; each deeper section is about
-150–200. Exhausted details produce a short transition and trigger the next
+The overview is 200–300 Chinese characters, with a 300-character ceiling; each
+deeper section is at most 200 and may be shorter when the facts are brief.
+Each generation receives its own stage and ending instruction, so an overview
+finishes before later generations explore individual stories. The model's
+1,536-token budget leaves room for complete sentences without joining stages
+into one response. Exhausted details produce a short transition and trigger the next
 batch scan. If that scan has no reliable new news, playback waits for new
 listener input rather than filling airtime with repetition or fabricated
 content. A batch with usable content continues
@@ -165,7 +169,7 @@ PTT speed, which would leave a second welcome-length gap in the conversation.
 This opening tests streamed dialogue rather than PTT recognition of the topic
 choice; spoken resume and stop retain their actual audio/PTT handoffs.
 The startup check catches a failed search or misclassified interest reply before
-the long listening window. One receiving stream then stays open for 210 seconds
+the long listening window. One receiving stream then stays open for 240 seconds
 and records all narration audio. Natural choices
 such as “就听科技新闻” are normalized before topic classification.
 A loopback audio-tail bridge decodes that same
@@ -191,7 +195,7 @@ question generation, so the second question uses the newly received news.
 History recovery counts a short follow-up after resuming even without a question
 mark, including “请重复一遍”. The response to that clarification is acknowledged
 in the answer phase rather than incorrectly starting another question phase.
-After a second spoken “继续”, another 60-second narration window is required.
+After a second spoken “继续”, another 300-second narration window is required.
 It then sends the persona's spoken “停一下” and checks
 that playback stays quiet. Text relay exposes per-client text metrics and
 whole-relay audio bytes; it has no per-client audio-byte assertion fields.
@@ -208,12 +212,13 @@ Giztest starts an asynchronous `/tail/start` job, keeps recording the host for
 Peer uses only speech RPC, has no Workflow, and is deleted during finalization.
 Continuous recording across receive windows requires a Go CLI containing the
 active-Opus bootstrap fix in [GizClaw #1537](https://github.com/GizClaw/gizclaw/pull/1537).
-The test build uses v0.33.1 plus that unreleased client fix. The recording
+The long-test build uses v0.33.2 plus that unreleased client fix, explicitly
+versioned `0.33.2+live-audio`. The recording
 renderer and its acceptance data remain native Giztest output. The published
-v0.33.1 CLI misses the earlier audio BOS when opening a new mid-stream receive
+v0.33.1 and v0.33.2 CLIs miss the earlier audio BOS when opening a new mid-stream receive
 window; its failed receipt remains separate evidence.
 
-The 210/120/60-second playback and spoken-dialogue gates run first. Underrun and
+The 240/120/300-second playback and spoken-dialogue gates run first. Underrun and
 buffer assertions keep their zero-underrun/nonnegative-buffer requirements and
 run after the dialogue. A pacing regression can therefore be recorded without
 hiding later interruption behavior; it still marks the native report failed.

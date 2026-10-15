@@ -153,7 +153,11 @@ func (m *newsModel) Stream(ctx context.Context, input []*schema.Message, opts ..
 		m.questions.Add(1)
 		return reply("答复。" + items[0].Source + items[0].Date + "报道，" + items[0].Brief + "。")
 	}
-	material := strings.TrimPrefix(last.Content, "播报以下新闻事实：")
+	_, material, ok := strings.Cut(last.Content, "播报以下新闻事实：")
+	if !ok {
+		return nil, errors.New("narration lost its selected news material")
+	}
+	material = strings.TrimSpace(material)
 	if strings.Contains(system, "当前状态：今日总览。") {
 		var items []newsItem
 		if err := json.Unmarshal([]byte(material), &items); err != nil {
