@@ -490,6 +490,8 @@ spec:
                   delivery = "本次只讲材料选中的一个事件，只讲列出的新增事实或具名评论，最多200字；材料少就更短。用完整事实句结束本次输出，不接着讲其它新闻，不预告下一条，不续写历史播报。"
               elif mode == "回答提问":
                   delivery = "只回答这一个问题，通常30到80字，回答清楚就结束本次输出并等待，不恢复播报。"
+              if opening:
+                  delivery = "先原样说出这句开场白：" + opening + "然后" + delivery
               return {"bulletin": bulletin, "continue": speaking, "mode": mode, "material": material, "opening": opening, "delivery": delivery, "needs_search": False}
 
           def run(input):
@@ -499,7 +501,7 @@ spec:
                   request = "先回答听众这一问，答完等待继续。不要重新总览、逐条播报或搜索。\n问题：" + input.get("request", "") + "\n已有来源材料：" + json.encode(bulletin.get("items", []))
                   return result(input, bulletin, mode, False, request)
               if mode in ["暂停", "选择领域"]:
-                  request = "停止播讲，不搜索。只原样回复，不增减任何字：好，先停在这里。" if mode == "暂停" else "只问听众：你想听科技、国内、国际、财经还是体育新闻？也可以指定一个话题。不要搜索，等待回答。"
+                  request = "停止播讲，不搜索。只原样回复，不增减任何字：好，先停在这里。" if mode == "暂停" else "本次开场白非空时先完整播出报时和自我介绍，再问听众：你想听科技、国内、国际、财经还是体育新闻？也可以指定一个话题。开场白为空时直接提问。不要搜索，等待回答。"
                   return result(input, bulletin, mode, False, request)
               items = bulletin.get("items", [])
               if not items:
