@@ -9,9 +9,10 @@ background and attributed mainstream-media commentary. “停一下” pauses,
 An interruption such as “刚才那条消息已经发生了吗？” receives a brief factual
 answer from the cached sources and recent narration. It keeps the topic and
 queue, performs no new search, and waits for “继续” before resuming playback.
-The host uses 周怀远 (Arthur), the male cast selected as
-Forge's article narrator in Deploy's `aigc/settings/voice_cast.json`:
-`zh_male_ruyayichen_saturn_bigtts` with `seed-tts-2.0`.
+The news host uses Deploy's 程正声 (Winston), a middle-aged male announcer
+marked for news broadcasting, with clear, steady Standard Mandarin:
+MiniMax `Chinese (Mandarin)_Male_Announcer` with `speech-2.6-hd`, matching
+Deploy's `gizclaw/catalogs/aigc/casts/winston/cast.yaml`.
 The test listener uses Deploy's female 米雅 (Mia) cast,
 `saturn_zh_female_keainvsheng_tob`, so the speakers are audibly distinct.
 
@@ -114,6 +115,12 @@ captured narration audio and asks a factual question. The host's answer is sent
 back to the persona, which naturally acknowledges the explanation or thanks
 the host. Giztest cleanup then stops both Workspaces.
 Its dialogue phase persists between these finite responses.
+The listener speaks like an ordinary person: the interest reply is at most
+12 characters, a single factual question at most 24, and an acknowledgment at
+most eight. It avoids repeating the news, listing listening requirements or
+summarizing the host's answer. A final script emits “继续” and “停一下” exactly
+for those control phases, preserving the model's other short replies. Both dialogue
+scenarios check these response lengths against actual model output.
 With Giztest v0.31.8 or later, run the interruption scenario with
 `gizclaw test run tests/giztest/dialogue/podcast-news-question.eino.giztest.yaml --output /path/to/new-report-directory`
 to export a standalone HTML recording of the opening question and interest

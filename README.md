@@ -400,8 +400,9 @@ Workflows select the public MiniMax system Voices `Japanese_CalmLady`,
 [MiniMax system Voice catalog](https://platform.minimaxi.com/docs/faq/system-voice-id)
 classifies for those languages. These bindings add `MiniMaxTenant/minimax-cn`
 and its environment-owned Credential to the default dependency closure; Raids
-contains no credential value. Every public MiniMax Voice selects
-`speech-2.6-turbo` through `spec.provider_data.model`; GizClaw v0.7.0 and later
+contains no credential value. Public MiniMax Voices explicitly select
+`speech-2.6-turbo`, except the CN news announcer Winston, which matches Deploy's
+selected `speech-2.6-hd` cast, through `spec.provider_data.model`. GizClaw v0.7.0 and later
 require that Voice-owned provider model when constructing MiniMax TTS and do
 not substitute a hidden model default.
 
@@ -786,8 +787,9 @@ provider voice switching, timing, interruption or audible continuity.
 Passing this check establishes schema, binding, and deterministic routing
 contracts, not live behavior. CI pins the immutable v0.31.5 Linux package
 and verifies its published SHA-256 digest before validation.
-`make test-unit-voices` separately requires exactly 635 MiniMax Voice files and exactly one
-`model: speech-2.6-turbo` field in each. Per-file schema validation alone does
+`make test-unit-voices` separately requires exactly 635 MiniMax Voice files and
+exactly one explicit model field in each: `speech-2.6-hd` for the CN Winston
+news announcer, `speech-2.6-turbo` for the others. Per-file schema validation alone does
 not prove other runtime-only requirements such as cross-resource references or
 aliases resolve, provider credentials work, or a live Server
 will accept and run the complete catalog. Apply, runtime, `make test-e2e`,
@@ -1026,7 +1028,8 @@ timestamps, account status, and raw provider responses are not source
 resources and are also excluded.
 
 The MiniMax CN and Global snapshots make the TTS provider model explicit on
-each Voice; the current public catalogs select `speech-2.6-turbo`. Volc Voice
+each Voice; the public catalogs select `speech-2.6-turbo` except the explicitly
+selected CN Winston news announcer, which uses `speech-2.6-hd`. Volc Voice
 identity is generation-specific: the filename stem, `metadata.id` suffix, and
 `provider_data.voice_id` preserve the provider's exact `voice_type`, while
 `provider_data.resource_id` distinguishes `seed-tts-1.0`, `seed-tts-2.0`, and

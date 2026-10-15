@@ -1,9 +1,19 @@
 """Check the listener's persisted dialogue phases and real incoming context."""
 import json
+import sys
 import yaml
 
 spec = yaml.safe_load(open('workflows/podcast-news/test-persona.yaml', encoding='utf-8'))['spec']['eino']
-node = next(n for n in spec['graph']['nodes'] if n['id'] == 'listener-prepare')
+node_id = sys.argv[1] if len(sys.argv) > 1 else 'listener-prepare'
+node = next(n for n in spec['graph']['nodes'] if n['id'] == node_id)
+if node_id == 'listener-reply':
+    cases = [
+        {'id': 'continuation-is-not-a-model-acknowledgment', 'input': {'mode': '继续收听', 'answer': '好的。'}, 'expect': {'reply': {'equals': '继续。'}}},
+        {'id': 'stop-is-an-actionable-utterance', 'input': {'mode': '结束收听', 'answer': '嗯，明白了。'}, 'expect': {'reply': {'equals': '停一下。'}}},
+        {'id': 'preserve-a-natural-question', 'input': {'mode': '新闻提问', 'answer': '  工厂已经建成了吗？  '}, 'expect': {'reply': {'equals': '工厂已经建成了吗？'}}},
+    ]
+    print(json.dumps({'source': node['source'], 'steps': node['limits']['max_execution_steps'], 'cases': cases}, ensure_ascii=False))
+    sys.exit(0)
 cases = []
 def case(name, data, mode, turn, recent=None):
     want = {'mode': {'equals': mode}, 'listener': {'equals': {'turn': turn}}}
@@ -24,6 +34,7 @@ case('recover-the-interest-exchange-from-real-replies', {'text': '新闻机构�
 case('recover-the-question-exchange-from-real-replies', {'text': '探测器已经完成着陆。', 'messages': [{'role': 'assistant', 'content': '我想听航天新闻。'}, {'role': 'assistant', 'content': '刚才的探测器已经着陆了吗？'}]}, '回应回答', 3)
 case('incoming-asr-is-not-a-prior-listener-reply', {'text': '你想听哪个领域的新闻？', 'messages': [{'role': 'assistant', 'content': '你想听哪个领域的新闻？'}]}, '选择兴趣', 1)
 case('real-interest-reply-recovers-an-overadvanced-phase', {'text': '报道说模型已经发布。', 'listener': {'turn': 2}, 'messages': [{'role': 'assistant', 'content': '我对人工智能新闻感兴趣。'}]}, '新闻提问', 2)
+case('recover-a-short-colloquial-interest-reply', {'text': '报道说模型已经发布。', 'messages': [{'role': 'assistant', 'content': '给我播人工智能新闻就行。'}]}, '新闻提问', 2)
 assert spec['state_persistence']['fields'] == ['listener']
 assert spec['graph']['outputs'][0]['name'] == 'assistant'
 print(json.dumps({'source': node['source'], 'steps': node['limits']['max_execution_steps'], 'cases': cases}, ensure_ascii=False))

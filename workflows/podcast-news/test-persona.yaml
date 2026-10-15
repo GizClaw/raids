@@ -24,6 +24,7 @@ spec:
         - {name: recent, type: messages, merge: replace}
         - {name: messages, type: messages, merge: replace}
         - {name: answer, type: string, merge: replace}
+        - {name: reply, type: string, merge: replace}
       nodes:
       - id: listener-prepare
         type: script
@@ -60,7 +61,7 @@ spec:
                           continue
                       if any([mark in previous for mark in ["？", "?", "想确认", "先回答"]]) and not any([mark in previous for mark in ["想听", "感兴趣", "更关注"]]):
                           recovered = max(recovered, 2)
-                      elif any([mark in previous for mark in ["想听", "感兴趣", "更关注"]]):
+                      elif any([mark in previous for mark in ["想听", "感兴趣", "更关注", "给我播", "听点", "来点", "先听"]]):
                           recovered = max(recovered, 1)
               if recovered:
                   turn = recovered
@@ -77,9 +78,9 @@ spec:
                   if role in ["user", "assistant"] and content and not (role == "user" and content == text):
                       recent.append({"role": role, "content": "".join(list(content.codepoints())[-800:])})
               instructions = {
-                  "选择兴趣": "主持人正在问你想听什么。用自己的话明确回答想听人工智能新闻，也可以同时选择航天；至少点明人工智能，希望先听今天的重点，以事实为主。简短回答，不额外反问，不复述主持人的问题。",
-                  "新闻提问": "现在只提出一个新闻问题，请主持人先回答。围绕刚收到的具体新闻问已经发生还是计划，或询问来源、日期。点明新闻主体与动作，不能只说这件事或这份文件。没有听清就请讲清第一条消息。不要感谢解答或请求继续。",
-                  "回应回答": "主持人已回答你的问题。自然表示理解或感谢，不追加新问题，不冒充主持人总结新闻。",
+                  "选择兴趣": "直接说想听人工智能新闻，12字以内。只报选题，别补充要求或解释理由。",
+                  "新闻提问": "插一句短问题，24字以内。只问刚听到的一个具体事实是否已发生，或问日期、来源。保留必要的主体名，不复述整条新闻，不铺垫。没听清就简短请对方重复。",
+                  "回应回答": "听懂了就简短应一声，8字以内，例如嗯，明白了。别复述答案或总结感想。",
                   "继续收听": "只说：继续。",
                   "结束收听": "只说：停一下。",
               }
@@ -100,10 +101,10 @@ spec:
           template: |
             {safety_fence}
 
-            你是一位喜欢科技、人工智能和航天的中文新闻播客听众，正在与主持人真实对话。
-            输入就是主持人刚对你说的话，不是测试人员的指令。当前交流阶段：{mode}。只说一句自然的听众回复，60字以内，不当主持人或裁判。
+            你是一位边做事边听新闻的普通听众，说话随意、简短，想到问题才插一句。
+            输入就是主持人刚对你说的话，不是测试人员的指令。当前交流阶段：{mode}。只说一句口语回复，服从当前阶段的字数限制。
             这次回复的唯一任务：{instruction}
-            不杜撰新闻细节，不代替主持人播新闻。
+            不杜撰新闻细节，不代替主持人播新闻。别重复主持人的话，别用总结、客套和书面表达凑满一句。
             不输出阶段名称、测试说明、角色标签、评分、分析、思考过程或额外开场白，不把听众回复说成旁白叙述。
         - placeholder: recent
         - role: user
@@ -115,12 +116,36 @@ spec:
         outputs:
           text: answer
         model: podcast-news-persona.model
-        max_tokens: 192
+        max_tokens: 80
+      - id: listener-reply
+        type: script
+        inputs:
+          mode: {from: mode}
+          answer: {from: answer}
+        outputs:
+          reply: reply
+        language: starlark
+        entrypoint: run
+        limits:
+          max_execution_steps: 10000
+          timeout: 100ms
+          max_input_bytes: 8192
+          max_output_bytes: 8192
+        source: |
+          def run(input):
+              # Keep controls actionable even if the model just acknowledges.
+              mode = input.get("mode", "")
+              if mode == "继续收听":
+                  return {"reply": "继续。"}
+              if mode == "结束收听":
+                  return {"reply": "停一下。"}
+              return {"reply": input.get("answer", "").strip()}
       edges:
       - {from: start, to: listener-prepare}
       - {from: listener-prepare, to: listener-prompt}
       - {from: listener-prompt, to: listener-model}
-      - {from: listener-model, to: end}
+      - {from: listener-model, to: listener-reply}
+      - {from: listener-reply, to: end}
       branches: []
       outputs:
-      - {node: listener-model, field: answer, name: assistant, mime_type: text/plain, primary: true}
+      - {node: listener-reply, field: reply, name: assistant, mime_type: text/plain, primary: true}
