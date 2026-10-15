@@ -11,7 +11,7 @@ if node_id == 'listener-reply':
         {'id': 'continuation-is-not-a-model-acknowledgment', 'input': {'mode': '继续收听', 'answer': '好的。'}, 'expect': {'reply': {'equals': '继续。'}}},
         {'id': 'stop-is-an-actionable-utterance', 'input': {'mode': '结束收听', 'answer': '嗯，明白了。'}, 'expect': {'reply': {'equals': '停一下。'}}},
         {'id': 'preserve-a-natural-question', 'input': {'mode': '新闻提问', 'answer': '  工厂已经建成了吗？  '}, 'expect': {'reply': {'equals': '工厂已经建成了吗？'}}},
-        {'id': 'bound-the-observed-long-interest-reply', 'input': {'mode': '选择兴趣', 'answer': '我想听人工智能方面的新闻。'}, 'expect': {'reply': {'equals': '想听人工智能新闻。'}}},
+        {'id': 'bound-the-observed-long-interest-reply', 'input': {'mode': '选择兴趣', 'answer': '我想听科技领域最近有哪些新消息。'}, 'expect': {'reply': {'equals': '想听科技新闻。'}}},
         {'id': 'preserve-a-short-colloquial-choice', 'input': {'mode': '选择兴趣', 'answer': '就想听人工智能的新闻。'}, 'expect': {'reply': {'equals': '就想听人工智能的新闻。'}}},
         {'id': 'replace-an-overlong-question-with-a-complete-question', 'input': {'mode': '新闻提问', 'answer': '请问上海在工博会公布的智能工厂建设目标是已经全部完成还是计划到2028年完成？'}, 'expect': {'reply': {'equals': '刚才那条消息的来源是哪家？'}}},
         {'id': 'do-not-repeat-the-host-in-an-acknowledgment', 'input': {'mode': '回应回答', 'answer': '好的，我知道这项行动已经启动，目标是到2028年完成。'}, 'expect': {'reply': {'equals': '嗯，明白了。'}}},

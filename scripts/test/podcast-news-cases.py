@@ -42,6 +42,7 @@ if node == 'prepare':
     short = '听人工智能那条吧？'
     focus = dict(batch, topic='科技新闻，主要讲人工智能')
     case('short-choice-with-asr-question-mark',dict(text=short,now_ms=now),topic=focus['topic'],mode='播讲',fetch='scan')
+    case('colloquial-just-listen-is-normalized',dict(text='就听人工智能新闻。',now_ms=now),topic=focus['topic'],mode='播讲',fetch='scan')
     case('auto-generation-keeps-the-short-choice',dict(text=short,bulletin=focus,now_ms=now),topic=focus['topic'],mode='播讲',fetch='none',bulletin=focus)
     case('bare-topic-is-not-a-factual-question',dict(text='人工智能那条吧？',bulletin=focus,now_ms=now),topic=focus['topic'],mode='播讲',fetch='none')
     case('factual-question-with-asr-full-stop',dict(text='这个模型已经发布了吗。',bulletin=batch,now_ms=now),mode='回答提问',fetch='none',topic=batch['topic'])

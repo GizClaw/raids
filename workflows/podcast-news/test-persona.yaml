@@ -89,7 +89,7 @@ spec:
                   if role in ["user", "assistant"] and content and not (role == "user" and content == text):
                       recent.append({"role": role, "content": "".join(list(content.codepoints())[-800:])})
               instructions = {
-                  "选择兴趣": "直接说想听人工智能新闻，12字以内。只报选题，别补充要求或解释理由。",
+                  "选择兴趣": "直接说想听科技新闻，清楚说出科技，12字以内。只报选题，别补充要求或解释理由。",
                   "新闻提问": "根据刚收到内容的最后一条新闻插一句短问题，24字以内。只问其中一个具体事实是否已发生，或问日期、来源。别回头问早先已经讨论过的新闻。保留必要的主体名，不复述整条新闻，不铺垫。没听清就简短请对方重复。",
                   "回应回答": "听懂了就简短应一声，8字以内，例如嗯，明白了。别复述答案或总结感想。",
                   "继续收听": "只说：继续。",
@@ -159,7 +159,7 @@ spec:
                   return {"reply": "停一下。"}
               answer = input.get("answer", "").strip()
               limits = {"选择兴趣": 12, "新闻提问": 24, "回应回答": 8}
-              fallback = {"选择兴趣": "想听人工智能新闻。", "新闻提问": "刚才那条消息的来源是哪家？", "回应回答": "嗯，明白了。"}
+              fallback = {"选择兴趣": "想听科技新闻。", "新闻提问": "刚才那条消息的来源是哪家？", "回应回答": "嗯，明白了。"}
               # A prompt cannot guarantee a length bound. Use a complete short
               # utterance instead of cutting a sentence or a proper name.
               if mode in limits and (not answer or len(list(answer.codepoints())) > limits[mode]):

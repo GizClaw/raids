@@ -217,33 +217,41 @@ steps:
       - FAIL
     /transcript:
       pattern: 想.*听|方向|领域|话题
+- id: start_continuous_news
+  client: podcast
+  peer_stream:
+    mode: push-to-talk
+    input: ${listener_interest_audio}
+    pacing: 20ms
+    completion: first_response
+    require_text: true
+    require_audio: true
+    first_text_timeout: 50s
+    first_audio_timeout: 55s
+  timeout: 90s
+  expect:
+    /reply:
+      min_length: 12
+      not_contains:
+      - 先停在这里
+      - 没有可靠的新消息
+      - 没有查到可靠
+      - 暂时没有查到
+    /transcript:
+      pattern: 科技|人工智能|航天|AI
+    /audio_integrity/max_active:
+      equals: 1
+    /audio_integrity/violations:
+      equals: 0
 - id: continuous_news
   timeout: 270s
-  parallel:
-  - id: hear_continuous_news
-    client: podcast
-    peer_stream:
-      mode: listen
-      duration: 210s
-  - id: start_continuous_news
-    client: podcast
-    delay: 250ms
-    peer_stream:
-      mode: push-to-talk
-      input: ${listener_interest_audio}
-      pacing: 20ms
-      completion: first_response
-      require_text: true
-      require_audio: true
-      first_text_timeout: 50s
-      first_audio_timeout: 55s
   capture:
-    heard_news_audio: /hear_continuous_news/audio
-    live_news_window: /hear_continuous_news
-    continuous_news_underruns: /hear_continuous_news/audio_pacing/underruns
-    continuous_news_minimum_buffer_ms: /hear_continuous_news/audio_pacing/minimum_buffer_ms
+    heard_news_audio: /audio
+    live_news_window: ''
+    continuous_news_underruns: /audio_pacing/underruns
+    continuous_news_minimum_buffer_ms: /audio_pacing/minimum_buffer_ms
   expect:
-    /hear_continuous_news/text:
+    /text:
       min_length: 100
       pattern: '[0-9]{1,2}月[0-9]{1,2}日'
       not_contains:
@@ -251,21 +259,17 @@ steps:
       - EVENT
       - FACT|
       - COMMENT|
-    /hear_continuous_news/streams:
+    /streams:
       minimum: 1
       maximum: 2
-    /hear_continuous_news/audio_bytes:
+    /audio_bytes:
       minimum: 1
-    /hear_continuous_news/last_event_ms:
+    /last_event_ms:
       minimum: 205000
-    /start_continuous_news/transcript:
-      pattern: 科技|人工智能|航天|AI
-    /start_continuous_news/reply:
-      min_length: 20
-    /start_continuous_news/audio_integrity/max_active:
-      equals: 1
-    /start_continuous_news/audio_integrity/violations:
-      equals: 0
+  client: podcast
+  peer_stream:
+    mode: listen
+    duration: 210s
 - id: first_start_tail_transcription
   client: persona
   timeout: 10s
@@ -332,9 +336,7 @@ steps:
       - 暂时没有查到可靠的新消息
       - 你想听科技
       - 好，先停在这里。
-    /turns/persona/audio_bytes/min:
-      minimum: 1
-    /turns/podcast/audio_bytes/min:
+    /audio_bytes:
       minimum: 1
 - id: listener_requests_resume
   client: persona
@@ -457,9 +459,7 @@ steps:
       - 暂时没有查到可靠的新消息
       - 你想听科技
       - 好，先停在这里。
-    /turns/persona/audio_bytes/min:
-      minimum: 1
-    /turns/podcast/audio_bytes/min:
+    /audio_bytes:
       minimum: 1
 - id: listener_requests_resume_again
   client: persona

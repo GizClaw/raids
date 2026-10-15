@@ -86,16 +86,12 @@ Reliable pause/resume requires an engine that commits selected persistent State
 **after each completely delivered generation and its History record**. GizClaw
 v0.31.5 saves only at successful turn completion: interruption loses uncommitted
 queue progress. [GizClaw #1517](https://github.com/GizClaw/gizclaw/pull/1517)
-implements that fix and is included in v0.31.7. The Beijing E2E Server was still
-v0.31.5 in the 2026-10-13 dual-Workflow runs. An earlier resume stage stopped
-early; a later bounded dialogue run completed continued playback and stop.
-That does not qualify checkpointed recovery of the original cached queue.
-A partially delivered
-section must not advance the durable cursor; resuming can
-restart that incomplete section. v0.31.5 also shares a 32-call Tool budget across
-one turn; [GizClaw #1516](https://github.com/GizClaw/gizclaw/pull/1516) renews the
-bounded budget per generation, also released in v0.31.7. Deploy v0.31.7 or later
-and verify pause/resume before claiming durable interruption/resume or unlimited
+implements that fix and is included in v0.31.7. A partially delivered section
+must not advance the durable cursor; resuming can restart that incomplete
+section. [GizClaw #1516](https://github.com/GizClaw/gizclaw/pull/1516) renews the
+bounded Tool budget per generation, also released in v0.31.7. The Workflow
+requires v0.31.7 or later. Bounded playback and dialogue acceptance remain
+separate from qualification of durable original-queue recovery and unlimited
 operation.
 
 ## Tests
@@ -146,8 +142,12 @@ the other Workspace for PTT recognition. Spoken test instructions are excluded.
 Short spoken replies are forwarded at their normal 20 ms packet pacing.
 PTT receipts contain an ASR transcript stream as well as the narration stream.
 The companion
-`podcast-news.eino.giztest.yaml` keeps one receiving stream open for 210 seconds
-and records all narration audio. A loopback audio-tail bridge decodes that same
+`podcast-news.eino.giztest.yaml` first checks that the listener's spoken subject
+choice starts news playback, then keeps one receiving stream open for 210 seconds
+and records all narration audio. This startup check catches a failed search or
+misclassified interest reply before the long listening window. Natural choices
+such as “就听科技新闻” are normalized before topic classification.
+A loopback audio-tail bridge decodes that same
 capture, retains its last 20 seconds and calls `server.speech.transcribe` for the
 persona's next question. It uses the audio that was actually received, rather
 than a predefined question or text generated ahead of audible playback. The
@@ -169,7 +169,11 @@ question, host answer and acknowledgment. The persona's resume phase rearms
 question generation, so the second question uses the newly received news.
 After a second spoken “继续”, another 60-second narration window is required.
 It then sends the persona's spoken “停一下” and checks
-that playback stays quiet. Run this file with `--output` for the long report.
+that playback stays quiet. Text relay exposes per-client text metrics and
+whole-relay audio bytes; it has no per-client audio-byte assertion fields.
+The exported recording retains the question, answer and acknowledgment audio
+with their client and stream identities for verification.
+Run this file with `--output` for the long report.
 Start the bridge from `scripts/test/chat-assistant` with
 `CGO_ENABLED=0 go run -mod=readonly ./cmd/news-audio-tail`, using the same
 `GIZCLAW_TEST_ENDPOINT` and `GIZCLAW_TEST_REGISTRATION_TOKEN`. Set
