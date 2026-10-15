@@ -100,6 +100,22 @@ require (
 	github.com/perimeterx/marshmallow v1.1.5 // indirect
 	github.com/pierrec/lz4 v2.6.1+incompatible // indirect
 	github.com/pierrec/lz4/v4 v4.1.27 // indirect
+	github.com/pion/datachannel v1.6.3 // indirect
+	github.com/pion/dtls/v3 v3.1.10 // indirect
+	github.com/pion/ice/v4 v4.4.4 // indirect
+	github.com/pion/interceptor v0.1.49 // indirect
+	github.com/pion/logging v0.2.4 // indirect
+	github.com/pion/mdns/v2 v2.2.1 // indirect
+	github.com/pion/randutil v0.1.0 // indirect
+	github.com/pion/rtcp v1.2.18 // indirect
+	github.com/pion/rtp v1.10.5 // indirect
+	github.com/pion/sctp v1.12.0 // indirect
+	github.com/pion/sdp/v3 v3.0.20 // indirect
+	github.com/pion/srtp/v3 v3.1.0 // indirect
+	github.com/pion/stun/v4 v4.0.1 // indirect
+	github.com/pion/transport/v5 v5.1.1 // indirect
+	github.com/pion/turn/v5 v5.1.2 // indirect
+	github.com/pion/webrtc/v4 v4.2.20 // indirect
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
@@ -125,6 +141,7 @@ require (
 	github.com/volcengine/ve-tos-golang-sdk/v2 v2.9.9 // indirect
 	github.com/volcengine/volc-sdk-golang v1.0.256 // indirect
 	github.com/wk8/go-ordered-map/v2 v2.1.8 // indirect
+	github.com/wlynxg/anet v0.0.5 // indirect
 	github.com/woodsbury/decimal128 v1.4.0 // indirect
 	github.com/yargevad/filepathx v1.0.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
@@ -163,3 +180,7 @@ require (
 
 // The engine source matches the immutable CLI release used by repository CI.
 replace github.com/GizClaw/gizclaw-go => github.com/GizClaw/gizclaw-go v0.31.5
+
+replace github.com/pion/sctp => github.com/GizClaw/pion-sctp v0.0.0-20260930221805-07dcddc21e92
+
+replace github.com/pion/webrtc/v4 => github.com/GizClaw/pion-webrtc/v4 v4.0.0-20260930230747-1193df5bc2d8

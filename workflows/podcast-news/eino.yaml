@@ -94,10 +94,22 @@ spec:
                           tail = parts[1]
                           break
                   text = tail
-              return any([mark in text for mark in ["？", "?", "是不是", "是否", "为什么", "怎么", "哪里", "哪个", "哪天", "几号", "何时", "多少", "什么来源", "什么时间", "还是计划", "已经发生", "先回答", "我想问", "来源是", "出处是"]])
+              return any([mark in text for mark in ["？", "?", "吗", "哪家", "有没有", "还是", "是不是", "是否", "为什么", "怎么", "哪里", "哪个", "哪天", "几号", "何时", "多少", "什么来源", "什么时间", "还是计划", "已经发生", "先回答", "我想问", "来源是", "出处是"]])
 
           def interest(text):
-              return any([mark in text for mark in ["想听", "感兴趣", "更关注"]]) and not any([mark in text for mark in ["刚才", "这条", "那条", "这份", "这个", "你提到", "已经", "是否"]])
+              if any([mark in text for mark in ["刚才", "你提到", "已经", "是否", "来源", "出处", "为什么", "怎么", "哪天", "哪家", "有没有"]]):
+                  return False
+              choice = compact(text)
+              for prefix in ["那就", "就", "先"]:
+                  if choice.startswith(prefix):
+                      choice = choice[len(prefix):]
+              for suffix in ["可以吗", "吧", "那条", "的新闻", "新闻"]:
+                  if choice.endswith(suffix):
+                      choice = choice[:-len(suffix)]
+              domains = ["科技", "人工智能", "AI", "航天", "国内", "国际", "财经", "体育"]
+              bare = choice in [domain.lower() for domain in domains]
+              short_choice = text.startswith("听") and not text.startswith("听说") and any([domain in text for domain in domains])
+              return bare or short_choice or any([mark in text for mark in ["想听", "感兴趣", "更关注", "给我播", "听点", "来点", "先听"]])
 
           def topic_request(text):
               # A listener can answer conversationally instead of naming a slot.
@@ -135,9 +147,13 @@ spec:
               if not topic:
                   for message in messages:
                       content = message.get("content", "")
-                      if message.get("role", "") == "user" and not neutral(content) and (not question(content) or interest(content)):
+                      if message.get("role", "") == "user" and not neutral(content) and (interest(content) or content.startswith("换") or content.startswith("改") or (not topic and not question(content))):
                           topic = topic_request(content)
-              answering = bool(topic) and question(text) and not interest(text)
+              # Once a topic is selected, an unmarked spoken interjection is
+              # a follow-up. ASR can omit question words and punctuation.
+              same_topic_input = compact(text) == compact(topic)
+              redirecting = text.startswith("换") or text.startswith("改")
+              answering = bool(topic) and (not neutral(text) or question(text)) and not interest(text) and not redirecting and not same_topic_input
               if not neutral(text) and not answering:
                   topic = topic_request(text)
               topic = "".join(list(topic.codepoints())[:240])
@@ -475,8 +491,13 @@ spec:
                       bulletin["cursor"] = len(items)
                       return result(input, bulletin, "批次结束", True, "只用一句短串场转入下一批：这批重点先说到这儿，接着看看还有哪些新消息。不要重复已经讲过的事实。")
                   mode = "逐条深入"
+                  has_more = len(selected["details"]) > 2 or len(selected["comments"]) > 1
+                  selected["details"] = selected["details"][:2]
+                  selected["comments"] = selected["comments"][:1]
                   material = json.encode(selected)
-                  bulletin["cursor"] = cursor + 1
+                  # Consume only this section's facts, keeping the remainder
+                  # cached for the next generation of the same story.
+                  bulletin["cursor"] = cursor if has_more else cursor + 1
                   facts = [entry["text"] for kind in ["details", "comments"] for entry in selected[kind]]
                   seen = []
                   recorded = False

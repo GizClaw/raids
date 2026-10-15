@@ -47,7 +47,9 @@ The graph separates collection from public narration:
    rejects unfinished records. Date, source and event checks follow.
 2. **Overview:** briefly present each event's core fact with its source and date.
 3. **Explore:** reuse cached additional facts and attributed comments, one event
-   per section. If any story lacks a sourced media comment, supplement the whole
+   per section, keeping unspoken cached facts for later sections of the same
+   story. Each section consumes at most two facts and one attributed comment.
+   If any story lacks a sourced media comment, supplement the whole
    batch
    once with ten `OneWeek` results. Never search once per playback section or
    once per cached event.
@@ -145,24 +147,48 @@ Short spoken replies are forwarded at their normal 20 ms packet pacing.
 PTT receipts contain an ASR transcript stream as well as the narration stream.
 The companion
 `podcast-news.eino.giztest.yaml` keeps one receiving stream open for 210 seconds
-and records all narration audio. A subsequent 20-second receive window captures
-the current broadcast tail; `server.speech.transcribe` turns that actual received
-audio into text for the persona's next question. It neither uses a predefined
-news question nor sends a multi-minute recording through short-utterance ASR.
-The listener's question, host answer and continuation request use actual
-captured audio and PTT. After sustained narration, the host
+and records all narration audio. A loopback audio-tail bridge decodes that same
+capture, retains its last 20 seconds and calls `server.speech.transcribe` for the
+persona's next question. It uses the audio that was actually received, rather
+than a predefined question or text generated ahead of audible playback. The
+bounded tail also stays within the Server's 60-second transcription limit.
+The question and answer use native `workspace_relay` with incremental text
+forwarding and audio EOS completion. Both Workflows speak with their bound
+Voices; the question starts reaching the host while the listener generates it.
+Three turns complete the question, host answer and short acknowledgment.
+Actual captured audio and PTT start playback, carry “继续” and finally carry
+“停一下”. After sustained narration, the host
 must switch to one finite factual answer. The v0.31.5 Server answered the
 question but did not produce the newer runner's `interrupt_observed` marker;
 that marker is not treated as proof of interruption on this deployment.
 After the factual answer, the persona hears
 the explanation and says “继续”; that audio is sent to the host, and the test
-requires another 120 seconds of continuous narration. It captures and
-transcribes the new 20-second broadcast tail, then performs a second generated
+requires another 120 seconds of continuous narration. It extracts and
+transcribes that capture's new 20-second tail, then performs a second generated
 question, host answer and acknowledgment. The persona's resume phase rearms
 question generation, so the second question uses the newly received news.
 After a second spoken “继续”, another 60-second narration window is required.
 It then sends the persona's spoken “停一下” and checks
 that playback stays quiet. Run this file with `--output` for the long report.
+Start the bridge from `scripts/test/chat-assistant` with
+`CGO_ENABLED=0 go run -mod=readonly ./cmd/news-audio-tail`, using the same
+`GIZCLAW_TEST_ENDPOINT` and `GIZCLAW_TEST_REGISTRATION_TOKEN`. Set
+`GIZCLAW_TEST_TAIL_ENDPOINT` to the loopback URL printed at startup. Native
+Giztest starts an asynchronous `/tail/start` job, keeps recording the host for
+25 seconds, then reads `/tail/<job_id>`. The bridge generates neither news nor answers.
+`ffmpeg` is required to decode the captured Ogg/Opus. The bridge's temporary
+Peer uses only speech RPC, has no Workflow, and is deleted during finalization.
+Continuous recording across receive windows requires a Go CLI containing the
+active-Opus bootstrap fix in [GizClaw #1537](https://github.com/GizClaw/gizclaw/pull/1537).
+The test build uses v0.33.1 plus that unreleased client fix. The recording
+renderer and its acceptance data remain native Giztest output. The published
+v0.33.1 CLI misses the earlier audio BOS when opening a new mid-stream receive
+window; its failed receipt remains separate evidence.
+
+The 210/120/60-second playback and spoken-dialogue gates run first. Underrun and
+buffer assertions keep their zero-underrun/nonnegative-buffer requirements and
+run after the dialogue. A pacing regression can therefore be recorded without
+hiding later interruption behavior; it still marks the native report failed.
 It needs the v0.31.7 State fix. Both are separate from the standard
 smoke/quality/soak inventory. Failed resume receipts remain valid failure
 evidence, rather than qualifying the question-only run as durable resume.

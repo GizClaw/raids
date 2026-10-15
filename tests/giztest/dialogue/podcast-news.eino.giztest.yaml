@@ -49,25 +49,7 @@ variables:
     max_bytes: 16777216
     media_type: audio/ogg
     codec: opus
-  listener_question_audio:
-    direction: output
-    type: audio
-    max_bytes: 16777216
-    media_type: audio/ogg
-    codec: opus
-  host_answer_audio:
-    direction: output
-    type: audio
-    max_bytes: 16777216
-    media_type: audio/ogg
-    codec: opus
   listener_interest:
-    direction: output
-    type: string
-  listener_question:
-    direction: output
-    type: string
-  host_answer:
     direction: output
     type: string
   resume_request_audio:
@@ -88,42 +70,52 @@ variables:
   heard_resumed_news_recent:
     direction: output
     type: string
-  recent_news_audio:
-    direction: output
-    type: audio
-    max_bytes: 16777216
-    media_type: audio/ogg
-    codec: opus
-  recent_resumed_news_audio:
-    direction: output
-    type: audio
-    max_bytes: 16777216
-    media_type: audio/ogg
-    codec: opus
-  listener_question_again:
-    direction: output
-    type: string
-  listener_question_audio_again:
-    direction: output
-    type: audio
-    max_bytes: 16777216
-    media_type: audio/ogg
-    codec: opus
-  host_answer_again:
-    direction: output
-    type: string
-  host_answer_audio_again:
-    direction: output
-    type: audio
-    max_bytes: 16777216
-    media_type: audio/ogg
-    codec: opus
   resume_request_audio_again:
     direction: output
     type: audio
     max_bytes: 16777216
     media_type: audio/ogg
     codec: opus
+  tail_endpoint:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_TAIL_ENDPOINT
+  live_news_window:
+    direction: output
+    type: object
+  live_resume_window:
+    direction: output
+    type: object
+  heard_resumed_news_audio:
+    direction: output
+    type: audio
+    max_bytes: 16777216
+    media_type: audio/ogg
+    codec: opus
+  continuous_news_underruns:
+    direction: output
+    type: integer
+  continuous_news_minimum_buffer_ms:
+    direction: output
+    type: number
+  resume_news_underruns:
+    direction: output
+    type: integer
+  resume_news_minimum_buffer_ms:
+    direction: output
+    type: number
+  resume_after_second_question_underruns:
+    direction: output
+    type: integer
+  resume_after_second_question_minimum_buffer_ms:
+    direction: output
+    type: number
+  first_tail_job:
+    direction: output
+    type: string
+  second_tail_job:
+    direction: output
+    type: string
 repeat: 1
 timeout: 20m
 steps:
@@ -247,6 +239,9 @@ steps:
       first_audio_timeout: 55s
   capture:
     heard_news_audio: /hear_continuous_news/audio
+    live_news_window: /hear_continuous_news
+    continuous_news_underruns: /hear_continuous_news/audio_pacing/underruns
+    continuous_news_minimum_buffer_ms: /hear_continuous_news/audio_pacing/minimum_buffer_ms
   expect:
     /hear_continuous_news/text:
       min_length: 100
@@ -263,10 +258,6 @@ steps:
       minimum: 1
     /hear_continuous_news/last_event_ms:
       minimum: 205000
-    /hear_continuous_news/audio_pacing/underruns:
-      equals: 0
-    /hear_continuous_news/audio_pacing/minimum_buffer_ms:
-      minimum: 0
     /start_continuous_news/transcript:
       pattern: 科技|人工智能|航天|AI
     /start_continuous_news/reply:
@@ -275,93 +266,75 @@ steps:
       equals: 1
     /start_continuous_news/audio_integrity/violations:
       equals: 0
-- id: first_interrupt_recent_audio
+- id: first_start_tail_transcription
+  client: persona
+  timeout: 10s
+  http:
+    method: POST
+    endpoint: ${tail_endpoint}
+    path: /tail/start
+    body: ${live_news_window}
+    status: 200
+  capture:
+    first_tail_job: /job_id
+- id: first_keep_broadcast_during_transcription
   client: podcast
   peer_stream:
     mode: listen
-    duration: 20s
-  capture:
-    recent_news_audio: /audio
+    duration: 25s
   expect:
     /audio_bytes:
       minimum: 1
-    /last_event_ms:
-      minimum: 18000
 - id: first_interrupt_transcribe_recent_audio
   client: persona
-  timeout: 45s
-  speech:
-    method: server.speech.transcribe
-    request:
-      model_name: asr
-    input: ${recent_news_audio}
+  timeout: 90s
+  http:
+    method: GET
+    endpoint: ${tail_endpoint}
+    path: /tail/${first_tail_job}
+    status: 200
   capture:
     heard_news_recent: /transcript
   expect:
     /transcript:
       min_length: 12
-- id: listener_asks_about_news
-  client: persona
-  timeout: 100s
-  peer_stream:
-    mode: text
+    /tail_duration_ms:
+      equals: 20000
+- id: first_live_question_answer
+  timeout: 150s
+  workspace_relay:
+    first_client: persona
+    second_client: podcast
     input: ${heard_news_recent}
-    require_text: true
-    require_audio: true
-  capture:
-    listener_question: /reply
-    listener_question_audio: /audio
+    media: text
+    terminal_media: audio
+    max_turns: 3
+    terminal_client: persona
+    idle_timeout: 45s
   expect:
-    /reply:
-      pattern: '[？?]|来源|计划|哪|是不是'
-      max_length: 24
-      not_contains:
-      - 主持人仍在播报
-      - 现在立刻用语音
-      - 你刚听到
-      - 测试
-    /audio_bytes:
-      minimum: 1
-- id: host_answers_listener
-  client: podcast
-  timeout: 90s
-  peer_stream:
-    mode: push-to-talk
-    input: ${listener_question_audio}
-    pacing: 20ms
-    require_text: true
-    require_audio: true
-  capture:
-    host_answer: /reply
-    host_answer_audio: /audio
-  expect:
-    /reply:
-      min_length: 20
-      not_contains:
-      - 今日总览
-      - 你想听科技
-      - 好，先停在这里。
-    /audio_bytes:
-      minimum: 1
-- id: listener_responds_to_answer
-  client: persona
-  timeout: 90s
-  peer_stream:
-    mode: push-to-talk
-    input: ${host_answer_audio}
-    pacing: 20ms
-    require_text: true
-    require_audio: true
-  expect:
-    /reply:
+    /completed_turns:
+      equals: 3
+    /terminal/client:
+      equals: persona
+    /terminal/text:
       min_length: 2
       max_length: 8
+    /turns/persona/count:
+      equals: 2
+    /turns/persona/text_runes/max:
+      maximum: 24
+    /turns/podcast/count:
+      equals: 1
+    /turns/podcast/text_runes/min:
+      minimum: 8
+    /turns/podcast/texts:
       not_contains:
-      - PASS
-      - FAIL
-      - 测试
-      - 评分
-    /audio_bytes:
+      - 暂时没有查到可靠的新消息
+      - 你想听科技
+      - 好，先停在这里。
+    /turns/persona/audio_bytes/min:
+      minimum: 1
+    /turns/podcast/audio_bytes/min:
       minimum: 1
 - id: listener_requests_resume
   client: persona
@@ -406,10 +379,6 @@ steps:
       minimum: 1
     /hear_resume_news/last_event_ms:
       minimum: 115000
-    /hear_resume_news/audio_pacing/underruns:
-      equals: 0
-    /hear_resume_news/audio_pacing/minimum_buffer_ms:
-      minimum: 0
     /start_resume_news/transcript:
       contains_all:
       - 继续
@@ -417,93 +386,80 @@ steps:
       equals: 1
     /start_resume_news/audio_integrity/violations:
       equals: 0
-- id: second_interrupt_recent_audio
+  capture:
+    live_resume_window: /hear_resume_news
+    heard_resumed_news_audio: /hear_resume_news/audio
+    resume_news_underruns: /hear_resume_news/audio_pacing/underruns
+    resume_news_minimum_buffer_ms: /hear_resume_news/audio_pacing/minimum_buffer_ms
+- id: second_start_tail_transcription
+  client: persona
+  timeout: 10s
+  http:
+    method: POST
+    endpoint: ${tail_endpoint}
+    path: /tail/start
+    body: ${live_resume_window}
+    status: 200
+  capture:
+    second_tail_job: /job_id
+- id: second_keep_broadcast_during_transcription
   client: podcast
   peer_stream:
     mode: listen
-    duration: 20s
-  capture:
-    recent_resumed_news_audio: /audio
+    duration: 25s
   expect:
     /audio_bytes:
       minimum: 1
-    /last_event_ms:
-      minimum: 18000
 - id: second_interrupt_transcribe_recent_audio
   client: persona
-  timeout: 45s
-  speech:
-    method: server.speech.transcribe
-    request:
-      model_name: asr
-    input: ${recent_resumed_news_audio}
+  timeout: 90s
+  http:
+    method: GET
+    endpoint: ${tail_endpoint}
+    path: /tail/${second_tail_job}
+    status: 200
   capture:
     heard_resumed_news_recent: /transcript
   expect:
     /transcript:
       min_length: 12
-- id: listener_asks_about_news_again
-  client: persona
-  timeout: 100s
-  peer_stream:
-    mode: text
+    /tail_duration_ms:
+      equals: 20000
+- id: second_live_question_answer
+  timeout: 150s
+  workspace_relay:
+    first_client: persona
+    second_client: podcast
     input: ${heard_resumed_news_recent}
-    require_text: true
-    require_audio: true
-  capture:
-    listener_question_again: /reply
-    listener_question_audio_again: /audio
+    media: text
+    terminal_media: audio
+    max_turns: 3
+    terminal_client: persona
+    idle_timeout: 45s
   expect:
-    /reply:
-      pattern: '[？?]|来源|计划|哪|是不是'
-      max_length: 24
-      not_contains:
-      - 主持人仍在播报
-      - 现在立刻用语音
-      - 你刚听到
-      - 测试
-    /audio_bytes:
-      minimum: 1
-- id: host_answers_listener_again
-  client: podcast
-  timeout: 90s
-  peer_stream:
-    mode: push-to-talk
-    input: ${listener_question_audio_again}
-    pacing: 20ms
-    require_text: true
-    require_audio: true
-  capture:
-    host_answer_again: /reply
-    host_answer_audio_again: /audio
-  expect:
-    /reply:
-      min_length: 20
-      not_contains:
-      - 今日总览
-      - 你想听科技
-      - 好，先停在这里。
-    /audio_bytes:
-      minimum: 1
-- id: listener_responds_to_answer_again
-  client: persona
-  timeout: 90s
-  peer_stream:
-    mode: push-to-talk
-    input: ${host_answer_audio_again}
-    pacing: 20ms
-    require_text: true
-    require_audio: true
-  expect:
-    /reply:
+    /completed_turns:
+      equals: 3
+    /terminal/client:
+      equals: persona
+    /terminal/text:
       min_length: 2
       max_length: 8
+    /turns/persona/count:
+      equals: 2
+    /turns/persona/text_runes/max:
+      maximum: 24
+    /turns/podcast/count:
+      equals: 1
+    /turns/podcast/text_runes/min:
+      minimum: 8
+    /turns/podcast/texts:
       not_contains:
-      - PASS
-      - FAIL
-      - 测试
-      - 评分
-    /audio_bytes:
+      - 暂时没有查到可靠的新消息
+      - 你想听科技
+      - 好，先停在这里。
+    /turns/persona/audio_bytes/min:
+      minimum: 1
+    /turns/podcast/audio_bytes/min:
       minimum: 1
 - id: listener_requests_resume_again
   client: persona
@@ -548,10 +504,6 @@ steps:
       minimum: 1
     /hear_second_resume_news/last_event_ms:
       minimum: 55000
-    /hear_second_resume_news/audio_pacing/underruns:
-      equals: 0
-    /hear_second_resume_news/audio_pacing/minimum_buffer_ms:
-      minimum: 0
     /start_second_resume_news/transcript:
       contains_all:
       - 继续
@@ -559,6 +511,9 @@ steps:
       equals: 1
     /start_second_resume_news/audio_integrity/violations:
       equals: 0
+  capture:
+    resume_after_second_question_underruns: /hear_second_resume_news/audio_pacing/underruns
+    resume_after_second_question_minimum_buffer_ms: /hear_second_resume_news/audio_pacing/minimum_buffer_ms
 - id: listener_requests_stop
   client: persona
   timeout: 40s
@@ -599,7 +554,51 @@ steps:
   expect:
     /audio_bytes:
       equals: 0
+- id: audit_continuous_news_underruns
+  output:
+    variable: continuous_news_underruns
+  expect:
+    ? ''
+    : equals: 0
+- id: audit_continuous_news_minimum_buffer_ms
+  output:
+    variable: continuous_news_minimum_buffer_ms
+  expect:
+    ? ''
+    : minimum: 0
+- id: audit_resume_news_underruns
+  output:
+    variable: resume_news_underruns
+  expect:
+    ? ''
+    : equals: 0
+- id: audit_resume_news_minimum_buffer_ms
+  output:
+    variable: resume_news_minimum_buffer_ms
+  expect:
+    ? ''
+    : minimum: 0
+- id: audit_resume_after_second_question_underruns
+  output:
+    variable: resume_after_second_question_underruns
+  expect:
+    ? ''
+    : equals: 0
+- id: audit_resume_after_second_question_minimum_buffer_ms
+  output:
+    variable: resume_after_second_question_minimum_buffer_ms
+  expect:
+    ? ''
+    : minimum: 0
 finally:
+- id: close_tail_transcriber
+  client: persona
+  timeout: 15s
+  http:
+    method: POST
+    endpoint: ${tail_endpoint}
+    path: /close
+    status: 200
 - id: podcast_stop
   client: podcast
   rpc:

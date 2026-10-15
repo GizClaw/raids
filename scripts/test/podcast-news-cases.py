@@ -39,6 +39,16 @@ if node == 'prepare':
     case('natural-interest-reply-is-a-topic',dict(text=preference,now_ms=now),topic='科技新闻，主要讲人工智能和航天',mode='播讲',fetch='scan')
     case('restore-natural-interest-after-interruption',dict(text='继续',messages=[dict(role='user',content=preference)],now_ms=now),topic='科技新闻，主要讲人工智能和航天',fetch='scan')
     case('natural-topic-change-is-not-a-fact-question',dict(text='我想听人工智能新闻，可以吗？',bulletin=batch,now_ms=now),topic='科技新闻，主要讲人工智能',mode='播讲',fetch='scan')
+    short = '听人工智能那条吧？'
+    focus = dict(batch, topic='科技新闻，主要讲人工智能')
+    case('short-choice-with-asr-question-mark',dict(text=short,now_ms=now),topic=focus['topic'],mode='播讲',fetch='scan')
+    case('auto-generation-keeps-the-short-choice',dict(text=short,bulletin=focus,now_ms=now),topic=focus['topic'],mode='播讲',fetch='none',bulletin=focus)
+    case('bare-topic-is-not-a-factual-question',dict(text='人工智能那条吧？',bulletin=focus,now_ms=now),topic=focus['topic'],mode='播讲',fetch='none')
+    case('factual-question-with-asr-full-stop',dict(text='这个模型已经发布了吗。',bulletin=batch,now_ms=now),mode='回答提问',fetch='none',topic=batch['topic'])
+    case('spoken-alternative-question-without-question-mark',dict(text='这些是计划还是已经实现的成果。',bulletin=batch,now_ms=now),mode='回答提问',fetch='none',topic=batch['topic'])
+    case('hearsay-is-not-a-topic-choice',dict(text='听说人工智能模型已发布，是真的吗？',bulletin=batch,now_ms=now),mode='回答提问',fetch='none',topic=batch['topic'])
+    case('spoken-interjection-with-lost-question-words',dict(text='腾讯给deepfake钱啊。',bulletin=batch,now_ms=now),mode='回答提问',fetch='none',topic=batch['topic'])
+    case('restore-topic-does-not-adopt-an-unmarked-interjection',dict(text='继续',messages=[dict(role='user',content='科技新闻'),dict(role='user',content='腾讯给deepfake钱啊。')],now_ms=now),topic='科技新闻',fetch='scan')
     case('an-interest-word-does-not-hide-a-news-question',dict(text='我想听你确认刚才这条人工智能新闻是否已经发布？',bulletin=batch,now_ms=now),topic='科技新闻',mode='回答提问',fetch='none',bulletin=batch)
     history = [dict(role='user', content='科技新闻'), dict(role='user', content='停一下')]
     case('restore-topic-from-history', dict(text='继续', messages=history, now_ms=now), topic='科技新闻', fetch='scan')
@@ -109,6 +119,11 @@ elif node == 'select-section':
     case('overview-then-detail', dict(bulletin=overview, mode='播讲'), mode='今日总览', **{'continue':True}, bulletin=dict(batch,seen=seen))
     case('first-detail-consumes-once',dict(bulletin=batch,mode='播讲'),mode='逐条深入',**{'continue':True},bulletin=dict(batch,cursor=1,seen=[{k:item('a')[k] for k in ['key','title','url','brief']} | dict(day=day,facts=['概要a','新增事实a'])]))
     case('second-detail-consumes-once',dict(bulletin=dict(batch,cursor=1),mode='播讲'),mode='逐条深入',**{'continue':True},bulletin=dict(batch,cursor=2,seen=[{k:item('b')[k] for k in ['key','title','url','brief']} | dict(day=day,facts=['概要b','新增事实b'])]))
+    many = item('a', details=[dict(text='事实'+str(n),source='机构',date=today,url=item('a')['url']) for n in range(4)], comments=[dict(text='评论'+str(n),source='媒体',date=today,url=item('a')['url']) for n in range(2)])
+    partial = dict(batch,items=[many],cursor=0,seen=[{k:many[k] for k in ['key','title','url','brief']} | dict(day=day,facts=['概要a','事实0','事实1','评论0'])])
+    case('retain-unspoken-cached-facts-for-next-section',dict(bulletin=dict(batch,items=[many]),mode='播讲'),mode='逐条深入',bulletin=partial)
+    finished = dict(partial,cursor=1,seen=[{k:many[k] for k in ['key','title','url','brief']} | dict(day=day,facts=['概要a','事实0','事实1','评论0','事实2','事实3','评论1'])])
+    case('consume-only-the-remaining-facts-on-resume',dict(bulletin=partial,mode='播讲'),mode='逐条深入',bulletin=finished)
     for mode in ['暂停','选择领域']:
         case('control-'+mode,dict(bulletin=batch,mode=mode),mode=mode,**{'continue':False},bulletin=batch)
     case('explicit-pause-request',dict(bulletin=batch,mode='暂停'),material='停止播讲，不搜索。只原样回复，不增减任何字：好，先停在这里。')

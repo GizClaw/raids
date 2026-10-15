@@ -20,5 +20,5 @@ python3 scripts/test/safety_fences.py workflows/podcast/eino.yaml workflows/podc
 "$GIZCLAW" test validate -f tests/giztest/dialogue
 (
   cd scripts/test/chat-assistant
-  CGO_ENABLED=0 "${GO:-go}" test -mod=readonly -count=1 -run '^TestNewsPodcast' ./...
+  CGO_ENABLED=0 "${GO:-go}" test -mod=readonly -count=1 -run '^(TestNewsPodcast|TestTailBuffer)' ./...
 )
