@@ -22,7 +22,7 @@ def item(key, **changes):
     result.update(changes)
     return result
 
-batch = dict(topic='科技新闻', today=today, day=day, seen=[], items=[item('a'), item('b')],
+batch = dict(topic='科技新闻', today=today, window_start='2026-10-12', day=day, seen=[], items=[item('a'), item('b')],
              cursor=0, overview=False, enriched=True)
 cases = []
 def case(name, data, **want):
@@ -56,8 +56,11 @@ if node == 'prepare':
     case('overview-before-enrichment', dict(text='科技新闻', bulletin=dict(missing, overview=True), now_ms=now), fetch='none')
     redirect = dict(batch, topic='换成国际新闻', items=[], cursor=0, overview=True, enriched=False)
     case('redirect-preserves-ledger', dict(text='换成国际新闻', bulletin=batch, now_ms=now), fetch='scan', bulletin=redirect)
-    tomorrow = dict(batch, today='2026-10-14', day=day+1, items=[], cursor=0, overview=True, enriched=False)
+    tomorrow = dict(batch, today='2026-10-14', window_start=today, day=day+1, items=[], cursor=0, overview=True, enriched=False)
     case('midnight-refresh', dict(text='继续', bulletin=batch, now_ms=now+86400000), fetch='scan', bulletin=tomorrow)
+    case('live-clock-is-beijing-time', dict(text='开始', now_ms=now), clock='北京时间2026年10月13日12点0分')
+    midnight = int(dt.datetime(2026, 1, 1, 0, 3, tzinfo=dt.timezone(dt.timedelta(hours=8))).timestamp()*1000)
+    case('clock-and-news-window-cross-year', dict(text='开始', now_ms=midnight), clock='北京时间2026年1月1日0点3分', today='2026-01-01')
     for date in ['2000-02-29', '2024-02-29', '2100-03-01']:
         stamp = int(dt.datetime.fromisoformat(date).replace(tzinfo=dt.timezone(dt.timedelta(hours=8))).timestamp()*1000)
         case('calendar-'+date, dict(text='开始', now_ms=stamp), today=date)
@@ -76,12 +79,14 @@ elif node == 'merge-batch':
     duplicate_key = item('a', title='转载标题', url='https://other.example/reprint')
     duplicate_url = item('different', url=a['url']+'&utm_source=feed#section')
     duplicate_brief = item('rewritten', brief=a['brief'])
-    old = item('old', date='2026-10-12')
+    old = item('old', date='2026-10-11')
     future = item('future', date='2026-10-14')
     broken = item('broken', date='2026-02-30')
     no_source = item('no-source', source='')
     wanted = dict(saved, items=[a,b], enriched=False)
     case('dedup-same-event-url-content-and-date', dict(bulletin=saved, result=dict(items=[a,duplicate_key,duplicate_url,duplicate_brief,old,future,broken,no_source,b])), bulletin=wanted)
+    yesterday = item('yesterday', date='2026-10-12')
+    case('retain-last-night-news-but-prioritize-today', dict(bulletin=saved, result=dict(items=[yesterday,a])), bulletin=dict(saved,items=[a,yesterday],enriched=False))
     seen = dict(key='a', url=a['url'], brief=a['brief'], title=a['title'], day=day)
     saved_seen = dict(saved, seen=[seen])
     case('ledger-blocks-previous-batch', dict(bulletin=saved_seen, result=dict(items=[a,duplicate_key,duplicate_url,b])), bulletin=dict(saved_seen, items=[b], enriched=False))
@@ -107,12 +112,17 @@ elif node == 'select-section':
     for mode in ['暂停','选择领域']:
         case('control-'+mode,dict(bulletin=batch,mode=mode),mode=mode,**{'continue':False},bulletin=batch)
     case('explicit-pause-request',dict(bulletin=batch,mode='暂停'),material='停止播讲，不搜索。只原样回复，不增减任何字：好，先停在这里。')
+    clock = '北京时间2026年10月13日12点0分'
+    opening = '现在是'+clock+'。这里是《正声新闻》，我是程正声。'
+    case('welcome-reports-time-and-host-once',dict(bulletin=batch,mode='选择领域',clock=clock),opening=opening,bulletin=dict(batch,introduced=True))
+    case('resume-does-not-repeat-welcome',dict(bulletin=dict(batch,introduced=True),mode='播讲',clock=clock),opening='')
+    case('pause-never-starts-a-welcome',dict(bulletin=batch,mode='暂停',clock=clock),opening='',bulletin=batch)
     case('answer-preserves-queue-and-waits',dict(bulletin=batch,mode='回答提问',request='这已经发生了吗？'),mode='回答提问',**{'continue':False},bulletin=batch,material='先回答听众这一问，答完等待继续。不要重新总览、逐条播报或搜索。\n问题：这已经发生了吗？\n已有来源材料：'+json.dumps(batch['items'],ensure_ascii=False,sort_keys=True,separators=(',',':')))
     case('no-fabrication-empty',dict(bulletin=dict(batch,items=[]),mode='播讲'),mode='暂无新增',**{'continue':False})
     no_details = [dict(item('a'),details=[]),item('b')]
     case('skip-unsupported-deep-dive',dict(bulletin=dict(batch,items=no_details),mode='播讲'),mode='逐条深入',bulletin=dict(batch,items=no_details,cursor=2,seen=[{k:item('b')[k] for k in ['key','title','url','brief']} | dict(day=day,facts=['概要b','新增事实b'])]))
     covered = [{k:item('a')[k] for k in ['key','title','url','brief']} | dict(day=day,facts=['概要a','新增事实a','新增事实b'])]
-    case('cross-event-repeated-facts-not-spoken',dict(bulletin=dict(batch,seen=covered),mode='播讲'),mode='暂无细节',**{'continue':False},bulletin=dict(batch,seen=covered,cursor=2))
+    case('cross-event-repeated-facts-not-spoken',dict(bulletin=dict(batch,seen=covered),mode='播讲'),mode='批次结束',**{'continue':True},bulletin=dict(batch,seen=covered,cursor=2))
 else:
     raise SystemExit('unknown script '+node)
 

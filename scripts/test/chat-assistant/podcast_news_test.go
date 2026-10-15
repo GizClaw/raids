@@ -132,7 +132,7 @@ func (m *newsModel) Stream(ctx context.Context, input []*schema.Message, opts ..
 		args, _ := json.Marshal(map[string]any{"query": m.query, "search_type": "web", "count": 10, "time_range": timeRange})
 		return schema.StreamReaderFromArray([]*schema.Message{{Role: schema.Assistant, ToolCalls: []schema.ToolCall{{ID: fmt.Sprintf("batch-%s-%d", timeRange, number), Type: "function", Function: schema.FunctionCall{Name: "news_search", Arguments: string(args)}}}}}), nil
 	}
-	for mode, text := range map[string]string{"暂停": "好，先停在这里。", "选择领域": "你想听科技、国内、国际、财经还是体育新闻？", "暂无新增": "没有可靠的新消息。", "暂无细节": "没有更多可核实的细节。"} {
+	for mode, text := range map[string]string{"暂停": "好，先停在这里。", "选择领域": "你想听科技、国内、国际、财经还是体育新闻？", "暂无新增": "没有可靠的新消息。", "暂无细节": "没有更多可核实的细节。", "批次结束": "接着看看还有哪些新消息。"} {
 		if strings.Contains(system, "当前状态："+mode+"。") {
 			if mode == "暂停" && (!strings.Contains(last.Content, "停止播讲") || !strings.Contains(last.Content, text)) {
 				return nil, errors.New("pause reached the model as an empty news-material request")

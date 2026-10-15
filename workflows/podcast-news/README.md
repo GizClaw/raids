@@ -1,7 +1,10 @@
 # News Podcast (`podcast-news`) — 新闻播客
 
-“开始” asks which domain the listener wants and waits for an answer. Naming a
-subject directly starts playback. The host first scans today's news and gives
+“开始” opens 《正声新闻》 with the current Beijing date/time, 程正声's introduction,
+a brief warm-up and a question about the listener's interests. The clock comes
+from the runtime, and the welcome is recorded once in Workspace State; loops,
+answers and resume do not repeat it. Naming a subject directly starts playback
+with that same first welcome. The host first scans recent news and gives
 a brief overview, then automatically explores each story's additional facts,
 background and attributed mainstream-media commentary. “停一下” pauses,
 “继续” resumes, and “换成国际新闻” changes the subject.
@@ -16,7 +19,10 @@ Deploy's `gizclaw/catalogs/aigc/casts/winston/cast.yaml`.
 The test listener uses Deploy's female 米雅 (Mia) cast,
 `saturn_zh_female_keainvsheng_tob`, so the speakers are audibly distinct.
 
-Facts take most of the airtime. A media comment is explicitly attributed to its
+The delivery sounds like a news program, with natural transitions and an
+occasional light, restrained line in the welcome or between topics. Humor does
+not add judgments about the news or mock its subjects; serious stories remain
+steady and factual. Facts take most of the airtime. A media comment is explicitly attributed to its
 organization and date and kept to one or two sentences; reporting a quotation
 does not make it the outlet's own editorial position. Missing commentary is not
 invented, and the host avoids adding its own opinions, predictions or investment
@@ -33,7 +39,10 @@ applying that Credential. Ordinary assistant search keeps its existing Tool.
 The graph separates collection from public narration:
 
 1. **Scan once:** request ten `OneDay` results and collect up to five distinct,
-   dated events. Internal collection records are never published or spoken.
+   dated events, preferring today's reports while retaining yesterday's latest
+   reports so the midnight boundary does not discard the previous evening.
+   The actual reporting date is spoken; yesterday is never presented as today.
+   Internal collection records are never published or spoken.
    A bounded field-record parser treats quotes as data, ignores preambles and
    rejects unfinished records. Date, source and event checks follow.
 2. **Overview:** briefly present each event's core fact with its source and date.
@@ -51,12 +60,14 @@ ledger rejects facts already covered in an overview or earlier deep dive.
 The collector also merges semantically equivalent reports; that semantic step
 and source fidelity still require real-provider acceptance. Meaningful URL query
 parameters such as article IDs are preserved. Search relevance order is not
-chronological order, so dates are checked against the current Beijing date.
+chronological order, so primary report dates are checked against today's and
+yesterday's Beijing dates, with today's reports first.
 
 The overview is about 200–300 Chinese characters; each deeper section is about
-150–200. No reliable new news or additional detail is reported honestly rather
-than filling airtime with repetition or fabricated content. In that condition
-playback waits for new listener input. A batch with usable content continues
+150–200. Exhausted details produce a short transition and trigger the next
+batch scan. If that scan has no reliable new news, playback waits for new
+listener input rather than filling airtime with repetition or fabricated
+content. A batch with usable content continues
 automatically and is interruptible throughout.
 
 ## State and engine requirements
@@ -134,18 +145,23 @@ Short spoken replies are forwarded at their normal 20 ms packet pacing.
 PTT receipts contain an ASR transcript stream as well as the narration stream.
 The companion
 `podcast-news.eino.giztest.yaml` keeps one receiving stream open for 210 seconds
-and records all narration audio. The persona receives the opening wording
-captured from that same turn's actual text output and generates a factual
-question about it. This long variant uses text for that handoff: replaying the
-entire recording through the deployed short-utterance ASR timed out at
-finalization. The listener's question, host answer and continuation request
-still use actual captured audio and PTT. After sustained narration, the host
+and records all narration audio. A subsequent 20-second receive window captures
+the current broadcast tail; `server.speech.transcribe` turns that actual received
+audio into text for the persona's next question. It neither uses a predefined
+news question nor sends a multi-minute recording through short-utterance ASR.
+The listener's question, host answer and continuation request use actual
+captured audio and PTT. After sustained narration, the host
 must switch to one finite factual answer. The v0.31.5 Server answered the
 question but did not produce the newer runner's `interrupt_observed` marker;
 that marker is not treated as proof of interruption on this deployment.
 After the factual answer, the persona hears
-the explanation and says “继续”; the test requires another 120 seconds of
-continuous narration. It then sends the persona's spoken “停一下” and checks
+the explanation and says “继续”; that audio is sent to the host, and the test
+requires another 120 seconds of continuous narration. It captures and
+transcribes the new 20-second broadcast tail, then performs a second generated
+question, host answer and acknowledgment. The persona's resume phase rearms
+question generation, so the second question uses the newly received news.
+After a second spoken “继续”, another 60-second narration window is required.
+It then sends the persona's spoken “停一下” and checks
 that playback stays quiet. Run this file with `--output` for the long report.
 It needs the v0.31.7 State fix. Both are separate from the standard
 smoke/quality/soak inventory. Failed resume receipts remain valid failure

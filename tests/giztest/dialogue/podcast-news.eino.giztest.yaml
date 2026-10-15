@@ -1,7 +1,7 @@
 # User Story:
 # As a real news podcast listener persona,
-# I want to interrupt several minutes of actual narration, ask a factual question, and request continued playback,
-# So that the native report proves a long spoken dialogue and sustained resume between two Workflows.
+# I want to interrupt live narration, hear sustained playback after continuing, and ask again about the latest received news,
+# So that native Giztest records two real question-answer exchanges and actual resumed narration between them.
 version: gizclaw.test/v1alpha1
 name: podcast-news.dialogue.eino
 clients:
@@ -49,9 +49,6 @@ variables:
     max_bytes: 16777216
     media_type: audio/ogg
     codec: opus
-  heard_news_opening:
-    direction: output
-    type: string
   listener_question_audio:
     direction: output
     type: audio
@@ -85,8 +82,50 @@ variables:
     max_bytes: 16777216
     media_type: audio/ogg
     codec: opus
+  heard_news_recent:
+    direction: output
+    type: string
+  heard_resumed_news_recent:
+    direction: output
+    type: string
+  recent_news_audio:
+    direction: output
+    type: audio
+    max_bytes: 16777216
+    media_type: audio/ogg
+    codec: opus
+  recent_resumed_news_audio:
+    direction: output
+    type: audio
+    max_bytes: 16777216
+    media_type: audio/ogg
+    codec: opus
+  listener_question_again:
+    direction: output
+    type: string
+  listener_question_audio_again:
+    direction: output
+    type: audio
+    max_bytes: 16777216
+    media_type: audio/ogg
+    codec: opus
+  host_answer_again:
+    direction: output
+    type: string
+  host_answer_audio_again:
+    direction: output
+    type: audio
+    max_bytes: 16777216
+    media_type: audio/ogg
+    codec: opus
+  resume_request_audio_again:
+    direction: output
+    type: audio
+    max_bytes: 16777216
+    media_type: audio/ogg
+    codec: opus
 repeat: 1
-timeout: 15m
+timeout: 20m
 steps:
 - id: podcast_register
   client: podcast
@@ -152,10 +191,13 @@ steps:
     host_interest_question_audio: /audio
   expect:
     /reply:
-      pattern: 想.*听|方向|领域
+      pattern: '[0-9]{4}年[0-9]{1,2}月[0-9]{1,2}日[0-9]{1,2}点[0-9]{1,2}分'
       contains_all:
       - 科技
       - 国际
+      - 北京时间
+      - 程正声
+      - 正声新闻
     /audio_integrity/max_active:
       equals: 1
     /audio_integrity/violations:
@@ -205,7 +247,6 @@ steps:
       first_audio_timeout: 55s
   capture:
     heard_news_audio: /hear_continuous_news/audio
-    heard_news_opening: /start_continuous_news/reply
   expect:
     /hear_continuous_news/text:
       min_length: 100
@@ -234,15 +275,37 @@ steps:
       equals: 1
     /start_continuous_news/audio_integrity/violations:
       equals: 0
+- id: first_interrupt_recent_audio
+  client: podcast
+  peer_stream:
+    mode: listen
+    duration: 20s
+  capture:
+    recent_news_audio: /audio
+  expect:
+    /audio_bytes:
+      minimum: 1
+    /last_event_ms:
+      minimum: 18000
+- id: first_interrupt_transcribe_recent_audio
+  client: persona
+  timeout: 45s
+  speech:
+    method: server.speech.transcribe
+    request:
+      model_name: asr
+    input: ${recent_news_audio}
+  capture:
+    heard_news_recent: /transcript
+  expect:
+    /transcript:
+      min_length: 12
 - id: listener_asks_about_news
   client: persona
   timeout: 100s
   peer_stream:
-    # This is actual text received from the host in this same narration turn.
-    # Keep the full recording for playback; do not replay several minutes of
-    # audio through a short-utterance ASR just to form a factual question.
     mode: text
-    input: ${heard_news_opening}
+    input: ${heard_news_recent}
     require_text: true
     require_audio: true
   capture:
@@ -353,6 +416,148 @@ steps:
     /start_resume_news/audio_integrity/max_active:
       equals: 1
     /start_resume_news/audio_integrity/violations:
+      equals: 0
+- id: second_interrupt_recent_audio
+  client: podcast
+  peer_stream:
+    mode: listen
+    duration: 20s
+  capture:
+    recent_resumed_news_audio: /audio
+  expect:
+    /audio_bytes:
+      minimum: 1
+    /last_event_ms:
+      minimum: 18000
+- id: second_interrupt_transcribe_recent_audio
+  client: persona
+  timeout: 45s
+  speech:
+    method: server.speech.transcribe
+    request:
+      model_name: asr
+    input: ${recent_resumed_news_audio}
+  capture:
+    heard_resumed_news_recent: /transcript
+  expect:
+    /transcript:
+      min_length: 12
+- id: listener_asks_about_news_again
+  client: persona
+  timeout: 100s
+  peer_stream:
+    mode: text
+    input: ${heard_resumed_news_recent}
+    require_text: true
+    require_audio: true
+  capture:
+    listener_question_again: /reply
+    listener_question_audio_again: /audio
+  expect:
+    /reply:
+      pattern: '[？?]|来源|计划|哪|是不是'
+      max_length: 24
+      not_contains:
+      - 主持人仍在播报
+      - 现在立刻用语音
+      - 你刚听到
+      - 测试
+    /audio_bytes:
+      minimum: 1
+- id: host_answers_listener_again
+  client: podcast
+  timeout: 90s
+  peer_stream:
+    mode: push-to-talk
+    input: ${listener_question_audio_again}
+    pacing: 20ms
+    require_text: true
+    require_audio: true
+  capture:
+    host_answer_again: /reply
+    host_answer_audio_again: /audio
+  expect:
+    /reply:
+      min_length: 20
+      not_contains:
+      - 今日总览
+      - 你想听科技
+      - 好，先停在这里。
+    /audio_bytes:
+      minimum: 1
+- id: listener_responds_to_answer_again
+  client: persona
+  timeout: 90s
+  peer_stream:
+    mode: push-to-talk
+    input: ${host_answer_audio_again}
+    pacing: 20ms
+    require_text: true
+    require_audio: true
+  expect:
+    /reply:
+      min_length: 2
+      max_length: 8
+      not_contains:
+      - PASS
+      - FAIL
+      - 测试
+      - 评分
+    /audio_bytes:
+      minimum: 1
+- id: listener_requests_resume_again
+  client: persona
+  peer_stream:
+    mode: text
+    input: 继续
+    require_text: true
+    require_audio: true
+  capture:
+    resume_request_audio_again: /audio
+  expect:
+    /reply:
+      contains_all:
+      - 继续
+- id: resume_after_second_question
+  timeout: 120s
+  parallel:
+  - id: hear_second_resume_news
+    client: podcast
+    peer_stream:
+      mode: listen
+      duration: 60s
+  - id: start_second_resume_news
+    client: podcast
+    delay: 250ms
+    peer_stream:
+      mode: push-to-talk
+      input: ${resume_request_audio_again}
+      pacing: 20ms
+      completion: first_response
+      require_text: true
+      require_audio: true
+      first_text_timeout: 50s
+      first_audio_timeout: 55s
+  expect:
+    /hear_second_resume_news/text:
+      min_length: 40
+    /hear_second_resume_news/streams:
+      minimum: 1
+      maximum: 2
+    /hear_second_resume_news/audio_bytes:
+      minimum: 1
+    /hear_second_resume_news/last_event_ms:
+      minimum: 55000
+    /hear_second_resume_news/audio_pacing/underruns:
+      equals: 0
+    /hear_second_resume_news/audio_pacing/minimum_buffer_ms:
+      minimum: 0
+    /start_second_resume_news/transcript:
+      contains_all:
+      - 继续
+    /start_second_resume_news/audio_integrity/max_active:
+      equals: 1
+    /start_second_resume_news/audio_integrity/violations:
       equals: 0
 - id: listener_requests_stop
   client: persona

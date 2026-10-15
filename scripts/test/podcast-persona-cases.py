@@ -19,16 +19,18 @@ if node_id == 'listener-reply':
     print(json.dumps({'source': node['source'], 'steps': node['limits']['max_execution_steps'], 'cases': cases}, ensure_ascii=False))
     sys.exit(0)
 cases = []
-def case(name, data, mode, turn, recent=None):
+def case(name, data, mode, turn, recent=None, heard=None):
     want = {'mode': {'equals': mode}, 'listener': {'equals': {'turn': turn}}}
     if recent is not None:
         want['recent'] = {'equals': recent}
+    if heard is not None:
+        want['heard'] = {'equals': heard}
     cases.append({'id': name, 'input': data, 'expect': want})
 
 case('answer-the-hosts-interest-question', {'text': '你想听哪个领域的新闻？'}, '选择兴趣', 1)
 case('ask-about-actual-narration', {'text': '新闻机构报道，探测器已完成着陆。', 'listener': {'turn': 1}}, '新闻提问', 2)
 case('respond-after-hearing-the-answer', {'text': '着陆已经完成，报道日期是今天。', 'listener': {'turn': 2}}, '回应回答', 3)
-case('explicit-continuation', {'text': '继续。', 'listener': {'turn': 2}}, '继续收听', 3)
+case('explicit-continuation', {'text': '继续。', 'listener': {'turn': 2}}, '继续收听', 1)
 case('explicit-stop', {'text': '停一下', 'listener': {'turn': 1}}, '结束收听', 2)
 case('bounded-dialogue-state', {'text': '好，先停在这里。', 'listener': {'turn': 3}}, '回应回答', 3)
 context = [{'role': 'user', 'content': '你想听什么？'}, {'role': 'assistant', 'content': '我想听航天新闻。'}]
@@ -39,6 +41,10 @@ case('recover-the-question-exchange-from-real-replies', {'text': '探测器已�
 case('incoming-asr-is-not-a-prior-listener-reply', {'text': '你想听哪个领域的新闻？', 'messages': [{'role': 'assistant', 'content': '你想听哪个领域的新闻？'}]}, '选择兴趣', 1)
 case('real-interest-reply-recovers-an-overadvanced-phase', {'text': '报道说模型已经发布。', 'listener': {'turn': 2}, 'messages': [{'role': 'assistant', 'content': '我对人工智能新闻感兴趣。'}]}, '新闻提问', 2)
 case('recover-a-short-colloquial-interest-reply', {'text': '报道说模型已经发布。', 'messages': [{'role': 'assistant', 'content': '给我播人工智能新闻就行。'}]}, '新闻提问', 2)
+resumed = [{'role': 'assistant', 'content': '我想听人工智能新闻。'}, {'role': 'assistant', 'content': '模型发布了吗？'}, {'role': 'assistant', 'content': '哦，明白。'}, {'role': 'assistant', 'content': '继续。'}]
+case('ask-about-the-new-resumed-broadcast', {'text': '另一机构的探测器已经着陆。', 'listener': {'turn': 1}, 'messages': resumed}, '新闻提问', 2)
+case('acknowledge-the-second-answer', {'text': '探测器已经完成着陆。', 'listener': {'turn': 2}, 'messages': resumed+[{'role': 'assistant', 'content': '探测器已经着陆了吗？'}]}, '回应回答', 3)
+case('use-the-recent-broadcast-tail', {'text': '早先的报道。'*150+'刚收到的新闻，探测器已着陆。', 'listener': {'turn': 1}}, '新闻提问', 2, heard=('早先的报道。'*150+'刚收到的新闻，探测器已着陆。')[-600:].split('。',1)[1])
 assert spec['state_persistence']['fields'] == ['listener']
 assert spec['graph']['outputs'][0]['name'] == 'assistant'
 print(json.dumps({'source': node['source'], 'steps': node['limits']['max_execution_steps'], 'cases': cases}, ensure_ascii=False))
