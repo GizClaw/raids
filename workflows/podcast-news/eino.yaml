@@ -609,7 +609,7 @@ spec:
           messages: {from: messages}
         outputs:
           text: answer
-        model: eino-podcast-news.model
+        model: eino-podcast-news.narration
         max_tokens: 1536
       - id: checkpoint-playback
         type: script
@@ -625,7 +625,7 @@ spec:
           timeout: 500ms
           max_input_bytes: 16777216
           max_output_bytes: 65536
-        source: &news_cache_checkpoint |
+        source: |
           def cached_content(bulletin):
               items = bulletin.get("items", [])
               if bulletin.get("overview", True):
@@ -645,16 +645,8 @@ spec:
               return "".join([c for c in text.strip().lower().codepoints() if c not in " \t\r\n，。！？,.!?；;：:|/－-_"])
 
           def run(input):
+              # Commit the next-generation flag with its delivered cursor.
               bulletin = input.get("bulletin", {})
-              if "prefetch" in input:
-                  # The current section is reserved; only its empty remainder
-                  # authorizes one parallel refill for the following section.
-                  needed = bool(input["prefetch"]) and not cached_content(bulletin)
-                  fetch = "enrich" if bulletin.get("items", []) and not bulletin.get("enriched", False) else "scan"
-                  receipt = {"requested_at_ms": now_millis(), "kind": fetch, "mode": input["mode"], "remaining_after_reservation": 0, "reserved_material": input["material"]} if needed else {}
-                  return {"needed": needed, "fetch": fetch if needed else "none", "base": bulletin, "material": json.encode(bulletin.get("items", [])), "exclusions": json.encode(bulletin.get("seen", [])[-100:]), "receipt": receipt, "prefetched": bulletin, "scan_messages": [], "enrichment_messages": []}
-              # Run after narration and refill have joined, so this describes
-              # the next generation and is committed with its queue cursor.
               return {"needs_search": bool(input.get("keep_speaking", False)) and not cached_content(bulletin)}
       - id: plan-prefetch
         type: script
@@ -680,7 +672,33 @@ spec:
           timeout: 500ms
           max_input_bytes: 16777216
           max_output_bytes: 1048576
-        source: *news_cache_checkpoint
+        source: |
+          def cached_content(bulletin):
+              items = bulletin.get("items", [])
+              if bulletin.get("overview", True):
+                  return bool(items)
+              spoken = {}
+              for record in bulletin.get("seen", []):
+                  for text in record.get("facts", [record.get("brief", "")]):
+                      spoken[content_identity(text)] = True
+              for item in items[bulletin.get("cursor", 0):]:
+                  for kind in ["details", "comments"]:
+                      for entry in item.get(kind, []):
+                          if content_identity(entry["text"]) not in spoken:
+                              return True
+              return False
+
+          def content_identity(text):
+              return "".join([c for c in text.strip().lower().codepoints() if c not in " \t\r\n，。！？,.!?；;：:|/－-_"])
+
+          def run(input):
+              bulletin = input["bulletin"]
+              # The current section is reserved; only its empty remainder
+              # authorizes one refill while its audio is playing.
+              needed = bool(input["prefetch"]) and not cached_content(bulletin)
+              fetch = "enrich" if bulletin.get("items", []) and not bulletin.get("enriched", False) else "scan"
+              receipt = {"requested_at_ms": now_millis(), "kind": fetch, "mode": input["mode"], "remaining_after_reservation": 0, "reserved_material": input["material"]} if needed else {}
+              return {"needed": needed, "fetch": fetch if needed else "none", "base": bulletin, "material": json.encode(bulletin.get("items", [])), "exclusions": json.encode(bulletin.get("seen", [])[-100:]), "receipt": receipt, "prefetched": bulletin, "scan_messages": [], "enrichment_messages": []}
       - id: prefetch-route
         type: passthrough
         inputs:

@@ -30,11 +30,17 @@ advice. Publication dates and event dates remain distinct.
 
 ## Batch search and playback
 
-Both public Profiles inject only `news.search`, bound to
+Both public Profiles inject only `news.search` into the Workflow, bound to
 [`volc-news-search`](../../tools/volc-news-search.yaml). The Tool calls the
 [Doubao Search Custom API](https://www.volcengine.com/docs/87772/2272953) with
 `volc-credential.search_api_key`; configure `GIZCLAW_VOLC_SEARCH_API_KEY` when
 applying that Credential. Ordinary assistant search keeps its existing Tool.
+
+The narration slot uses `doubao-seed-2-1-lite-narration`, with
+`support_tool_calls: false`. Its provider requests omit function definitions,
+including factual-answer requests. Collection retains the tool-capable slot.
+This prevents the speaking model from independently searching beyond the
+controller's cached-material decision.
 
 The graph separates collection from public narration:
 
@@ -70,8 +76,8 @@ records the reserved material, zero remaining backlog and collection times.
 
 This is playback overlapping a refill within one Graph invocation. The Graph
 waits for the refill before advancing its checkpoint; a search slower than the
-remaining audio can still leave a gap. Interruption cancels an unfinished refill
-and preserves the last delivered checkpoint. Pause and factual answers do not
+remaining audio can still leave a gap. Interruption cancels outstanding work and preserves the last delivered
+checkpoint; a refill not yet included in that checkpoint is discarded. Pause and factual answers do not
 start background collection.
 
 The queue rejects duplicate normalized event identifiers, canonical article
@@ -113,7 +119,8 @@ narration and refill. The
 runtime commits that flag, phase and cursor together after successful delivery.
 Pause, factual answers and an empty result leave automatic search disabled.
 Model and Voice slots are
-`eino-podcast-news.model` and `eino-podcast-news.host`; PTT/realtime ASR select
+`eino-podcast-news.model` (collection), `eino-podcast-news.narration` (speech/answers)
+and `eino-podcast-news.host`; PTT/realtime ASR select
 `asr` from the Profile. Playback and History follow the
 [continuous podcast contract](../podcast/README.md#continuous-playback-and-history).
 

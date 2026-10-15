@@ -8,6 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -21,15 +23,85 @@ import (
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/components/retriever"
 	"github.com/cloudwego/eino/schema"
+	"github.com/openai/openai-go"
+	"github.com/openai/openai-go/option"
 )
 
 type newsComponents struct{ model model.BaseChatModel }
 
 func (c newsComponents) ResolveChatModel(_ context.Context, alias string) (model.BaseChatModel, error) {
-	if alias != "eino-podcast-news.model" {
+	if alias != "eino-podcast-news.model" && alias != "eino-podcast-news.narration" {
 		return nil, fmt.Errorf("unexpected news Model alias %q", alias)
 	}
 	return c.model, nil
+}
+
+func TestNewsPodcastNarrationOmitsToolsFromProviderRequest(t *testing.T) {
+	workflow := document(t, "workflows/podcast-news/eino.yaml")
+	nodes := workflow["spec"].(map[string]any)["eino"].(map[string]any)["graph"].(map[string]any)["nodes"].([]any)
+	aliases := make(map[string]string)
+	for _, value := range nodes {
+		node := value.(map[string]any)
+		if alias, ok := node["model"].(string); ok {
+			aliases[node["id"].(string)] = alias
+		}
+	}
+	for _, profileFile := range []string{"runtime-profiles/default.yaml", "runtime-profiles/testing.yaml"} {
+		profile := chatProfile(t, profileFile)
+		for _, test := range []struct {
+			node      string
+			wantTools int
+		}{
+			{"collect-batch", 1},
+			{"narrate", 0},
+		} {
+			t.Run(profileFile+"/"+test.node, func(t *testing.T) {
+				binding := (*profile.Spec.Resources.Models)[aliases[test.node]]
+				doc := document(t, "models/"+binding.ResourceId+".yaml")
+				var config apitypes.VolcTenantModelProviderData
+				decode(t, doc["spec"].(map[string]any)["provider_data"], &config)
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					var body map[string]any
+					if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+						t.Error(err)
+					}
+					tools, _ := body["tools"].([]any)
+					if len(tools) != test.wantTools {
+						t.Errorf("provider received %d tools, want %d", len(tools), test.wantTools)
+					}
+					w.Header().Set("Content-Type", "text/event-stream")
+					_, _ = io.WriteString(w, "data: {\"id\":\"1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"news\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"已缓存的新闻。\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"news\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n")
+				}))
+				defer server.Close()
+				client := openai.NewClient(option.WithAPIKey("fixture"), option.WithBaseURL(server.URL+"/"))
+				generator := &genx.OpenAIGenerator{Client: &client, Model: "news", SupportToolCalls: config.SupportToolCalls != nil && *config.SupportToolCalls}
+				var builder genx.ModelContextBuilder
+				builder.UserText("", "播报已经缓存的新闻。")
+				builder.AddTool(&genx.FuncTool{Name: "news_search", Description: "Batch search", Parameters: json.RawMessage(`{"type":"object","properties":{}}`)})
+				stream, err := generator.GenerateStream(t.Context(), "", builder.Build())
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer stream.Close()
+				var text strings.Builder
+				for {
+					chunk, err := stream.Next()
+					if errors.Is(err, genx.ErrDone) || errors.Is(err, io.EOF) {
+						break
+					}
+					if err != nil {
+						t.Fatal(err)
+					}
+					if part, ok := chunk.Part.(genx.Text); ok {
+						text.WriteString(string(part))
+					}
+				}
+				if text.String() != "已缓存的新闻。" {
+					t.Fatalf("reply=%q", text.String())
+				}
+			})
+		}
+	}
 }
 func (newsComponents) ResolveRetriever(context.Context, string) (retriever.Retriever, error) {
 	return nil, errors.New("unexpected news retriever")
