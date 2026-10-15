@@ -117,10 +117,11 @@ Smoke checks real search, continuous text/audio, source dates, replayable Histor
 and pause. Quality and soak add PTT/realtime ASR, resume and domain redirection.
 [`test-persona.yaml`](test-persona.yaml) is a second, finite listener Workflow
 bound only in `testing`, with the female listener voice. The host first
-asks what the listener wants. Its actual reply audio is sent to the persona;
-the persona generates an interest reply, and that reply's audio starts the news
-host. No topic reply is prerecorded in the Giztest. The persona then hears the
-captured narration audio and asks a factual question. The host's answer is sent
+asks what the listener wants, and the persona generates a short interest reply
+that starts the news host. The long scenario streams text while both Workflows
+speak, and the question-only scenario exchanges captured audio for PTT
+recognition. No topic reply is prerecorded in either Giztest. The persona then
+hears the captured narration audio and asks a factual question. The host's answer is sent
 back to the persona, which naturally acknowledges the explanation or thanks
 the host. Giztest cleanup then stops both Workspaces.
 Its dialogue phase persists between these finite responses.
@@ -142,10 +143,17 @@ the other Workspace for PTT recognition. Spoken test instructions are excluded.
 Short spoken replies are forwarded at their normal 20 ms packet pacing.
 PTT receipts contain an ASR transcript stream as well as the narration stream.
 The companion
-`podcast-news.eino.giztest.yaml` first checks that the listener's spoken subject
-choice starts news playback, then keeps one receiving stream open for 210 seconds
-and records all narration audio. This startup check catches a failed search or
-misclassified interest reply before the long listening window. Natural choices
+`podcast-news.eino.giztest.yaml` opens with a two-turn native `workspace_relay`.
+The host's generated text reaches the persona while its voice is playing; audio
+EOS closes each turn. The persona's actual short reply text then starts news
+playback. Both sides produce their bound-voice audio. This avoids first recording
+the entire welcome and then sending the same 20-second audio again at real-time
+PTT speed, which would leave a second welcome-length gap in the conversation.
+This opening tests streamed dialogue rather than PTT recognition of the topic
+choice; spoken resume and stop retain their actual audio/PTT handoffs.
+The startup check catches a failed search or misclassified interest reply before
+the long listening window. One receiving stream then stays open for 210 seconds
+and records all narration audio. Natural choices
 such as “就听科技新闻” are normalized before topic classification.
 A loopback audio-tail bridge decodes that same
 capture, retains its last 20 seconds and calls `server.speech.transcribe` for the
