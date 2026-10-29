@@ -4,23 +4,24 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Raids 测试报告</title>
-  <link rel="stylesheet" href="report.css?v=9edff7181857">
-  <script defer src="report-data.js?v=7b3e062d2db3"></script>
-  <script defer src="report.js?v=109b21870dd0"></script>
+  <link rel="stylesheet" href="report.css?v=8d8dbe4ba9c8">
+  <script defer src="report-data.js?v=a87a56469f55"></script>
+  <script defer src="report.js?v=1355a75c4d34"></script>
 </head>
 <body>
   <main>
     <header><h1>Raids 测试报告</h1><div class="links"><a href="report.json" download>JSON</a><a href="scoring.md" target="_blank" rel="noopener">评分标准</a></div></header>
     <p id="metadata" class="metadata">加载中…</p>
     <form id="filters" class="filters" role="search">
-      <label>搜索 <input id="search" type="search" placeholder="剧本名称 / ID" autocomplete="off"></label>
-      <label>类别 <select id="category"><option value="all">全部</option></select></label>
-      <label>语言 <select id="language"><option value="all">全部</option><option value="zh">中文</option><option value="en">English</option></select></label>
-      <label>范围 <select id="scope"><option value="all">全部剧本</option><option value="current">本轮测试</option><option value="untested">未测试</option></select></label>
+      <div class="filter-field search-field"><label for="search">搜索</label><input id="search" type="search" placeholder="剧本名称 / ID" autocomplete="off"></div>
+      <div class="filter-field"><label id="category-label" for="category">类别</label><select id="category"><option value="all">全部</option></select></div>
+      <div class="filter-field"><label id="language-label" for="language">语言</label><select id="language"><option value="all">全部</option><option value="zh">中文</option><option value="en">English</option></select></div>
+      <div class="filter-field"><label id="scope-label" for="scope">范围</label><select id="scope"><option value="all">全部剧本</option><option value="current">本轮测试</option><option value="untested">未测试</option></select></div>
       <span id="row-count" class="muted"></span>
     </form>
-    <div class="table-wrap">
+    <div class="table-wrap report-scroll" tabindex="0" role="region" aria-label="剧本报告表">
       <table id="report-table">
+        <colgroup><col class="col-title"><col class="col-category"><col class="col-language"><col class="col-status"><col span="2" class="col-progress"><col span="2" class="col-score"><col span="3" class="col-threshold"><col class="col-technical"><col class="col-detail"></colgroup>
         <thead><tr>
           <th scope="col" data-sort="title" aria-sort="none"><button type="button">剧本</button></th>
           <th scope="col" data-sort="category" aria-sort="none"><button type="button">类别</button></th>
@@ -47,10 +48,10 @@
       <p id="session-meta" class="metadata"></p>
       <div class="table-wrap"><table class="technical-table"><thead><tr><th scope="col">技术检查</th><th scope="col">结果</th></tr></thead><tbody id="technical-rows"></tbody></table></div>
       <form id="turn-filters" class="filters" role="search">
-        <label>日志 <input id="turn-search" type="search" placeholder="搜索原话 / 回复 / 扣分理由"></label>
-        <label>排序 <select id="turn-sort"><option value="round">轮次</option><option value="score">分数从低到高</option></select></label>
+        <div class="filter-field search-field"><label for="turn-search">日志</label><input id="turn-search" type="search" placeholder="搜索原话 / 回复 / 扣分理由"></div>
+        <div class="filter-field"><label id="turn-sort-label" for="turn-sort">排序</label><select id="turn-sort"><option value="round">轮次</option><option value="score">分数从低到高</option></select></div>
         <label class="check"><input id="deductions-only" type="checkbox"> 只看扣分</label>
-        <label>每页 <select id="page-size"><option value="10">10</option><option value="25">25</option><option value="all">全部</option></select></label>
+        <div class="filter-field"><label id="page-size-label" for="page-size">每页</label><select id="page-size"><option value="10">10</option><option value="25">25</option><option value="all">全部</option></select></div>
       </form>
       <div class="table-wrap"><table class="turn-table"><thead><tr><th scope="col">轮次</th><th scope="col">用户原话</th><th scope="col">完整回复</th><th scope="col">评分</th><th scope="col">评分依据</th></tr></thead><tbody id="turn-rows"></tbody></table></div>
       <div class="pagination"><span id="turn-count" class="muted"></span><button id="previous-page" type="button">上一页</button><button id="next-page" type="button">下一页</button></div>
