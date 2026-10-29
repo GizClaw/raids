@@ -4,16 +4,17 @@ let sortKey=null,sortDirection=1;
 const $=(selector,parent=document)=>parent.querySelector(selector);
 const $$=(selector,parent=document)=>[...parent.querySelectorAll(selector)];
 const categoryNames={story:"故事",adventure:"探索",figure:"人物",guess:"猜谜",learn:"学习",assistant:"助手",translate:"翻译"};
-const states={queued:"待测试",running:"采集中",collected:"待评分",incomplete:"未完成",scored:"已评分",blocked:"受阻",untested:"未测试"};
+const states={queued:"待测试",running:"测试中",collected:"待评分",incomplete:"未完成",scored:"已评分",blocked:"受阻",untested:"未测试"};
 const order=["story","adventure","figure","guess","learn","sushi"];
 const selectControls=new Map();
 let openSelect=null;
 function el(tag,className,text){const node=document.createElement(tag);if(className)node.className=className;if(text!==undefined&&text!==null)node.textContent=String(text);return node;}
 function cell(row,text,className=""){const node=el("td",className,text);row.append(node);return node;}
 function time(value){return new Intl.DateTimeFormat("zh-CN",{timeZone:"Asia/Singapore",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}).format(new Date(value));}
+function turns(session){return session.rows.filter(row=>row.round>0).length;}
 function scored(session){return session.rows.filter(row=>row.score).length;}
 function language(value){return value==="zh"?"中文":value==="en"?"English":value==="mixed"?"混合":"—";}
-function records(){const result=[];for(const item of report.catalog){const sessions=report.sessions.filter(s=>s.catalog_id===item.id);if(sessions.length){for(const session of sessions)result.push({catalog:item,session,title:item.title,category:item.category,language:session.language,status:session.status,collected:session.rows.length,scored:scored(session),mean:session.official?session.summary.mean:null,minimum:session.official?session.summary.minimum:null});}else result.push({catalog:item,session:null,title:item.title,category:item.category,language:"none",status:"untested",collected:null,scored:null,mean:null,minimum:null});}return result;}
+function records(){const result=[];for(const item of report.catalog){const sessions=report.sessions.filter(s=>s.catalog_id===item.id);if(sessions.length){for(const session of sessions)result.push({catalog:item,session,title:item.title,category:item.category,language:session.language,status:session.status,collected:turns(session),scored:scored(session),mean:session.official?session.summary.mean:null,minimum:session.official?session.summary.minimum:null});}else result.push({catalog:item,session:null,title:item.title,category:item.category,language:"none",status:"untested",collected:null,scored:null,mean:null,minimum:null});}return result;}
 function enhanceSelects(){
   for(const native of $$("select")){
     if(selectControls.has(native)){selectControls.get(native).sync();continue;}
@@ -111,8 +112,7 @@ window.addEventListener("resize",()=>openSelect?.close());
 function render(){
   if(!report){$("#load-error").hidden=false;return;}
   $("#load-error").hidden=true;
-  const replies=report.sessions.reduce((n,s)=>n+s.rows.length,0),ratings=report.sessions.reduce((n,s)=>n+scored(s),0);
-  $("#metadata").textContent="更新 "+time(report.updated_at)+" UTC+8 · GizClaw "+report.runtime+" · "+report.catalog.length+" 个剧本 · 本轮 "+report.sessions.length+" 场 · 回复 "+replies+"/624 · 已评分 "+ratings+"/624";
+  $("#metadata").textContent="更新 "+time(report.updated_at)+" UTC+8 · GizClaw "+report.runtime+" · "+report.catalog.length+" 个剧本 · 本次 "+report.sessions.length+" 场独立测试 · 每场 51 轮问答";
   if($("#category").options.length===1){for(const [key,title]of Object.entries(categoryNames)){const option=el("option","",title);option.value=key;$("#category").append(option);}}
   enhanceSelects();renderTable();renderHistory();
 }
@@ -132,7 +132,7 @@ function renderTable(){
     name.title=record.catalog.title_en+" · "+record.catalog.id;
     if(s?.case==="sushi")name.append(el("span","baseline","基线"));
     cell(row,categoryNames[record.category]);cell(row,language(record.language));cell(row,states[record.status]||record.status,"status");
-    cell(row,s?record.collected+"/52":"—","num");cell(row,s?record.scored+"/52":"—","num");
+    cell(row,s?record.collected+"/51":"—","num");cell(row,s?String(record.scored):"—","num");
     cell(row,record.mean===null?"—":record.mean.toFixed(1),"num");cell(row,record.minimum===null?"—":record.minimum.toFixed(0),"num");
     const detail=cell(row);if(s?.rows.length&&s.logs)detail.append(logLink(s));else detail.textContent="—";
     target.append(row);
