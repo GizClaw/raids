@@ -195,6 +195,8 @@ $("#close-dialog").addEventListener("click",()=>$("#report-dialog").close());
 $("#report-dialog").addEventListener("click",event=>{if(event.target===$("#report-dialog")){const box=event.target.getBoundingClientRect();if(event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom)event.target.close();}});
 window.addEventListener("hashchange",()=>showTab(location.hash.slice(1)));
 showTab(location.hash.slice(1)); render();
-setInterval(async()=>{
-  try { const response=await fetch("report.json",{cache:"no-store"});if(!response.ok)return;const next=await response.json();if(next.schema==="raids-public-report/v1"&&next.updated_at!==report.updated_at){report=next;render();} } catch (_) { /* Keep the last readable report while offline. */ }
-},60000);
+async function refreshReport() {
+  try { const response=await fetch("report.json?updated="+Math.floor(Date.now()/60000),{cache:"no-store"});if(!response.ok)return;const next=await response.json();if(next.schema==="raids-public-report/v1"&&next.updated_at!==report?.updated_at){report=next;render();} } catch (_) { /* Keep the last readable report while offline. */ }
+}
+refreshReport();
+setInterval(refreshReport,60000);
