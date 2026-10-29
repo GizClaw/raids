@@ -146,7 +146,11 @@ function logLink(session,label="日志",className="text-button"){
 }
 function renderHistory(){
   const target=$("#history-rows");target.replaceChildren();$("#history-title").textContent="历史记录（"+report.archives.length+"）";
-  for(const s of report.archives){const row=el("tr");cell(row,s.title);cell(row,language(s.language));cell(row,s.rows.length,"num");cell(row,scored(s),"num");cell(row,"历史短测","muted");cell(row).append(logLink(s));target.append(row);}
+  for(const s of report.archives){
+    const row=el("tr");cell(row,s.title);cell(row,language(s.language));cell(row,turns(s)+"/51","num");cell(row,scored(s)+"/"+s.rows.length,"num");
+    for(const key of ["minimum","maximum","mean","stddev"]){const value=s.summary?.[key];cell(row,value===null||value===undefined?"—":value.toFixed(key==="stddev"?2:1),"num");}
+    cell(row).append(logLink(s));target.append(row);
+  }
 }
 for(const selector of ["#search","#category","#language","#scope"])$(selector).addEventListener(selector==="#search"?"input":"change",renderTable);
 $$('[data-sort]').forEach(th=>$("button",th).addEventListener("click",()=>{if(sortKey===th.dataset.sort)sortDirection*=-1;else{sortKey=th.dataset.sort;sortDirection=1;}renderTable();}));
