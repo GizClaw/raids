@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Raids 测试报告</title>
-  <link rel="stylesheet" href="report.css?v=8d8dbe4ba9c8">
-  <script defer src="report-data.js?v=bb2177f67800"></script>
-  <script defer src="report.js?v=1355a75c4d34"></script>
+  <link rel="stylesheet" href="report.css?v=a6da90b65189">
+  <script defer src="report-data.js?v=e90aaf2ea8ac"></script>
+  <script defer src="report.js?v=0218d3a8b9a5"></script>
 </head>
 <body>
   <main>
@@ -21,7 +21,7 @@
     </form>
     <div class="table-wrap report-scroll" tabindex="0" role="region" aria-label="剧本报告表">
       <table id="report-table">
-        <colgroup><col class="col-title"><col class="col-category"><col class="col-language"><col class="col-status"><col span="2" class="col-progress"><col span="2" class="col-score"><col span="3" class="col-threshold"><col class="col-technical"><col class="col-detail"></colgroup>
+        <colgroup><col class="col-title"><col class="col-category"><col class="col-language"><col class="col-status"><col span="2" class="col-progress"><col span="2" class="col-score"><col class="col-detail"></colgroup>
         <thead><tr>
           <th scope="col" data-sort="title" aria-sort="none"><button type="button">剧本</button></th>
           <th scope="col" data-sort="category" aria-sort="none"><button type="button">类别</button></th>
@@ -31,31 +31,15 @@
           <th scope="col" class="num" data-sort="scored" aria-sort="none"><button type="button">已评分</button></th>
           <th scope="col" class="num" data-sort="mean" aria-sort="none"><button type="button">均分</button></th>
           <th scope="col" class="num" data-sort="minimum" aria-sort="none"><button type="button">最低</button></th>
-          <th scope="col" class="line">80 分线</th><th scope="col" class="line">85 分线</th><th scope="col" class="line">90 分线</th>
-          <th scope="col">技术</th><th scope="col">详情</th>
+          <th scope="col">日志</th>
         </tr></thead>
         <tbody id="report-rows"></tbody>
       </table>
     </div>
-    <p class="footnote">正式成绩：每种语言独立完成 51 轮用户对话 + 开场（52 条回复），并完成逐轮评分。达线需均分达线、至少 47/52 条达线且无未恢复的实质阻断。技术结果独立。</p>
-    <details id="history"><summary id="history-title">历史记录</summary><div class="table-wrap"><table><thead><tr><th scope="col">记录</th><th scope="col">语言</th><th scope="col" class="num">回复</th><th scope="col" class="num">已评分</th><th scope="col">正式成绩</th><th scope="col">详情</th></tr></thead><tbody id="history-rows"></tbody></table></div></details>
+    <p class="footnote">每种语言分别评分。每场 51 轮用户对话 + 开场（52 条回复）；均分、最低分在本场逐轮评分完成后汇总。</p>
+    <details id="history"><summary id="history-title">历史记录</summary><div class="table-wrap"><table><thead><tr><th scope="col">记录</th><th scope="col">语言</th><th scope="col" class="num">回复</th><th scope="col" class="num">已评分</th><th scope="col">备注</th><th scope="col">日志</th></tr></thead><tbody id="history-rows"></tbody></table></div></details>
     <details id="rubric"><summary>评分权重</summary><table class="rubric-table"><thead><tr><th scope="col">回应与推进</th><th scope="col">连贯与规则</th><th scope="col">事实与逻辑</th><th scope="col">互动表达</th><th scope="col">角色与语言</th></tr></thead><tbody><tr><td>25</td><td>25</td><td>25</td><td>15</td><td>10</td></tr></tbody></table><p class="footnote">每项评级 0–5，由 Codex 根据实际日志给分；程序加权计算。Pro 仅作玩家。</p></details>
     <p id="load-error" class="failure" role="alert" hidden>报告数据读取失败。</p>
   </main>
-  <dialog id="report-dialog" aria-labelledby="dialog-title">
-    <div class="dialog-header"><h2 id="dialog-title"></h2><button id="close-dialog" type="button">关闭</button></div>
-    <div class="dialog-body">
-      <p id="session-meta" class="metadata"></p>
-      <div class="table-wrap"><table class="technical-table"><thead><tr><th scope="col">技术检查</th><th scope="col">结果</th></tr></thead><tbody id="technical-rows"></tbody></table></div>
-      <form id="turn-filters" class="filters" role="search">
-        <div class="filter-field search-field"><label for="turn-search">日志</label><input id="turn-search" type="search" placeholder="搜索原话 / 回复 / 扣分理由"></div>
-        <div class="filter-field"><label id="turn-sort-label" for="turn-sort">排序</label><select id="turn-sort"><option value="round">轮次</option><option value="score">分数从低到高</option></select></div>
-        <label class="check"><input id="deductions-only" type="checkbox"> 只看扣分</label>
-        <div class="filter-field"><label id="page-size-label" for="page-size">每页</label><select id="page-size"><option value="10">10</option><option value="25">25</option><option value="all">全部</option></select></div>
-      </form>
-      <div class="table-wrap"><table class="turn-table"><thead><tr><th scope="col">轮次</th><th scope="col">用户原话</th><th scope="col">完整回复</th><th scope="col">评分</th><th scope="col">评分依据</th></tr></thead><tbody id="turn-rows"></tbody></table></div>
-      <div class="pagination"><span id="turn-count" class="muted"></span><button id="previous-page" type="button">上一页</button><button id="next-page" type="button">下一页</button></div>
-    </div>
-  </dialog>
 </body>
 </html>
