@@ -130,7 +130,11 @@ function renderTable(){
     const s=record.session,row=el("tr"),name=cell(row);
     if(s?.rows.length&&s.logs)name.append(logLink(s,record.title,"text-button name-button"));else name.textContent=record.title;
     name.title=record.catalog.title_en+" · "+record.catalog.id;
-    if(s?.case==="sushi")name.append(el("span","baseline","基线"));
+    if(s?.case==="sushi"){
+      const scope=el("span","baseline","本轮未专项改动");
+      scope.title="剧本提示词和控制逻辑保持原样；沿用既有公共故事框架，使用本轮统一的模型与原音链路。";
+      name.append(scope);
+    }
     cell(row,categoryNames[record.category]);cell(row,language(record.language));const statusCell=cell(row,states[record.status]||record.status,"status");if(s?.interruption)statusCell.title=s.interruption;
     cell(row,s?record.collected+"/51":"—","num");cell(row,s?record.scored+"/"+s.rows.length:"—","num");
     for(const key of ["minimum","maximum","mean","stddev"])cell(row,record[key]===null?"—":record[key].toFixed(key==="stddev"?2:1),"num");
