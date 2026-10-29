@@ -4,7 +4,7 @@ let sortKey=null,sortDirection=1;
 const $=(selector,parent=document)=>parent.querySelector(selector);
 const $$=(selector,parent=document)=>[...parent.querySelectorAll(selector)];
 const categoryNames={story:"故事",adventure:"探索",figure:"人物",guess:"猜谜",learn:"学习",assistant:"助手",translate:"翻译"};
-const states={queued:"待测试",running:"测试中",collected:"待评分",incomplete:"未完成",scored:"已评分",blocked:"受阻",untested:"未测试"};
+const states={queued:"待测试",running:"测试中",collected:"待评分",incomplete:"已中断",scored:"已评分",blocked:"受阻",untested:"未测试"};
 const order=["story","adventure","figure","guess","learn","sushi"];
 const selectControls=new Map();
 let openSelect=null;
@@ -14,7 +14,7 @@ function time(value){return new Intl.DateTimeFormat("zh-CN",{timeZone:"Asia/Sing
 function turns(session){return session.rows.filter(row=>row.round>0).length;}
 function scored(session){return session.rows.filter(row=>row.score).length;}
 function language(value){return value==="zh"?"中文":value==="en"?"English":value==="mixed"?"混合":"—";}
-function records(){const result=[];for(const item of report.catalog){const sessions=report.sessions.filter(s=>s.catalog_id===item.id);if(sessions.length){for(const session of sessions)result.push({catalog:item,session,title:item.title,category:item.category,language:session.language,status:session.status,collected:turns(session),scored:scored(session),mean:session.official?session.summary.mean:null,minimum:session.official?session.summary.minimum:null});}else result.push({catalog:item,session:null,title:item.title,category:item.category,language:"none",status:"untested",collected:null,scored:null,mean:null,minimum:null});}return result;}
+function records(){const result=[];for(const item of report.catalog){const sessions=report.sessions.filter(s=>s.catalog_id===item.id);if(sessions.length){for(const session of sessions)result.push({catalog:item,session,title:item.title,category:item.category,language:session.language,status:session.status,collected:turns(session),scored:scored(session),mean:session.summary?.mean??null,minimum:session.summary?.minimum??null,maximum:session.summary?.maximum??null,stddev:session.summary?.stddev??null});}else result.push({catalog:item,session:null,title:item.title,category:item.category,language:"none",status:"untested",collected:null,scored:null,mean:null,minimum:null,maximum:null,stddev:null});}return result;}
 function enhanceSelects(){
   for(const native of $$("select")){
     if(selectControls.has(native)){selectControls.get(native).sync();continue;}
@@ -131,13 +131,13 @@ function renderTable(){
     if(s?.rows.length&&s.logs)name.append(logLink(s,record.title,"text-button name-button"));else name.textContent=record.title;
     name.title=record.catalog.title_en+" · "+record.catalog.id;
     if(s?.case==="sushi")name.append(el("span","baseline","基线"));
-    cell(row,categoryNames[record.category]);cell(row,language(record.language));cell(row,states[record.status]||record.status,"status");
-    cell(row,s?record.collected+"/51":"—","num");cell(row,s?String(record.scored):"—","num");
-    cell(row,record.mean===null?"—":record.mean.toFixed(1),"num");cell(row,record.minimum===null?"—":record.minimum.toFixed(0),"num");
+    cell(row,categoryNames[record.category]);cell(row,language(record.language));const statusCell=cell(row,states[record.status]||record.status,"status");if(s?.interruption)statusCell.title=s.interruption;
+    cell(row,s?record.collected+"/51":"—","num");cell(row,s?record.scored+"/"+s.rows.length:"—","num");
+    for(const key of ["minimum","maximum","mean","stddev"])cell(row,record[key]===null?"—":record[key].toFixed(key==="stddev"?2:1),"num");
     const detail=cell(row);if(s?.rows.length&&s.logs)detail.append(logLink(s));else detail.textContent="—";
     target.append(row);
   }
-  if(!rows.length){const row=el("tr"),td=cell(row,"无匹配记录","no-results");td.colSpan=9;target.append(row);}
+  if(!rows.length){const row=el("tr"),td=cell(row,"无匹配记录","no-results");td.colSpan=11;target.append(row);}
   $("#row-count").textContent=rows.length+" 条记录 / "+new Set(rows.map(r=>r.catalog.id)).size+" 个剧本";
   $$('[data-sort]').forEach(th=>th.setAttribute("aria-sort",th.dataset.sort===sortKey?(sortDirection===1?"ascending":"descending"):"none"));
 }
