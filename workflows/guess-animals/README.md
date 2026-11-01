@@ -17,17 +17,18 @@ The host hides an animal from anywhere in the world; the child guesses with yes-
 1. `开始` (or any first message) opens level 1, puzzle 1 with `谜题来啦！第 1 关…，第 1 题。` (`Puzzle time! Level 1, …, puzzle 1.` in English).
 2. The child asks yes-or-no questions. The control script selects the puzzle's card node and passes the same
    fixed answer privately on every question turn. The host answers from that card and established facts,
-   keeping the name secret until a correct guess, a give-up or the question limit. The script spots direct
+   keeping the name secret until a correct guess or an explicit give-up. The script spots direct
    name or alias guesses; the host can also recognize an equivalent answer instead of rejecting every
    phrasing the script did not match. Every turn uses a single model call.
-3. Each puzzle allows 20 questions and at most 3 small hints (on request, or after 5 `不是` in a row).
-4. A correct guess reveals the answer, praises the child and moves one level up; giving up or running out of
-   questions reveals the answer and keeps the level. The next message opens the next puzzle.
+3. Questions are unlimited. The host answers naturally, with occasional kind teasing. When a child is stuck, the host can offer one prepared hint without revealing the answer; hints can also be requested. Numbered markers track the three hints across languages, without prescribing the whole reply.
+4. A correct guess congratulates the child and immediately opens the next puzzle one level higher, with its answer already selected. At the top level, a new puzzle stays at that level. An immediate next-puzzle acknowledgement does not skip the new puzzle. Giving up reveals the answer and keeps the level; follow-up questions can discuss that revealed animal before an explicit next-puzzle request.
 5. `从头开始` / `重新开始` / `restart` returns to level 1; `继续上次的内容` recaps an unfinished puzzle.
 
-Eino keeps no hidden state between turns, so every turn rebuilds the game from the spoken History: the
-latest opening names the level and the puzzle number, and puzzle number `k` on a level with `n` puzzles
-selects item `(k - 1) × step mod n`, where `step` is coprime with `n`. A child therefore meets every puzzle of
+The controller resolves the answer before the opening model call and persists a minimal puzzle cursor in
+the existing `game-route` field through Eino `state_persistence`; a configured State store is required.
+The cursor retains the level, puzzle number, phase, used-hint mask and language across reload and bounded
+History eviction. It commits only after complete delivery; an interrupted turn retains its previous checkpoint.
+Puzzle number `k` on a level with `n` puzzles selects item `(k - 1) × step mod n`, where `step` is coprime with `n`. A child therefore meets every puzzle of
 a level before any repeats.
 
 ## Levels (144 puzzles)

@@ -4,11 +4,15 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
+from collections import Counter
 from pathlib import Path
 from typing import Any
+
+import evidence
 
 sys.dont_write_bytecode = True
 
@@ -198,6 +202,11 @@ def load(repo: Path, raid: str) -> dict[str, Any]:
             raise ValueError(f"{path}: opening.guests must announce {guest['name']}")
     if "legends" in data:
         raise ValueError(f"{path}: legends belong in the knowledge card's 后人传说, not in figure.json")
+    if "narration" in data:
+        narration = data["narration"]
+        if (set(narration) - {"mode", "search"} or narration.get("mode") != "compact"
+                or ("search" in narration and not isinstance(narration["search"], bool))):
+            raise ValueError(f"{path}: narration must declare mode compact; source units come from the complete card")
     card = read_card(repo, figure["name"])
     for role in (companion, *guests):
         if role["name"] not in card["身边的人"]:
@@ -276,6 +285,7 @@ def values(raid: str, data: dict[str, Any]) -> dict[str, str]:
         out[slot] = role["name"]
         out[f"{slot}_KEY"] = role["key"]
         out[f"{slot}_VAR"] = role["key"].replace("-", "_")
+    out["FIGURE_EN"] = figure["name_en"]
     out["PRONOUN"] = pronoun["zh"]
     # Quality probes: the birth year the card gives, and its first later legend.
     out["BIRTH_FACT"] = birth_fact(data["card"])
@@ -289,6 +299,13 @@ def values(raid: str, data: dict[str, Any]) -> dict[str, str]:
 def render_readme(raid: str, data: dict[str, Any], slots: dict[str, str]) -> str:
     figure, companion, guests = data["figure"], data["companion"], data["guests"]
     pronoun = PRONOUNS[figure["gender"]]
+    if "narration" in data:
+        return fill(template("README.compact.md"), {
+            **slots,
+            "TITLE_EN": data["title"]["en"],
+            "SUMMARY_EN": data["summary"]["en"],
+            "CHAPTER_CHAIN": " → ".join(c["title"] for c in data["chapters"]),
+        })
     rows = []
     for number, chapter in enumerate(data["chapters"], 1):
         entry = "first opening request" if number == 1 else f"chapter {number - 1} transition satisfied and player explicitly continues"
@@ -351,7 +368,8 @@ def raid_manifest(raid: str, data: dict[str, Any]) -> str:
     llm = "Chat model that generates every turn; needs streaming Chinese output"
     alias = f"eino-{raid}-mr"
     voices = {f"{alias}.storyteller": {"role": "storyteller", "language": "zh-CN", "description": "旁白：连续剧本段落音色"}}
-    for role in cast(data):
+    voice_roles = [data["figure"]] if data.get("narration", {}).get("mode") == "compact" else cast(data)
+    for role in voice_roles:
         voices[f"{alias}.{role['key']}"] = {"role": role["key"], "language": "zh-CN",
                                             "description": f"{role['name']}：连续剧本段落音色"}
     manifest = {
@@ -398,20 +416,160 @@ def raid_manifest(raid: str, data: dict[str, Any]) -> str:
             for tier in TIERS[:3]
         ],
     }
+    if data.get("narration", {}).get("search"):
+        parameters = manifest["implementations"][IMPLEMENTATION]["parameters"]
+        parameters["models"][f"{alias}.model"]["description"] = "Stream the interactive story and use Search only for unresolved factual questions"
+        manifest["implementations"][IMPLEMENTATION]["parameters"]["tools"] = {
+            "reference.search": {"resource_id": "volc-reference-search",
+                                 "description": "史实、诗文与出处检索"},
+        }
+    if data.get("narration", {}).get("mode") == "compact":
+        manifest["implementations"][IMPLEMENTATION]["input"] = ["text", "push-to-talk"]
+        models = manifest["implementations"][IMPLEMENTATION]["parameters"]["models"]
+        models[f"{alias}.model"]["description"] = "Native audio plot narration; function Tool capability disabled"
+        models[f"{alias}.intent-model"] = {"kind": "llm", "role": "narrator", "description": "Internal native-audio mode/language schema; no public output or function Tools"}
+        models[f"{alias}.research-model"] = {"kind": "llm", "role": "narrator", "description": "Native audio source narrator with Search for uncertain factual questions"}
     return json.dumps(manifest, ensure_ascii=False, indent=2) + "\n"
+
+
+def render_compact_workflow(data: dict[str, Any], slots: dict[str, str]) -> str:
+    repo = repository_root()
+    source_units = evidence.units(repo, data)
+    source_path = repo / "cards" / "figure" / f"{data['figure']['name']}.txt"
+    english_path = source_path.with_suffix(".en.json")
+    english = json.loads(english_path.read_text(encoding="utf-8"))
+    if set(english) != {"source_sha256", "units"} or english["source_sha256"] != hashlib.sha256(source_path.read_bytes()).hexdigest():
+        raise ValueError(f"{english_path}: English units must match the exact Chinese source card")
+    for unit in source_units:
+        unit["id"] = f"L{unit['line']}.{unit['part']}"
+        unit["en"] = english["units"].get(unit["id"])
+        if not isinstance(unit["en"], str) or not unit["en"].strip() or any(mark in unit["en"] for mark in ["【", "】", "\n", "\r"]):
+            raise ValueError(f"{english_path}: {unit['id']} needs a whole unlabelled English rendering")
+    if set(english["units"]) != {unit["id"] for unit in source_units}:
+        raise ValueError(f"{english_path}: English units must exactly mirror the whole source-card units")
+    scene_path = source_path.with_suffix(".scene.json")
+    scene = json.loads(scene_path.read_text(encoding="utf-8"))
+    if (set(scene) - {"source_sha256", "source_units", "context", "narrator_units", "actor_context", "actor_frame", "actor_sources"}
+            or not {"source_sha256", "source_units", "context"} <= set(scene)
+            or scene["source_sha256"] != english["source_sha256"]):
+        raise ValueError(f"{scene_path}: scene evidence must match the exact Chinese source card")
+    if (not isinstance(scene["source_units"], list) or not scene["source_units"]
+            or any(not isinstance(identifier, str) for identifier in scene["source_units"])
+            or len(set(scene["source_units"])) != len(scene["source_units"])
+            or not set(scene["source_units"]) <= {unit["id"] for unit in source_units}
+            or not isinstance(scene["context"], str) or not scene["context"].strip()
+            or any(mark in scene["context"] for mark in ["\n", "\r"])):
+        raise ValueError(f"{scene_path}: scene context requires complete text and unique valid source IDs")
+    narrator_units = scene.get("narrator_units", [])
+    if (not isinstance(narrator_units, list)
+            or any(not isinstance(identifier, str) for identifier in narrator_units)
+            or len(set(narrator_units)) != len(narrator_units)
+            or not set(narrator_units) <= {unit["id"] for unit in source_units}):
+        raise ValueError(f"{scene_path}: narrator_units requires unique valid source IDs")
+    actor_context = scene.get("actor_context", scene["context"])
+    actor_frame = scene.get("actor_frame", "晚年" + data["figure"]["name"])
+    if any(not isinstance(value, str) or not value.strip() or any(mark in value for mark in ["\n", "\r", "【", "】"])
+           for value in (actor_context, actor_frame)):
+        raise ValueError(f"{scene_path}: actor context and frame require complete unlabelled text")
+    actor_sources = scene.get("actor_sources", [])
+    if not isinstance(actor_sources, list) or any(not isinstance(url, str) or not url.startswith("https://") for url in actor_sources):
+        raise ValueError(f"{scene_path}: actor_sources requires HTTPS source references")
+    for unit in source_units:
+        if unit["field"] == "后人传说" or unit["id"] in narrator_units:
+            unit["narrator_only"] = True
+    english_terms = {unit["id"]: evidence.tokens(unit["en"]) for unit in source_units}
+    english_frequencies = Counter(term for terms in english_terms.values() for term in terms)
+    for unit in source_units:
+        for term in english_terms[unit["id"]]:
+            unit["terms"].setdefault(term, max(1, 100 // english_frequencies[term]))
+    bootstrap = [index for index, unit in enumerate(source_units)
+                 if unit["field"] == "生平" and unit["part"] <= 2]
+    fixed_speakers = [NARRATOR["name"], data["figure"]["name"]]
+    prompt = fill(template("structured.compact.star"), {
+        "FACTS_LITERAL": "[\n" + "\n".join("    " + repr(unit) + "," for unit in source_units) + "\n]",
+        "BOOTSTRAP_LITERAL": repr(bootstrap),
+        # Query grammar and language-selection words are not source evidence.
+        # Keep the source units and their historical text unchanged.
+        "IGNORED_WORDS_LITERAL": repr(evidence.IGNORED_WORDS + [
+            "a", "an", "to", "of", "in", "is", "it", "on", "for", "do", "does", "did",
+            "you", "your", "me", "my", "we", "our", "who", "what", "when", "where", "why", "how",
+            "can", "could", "would", "will", "are", "were", "have", "has", "had", "now",
+            "please", "switch", "english", "chinese", "continue", "return", "back",
+        ]),
+        "POLICY_LITERAL": repr(fill(template("instructions.compact.txt"), {**slots, "ACTOR_FRAME": actor_frame})),
+        "SCENE_FACTS_LITERAL": repr(scene["context"]),
+        "ACTOR_FACTS_LITERAL": repr(actor_context),
+        "SCENE_FORMAT_LITERAL": repr("\n声道角色仅" + " ".join("【" + name + "】" for name in fixed_speakers) + "。"),
+        "FIGURE_LABELS_LITERAL": repr([data["figure"]["name"], data["figure"]["name_en"]]),
+        "HISTORY_CONTEXT_SOURCE": (repo / "scripts/common/history_context.star").read_text(encoding="utf-8"),
+    })
+    indent = lambda source: "".join(("          " + line if line else "") + "\n" for line in source.splitlines())
+    return fill(template("eino.compact.yaml"), {**slots, "PROMPT_SCRIPT": indent(prompt)})
+
+
+def render_workflow(data: dict[str, Any], slots: dict[str, str]) -> str:
+    if "narration" in data:
+        return render_compact_workflow(data, slots)
+    parts = {
+        "NARRATION_STATE": "        - name: narration-context\n          type: string\n          merge: replace\n",
+        "NARRATION_CONTROL": template("control-narration.yaml"),
+        "NARRATION_INPUT": "          narration_context:\n            from: narration-context\n",
+        "NARRATION_NEXT": "control-narration",
+        "NARRATION_EDGE": "      - from: control-narration\n        to: build-prompt\n",
+        "INSTRUCTIONS": template("instructions.standard.txt"),
+        "OBSERVATION_PREFIX": "",
+        "OBSERVATION_REPLY": "故事本轮确认：",
+        "MAX_RUN_STEPS": "12",
+        "NARRATION_MODEL": "model",
+        "INITIAL_MODEL_OUTPUTS": "",
+        "INITIAL_MODEL_VALUES": "",
+        "REFERENCE_LOOP": "",
+        "MODEL_EDGE": "      - from: build-prompt\n        to: narrator-model\n",
+        "REFERENCE_EDGES": "",
+        "REFERENCE_BRANCHES": "",
+        "NARRATOR_BRANCH": (
+            "      - from: narrator-model\n        mode: first_match\n        routes:\n"
+            "        - when:\n            field: memory-route\n            op: eq\n            value: opening\n"
+            "          to: end\n        default: capture-observation\n"),
+    }
+    parts["BUILD_PROMPT"] = fill(template("build-prompt.standard.yaml"), {**parts, **slots})
+    return fill(template(f"{VARIANT}.yaml"), {**parts, **slots})
 
 
 def outputs(raid: str, data: dict[str, Any]) -> dict[str, str]:
     slots = values(raid, data)
+    compact = data.get("narration", {}).get("mode") == "compact"
+    device_slots = {
+        "DEVICE_USER_STORY": (
+            "# As a child entering a prompt-led story or adventure on the H106 device,\n"
+            "# I want an opening choice, follow-ups that answer my request, and resume/restart cues that preserve or reset progress correctly.\n"
+            "# So that replies preserve continuity and text/audio completion without an extra question after every action."
+        ) if compact else (
+            "# As a child entering a story or adventure on the H106 device,\n"
+            "# I want every reply to end with a question, \"继续\" to carry the story on, and \"继续上次的内容\" / \"开始\" to resume or restart,\n"
+            "# So that the story never stops in silence after a chapter ends."
+        ),
+        "DEVICE_FOLLOWUP": "      non_empty: true" if compact else (
+            "      min_length: 20\n      pattern: \"[？?][^？?]{0,40}$\""
+        ),
+    }
     files = {
         f"workflows/{raid}/raid.json": raid_manifest(raid, data),
         f"workflows/{raid}/README.md": render_readme(raid, data, slots),
         f"workflows/{raid}/routing-cases.json": render_routing(raid, data, slots),
         f"workflows/{raid}/test.multi-role.yaml": fill(template("test.multi-role.yaml"), slots),
-        f"workflows/{raid}/{VARIANT}.yaml": fill(template(f"{VARIANT}.yaml"), slots),
+        f"workflows/{raid}/{VARIANT}.yaml": render_workflow(data, slots),
     }
+    if compact:
+        files[f"workflows/{raid}/context-cases.json"] = fill(template("context-cases.json"), slots)
     for tier in TIERS:
-        files[f"tests/giztest/{tier}/{raid}.{VARIANT}.giztest.yaml"] = fill(template(f"{tier}.{VARIANT}.giztest.yaml"), slots)
+        document = fill(template(f"{tier}.{VARIANT}.giztest.yaml"), {**slots, **device_slots})
+        if compact:
+            document = (document.replace("WORKSPACE_INPUT_MODE_REALTIME", "WORKSPACE_INPUT_MODE_PUSH_TO_TALK")
+                        .replace("mode: realtime", "mode: push-to-talk")
+                        .replace("_realtime", "_ptt")
+                        .replace("realtime responsiveness", "native PTT responsiveness"))
+        files[f"tests/giztest/{tier}/{raid}.{VARIANT}.giztest.yaml"] = document
     return files
 
 

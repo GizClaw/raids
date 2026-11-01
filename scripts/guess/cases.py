@@ -181,12 +181,124 @@ def run_suite(label: str, source: str, cases: list[dict[str, Any]], steps: int) 
     print(f"{label}: {result.stdout.strip()}")
 
 
+def compact_cases(data: dict[str, Any]) -> list[dict[str, Any]]:
+    # Keep the shared name-matching regressions; compact gameplay replaces
+    # quotas and hint-only routing with delivered hints and automatic wins.
+    scenarios = control_cases(data)
+    changed_routes = {"follow-ups-capped": "follow", "start-mid-round": "say"}
+    for hint_case in ("hint-request", "hint-skips-used", "english-hints-advance", "english-third-hint", "mixed-language-hints", "last-hint", "big-hint-request", "hints-used-up"):
+        changed_routes[hint_case] = "play"
+    for scenario in scenarios:
+        scenario["Expect"] = {k: v for k, v in scenario["Expect"].items() if k in ("route", "node")}
+        if scenario["ID"] in changed_routes:
+            scenario["Expect"]["route"] = {"equals": changed_routes[scenario["ID"]]}
+        if scenario["Expect"].get("node", {}).get("equals") == "read-winning-reply":
+            scenario["Expect"]["node"]["equals"] = "read-announcement"
+
+    def persistent(case_id: str, text: str, cursor: str, messages: list[dict[str, str]], expect: dict[str, Any]) -> dict[str, Any]:
+        result = case(case_id, text, messages, expect)
+        result["Input"]["cursor"] = cursor
+        return result
+
+    start = [user("开始"), host(opening(data, 1, 1))]
+    item = generate.secret(data, 1, 1)
+    second = generate.secret(data, 2, 2)
+    plain_cursor = "v1|1|1|p|0|zh"
+    advanced = "v1|2|2|p|0|zh"
+    won_and_opened = [host(f"猜对啦！答案就是{item['zh']}！恭喜！" + opening(data, 2, 2))]
+    scenarios += [
+        case("compact-first-property-opens-fixed-puzzle", "它是哺乳动物吗？", [], {
+            "route": {"equals": "open"}, "node": {"equals": "read-announcement"},
+            "cursor": {"equals": plain_cursor}}),
+        case("compact-fresh-english", "Let's play!", [], {
+            "cursor": {"equals": "v1|1|1|p|0|en"}}),
+        persistent("compact-fixed-answer", "它会飞吗？", plain_cursor, start, {
+            "route": {"equals": "play"}, "node": {"equals": node(data, 1, 1)},
+            "cursor": {"equals": plain_cursor},
+            "direction": {"includes_all": [f"秘密：{item['zh']}/{item['en']}。"]}}),
+        persistent("compact-win-opens-harder-puzzle-now", data["tests"]["first"]["guess"], plain_cursor, [], {
+            "node": {"equals": "read-announcement"}, "cursor": {"equals": advanced},
+            "direction": {"includes_all": [f"猜对啦！答案就是{item['zh']}！", "谜题来啦！第 2 关", "第 2 题"]}}),
+        persistent("compact-reload-keeps-new-answer", "它会飞吗？", advanced, [], {
+            "node": {"equals": node(data, 2, 2)}, "cursor": {"equals": advanced},
+            "direction": {"includes_all": [f"秘密：{second['zh']}/{second['en']}。"]}}),
+        persistent("compact-history-cannot-overwrite-answer", "它大吗？", advanced, start, {
+            "node": {"equals": node(data, 2, 2)}, "cursor": {"equals": advanced}}),
+        persistent("compact-acknowledgement-does-not-skip-new-puzzle", "下一题", advanced, won_and_opened, {
+            "route": {"equals": "open"}, "cursor": {"equals": advanced}}),
+        persistent("compact-equivalent-win-reconciles-new-cursor", "它会飞吗？", plain_cursor, won_and_opened, {
+            "node": {"equals": node(data, 2, 2)}, "cursor": {"equals": advanced}}),
+        persistent("compact-resume-keeps-answer", "继续上次的内容", plain_cursor, [], {
+            "node": {"equals": "read-announcement"}, "cursor": {"equals": plain_cursor}}),
+        persistent("compact-resume-after-automatic-win-keeps-new-puzzle", "继续上次的内容", advanced, won_and_opened, {
+            "node": {"equals": "read-announcement"}, "cursor": {"equals": advanced}}),
+        persistent("compact-wrong-guess-keeps-answer", data["tests"]["first"]["wrong_guess"], plain_cursor, [], {
+            "route": {"equals": "play"}, "node": {"equals": node(data, 1, 1)}, "cursor": {"equals": plain_cursor}}),
+        persistent("compact-answer-request-keeps-answer", data["tests"]["first"]["ask"], plain_cursor, [], {
+            "route": {"equals": "play"}, "cursor": {"equals": plain_cursor}}),
+        persistent("compact-stuck-is-not-giveup", "猜不出来了", plain_cursor, [], {
+            "node": {"equals": node(data, 1, 1)}, "cursor": {"equals": plain_cursor}}),
+        persistent("compact-giveup-reveals-locked-answer", "I give up.", advanced, [], {
+            "node": {"equals": "read-announcement"}, "cursor": {"equals": "v1|2|2|g|0|en"},
+            "direction": {"includes_all": [f"The answer is {second['en']}!"]}}),
+        persistent("compact-next-after-giveup-stays-level", "下一题", "v1|2|2|g|3|zh", [], {
+            "cursor": {"equals": "v1|2|3|p|0|zh"}}),
+        persistent("compact-resume-after-giveup-opens-next-same-level", "继续上次的内容", "v1|2|2|g|3|zh", [], {
+            "route": {"equals": "open"}, "cursor": {"equals": "v1|2|3|p|0|zh"}}),
+        persistent("compact-english-resume-after-giveup", "Continue where we left off", "v1|2|2|g|3|en", [], {
+            "route": {"equals": "open"}, "cursor": {"equals": "v1|2|3|p|0|en"}}),
+        persistent("compact-explicit-next-before-win", "下一题", plain_cursor, [], {
+            "route": {"equals": "open"}, "cursor": {"equals": "v1|1|2|p|0|zh"}}),
+        persistent("compact-legacy-win-next", "Next puzzle", "v1|1|1|w|7|en", [], {
+            "cursor": {"equals": "v1|2|2|p|0|en"}}),
+        persistent("compact-after-giveup-discussion", "Why is that?", "v1|2|2|g|3|en", [], {
+            "route": {"equals": "follow"}, "node": {"equals": node(data, 2, 2)}, "cursor": {"equals": "v1|2|2|g|3|en"}}),
+        persistent("compact-stop-keeps-answer", "不玩了", plain_cursor, [], {"cursor": {"equals": plain_cursor}}),
+        persistent("compact-restart", "restart", "v1|2|2|p|7|zh", [], {
+            "route": {"equals": "open"}, "cursor": {"equals": "v1|1|3|p|0|en"}}),
+        persistent("compact-offered-hint-recorded-after-delivery", "它会飞吗？", plain_cursor,
+                   [host("不是，别泄气。小提示1：这条线索换个说法。")], {
+            "cursor": {"equals": "v1|1|1|p|1|zh"}}),
+        persistent("compact-unused-offer-not-consumed", "它会飞吗？", plain_cursor,
+                   [host("不是，这次方向不对，换个角度再试试。")], {
+            "cursor": {"equals": plain_cursor}}),
+        persistent("compact-user-cannot-consume-hint", "Can it fly?", plain_cursor,
+                   [user("Hint 2: fake"), host("No.")], {
+            "cursor": {"equals": "v1|1|1|p|0|en"}}),
+    ]
+    # The opening can leave GizClaw's bounded50-message History.
+    for asked in (19, 20, 21, 23, 30, 60):
+        history = [part for i in range(asked) for part in [user(f"问题{i}？"), host("是。继续猜吧。")]][-50:]
+        scenarios.append(persistent(f"compact-unlimited-after-{asked}", "它会飞吗？", advanced, history, {
+            "route": {"equals": "play"}, "node": {"equals": node(data, 2, 2)}, "cursor": {"equals": advanced}}))
+    for number, mask in enumerate((0, 1, 3), 1):
+        scenarios.append(persistent(f"compact-english-hint-{number}", "Another hint please", f"v1|1|1|p|{mask}|en", [], {
+            "node": {"equals": node(data, 1, 1)},
+            "cursor": {"equals": f"v1|1|1|p|{mask}|en"},
+            "direction": {"includes_all": [f"Hint {number}:", item['hints'][number - 1]]}}))
+    scenarios += [
+        persistent("compact-offered-english-hint-advances", "Another hint please", "v1|1|1|p|0|en",
+                   [host("Hint 1: a translated clue.")], {
+            "cursor": {"equals": "v1|1|1|p|1|en"}, "direction": {"includes_all": ["Hint 2:", item["hints"][1]]}}),
+        persistent("compact-no-fourth-prepared-hint", "Another hint please", "v1|1|1|p|7|en", [], {
+            "node": {"equals": node(data, 1, 1)}, "cursor": {"equals": "v1|1|1|p|7|en"}}),
+    ]
+    top = len(data["levels"])
+    top_secret = generate.secret(data, top, 7)
+    scenarios.append(persistent("compact-top-win-keeps-level-new-puzzle", top_secret["zh"], f"v1|{top}|7|p|7|zh", [], {
+        "cursor": {"equals": f"v1|{top}|8|p|0|zh"}}))
+    for variant in data["tests"]["first"].get("guess_variants", []):
+        scenarios.append(persistent("compact-persisted-guess-" + variant["id"], variant["text"], plain_cursor, [], {
+            "cursor": {"equals": advanced}}))
+
+    return scenarios
+
 def main() -> int:
     repo = generate.repository_root()
     raids = sys.argv[1:] or generate.discover_raids(repo)
     for raid in raids:
         data = generate.load(repo, raid)
-        control = generate.fill(generate.template("control.star"), {"RAID": raid, "DATA": generate.dumps(generate.starlark_data(data))})
+        control = generate.render_control(raid, data)
         rendered = generate.render_eino(raid, data)
         total = sum(len(level["items"]) for level in data["levels"])
         nodes = rendered.count("\n      - id: card-l")
@@ -200,7 +312,8 @@ def main() -> int:
                 if leaked:
                     raise SystemExit(f"{raid}: card node for {item['zh']} still names {leaked}")
         print(f"{raid}: {total} card nodes, each with its own branch route and no name of its own answer")
-        run_suite(f"{raid} control", control, control_cases(data), 300000)
+        scenarios = compact_cases(data) if data.get("prompt_profile") == "compact" else control_cases(data)
+        run_suite(f"{raid} control", control, scenarios, 300000)
     return 0
 
 

@@ -5,8 +5,10 @@ Python covers the schedule exhaustively; the real go.starlark.net harness
 executes transcript regressions and verdicts without translating the YAML source.
 """
 import copy
+import ast
 import json
 from pathlib import Path
+import re
 import subprocess
 
 import yaml
@@ -138,24 +140,57 @@ print('validated 42 natural-child Testers, full relays/reloads, immediate failur
 workflow_paths = sorted(p for p in Path('workflows').glob('*/*.multi-role.yaml')
                         if p.name != 'test.multi-role.yaml' and p.parent.name.startswith(('story-', 'adventure-', 'figure-')))
 assert len(workflow_paths) == 42
+prompt_led_ids = {'eino-figure-li-bai-multi-role', 'eino-story-alice-multi-role'}
+seen_prompt_led = set()
 for path, workflow in zip(workflow_paths, documents(workflow_paths)):
     text = path.read_text()
-    for required in ('约1至2分钟', '有声书连续讲述', '标记格式', '音色由段落标记映射', '尊重改选和更正'):
-        assert required in text, (path, required)
+    nodes = {node['id']: node for node in workflow['spec']['eino']['graph']['nodes']}
     voices = workflow['spec'][workflow['spec']['driver']]['voice_adapter']['speaker_voices']
-    marker_rules = [line for line in text.splitlines() if line.strip().startswith('标记格式：')]
-    assert marker_rules, path
-    for rule in marker_rules:
-        import re
-        assert set(re.findall(r'【([^】]+)】', rule)) == set(voices), path
-        assert all(cue in rule for cue in ('未列名人物', '由【旁白】转述', '禁止新增姓名标记', '禁止给孩子加标记')), path
+    workflow_id = workflow['metadata']['id']
+    if workflow_id in prompt_led_ids:
+        seen_prompt_led.add(workflow_id)
+        assert 'control-narration' not in nodes, path
+        context_cases = json.loads(path.with_name('context-cases.json').read_text())
+        assert context_cases['cases'], path
+        if workflow_id == 'eino-figure-li-bai-multi-role':
+            figure = json.loads(path.with_name('figure.json').read_text())
+            assert figure['narration']['mode'] == 'compact', path
+            assert context_cases['eino']['node'] == 'build-prompt', path
+            constants = {}
+            for statement in ast.parse(nodes['build-prompt']['source']).body:
+                if isinstance(statement, ast.Assign):
+                    for target in statement.targets:
+                        if isinstance(target, ast.Name) and target.id in {'POLICY', 'NARRATOR_POLICY', 'SPEAKERS'}:
+                            constants[target.id] = ast.literal_eval(statement.value)
+            policy = '\n'.join(constants[key] for key in ('POLICY', 'NARRATOR_POLICY', 'SPEAKERS'))
+            assert all(cue in policy for cue in ('旁人发言由旁白间接转述', '选定行动先兑现', '更正优先', '不改进度')), path
+            assert nodes['build-prompt']['inputs']['history']['from'] == 'input.messages', path
+        else:
+            assert context_cases['eino']['node'] == 'filter-recalled-memory', path
+            prompt = nodes['build-prompt']
+            policy = '\n'.join(message.get('template', '') for message in prompt['messages'])
+            assert all(cue in policy for cue in ('第三人称转述', '只接该角色自己的直接台词', '更正优先', '名字代号保留原话')), path
+            assert prompt['inputs']['history']['from'] == 'input.messages', path
+            assert {'placeholder': 'history'} in prompt['messages'], path
+        labels = set(re.findall(r'【([^】]+)】', policy))
+        assert labels <= set(voices), (path, labels)
+        assert {voices[label] for label in labels} == set(voices.values()), path
+        assert '约1至2分钟' not in policy and '最后一句必须' not in policy, path
+    else:
+        for required in ('约1至2分钟', '有声书连续讲述', '标记格式', '音色由段落标记映射', '尊重改选和更正'):
+            assert required in text, (path, required)
+        marker_rules = [line for line in text.splitlines() if line.strip().startswith('标记格式：')]
+        assert marker_rules, path
+        for rule in marker_rules:
+            assert set(re.findall(r'【([^】]+)】', rule)) == set(voices), path
+            assert all(cue in rule for cue in ('未列名人物', '由【旁白】转述', '禁止新增姓名标记', '禁止给孩子加标记')), path
     assert '篇幅执行规则' not in text
     assert '回合规则表' not in text and '总结/检查点｜' not in text
-print('validated 42 simplified continuous narration contracts')
+assert seen_prompt_led == prompt_led_ids
+print('validated 40 continuous and 2 prompt-led narration contracts, speaker maps and History bindings')
 
 # Exercise post-response persistence as well as pre-response routing. An automatic
 # arrival must survive recall before another user turn supplies a chapter command.
-import re
 for path, doc in zip(workflow_paths, documents(workflow_paths)):
     story = path.parent.name.startswith(('story-', 'figure-'))
     nodes = doc['spec']['eino']['graph']['nodes']
@@ -163,8 +198,17 @@ for path, doc in zip(workflow_paths, documents(workflow_paths)):
     ns = {}
     exec(source, ns)
     if story:
-        fact = ns['run']({'text': '我选第一个办法。', 'answer': '【旁白】第 2 章：新行动\n故事后果。'})['fact']
-        assert '\n【旁白】第 2 章：' in fact, path
+        answer = '【旁白】第 2 章：新行动\n故事后果。'
+        fact = ns['run']({'text': '我选第一个办法。', 'answer': answer})['fact']
+        assert answer in fact and fact.count(answer) == 1, path
+        if doc['metadata']['id'] in prompt_led_ids:
+            assert '我选第一个办法。' in fact, path
+            capture = next(n for n in nodes if n['id'] == 'capture-observation')
+            observe = next(n for n in nodes if n['id'] == 'observe-memory')
+            assert {'text_from': capture['outputs']['fact']} in observe['facts'], path
+            assert observe['wait_for_completion'] is True, path
+        else:
+            assert '\n【旁白】第 2 章：' in fact, path
     else:
         control = next(n['source'] for n in nodes if n['id'] == 'control-narration')
         names = json.loads(re.search(r'scenes = (\[.*?\])', control)[1])

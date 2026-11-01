@@ -7,23 +7,27 @@ import (
 	"os"
 )
 
-// Match GizClaw eino/script.go: SourceProgram default FileOptions, no
-// predeclared names, then module Init with nil bindings. Do not enable global
-// reassignment or substitute Python for Starlark name resolution.
+// Match GizClaw v0.35.9's default FileOptions and the native JSON module used
+// by the catalog. Do not enable global reassignment or substitute Python for
+// Starlark name resolution.
 func checkModules() {
 	var scripts []struct{ File, Path, Source, Entrypoint string }
 	if err := json.NewDecoder(os.Stdin).Decode(&scripts); err != nil {
 		panic(err)
 	}
 	failures := 0
+	builtins := scriptBuiltins()
 	for _, s := range scripts {
 		name := s.File + ":" + s.Path
-		_, program, err := starlark.SourceProgram(name, s.Source, func(string) bool { return false })
+		_, program, err := starlark.SourceProgram(name, s.Source, func(name string) bool {
+			_, exists := builtins[name]
+			return exists
+		})
 		if err == nil {
 			thread := &starlark.Thread{Name: name}
 			thread.SetMaxExecutionSteps(1000000)
 			var globals starlark.StringDict
-			globals, err = program.Init(thread, nil)
+			globals, err = program.Init(thread, builtins)
 			entry := s.Entrypoint
 			if entry == "" {
 				entry = "run"

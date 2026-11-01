@@ -10,24 +10,26 @@ Explore grade 1 Educational Science Press primary science through safe home expe
 | --- | --- | --- | --- | --- | --- |
 | `eino.yaml` | `eino-learn-science-grade1` | eino | learner | `eino-learn-science-grade1.model` | `eino-learn-science-grade1.tutor` |
 
-The tutor's system prompt starts with the Workspace safety fence, followed by a
-blank line and the learning rules and knowledge card. Eino binds `input.safety_fence` and renders
-`{safety_fence}` with `f_string`. With empty fence text, only two leading newlines remain.
-Tester and memory nodes do not receive this variable. See the
-[Workspace safety fence contract](../../README.md#workspace-safety-fence),
-including the required GizClaw version support.
+The prompt builder selects up to two complete knowledge units for the current
+topic, then passes the original conversation and recalled memory unchanged to
+the streaming tutor. Each node's expanded static context stays within 1000
+Unicode characters, including selected references, the Workspace fence and
+the service's Tool availability message. The builder reserves that metadata
+and keeps its own system text within 620 characters;
+conversation and recalled memory are measured separately. No Graph State
+fields or model calls are added.
 
 Install the Workflow resource and add a flat `spec.workflows` binding to its Workflow ID. Bind the slots above under `spec.resources.models` and `spec.resources.voices`; use `category:*` tags for discovery.
 
 ## Knowledge card
 
-This raid is one of six grade-scoped `learn-science-grade*` packages. Its prompt
-embeds the units, safe home experiments, checked facts, common misconceptions,
-and scientist facts for 教科版小学科学一年级, plus a title-only unit index for
-every other grade, about 2976 characters in total. Every experiment
-includes its safety rule. The tutor asks for a prediction before revealing an
-observation, corrects misconceptions gently, labels scientist stories, and does
-not invent missing details.
+The source card retains the complete grade-one units, experiments, checked
+facts, misconceptions and scientist notes. Only relevant complete units enter
+each model request; every selected experiment keeps its full safety note.
+Follow-ups reuse the latest user topic when needed, and English search terms
+help select the same source facts without rewriting the user's utterance.
+The tutor asks for a prediction, responds to the child's actual observation,
+and gives natural explanations without a response-length rule.
 
 [`knowledge.json`](knowledge.json) is the source of truth. It retains source,
 lesson, edition, cross-check, and research-note fields that are deliberately
@@ -60,6 +62,7 @@ Contents sources: [1](https://r2-ndr.ykt.cbern.com.cn/edu_product/esp/assets/674
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 一年级上册 | 纸巾上的小豆芽 | 看看种子发芽是不是需要水 | 绿豆或黄豆若干粒；两个盘子；纸巾；清水 | 两个盘子都铺上纸巾，各放几粒豆子；一个盘子把纸巾浇湿，另一个保持干燥；放在屋里温暖的地方，湿盘每天补点水；每天看一看，比一比两个盘子 | 湿纸巾上的豆子会慢慢胀大、冒出小芽；干纸巾上的豆子没什么变化 | 种子发芽需要水、空气和合适的温度，缺了水就不会发芽 | 豆子不能放进嘴里、鼻子里或耳朵里；做完实验要洗手 | [1](https://web.extension.illinois.edu/gpe/case3/c3facts3.html) [2](https://extension.wvu.edu/lawn-gardening-pests/news/2021/02/01/germinating-seeds) [3](https://zzny.zhengzhou.gov.cn/njtg/6915741.jhtml) |
 | 一年级上册 | 捏住鼻子猜味道 | 发现鼻子也在帮我们“尝”味道 | 两种不同口味的果汁或软糖（大人准备）；小杯子或小勺 | 闭上眼睛，用手捏住鼻子；请大人喂你一小口，猜猜是什么口味；松开鼻子，再尝一口同样的东西；比一比：哪一次更容易猜对 | 捏住鼻子时只觉得甜，很难分清口味；松开鼻子后一下就能尝出来 | 食物的风味很大一部分靠鼻子闻，捏住鼻子气味进不去，就难分辨 | 只吃大人准备好的食物，小口慢慢吃；对某种食物过敏就不要用它 | [1](https://www.scientificamerican.com/article/bring-science-home-jelly-bean-taste-smell/) [2](https://www.ninds.nih.gov/sites/default/files/documents/NINDS_The-Jelly-Bean-Test_Science-Activity-Guide_508C.pdf) [3](https://www.kepuchina.cn/article/articleinfo?business_type=100&classify=0&ar_id=655478) |
+| 一年级上册 | 材料吸水对照 | 比较渗透与表面留水 | 纸巾；塑料片；清水；勺；托盘 | 同面积干样放托盘内，滴等量水；比较扩散渗透，记录实测 | 纸巾出现湿痕；塑料片表面留水滴 | 称重包含所有留水，表面水也计重；测吸收量须排除表面水，少量水受秤精度限制 | 成人备材料，防洒水，不入口 | [1](https://www.intertek.com/polymers-plastics/testlopedia/water-absorption-astm-d570/) |
 | 一年级下册 | 盐到哪里去了 | 弄清楚盐溶在水里后是不是真的没了 | 透明杯子；温水（不烫手）；食盐；勺子；深色盘子 | 杯里倒半杯温水，加一勺盐，搅一搅；看一看：盐粒还看得见吗；舀几勺盐水倒进深色盘子，放在通风或有阳光的地方；等一两天水干了，再看看盘子 | 搅拌后盐粒看不见了；盘里的水干了以后，留下一层白白的盐 | 盐溶解成很小的颗粒分散在水里，水蒸发走了，盐就又留下来 | 不要喝实验用的盐水；手上沾了盐水别揉眼睛，做完洗手 | [1](https://www.acs.org/education/resources/k-8/inquiryinaction/fifth-grade/chapter-1-investigating-matter-at-the-particle-level/lesson-1-3--dissolving-and-back-again.html) [2](https://manoa.hawaii.edu/sealearning/grade-5/physical-science/matter-sea/activity-reappearing-salt) |
 | 一年级下册 | 液体赛跑 | 比一比水、油、蜂蜜谁流得快 | 清水；食用油；蜂蜜；三把小勺；一块干净的砧板或盘子；一本书（垫高用） | 把砧板一头垫在书上，做成斜坡；在斜坡顶端同一条线上各放一小勺水、油、蜂蜜；同时松开勺子，看它们往下流；说一说谁最快、谁最慢 | 水流得最快，油慢一些，蜂蜜流得最慢 | 越黏稠的液体越难流动，蜂蜜比水黏得多，所以流得慢 | 油和蜂蜜洒到地上会滑，要马上擦干净；做完洗手 | [1](https://www.sciencelearn.org.nz/resources/1500-viscosity) [2](https://case.ntu.edu.tw/highscope/%E9%BB%8F%E5%BA%A6%EF%BC%88%E6%88%96%E7%A8%B1%E9%BB%8F%E6%BB%AF%E6%80%A7%EF%BC%89-viscosity/index.html) |
 

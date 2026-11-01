@@ -470,7 +470,7 @@ def check_story_transition(file, client):
 def check_smoke(doc, file, raid, capabilities):
     for step in steps(doc):
         expect = step.get('expect', {})
-        if re.fullmatch(r'eino.*_realtime_roundtrip', step['id']):
+        if re.fullmatch(r'eino.*_(?:realtime|ptt)_roundtrip', step['id']):
             # `is False` keeps every audio gate when the capability is unknown.
             capability = capabilities.get(step['client'].split('__')[0])
             want = {k: v for k, v in ROUNDTRIP_EXPECT.items() if capability is not False or not AUDIO_PATH.search(k)}
@@ -555,31 +555,37 @@ def check_file(file, tier, workflow_aliases):
             check('keepalive' not in step['id'] or rpc(step).get('method') == 'server.run.status', f'{file}: invalid setup keepalive')
 
 
-# Figure raids ship one Eino multi-role implementation; every other realtime raid
-# checks its native clients. Returns the clients checked.
+# Check each declared speech input, preserving identical complete-audio and
+# first-response gates for realtime ASR and opt-in native PTT.
 def check_realtime(file, manifest, raid):
     capabilities = tts_capabilities(raid)
     keys = ['eino-multi-role'] if raid.startswith('figure-') else ['eino']
     for key in keys:
         engine = key.replace('-', '_')
         implementation = manifest['implementations'][key]
+        mode = 'realtime' if 'realtime' in implementation['input'] else 'push-to-talk'
+        suffix = 'realtime' if mode == 'realtime' else 'ptt'
         smoke = [s for s in steps(load_yaml(f"tests/giztest/smoke/{raid}.{stem(implementation['file'])}.giztest.yaml"))
                  if s.get('client') == engine]
-        check('realtime' in implementation['input'], f'{file}: {engine} lacks realtime capability')
+        check(mode in implementation['input'], f'{file}: {engine} lacks speech input capability')
         check(any(rpc(s).get('method') == 'server.workspace.create' and
-                  'WORKSPACE_INPUT_MODE_REALTIME' in json.dumps(rpc(s).get('request', {}).get('parameters')) for s in smoke),
-              f'{file}: {engine} lacks realtime Workspace')
-        full = next((s for s in smoke if s.get('id') == f'{engine}_realtime_roundtrip'), None)
-        first = next((s for s in smoke if s.get('id') == f'{engine}_realtime_roundtrip_first_response'), None)
+                  ('WORKSPACE_INPUT_MODE_REALTIME' if mode == 'realtime' else 'WORKSPACE_INPUT_MODE_PUSH_TO_TALK') in
+                  json.dumps(rpc(s).get('request', {}).get('parameters')) for s in smoke),
+              f'{file}: {engine} lacks {mode} Workspace')
+        full = next((s for s in smoke if s.get('id') == f'{engine}_{suffix}_roundtrip'), None)
+        first = next((s for s in smoke if s.get('id') == f'{engine}_{suffix}_roundtrip_first_response'), None)
         capability = capabilities[engine]
-        check(full is not None and stream(full).get('mode') == 'realtime' and equal(stream(full).get('require_audio'), capability) and
+        check(full is not None and stream(full).get('mode') == mode and equal(stream(full).get('require_audio'), capability) and
               expected(full, '/text_eos').get('equals') and (not capability or expected(full, '/audio_eos').get('equals')),
               f'{file}: {engine} lacks complete realtime response')
         check(first is not None and stream(first).get('completion') == 'first_response' and stream(first).get('first_text_timeout') == '2s' and
               (not capability or stream(first).get('first_audio_timeout') == '3s'), f'{file}: {engine} lacks realtime latency gates')
     eino_key = 'eino-multi-role' if raid.startswith('figure-') else 'eino'
     eino = load_yaml(f"workflows/{raid}/{manifest['implementations'][eino_key]['file']}")['spec']['eino']
-    check((eino.get('voice_adapter') or {}).get('asr_model') == 'asr', f'{file}: missing Eino realtime ASR binding')
+    if 'realtime' in manifest['implementations'][eino_key]['input']:
+        check((eino.get('voice_adapter') or {}).get('asr_model') == 'asr', f'{file}: missing Eino realtime ASR binding')
+    else:
+        check(eino.get('audio_input') == 'model', f'{file}: PTT-only speech probe requires native Model input')
     return len(keys)
 
 
@@ -621,13 +627,17 @@ def validate():
             check(t['file'].split('/')[2:3] == [t.get('tier')] and len(names) == 1 and names[0] in implementations and
                   t['file'] == f"tests/giztest/{t.get('tier')}/{raid}.{stem(implementations[names[0]]['file'])}.giztest.yaml",
                   f'{file}: implementation registration mismatch')
-    check(realtime_count == 62, f'expected 62 story/adventure/figure/learn RealTime clients, found {realtime_count}')
-    print(f'validated {realtime_count} RealTime clients with ASR and audio response gates')
+    check(realtime_count == 62, f'expected 62 story/adventure/figure/learn speech clients, found {realtime_count}')
+    print(f'validated {realtime_count} speech clients with realtime/native PTT and audio response gates')
     for prefix in ('story', 'adventure', 'figure'):
         for engine in ('eino',):
             for file in sorted(glob.glob(f'workflows/{prefix}-*/{engine}.multi-role.yaml')):
                 source = read(file)
-                check('旁白叙述与角色第一人称台词分段' in source, f'{file}: missing continuous dialogue contract')
+                continuous = (
+                    '旁白叙述与角色第一人称台词分段' in source or
+                    ('【旁白】写叙事、动作' in source and '只接该角色自己的直接台词' in source) or
+                    ('每段先写【旁白】或' in source and '旁人发言由旁白间接转述' in source))
+                check(continuous, f'{file}: missing continuous dialogue contract')
                 check('每轮只由一人发声' not in source, f'{file}: obsolete single-speaker contract')
     for engine in ('eino',):
         source = read(f'workflows/adventure-history/{engine}.multi-role.yaml')

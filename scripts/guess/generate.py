@@ -46,6 +46,37 @@ def template(name: str) -> str:
     return (TEMPLATES / name).read_text(encoding="utf-8")
 
 
+def instruction_blocks(data: dict[str, Any]) -> dict[str, str]:
+    """Select generation-time instructions while sharing deck and guess helpers."""
+    profile = data.get("prompt_profile", "standard")
+    if profile not in ("standard", "compact"):
+        raise ValueError(f"unknown guess prompt_profile: {profile}")
+    blocks = {}
+    for section in template(f"instructions.{profile}.star").split("# section: ")[1:]:
+        name, _, body = section.partition("\n")
+        blocks[name] = body
+    if set(blocks) != {"ROUND_PROMPTS", "ANSWER_PROMPTS", "PLAY_PROMPTS", "READER_PROMPT", "REPLY_LENGTH_CHECK",
+                       "STATE_DESCRIPTION", "HISTORY_STATE", "REVEAL_WORDS", "HINT_STATE", "RUN_CONTROLLER",
+                       "LIMIT_CONSTANTS", "CLOSING_CONSTANTS"}:
+        raise ValueError(f"incomplete guess instructions: {profile}")
+    return blocks
+
+
+def render_control(raid: str, data: dict[str, Any]) -> str:
+    blocks = instruction_blocks(data)
+    hint_marker = '"小提示" in content or "hint:" in content.lower()'
+    if data.get("prompt_profile") == "compact":
+        hint_marker += ' or any([("hint " + str(n + 1) + ":") in content.lower() for n in range(MAX_HINTS)])'
+    return fill(template("control.star"), {
+        "RAID": raid, "DATA": dumps(starlark_data(data)),
+        "GIVE_UP_CUES": dumps(["我放弃", "放弃了", "不猜了", "认输", "igiveup", "giveup"]
+                              if data.get("prompt_profile") == "compact" else
+                              ["我放弃", "放弃了", "不猜了", "认输", "猜不出来了", "igiveup", "giveup"]),
+        **{k: v for k, v in blocks.items() if k not in ("READER_PROMPT", "REPLY_LENGTH_CHECK")},
+        "HINT_MARKER": hint_marker,
+    }).rstrip("\n") + "\n"
+
+
 def fill(text: str, values: dict[str, str]) -> str:
     for key, value in values.items():
         text = text.replace(f"@@{key}@@", value)
@@ -221,6 +252,11 @@ def homophones(data: dict[str, Any]) -> dict[str, str]:
 
 
 def host_prompt(data: dict[str, Any]) -> str:
+    if data.get("prompt_profile") == "compact":
+        return (
+            "亲切机灵地承接猜法，偶尔调侃，不挤兑；收尾别重复。纠错不换谜底，不提前泄底；提问不限，不报余次。"
+            "现实危险时说“不要模仿”“找家长、老师或可信任成年人帮助”，随语言翻译。"
+        )
     levels = data["levels"]
     lines = [
         f"你是儿童猜谜游戏“{data['game_zh']}”的主持人。玩法：主持人心里藏着{data['subject_zh']}，孩子用能回答“是”或“不是”的问题来猜，"
@@ -254,10 +290,10 @@ def f_string_literal(text: str) -> str:
     return text.replace("{", "{{").replace("}", "}}")
 
 
-def anonymous_body(item: dict[str, Any]) -> str:
+def anonymous_body(item: dict[str, Any], *, include_profile: bool = True) -> str:
     # Keep names in the private controller instruction rather than repeating
     # them in the factual card: drop name fields and blank names in the rest.
-    lines = [f"简介：{item['profile']}"] + [f"{key}：{value}" for key, value in item["card"].items()]
+    lines = ([f"简介：{item['profile']}"] if include_profile else []) + [f"{key}：{value}" for key, value in item["card"].items()]
     text = "\n".join(lines)
     for name in sorted(names(item), key=len, reverse=True):
         text = text.replace(name, "（已隐藏）")
@@ -269,15 +305,25 @@ def card_nodes(data: dict[str, Any]) -> tuple[str, str, str]:
     for level_number, level in enumerate(data["levels"], 1):
         for index, item in enumerate(level["items"]):
             node = card_node_id(level_number, index)
-            card = fill(template("card.txt"), {"BODY": f_string_literal(anonymous_body(item))})
-            nodes.append(fill(template("card-node.yaml"), {"NODE": node, "CARD": indent(card, 12)}).rstrip("\n"))
+            body = anonymous_body(item, include_profile=data.get("prompt_profile") != "compact")
+            card = fill(template("card.txt"), {"BODY": f_string_literal(body)})
+            compact = data.get("prompt_profile") == "compact"
+            nodes.append(fill(template("card-node.yaml"), {
+                "NODE": node,
+                "CARD_STATIC": "" if compact else indent(card, 12),
+                "CARD_TURN": (
+                    "          template: |-\n" + indent(card, 12) + "\n            【本轮指令】{direction}"
+                    if compact else "          template: '【本轮指令】{direction}'"
+                ),
+                "TURN_ROLE": "user" if compact else "system",
+            }).rstrip("\n"))
             edges.append(fill(template("card-edge.yaml"), {"NODE": node}).rstrip("\n"))
             routes.append(fill(template("card-route.yaml"), {"NODE": node}).rstrip("\n"))
     return "\n".join(nodes), "\n".join(edges), "\n".join(routes)
 
 
 def render_eino(raid: str, data: dict[str, Any]) -> str:
-    control = fill(template("control.star"), {"RAID": raid, "DATA": dumps(starlark_data(data))})
+    control = render_control(raid, data)
     nodes, edges, routes = card_nodes(data)
     return fill(template("eino.yaml"), {
         "RAID": raid,
@@ -286,6 +332,19 @@ def render_eino(raid: str, data: dict[str, Any]) -> str:
         "CARD_ROUTES": routes,
         "CONTROL": indent(control, 10),
         "HOST_PROMPT": indent(host_prompt(data), 12),
+        "READER_PROMPT": instruction_blocks(data)["READER_PROMPT"].rstrip("\n"),
+        "ANNOUNCER_HISTORY_INPUT": ("          history:\n            from: input.messages\n" if data.get("prompt_profile") == "compact" else ""),
+        "READER_DIRECTION": "" if data.get("prompt_profile") == "compact" else "            {direction}\n",
+        "READER_MESSAGES": ("        - placeholder: history\n        - role: user\n          template: '{direction}'"
+                            if data.get("prompt_profile") == "compact" else
+                            "        - role: user\n          template: 'Read the already decided announcement exactly as instructed.'"),
+        "TURN_ROLE": "user" if data.get("prompt_profile") == "compact" else "system",
+        "HOST_TEMPERATURE": "0.6" if data.get("prompt_profile") == "compact" else "0.3",
+        "ANNOUNCER_NODE": "read-announcement" if data.get("prompt_profile") == "compact" else "read-winning-reply",
+        "PERSISTENCE": "    state_persistence:\n      fields: [game-route]\n" if data.get("prompt_profile") == "compact" else "",
+        "CURSOR_INPUT": "          cursor:\n            from: game-route\n" if data.get("prompt_profile") == "compact" else "",
+        "CURSOR_OUTPUT": "cursor" if data.get("prompt_profile") == "compact" else "route",
+        "CONTROL_ENTRYPOINT": "run_graph" if data.get("prompt_profile") == "compact" else "run",
     })
 
 
@@ -336,7 +395,23 @@ def route(data: dict[str, Any]) -> list[tuple[str, str, str, dict[str, Any]]]:
           "min_runes": 2, "max_runes": 200})
         for fact in tests["first"].get("facts", [])
     ]
+    if data.get("prompt_profile") == "compact":
+        adjusted = []
+        for name, text, contract, checks in steps:
+            contract = contract_without_reply_quota(contract).replace("共 20 次机会", "提问不限次数")
+            contract = contract.replace("最后问是否准备好下一题", "自然祝贺，并在同一回复开启第 2 关第 2 题，不再等待确认")
+            if name == "next-round":
+                contract = contract.replace("开启第 2 关第 2 题", "承接已经开启的第 2 关第 2 题，不得跳到第 3 题")
+            adjusted.append((name, text, contract, {k: v for k, v in checks.items() if k not in ("min_runes", "max_runes")}))
+        steps = adjusted
     return steps
+
+
+def contract_without_reply_quota(contract: str) -> str:
+    text, separator, suffix = contract.rpartition("；")
+    if separator and suffix.endswith("字") and suffix[:-1] and all(ch in "0123456789-" for ch in suffix[:-1]):
+        contract = text
+    return contract.replace("用一两句话正确介绍", "正确介绍").replace("一两句话正确介绍", "正确介绍")
 
 
 def render_tester(raid: str, data: dict[str, Any]) -> str:
@@ -354,6 +429,8 @@ def render_tester(raid: str, data: dict[str, Any]) -> str:
         "五、孩子说英文时整条回复必须用英文，孩子说中文时用中文；六、孩子放弃后要揭晓答案；"
         "七、主持人介绍谜底时只要内容正确即可，不要求逐字。"
     )
+    if data.get("prompt_profile") == "compact":
+        rules = rules.replace("每题最多 20 次提问", "每题不限提问次数，谜底在开题前由程序确定并保持不变")
     constants = "\n".join([
         "          REQUESTS = " + dumps([step[1] for step in steps]),
         "          INTENTS = " + dumps([""] * len(steps)),
@@ -367,6 +444,7 @@ def render_tester(raid: str, data: dict[str, Any]) -> str:
         "CONSTANTS": constants,
         "JUDGE_DIMS": dumps(JUDGE_DIMS),
         "N": str(len(steps)),
+        "REPLY_LENGTH_CHECK": instruction_blocks(data)["REPLY_LENGTH_CHECK"],
     })
 
 
@@ -652,7 +730,7 @@ def render_readme(raid: str, data: dict[str, Any]) -> str:
     )
     total = sum(len(level["items"]) for level in data["levels"])
     region = data["region"] or "global"
-    return f"""# {title['zh-CN']} / {title['en']}
+    text = f"""# {title['zh-CN']} / {title['en']}
 
 <!-- Generated by scripts/guess/generate.py from puzzles.json and cards/guess/{raid.removeprefix('guess-')}/; edit those, then regenerate. -->
 
@@ -712,10 +790,17 @@ python3 scripts/guess/generate.py {raid}
 make test-unit-guess
 ```
 """
+    if data.get("prompt_profile") == "compact":
+        text = text.replace("a correct guess, a give-up or the question limit", "a correct guess or an explicit give-up")
+        text = text.replace("3. Each puzzle allows 20 questions and at most 3 small hints (on request, or after 5 `不是` in a row).", "3. Questions are unlimited. The host answers naturally, with occasional kind teasing. When a child is stuck, the host can offer one prepared hint without revealing the answer; hints can also be requested. Numbered markers track the three hints across languages, without prescribing the whole reply.")
+        text = text.replace("4. A correct guess reveals the answer, praises the child and moves one level up; giving up or running out of\n   questions reveals the answer and keeps the level. The next message opens the next puzzle.", "4. A correct guess congratulates the child and immediately opens the next puzzle one level higher, with its answer already selected. At the top level, a new puzzle stays at that level. An immediate next-puzzle acknowledgement does not skip the new puzzle. Giving up reveals the answer and keeps the level; follow-up questions can discuss that revealed animal before an explicit next-puzzle request.")
+        text = text.replace("Eino keeps no hidden state between turns, so every turn rebuilds the game from the spoken History: the\nlatest opening names the level and the puzzle number, and puzzle number `k` on a level with `n` puzzles\nselects item", "The controller resolves the answer before the opening model call and persists a minimal puzzle cursor in\nthe existing `game-route` field through Eino `state_persistence`; a configured State store is required.\nThe cursor retains the level, puzzle number, phase, used-hint mask and language across reload and bounded\nHistory eviction. It commits only after complete delivery; an interrupted turn retains its previous checkpoint.\nPuzzle number `k` on a level with `n` puzzles selects item")
+    return text
+
 
 
 def outputs(raid: str, data: dict[str, Any]) -> dict[str, str]:
-    return {
+    result = {
         f"workflows/{raid}/eino.yaml": render_eino(raid, data),
         f"workflows/{raid}/test.yaml": render_tester(raid, data),
         f"workflows/{raid}/raid.json": raid_manifest(raid, data),
@@ -724,6 +809,22 @@ def outputs(raid: str, data: dict[str, Any]) -> dict[str, str]:
         f"tests/giztest/quality/{raid}.eino.giztest.yaml": render_quality(raid, data),
         f"tests/giztest/soak/{raid}.eino.giztest.yaml": render_soak(raid, data),
     }
+    if data.get("prompt_profile") == "compact":
+        # Reply size is diagnostic only. Preserve fact, privacy, audio and
+        # latency assertions, including the original realtime 2 s / 3 s gates.
+        for tier in ("smoke", "soak"):
+            key = f"tests/giztest/{tier}/{raid}.eino.giztest.yaml"
+            lines = iter(result[key].splitlines(keepends=True))
+            kept = []
+            for line in lines:
+                if "min_length:" in line or "max_length:" in line:
+                    continue
+                if '"/turns/eino/text_runes/' in line:
+                    next(lines)
+                    continue
+                kept.append(line)
+            result[key] = "".join(kept)
+    return result
 
 
 def parse_args() -> argparse.Namespace:

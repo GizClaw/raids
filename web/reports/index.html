@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Raids 测试报告</title>
+  <link rel="stylesheet" href="report.css">
+  <script defer src="report-data.js"></script>
+  <script defer src="report.js"></script>
+</head>
+<body>
+  <main>
+    <header><h1>Raids 测试报告</h1><div class="links"><a href="report.json" download>JSON</a><a href="scoring.md" target="_blank" rel="noopener">评分标准</a></div></header>
+    <p id="metadata" class="metadata">加载中…</p>
+    <p id="collection-notice" class="collection-notice" role="status" hidden></p>
+    <form id="filters" class="filters" role="search">
+      <div class="filter-field search-field"><label for="search">搜索</label><input id="search" type="search" placeholder="剧本名称 / ID" autocomplete="off"></div>
+      <div class="filter-field"><label id="category-label" for="category">类别</label><select id="category"><option value="all">全部</option></select></div>
+      <div class="filter-field"><label id="language-label" for="language">语言</label><select id="language"><option value="all">全部</option><option value="zh">中文</option><option value="en">English</option></select></div>
+      <div class="filter-field"><label id="cohort-label" for="cohort">分组</label><select id="cohort"><option value="all">全部</option><option value="optimized">有专项改动</option><option value="control">未专项改动</option></select></div>
+      <div class="filter-field"><label id="scope-label" for="scope">范围</label><select id="scope"><option value="all">全部剧本</option><option value="current" selected>本轮测试</option><option value="untested">未测试</option></select></div>
+      <span id="row-count" class="muted"></span>
+    </form>
+    <details id="cohort-evidence" open hidden>
+      <summary>5个专项改动样本与5个未专项改动对照：<span id="cohort-status"></span></summary>
+      <p id="cohort-description" class="footnote"></p>
+      <div class="table-wrap"><table class="evidence-table"><thead><tr><th>类别</th><th>语言</th><th>有专项改动剧本</th><th class="num">均分</th><th>评分覆盖</th><th>未专项改动剧本</th><th class="num">均分</th><th>评分覆盖</th></tr></thead><tbody id="cohort-category-rows"></tbody></table></div>
+      <div class="table-wrap"><table class="evidence-table"><thead><tr><th>分组</th><th>语言</th><th class="num">已有评分剧本</th><th>已评分 / 已记录</th><th class="num">最低分</th><th class="num">最高分</th><th class="num">回复均分</th><th class="num">标准差</th></tr></thead><tbody id="cohort-group-rows"></tbody></table></div>
+    </details>
+    <div class="table-wrap report-scroll" tabindex="0" role="region" aria-label="剧本报告表">
+      <table id="report-table">
+        <colgroup><col class="col-title"><col class="col-cohort"><col class="col-category"><col class="col-language"><col class="col-status"><col span="2" class="col-progress"><col span="4" class="col-score"><col class="col-impact"><col class="col-detail"></colgroup>
+        <thead><tr>
+          <th scope="col" data-sort="title" aria-sort="none"><button type="button">剧本</button></th>
+          <th scope="col" data-sort="cohort" aria-sort="none"><button type="button">分组</button></th>
+          <th scope="col" data-sort="category" aria-sort="none"><button type="button">类别</button></th>
+          <th scope="col" data-sort="language" aria-sort="none"><button type="button">语言</button></th>
+          <th scope="col" data-sort="status" aria-sort="none"><button type="button">状态</button></th>
+          <th scope="col" class="num" data-sort="collected" aria-sort="none"><button type="button">对话轮次</button></th>
+          <th scope="col" class="num" data-sort="scored" aria-sort="none"><button type="button">评分进度</button></th>
+          <th scope="col" class="num" data-sort="minimum" aria-sort="none"><button type="button">最低分</button></th>
+          <th scope="col" class="num" data-sort="maximum" aria-sort="none"><button type="button">最高分</button></th>
+          <th scope="col" class="num" data-sort="mean" aria-sort="none"><button type="button">平均分</button></th>
+          <th scope="col" class="num" data-sort="stddev" aria-sort="none" title="已评分回复分数的总体标准差，单位为分，越小表示分数波动越小；不足两条不计算。"><button type="button">标准差</button></th>
+          <th scope="col" class="num" data-sort="coreIssues" aria-sort="none" title="关键结果错误、主要交付缺失、无可用交付的回复条数；重复出现不表示独立缺陷数量。"><button type="button">关键问题回复</button></th>
+          <th scope="col">日志</th>
+        </tr></thead>
+        <tbody id="report-rows"></tbody>
+      </table>
+    </div>
+    <p class="footnote">目标每场51轮问答，开场另记。评分进度为已评分/已记录，待核不填零或满分。v3按实际影响评分：小问题只扣对应分项，需局部修正最高70，关键结果错误最高40，主要交付缺失或答错语种最高20。均分是现有回复统计；关键问题按出现条数计，不表示独立缺陷数。标准差不足两条显示“—”。历史记录保留原口径。</p>
+    <details id="comparison-evidence" open hidden>
+      <summary>优化前后证据：<span id="comparison-status"></span></summary>
+      <p id="comparison-explanation" class="footnote"></p>
+      <div class="table-wrap"><table class="evidence-table"><thead><tr><th>同一剧本</th><th>固定改前 SHA</th><th>固定改后 SHA</th><th>当前证据</th></tr></thead><tbody id="comparison-rows"></tbody></table></div>
+      <div id="paired-comparison" hidden>
+        <p class="footnote">同一行按相同轮次比较，差值为双方都已评分轮次的“改后−改前”均值；待核/未评分不补零。覆盖列依次为改前、改后已评分/已记录。改善/退化/相同均按回复出现次数计。</p>
+        <div class="table-wrap"><table class="evidence-table"><thead><tr><th>剧本</th><th>语言</th><th class="num">改前均分</th><th class="num">改后均分</th><th class="num">同题差值</th><th>双方评分覆盖</th><th class="num">成对评分</th><th class="num">改善 / 退化 / 相同</th></tr></thead><tbody id="paired-comparison-rows"></tbody></table></div>
+      </div>
+    </details>
+    <details id="calibration-evidence" open hidden>
+      <summary>这把尺子能区分什么改善</summary>
+      <p id="calibration-method" class="footnote"></p>
+      <div class="table-wrap"><table class="evidence-table"><thead><tr><th>同题问题 / 修复</th><th class="num">问题回复</th><th class="num">修复回复</th><th class="num">差值</th><th>证据性质</th></tr></thead><tbody id="calibration-rows"></tbody></table></div>
+    </details>
+    <details id="history"><summary id="history-title">历史记录</summary><div class="table-wrap"><table><thead><tr><th scope="col">记录</th><th scope="col">语言</th><th scope="col" class="num">对话轮次</th><th scope="col" class="num">评分进度</th><th scope="col" class="num">最低分</th><th scope="col" class="num">最高分</th><th scope="col" class="num">平均分</th><th scope="col" class="num">标准差</th><th scope="col">日志</th></tr></thead><tbody id="history-rows"></tbody></table></div></details>
+    <details id="rubric"><summary>评分权重与实际影响</summary><table class="rubric-table"><thead><tr><th scope="col">回应与推进</th><th scope="col">连贯与规则</th><th scope="col">事实与逻辑</th><th scope="col">互动表达</th><th scope="col">角色与语言</th></tr></thead><tbody><tr><td>25</td><td>25</td><td>25</td><td>15</td><td>10</td></tr></tbody></table><p class="footnote">每项0–5：充分满足5，可直接继续的小疵4，需局部补答3，关键结果须纠正2，主要交付缺失1，该项无可用交付0。局部格式/台词分工问题只扣对应分项，例如仅角色项4/5为98分；不额外压到70。实际影响需局部修正最高70，关键结果错误最高40，主要交付缺失/主体错语种最高20。未知待核。评分先冻结，不按版本名称或预期排名加分；这些尺度不是剧本通过线。</p></details>
+    <p id="load-error" class="failure" role="alert" hidden>报告数据读取失败。</p>
+  </main>
+</body>
+</html>

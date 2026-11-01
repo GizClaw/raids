@@ -161,5 +161,6 @@ require (
 	modernc.org/memory v1.11.0 // indirect
 )
 
-// The engine source matches the immutable CLI release used by repository CI.
+// Chat Tool contracts retain their independent engine pin; Resource/schema
+// validation uses the newer CLI release pinned by repository CI.
 replace github.com/GizClaw/gizclaw-go => github.com/GizClaw/gizclaw-go v0.27.0

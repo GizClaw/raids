@@ -10,6 +10,45 @@ It embeds Mandarin character pronunciation equivalents for each raid's
 names, so whole-name homophone guesses are resolved by the controller.
 Property questions and negations do not use a substring pronunciation match.
 
+`guess-animals` selects `prompt_profile: compact` as a single-workflow sample.
+`instructions.compact.star` supplies its turn wording; `instructions.standard.star`
+retains the other packages' wording. Both share deck selection and whole-name
+matching in `control.star`. The compact game has unlimited questions: it never
+counts down or reveals an answer because a quota expires. Before the opening
+model call, the controller resolves the deterministic deck position. The existing
+`game-route` string field stores only `v1|level|puzzle|phase|hintmask|language`,
+and `state_persistence.fields` selects that field, keeping all six declared fields
+and one model call. A State store must be configured in GizClaw. A complete
+delivered reply commits the cursor; interrupted or failed delivery does not.
+Reload and eviction of the opening from bounded History therefore preserve the
+same puzzle. Existing conversations without a cursor migrate from their last
+available opening once; if both cursor and opening are absent, the game starts
+at level 1, puzzle 1. Clearing the Workspace resets the game.
+
+Card nodes retain every factual field while omitting the introductory synopsis.
+The compact host can vary its response and lightly tease the guessing strategy,
+without mocking the child or adding animal attributes for the joke. A stuck or
+discouraged child can receive one prepared hint without explicitly asking; saying
+“猜不出来了” is a request for help, not consent to reveal the answer. The controller
+supplies only the next unused hint. Numbered Chinese/English markers record a
+hint from the delivered reply in the existing three-bit mask; an unused offer
+does not consume a hint. Requested and volunteered hints use the same card turn,
+so a message asking both an attribute question and for help receives both. The
+host can phrase the selected hint naturally, preserving its meaning and marker.
+Once all three are used, the
+host can recap established clues but cannot invent a fourth. Reply length is diagnostic only for this profile;
+fact, secret-keeping, audio and realtime latency assertions remain in place.
+Openings, matched wins, give-ups and progress recaps reuse `read-announcement`, which delivers
+the controller's decided event without the child's original question. This
+prevents an opening or a recap from becoming a fresh guess judgment. Card turns
+retain the complete available History. A matched correct guess checkpoints the
+next puzzle and higher level in the same turn, congratulates the child, and opens
+that puzzle immediately. The highest level remains capped. Equivalent wins
+recognized by the model use the same next position, reconciled from the delivered
+winning marker on the following turn. Giving up leaves the revealed puzzle open
+for discussion until an explicit next/restart command. No state field or model
+call is added; the single host model still streams directly.
+
 - `cards/guess/<subject>/<谜底>.txt` (at the repository root; `<subject>` is the raid ID without `guess-`) holds one knowledge card per puzzle: one `字段：值`
   line per field, in the order of `cards/guess/<subject>/_template.txt` (copy the
   template to add a puzzle). The first four fields — 谜底、英文名、别名、简介 —

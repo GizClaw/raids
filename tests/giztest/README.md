@@ -1,12 +1,56 @@
 # Giztest 测试
 
+<a id="reply-scoring-v1"></a>
+<a id="reply-scoring-v2"></a>
+
+## 内容评分（v3）
+
+人读标准见[根 README](../../README.md#reply-scoring-v3)，冻结规则见 [`reply-score-v3.json`](judges/reply-score-v3.json)。Root按真实用户原话、主持全文及同场有序raw History评分；ASR仅作诊断，Pro仅作玩家。程序校验绑定、计算与覆盖，不自动判断语义。
+
+五维权重仍为25/25/25/15/10。先写核心任务与具体用户影响：可直接继续的小疵只扣对应分项，不额外压到90或70；需局部修正最高70，关键结果错误最高40，主交付缺失/主体错语种最高20。关键未知保留pending，不填100或0。仅角色项4/5、其余5/5为98，不能因内部台词分工小疵给70。当前核心名字更正失败与普通回答中的非关键称呼偏好按实际影响区分。
+
+相同人物、语言、版本按同一规则；不按版本标签、改动量或期望排名给奖励。比较优化必须固定同一剧本的改前/改后SHA、同题输入与运行条件，列出成对改善/退化及待核。合成人工修复只能校准尺子，不能冒充优化后模型实测。Root同人校准不是独立盲测。
+
+每场目标51轮问答加开场52条；按要求语种分别报告采集/评分覆盖、待核、最低/最高/均分、总体标准差、关键问题回复与同类问题出现次数。不跨语言拼轮，不重分组掩盖错语种；不设通过线或稳定等级。技术时序、音频、History证据与内容分单列。
+
+每条保存实际轮号、核心任务、具体影响、问题类别、五项评级、基础分/上限/最终分、理由及候选/原话回复/完整上下文/规则SHA。旧版内容分和规则另存快照；同一场当前只保留一份活动内容分。
+
+`make test-unit-resources`包含旧评分检查、`test_reply_scores_v2.py`、`test_reply_scores_v3.py`和`test_report_site.py`，验证小疵局部扣分、关键错误上限、诊断/影响一致及报告没有把受限分数改回基础分。这些本地检查不代替真实内容审阅或人类接受度验证。
+
+**以下为历史 Pro 自动评分工具说明，非默认执行流程。** 仅在用户明确要求模型对照时使用；下列模型输出协议不约束 Codex 直接读取日志评分。
+
+用 `python scripts/test/reply_scores.py prepare --manifest <cases.json> --out <new-input-dir>` 准备一批输入；`evaluate` 接受 `--round <轮号>`、专用 `--api-key-file`、`--endpoint` 和 `--model`，输出原始请求/响应、输入哈希和该轮分数。每次只评指定回复，只带其前序历史，不带未来回合。调用不重试、不改写旧结果，也不创建或修改共享 RuntimeProfile。Pro 评分裁判可以用 `--thinking enabled` 开启思考，省略时仍默认关闭；这不改变主持或玩家的设置。比较候选时使用相同裁判设置，原始请求和评分结果均记录 thinking，旧设置下的分数单独保留。展开静态裁判 context ≤1000 字符在请求前核对。
+
+模型先写依据和影响，末尾以唯一的 `S|` 分隔符提交六个数字，例如 `S|4|3|5|4|5|0`：前五项是 0–5 整数评级，最后一项是阻断标记 0/1。程序严格检查字段数量、范围、理由和完整完成，再生成评分 JSON；回合身份和上下文哈希来自已绑定的请求，不让模型猜轮号、位置编号或来源。说明中的引号、逗号和换行保留原样，不参与 JSON 语法。它是唯一主协议，不是坏 JSON 的容错或正则修补；多记录、缺字段、非法数值或未完成输出均明确失败，不拿旧分或 Root 分填充。
+
+结果中的 `evidence` 定位被评分的原始回复，`context_sha256` 固定其原始上下文，`why` 保留模型的反证、推导和扣分说明。程序绑定的定位信息不是模型已经给出可靠反证的证明；是否真的构成矛盾仍须按内容审核，不能将“有定位”当成“事实已核实”。
+
+`cases.json` 的每项包含 `category`、`name`、既有案例 `directory` 和固定角色/玩法 `contract`。目录内使用原始 `dialogue.json` 与 `audit.json`；可另提供独立来源 `independent_evidence` 和实际函数事件 `function_events`。未采集到的函数状态应明确标为未知，不能用空字段推断“没有谜底”。函数事件用于核对游戏状态，不作为自然科学或历史事实的答案模板。
+
+每条输出保留五项 0–5 评级、加权总分、原始依据说明、解析后的证据引用，以及待 Root 核对的实质阻断标记。不能仅凭自动裁判的 `block` 判定剧本失败；必须检查它是否真的发现明确反证。分项评级、完整轮数、重复轮号、证据引用、阈值边界、完整流结束及技术结果隔离由 `python -m unittest discover -s scripts/test -p test_reply_scores.py` 验证，并接入 `make test-unit-resources`。模型对语义和事实的判断仍须内容复核，这些结构测试不证明裁判判断正确。
+
+以下保留既有测试执行说明；新增评分入口没有改写其原有断言。
+
 0.23.2 使用 Profile 自定义的安全围栏字符串 ID；testing Profile 的普通测试显式选择 `off`，儿童围栏测试选择 `child`，不再发送 `SAFETY_FENCE_LEVEL_*` 枚举。`off` 只要求遵循 Workflow 自身规则，既有 `general`、`child` 的安全策略原文保留。H106 使用 deploy 管理的 Profile，测试使用 Eino Workspace 参数，围栏选择仍由设备环境决定。
 
 Chat/Journey 不把回复字数作为通过或失败标准，重载后的回复同样按内容验收。数字提示只表达用户希望简短的意图，Tester 不做精确计数；原样回答仍按文本匹配。事实、更正、记忆、响应时延和音频完成检查继续执行。`scripts/test/test_reply_lengths.py` 用原生 Starlark 验证完整回复不会只因长短失败，错误事实、空回复和原样回答中添加的内容仍会被拒绝。
 
 模型目录原样保留 `doubao-seed-2-0-lite`，并新增独立的 `doubao-seed-2-1-lite`；旧 profile 仍可选择 2.0。
 
-两个公开 RuntimeProfile 的讲述与 Tester 评审绑定 `doubao-seed-2-1-lite`，上游为 `doubao-seed-2-1-lite-260915`。思考默认关闭，可选值为 `enabled`、`disabled`；Tester 的 judge 输出预算为 1024 token，避免长评审截断后无法给出结论。语音输入仍走 ASR。
+两个公开 RuntimeProfile 的常规讲述与 Tester 评审绑定 `doubao-seed-2-1-lite`，上游为 `doubao-seed-2-1-lite-260915`。思考默认关闭，可选值为 `enabled`、`disabled`；Tester 的 judge 输出预算为 1024 token，避免长评审截断后无法给出结论。常规语音输入仍走 ASR；李白 compact 样本另用原生音频 Model 和 PTT，独立转写只供应文本控制与 History，其 smoke 保留同样的首字、首音、EOS 和完整音频检查。
+
+原生 Lite 音频对照使用独立的任务测试 Profile。`scripts/test/audio_input_profiles.py`
+可复制 Lite Model 为音频能力版本（关闭 thinking、保留原工具配置），移除所选测试
+Workflow binding 的 ASR 字段及私有 Workflow 副本中旧的 `voice_adapter.asr_model` 引用，
+并把主持输入改为合成语音后的 `push-to-talk`；原回复、
+EOS、音频与 History 校验不变，玩家和裁判仍使用文字。它不修改共享 Profile 或故事图。
+同一段录音应分别送入原生入口和 ASR 基线，保存源音、转写及真实回复，按语义区分
+输入误解与知识错误；同音字不能仅凭转写字符串判对错，也不通过词语替换修正录音。
+
+GizClaw 0.33.10 的原生 Lite 入口支持 PTT，回复仍流式输出。依赖 `input.text`
+或脚本控制器的复杂图会先调用 Lite 转写，再执行文字业务图；这不等于业务模型已收到
+原声。报告应记录实际 provider 音频输入，并单列该输入模型的静态指令和耗时，不能仅凭
+`audio_input=model` 就宣称完成端到端音频推理。原生入口不支持的 realtime 模式不回落为 ASR。
 
 Chat 的天气、日期 live 探针只检查语音回复可用性，关键词本身不证明搜索已执行。
 `make test-unit-chat-assistant` 另用仓库真实 Workflow、Tool、profile 与这两个输入，
