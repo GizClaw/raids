@@ -62,4 +62,22 @@ def render(repo: Path, standard: str, card: dict, opening: str) -> str:
                         "memory": {"from": "recalled"}, "safety_fence": {"from": "input.safety_fence"}},
                 outputs={"messages": "answer-messages"}, language="starlark", entrypoint="run", source=source,
                 limits={"max_execution_steps": 300000, "timeout": "250ms", "max_input_bytes": 1048576, "max_output_bytes": 1048576})
+    nodes.insert(nodes.index(node) + 1, {
+        "id": "apply-safety-fence", "type": "prompt",
+        "inputs": {
+            "safety_fence": {"from": "input.safety_fence"},
+            "context": {"from": "answer-messages"},
+            "history": {"from": "input.messages"},
+        },
+        "outputs": {"messages": "answer-messages"}, "format": "go_template",
+        "messages": [
+            {"role": "system", "template": "{{.safety_fence}}\n\n{{(index .context 0).Content}}"},
+            {"placeholder": "history"},
+        ],
+    })
+    edges = document["spec"]["eino"]["graph"]["edges"]
+    edge = next(edge for edge in edges if edge["from"] == "build-prompt")
+    target = edge["to"]
+    edge["to"] = "apply-safety-fence"
+    edges.append({"from": "apply-safety-fence", "to": target})
     return yaml.dump(document, Dumper=_Dumper, allow_unicode=True, sort_keys=False, width=120)

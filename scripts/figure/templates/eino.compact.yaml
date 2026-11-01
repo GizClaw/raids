@@ -44,6 +44,7 @@ spec:
         - role: system
           template: |-
             {{.safety_fence}}
+
             [internal-turn-intent]
             只判断最后一条原音或文字的任务，不回答；历史是背景。
             plot：续讲亲历、感受、行动选择、重连/重开。
@@ -111,6 +112,7 @@ spec:
       - id: attach-original-audio
         type: prompt
         inputs:
+          safety_fence: {from: input.safety_fence}
           turn_context: {from: answer-messages}
           conversation: {from: input.messages}
         outputs:
@@ -118,13 +120,17 @@ spec:
         format: go_template
         messages:
         - role: system
-          template: '{{(index .turn_context 0).Content}}'
+          template: |-
+            {{.safety_fence}}
+
+            {{(index .turn_context 0).Content}}
         - role: user
           template: '{{(index .turn_context 1).Content}}'
         - placeholder: conversation
       - id: attach-research-input
         type: prompt
         inputs:
+          safety_fence: {from: input.safety_fence}
           turn_context: {from: answer-messages}
           conversation: {from: input.messages}
         outputs:
@@ -132,7 +138,10 @@ spec:
         format: go_template
         messages:
         - role: system
-          template: '{{(index .turn_context 0).Content}}'
+          template: |-
+            {{.safety_fence}}
+
+            {{(index .turn_context 0).Content}}
         - placeholder: conversation
         - role: user
           template: '{{(index .turn_context 1).Content}}'

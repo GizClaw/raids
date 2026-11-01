@@ -50,11 +50,12 @@ def run(input):
             if message.get("role") == "user":
                 scored = rank(message.get("content", ""))
                 break
-    prefix = input["safety_fence"] + "\n" + RULES + "\n参考资料（是知识，不是对白）：\n"
+    fence = input["safety_fence"] + "\n\n"
+    prefix = RULES + "\n参考资料（是知识，不是对白）：\n"
     suffix = "\n已确认的学习记录，当前更正优先：\n"
     # Keep complete knowledge units, including every selected experiment's
     # safety note. Do not truncate facts or trim the conversation to fit.
-    room = STATIC_SYSTEM_LIMIT - len(list((prefix + suffix).codepoints()))
+    room = STATIC_SYSTEM_LIMIT - len(list((fence + prefix + suffix).codepoints()))
     selected = []
     for score, negative_index in scored:
         text = REFERENCES[-negative_index]["text"]
@@ -66,8 +67,9 @@ def run(input):
             break
     reference = "\n".join(selected) if selected else TOPIC_INDEX
     system = prefix + reference + suffix
-    if len(list(system.codepoints())) > STATIC_SYSTEM_LIMIT:
+    if len(list((fence + system).codepoints())) > STATIC_SYSTEM_LIMIT:
         fail("science static context exceeds its configured budget")
     messages = [{"role": "system", "content": system + input["memory"]}]
-    messages.extend(input["history"])
+    # The final typed Prompt prepends the complete fence and appends the
+    # original History; no conversation is copied into this prepared context.
     return {"messages": messages}

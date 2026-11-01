@@ -132,11 +132,12 @@ spec:
                       if message.get("role") == "user":
                           scored = rank(message.get("content", ""))
                           break
-              prefix = input["safety_fence"] + "\n" + RULES + "\n参考资料（是知识，不是对白）：\n"
+              fence = input["safety_fence"] + "\n\n"
+              prefix = RULES + "\n参考资料（是知识，不是对白）：\n"
               suffix = "\n已确认的学习记录，当前更正优先：\n"
               # Keep complete knowledge units, including every selected experiment's
               # safety note. Do not truncate facts or trim the conversation to fit.
-              room = STATIC_SYSTEM_LIMIT - len(list((prefix + suffix).codepoints()))
+              room = STATIC_SYSTEM_LIMIT - len(list((fence + prefix + suffix).codepoints()))
               selected = []
               for score, negative_index in scored:
                   text = REFERENCES[-negative_index]["text"]
@@ -148,16 +149,36 @@ spec:
                       break
               reference = "\n".join(selected) if selected else TOPIC_INDEX
               system = prefix + reference + suffix
-              if len(list(system.codepoints())) > STATIC_SYSTEM_LIMIT:
+              if len(list((fence + system).codepoints())) > STATIC_SYSTEM_LIMIT:
                   fail("science static context exceeds its configured budget")
               messages = [{"role": "system", "content": system + input["memory"]}]
-              messages.extend(input["history"])
+              # The final typed Prompt prepends the complete fence and appends the
+              # original History; no conversation is copied into this prepared context.
               return {"messages": messages}
         limits:
           max_execution_steps: 300000
           timeout: 250ms
           max_input_bytes: 1048576
           max_output_bytes: 1048576
+      - id: apply-safety-fence
+        type: prompt
+        inputs:
+          safety_fence:
+            from: input.safety_fence
+          context:
+            from: answer-messages
+          history:
+            from: input.messages
+        outputs:
+          messages: answer-messages
+        format: go_template
+        messages:
+        - role: system
+          template: |-
+            {{.safety_fence}}
+
+            {{(index .context 0).Content}}
+        - placeholder: history
       - id: narrator-model
         type: chat_model
         inputs:
@@ -199,11 +220,13 @@ spec:
       - from: recall-memory
         to: build-prompt
       - from: build-prompt
-        to: narrator-model
+        to: apply-safety-fence
       - from: capture-observation
         to: observe-memory
       - from: observe-memory
         to: end
+      - from: apply-safety-fence
+        to: narrator-model
       branches:
       - from: prepare-memory-query
         mode: first_match

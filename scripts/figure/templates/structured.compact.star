@@ -93,10 +93,13 @@ def run(input):
         fail("turn intent language must be a short unlabelled name")
     narrator = control["mode"] == "research"
     order = source_order(input["text"], input["history"])
-    system = input["safety_fence"] + "\n" + (NARRATOR_POLICY if narrator else POLICY)
+    # The final typed Prompt adds the fence exactly once; reserve its full
+    # prefix here while keeping the prepared policy separate.
+    fence = input["safety_fence"] + "\n\n"
+    system = NARRATOR_POLICY if narrator else POLICY
     speakers = "\n本轮核查任务：回答前面原音中的问题，仅由【旁白】第三人称讲解，不续写历史中的人物台词。" if narrator else SPEAKERS
     current = speakers + "\n本轮正文语种：" + language + "\n生平边界：\n" + (SCENE_FACTS if narrator else ACTOR_FACTS) + SOURCE_LABEL
-    budget = 1000 - TOOL_METADATA - MESSAGE_FRAMING - len(list((system + current + MEMORY_LABEL).codepoints()))
+    budget = 1000 - TOOL_METADATA - MESSAGE_FRAMING - len(list((fence + system + current + MEMORY_LABEL).codepoints()))
     if budget < 0:
         fail("complete static scene context exceeds 1000 characters")
     selected = {}
