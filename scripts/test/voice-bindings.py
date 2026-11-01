@@ -65,10 +65,13 @@ for file in sorted(glob.glob('workflows/*/raid.json')):
         slots = dig(impl, 'parameters', 'voices') or {}
         check(sorted(aliases) == sorted(slots.keys()), f'{workflow}: Voice aliases differ from manifest slots')
         for profile_name, profile in profiles.items():
-            # Each published node / named speaker must have its own audible identity,
-            # including original implementations, not just the multi-role variants.
+            # Distinct speaker slots keep distinct audible identities. Several
+            # language labels may name the same slot; node bindings remain unique.
             for map_name in ('speaker_voices', 'node_voices'):
-                ids = [dig(profile, 'resources', 'voices', a, 'resource_id') for a in adapter.get(map_name, {}).values()]
+                slots_for_map = list(adapter.get(map_name, {}).values())
+                if map_name == 'speaker_voices':
+                    slots_for_map = list(dict.fromkeys(slots_for_map))
+                ids = [dig(profile, 'resources', 'voices', a, 'resource_id') for a in slots_for_map]
                 check(len(set(ids)) == len(ids), f'{workflow}: duplicate {profile_name} {map_name} Voice resources')
             check(any(entry.get('resource_id') == dig(doc, 'metadata', 'id') for entry in profile['workflows'].values()), f'{workflow}: missing {profile_name} Workflow binding')
             for a in aliases:
@@ -94,11 +97,33 @@ for file in sorted(glob.glob('workflows/*/raid.json')):
             check(adapter['speaker_voices']['旁白'] == adapter['default_voice'], f'{workflow}: narrator mismatch')
             nodes = spec['graph']['nodes']
             outputs = [n for n in nodes if n.get('type') == 'chat_model']
-            check(len(outputs) == 1, f'{workflow}: expected one narration LLM')
+            compact_figure = dig(doc, 'metadata', 'id') == 'eino-figure-li-bai-multi-role'
+            prompt_led = compact_figure or dig(doc, 'metadata', 'id') == 'eino-story-alice-multi-role'
+            if compact_figure:
+                figure = json.loads(read(f'workflows/{raid}/figure.json'))
+                check(dig(figure, 'narration', 'mode') == 'compact', f'{workflow}: missing compact opt-in')
+                check({n['id'] for n in outputs} == {'turn-intent-model', 'narrator-model', 'research-model'},
+                      f'{workflow}: expected intent selection and plot/research narration')
+                branch = next((b for b in spec['graph']['branches'] if b['from'] == 'build-prompt'), {})
+                check(branch.get('mode') == 'first_match' and branch.get('default') == 'attach-original-audio'
+                      and branch.get('routes') == [{'when': {'field': 'memory-route', 'op': 'eq', 'value': 'research'},
+                                                    'to': 'attach-research-input'}],
+                      f'{workflow}: plot/research narration must be exclusive')
+                for attach, model in (('attach-original-audio', 'narrator-model'), ('attach-research-input', 'research-model')):
+                    check({'from': attach, 'to': model} in spec['graph']['edges']
+                          and {'from': model, 'to': 'capture-observation'} in spec['graph']['edges'],
+                          f'{workflow}: missing selected narration or persistence edge')
+            else:
+                check(len(outputs) == 1, f'{workflow}: expected one narration LLM')
             source = read(workflow)
-            check('约1至2分钟' in source and '不输出其它【】标记' in source, f'{workflow}: missing narration contract')
-            for speaker in adapter['speaker_voices'].keys():
-                check(f'【{speaker}】' in source, f'{workflow}: missing marker {speaker}')
+            if prompt_led:
+                check(os.path.isfile(f'workflows/{raid}/context-cases.json'), f'{workflow}: missing native context regressions')
+                check('更正优先' in source and '第三人称' in source, f'{workflow}: missing state/speaker contract')
+            else:
+                check('约1至2分钟' in source and '不输出其它【】标记' in source, f'{workflow}: missing narration contract')
+            for slot in set(adapter['speaker_voices'].values()):
+                labels = [speaker for speaker, voice in adapter['speaker_voices'].items() if voice == slot]
+                check(any(f'【{speaker}】' in source for speaker in labels), f'{workflow}: missing marker for Voice slot {slot}')
             giztest = f"tests/giztest/smoke/{raid}.{os.path.basename(impl['file']).removesuffix('.yaml')}.giztest.yaml"
             probe = next((s for s in giztest_layout.probes(giztest, name.replace('-', '_')) if s.get('id') == 'continuous_story'), None)
             check(probe is not None and num_eq(dig(probe, 'expect', '/text', 'min_length'), 1) and 'non_empty' not in dig(probe, 'expect', '/text'), f'{workflow}: missing non-empty gate')
