@@ -1,4 +1,4 @@
-// Execute the unmodified Workflow script with the same no-predeclared environment as Eino.
+// Execute unmodified Workflow scripts with Eino's catalog-used JSON builtin.
 package main
 
 import (
@@ -54,6 +54,7 @@ func main() {
 			ID      string
 			Input   map[string]any
 			Speaker string
+			Error   string
 			Expect  map[string]map[string]any
 		}
 	}
@@ -67,11 +68,17 @@ func main() {
 			steps = data.Steps
 		}
 		t.SetMaxExecutionSteps(steps)
-		globals, err := starlark.ExecFile(t, "controller.star", data.Source, nil)
-		if err != nil {
-			panic(err)
+		globals, err := starlark.ExecFile(t, "controller.star", data.Source, scriptBuiltins())
+		var result starlark.Value
+		if err == nil {
+			result, err = starlark.Call(t, globals["run"], starlark.Tuple{value(c.Input)}, nil)
 		}
-		result, err := starlark.Call(t, globals["run"], starlark.Tuple{value(c.Input)}, nil)
+		if c.Error != "" {
+			if err == nil || !strings.Contains(err.Error(), c.Error) {
+				panic(fmt.Sprintf("%s: got error %v, want %q", c.ID, err, c.Error))
+			}
+			continue
+		}
 		if err != nil {
 			panic(err)
 		}

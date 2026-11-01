@@ -258,10 +258,13 @@ audio input to the same upstream model. It sets `support_text_only: false`
 to select GizClaw's Doubao audio/transcript adapter, keeps the `fast` service
 tier and disables thinking by default. Ark lists this upstream model under
 [audio understanding](https://docs.volcengine.com/docs/82379/1553576?lang=zh).
-For an Eino Workflow to pass audio directly, bind its Model alias to this
-resource, set `audio_transcript: true` on the root Graph's `chat_model` node,
-omit `voice_adapter.asr_model`, and use push-to-talk input. The existing public
-Workflow bindings continue to use the text-only Model and ASR.
+For an Eino Workflow to pass audio directly, bind its chat Model aliases to
+audio-capable Models, set `spec.eino.audio_input: model`, retain the typed
+`input.messages` in Prompt placeholders, and use push-to-talk input. Set
+`ptt_asr_model: asr` on each Profile alias selecting that Workflow: parallel
+transcription supplies input.text and History while the answering Model receives
+the original audio. The Li Bai sample opts into this path; other existing public
+Workflow bindings retain their selected input configuration.
 
 The catalog also provides these text chat choices for consuming profiles:
 
@@ -864,6 +867,51 @@ Set `GIZCLAW_TEST_ENDPOINT` and `GIZCLAW_TEST_REGISTRATION_TOKEN` for live runs.
 `make test-unit-resources` validates schemas, tier inventory, manifest registration, Voice/role closure, internal routing fixtures and native Journey parity offline. It checks client idle gaps (180s scheduling budget, including cleanup) and compares the three Journey variants for complete inputs, assertions, captures, timeouts and relay plans after normalizing client identifiers and Workspace implementation settings. `make test-unit-voices` checks the Voice catalog.
 
 Smoke retains the 2-second first-text / 3-second first-audio probes and the original complete-response gates. Complete streams additionally require closed, non-overlapping audio, zero underruns and a nonnegative minimum playback buffer under Giztest’s 500ms prebuffer model; packet gaps remain diagnostic evidence. The CLI must support `/audio_integrity` and `/audio_pacing`. Necessary role setup can exceed the two-minute target; file budgets do not relax per-step gates. A failure stops subsequent steps: skipped steps are not passes, and cleanup is reported separately. See the [test guide](tests/giztest/README.md) for the full layout, selection rules and Tester protocol.
+
+<a id="reply-scoring-v1"></a>
+<a id="reply-scoring-v2"></a>
+<a id="reply-scoring-v3"></a>
+
+### 剧本回复评分（100 分，v3）
+
+Story、Adventure、Figure、Guess 和 Learn 统一按用户实际体验评价：是否回答当前问题、执行所选动作、记住关键状态、给可靠解释，并允许自然继续。先写本轮核心任务和具体用户影响，再选影响等级、给五维0–5评级。程序验证绑定与计算，Root判断语义；不调用Pro裁判，也不把版本名称、代码改动量、prompt长短当作内容加分。
+
+| 评分项 | 满分 | 判断内容 |
+|---|---:|---|
+| 回应与推进 | 25 | 当前主问、必要子问和明确行动是否落实，必要澄清是否合理 |
+| 连贯与规则 | 25 | 当前人物、持物、选择、回忆、更正及重开状态是否连续 |
+| 事实与逻辑 | 25 | 核心答案是否可靠，是否分清实际观察、转述、推测、创作与可核史实 |
+| 互动表达 | 15 | 适龄、清楚、自然，提示与探索节奏合适；正确简短回答同样可满分 |
+| 角色与语言 | 10 | 角色身份、要求语种、台词分工与呈现偏好 |
+
+评级锚点：**5充分满足；4有小疵但可直接继续；3需要局部补答；2关键结果须纠正；1主要交付缺失；0该项无可用交付。** 各项按权重计算基础分，最终分取基础分与下列实际影响上限的较小值。
+
+| 实际影响 | 总分处理 | 行为锚点 |
+|---|---|---|
+| 任务完成 | 最高100 | 主问、必要子问和行动正确，或作必要澄清 |
+| 可直接继续的小问题 | **只扣对应分项，无额外90/70上限** | 身份和主答清楚，只有格式、舞台动作、临时NPC直接台词或非关键称谓问题 |
+| 需局部修正 | 最高70 | 主结果可用，但必要子问漏答、次要知识或依据有实质问题，需补答 |
+| 关键结果错误 | 最高40 | 核心答案、影响下一步的状态、当前核心更正或主行动错误；擅自执行禁止的实质行动或收掉整场 |
+| 主要交付缺失 | 最高20 | 用首次问候/菜单/无关话题替代主答，或主体答错明确要求的语种 |
+| 无可用交付 | 0 | 完整证据确认无意义交付或严重危险的主要指导；不以缺日志或技术失败代填零 |
+
+例如，任务和状态都对，仅角色呈现4/5，其余5/5，为98分；不因为NPC没有预设声道就把整轮压到70。没有音频证据不得声称实际串音。当前只问唯一名字却仍答错，可判核心结果错误；正确科学回答里多了仍可识别的称呼前缀，按局部偏好评。若同轮必要更正漏做但主要交付可用，明确说明局部修正的依据。
+
+互动故事已执行选择、出现有意义的新岔路后再交还选择，不要求一条回复演完全部未来目标。无新情况却反复询问同一已选动作，或把禁止的行动真正执行，须按实际影响扣分。仅属可合理推知的小幅取放，不自动升级成关键记忆错误。
+
+历史/科学错误必须有同场明确矛盾、独立反证或可复核推导。没有引用、史料未载、检索未得及知识卡本身不能代替真假证据。关键未知保留pending，不计100或0。允许的后世回顾、合理虚构、必要澄清、按要求重复、简短正确及未拼写的同音人名不自动扣分。忠实复述曾说过的话和重新核实其真实性分别判断。
+
+每条内容分只绑定实际原话、完整回复及该场此前有序raw History，ASR另作语音诊断。保存候选SHA、sorted JSON `{round,intended,reply}` SHA、完整前序上下文SHA与规则SHA。事实未知、采集缺失与技术失败分开列。后续纠正不抹掉旧错，也不把旧错机械滚动到之后每轮。同类问题同时报告出现次数与类别，不能冒充多个独立缺陷。
+
+每场目标51次完整用户问答加开场52条回复。按要求语种分别报告用户轮数、已评分/已记录覆盖、待核、最低/最高/均分和总体标准差；实际错答语种另记，不能换组掩盖。标准差至少两条评分才计算。未完整覆盖照实显示，不补跑、借旧轮或跨语言拼接；不设剧本通过线或稳定等级。
+
+**优化收益须用同一个剧本的改前/改后版本、相同测试任务与条件、同一冻结规则比较。** 展示同题改善、退化和待核，避免大量简单回复稀释关键任务。不同人物、不同自适应追问，或同源码重复采集，不能充当优化前后A/B。修复目标是减少可定位的问题；分数不因“改过代码”自动升高。
+
+固定错误/正常控制与人工最小修复用于检验尺子的敏感性。必须标注合成来源；人工修复得到高分不是优化后模型已实测变好。Root自行准备并审阅的校准不能称独立盲测，也不代表已经取得人类接受度验证。用户可审阅具体行为锚点，而不是只接受一个总数。
+
+当前规则为 [`reply-score-v3.json`](tests/giztest/judges/reply-score-v3.json)，计算/验证为 [`reply_scores_v3.py`](scripts/test/reply_scores_v3.py)。规则在评分前冻结。v1、v2规则文件及历次分数/报告快照保留，不混为同一口径；本地重评不等于新的实时E2E或模型优化收益。
+
+Pro可作玩家，不作默认评分裁判。原2秒首字、3秒首音、EOS、音频完整性与有序History测试按原要求单独记录，不转换为内容扣分。历史模型裁判流程和采集说明见[测试指南](tests/giztest/README.md)。
 
 ## Catalog behavior notes
 

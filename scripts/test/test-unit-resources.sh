@@ -19,6 +19,11 @@ require_command jq
 cd "$root"
 
 require_python_yaml
+python3 scripts/test/test_reply_scores.py
+python3 scripts/test/test_reply_scores_v2.py
+python3 scripts/test/test_reply_scores_v3.py
+python3 scripts/test/test_report_site.py
+python3 scripts/test/test_native_history.py
 python3 scripts/test/catalog-closure.py
 python3 scripts/test/test_safety_fences.py
 python3 scripts/test/safety_fences.py
@@ -100,6 +105,16 @@ transition_count=0
 for package in workflows/story-* workflows/figure-*; do
 	test -d "$package" || continue
 	raid="${package#workflows/}"
+	# Opt-in compact figures use prompt selection instead of a mechanical
+	# chapter controller. context-cases.json exercises the shipped script;
+	# test-unit-figure separately checks complete source-unit provenance.
+	if test -f "$package/figure.json" && python3 -c 'import json,sys; sys.exit(json.load(open(sys.argv[1])).get("narration", {}).get("mode") != "compact")' "$package/figure.json"; then
+		test -f "$package/context-cases.json" || {
+			printf 'compact figure lacks native context cases: %s\n' "$package" >&2
+			exit 1
+		}
+		continue
+	fi
 	# Figure raids ship only the Eino multi-role implementation.
 	case "$package" in
 	workflows/figure-*) engines='eino.multi-role' ;;
@@ -142,7 +157,10 @@ python3 scripts/test/device-flow.py --check
 # lists every raid; stale or free-form values fail here.
 python3 scripts/test/raid-manifests.py --check
 
-"$GIZCLAW_TEST_CLI" test validate -f tests/giztest
+find tests/giztest -type d -name reports -prune -o -type f -name '*.giztest.yaml' -print |
+	LC_ALL=C sort | while IFS= read -r file; do
+		"$GIZCLAW_TEST_CLI" test validate -f "$file"
+	done
 
 # Generated real-model/device scenarios are validated without starting Docker
 # or loading credentials. Runtime inputs and receipts are archived by the E2E runner.

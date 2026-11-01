@@ -1,6 +1,6 @@
 # User Story:
 # As a Raids catalog maintainer,
-# I want equal opening, role and realtime responsiveness gates for every implementation,
+# I want equal opening, role and native PTT responsiveness gates for every implementation,
 # So that text and audio respond promptly without overlap or playback stalls.
 version: gizclaw.test/v1alpha1
 name: figure-li-bai.smoke.eino.multi-role
@@ -29,7 +29,7 @@ variables:
     direction: input
     type: string
     generate: token
-  eino_multi_role_realtime_workspace:
+  eino_multi_role_ptt_workspace:
     direction: input
     type: string
     generate: token
@@ -79,12 +79,12 @@ steps:
     method: server.run.workspace.reload
     request: {}
   timeout: 2m
-- id: eino_multi_role_create_realtime
+- id: eino_multi_role_create_ptt
   client: eino_multi_role
   rpc:
     method: server.workspace.create
     request:
-      name: "${eino_multi_role_realtime_workspace}"
+      name: "${eino_multi_role_ptt_workspace}"
       workflow_name: eino-figure-li-bai-multi-role
       parameters:
         eino_workspace_parameters:
@@ -92,7 +92,7 @@ steps:
           safety_fence_level: 'off'
           conversation:
             initiative: CONVERSATION_PARAMETERS_INITIATIVE_PEER
-          input: WORKSPACE_INPUT_MODE_REALTIME
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
 - timeout: 10m
   id: eino_multi_role_probe_narrator
   client: eino_multi_role
@@ -207,23 +207,23 @@ steps:
       minimum: 0
     "/audio_pacing/underruns":
       equals: 0
-- id: eino_multi_role_select_realtime
+- id: eino_multi_role_select_ptt
   client: eino_multi_role
   rpc:
     method: server.run.workspace.set
     request:
-      workspace_name: "${eino_multi_role_realtime_workspace}"
-- id: eino_multi_role_warmup_realtime
+      workspace_name: "${eino_multi_role_ptt_workspace}"
+- id: eino_multi_role_warmup_ptt
   client: eino_multi_role
   rpc:
     method: server.run.workspace.reload
     request: {}
   timeout: 2m
 - timeout: 10m
-  id: eino_multi_role_realtime_roundtrip
+  id: eino_multi_role_ptt_roundtrip
   client: eino_multi_role
   peer_stream:
-    mode: realtime
+    mode: push-to-talk
     input: "${input_audio}"
     pacing: 20ms
     idle_timeout: 90s
@@ -256,10 +256,10 @@ steps:
     "/audio_pacing/underruns":
       equals: 0
 - timeout: 15s
-  id: eino_multi_role_realtime_roundtrip_first_response
+  id: eino_multi_role_ptt_roundtrip_first_response
   client: eino_multi_role
   peer_stream:
-    mode: realtime
+    mode: push-to-talk
     input: "${input_audio}"
     pacing: 20ms
     require_text: true
@@ -281,12 +281,12 @@ steps:
       not_contains:
       - "【"
       - "】"
-- id: eino_multi_role_realtime_roundtrip_stop_probe
+- id: eino_multi_role_ptt_roundtrip_stop_probe
   client: eino_multi_role
   rpc:
     method: server.run.stop
     request: {}
-- id: eino_multi_role_realtime_roundtrip_resume_workspace
+- id: eino_multi_role_ptt_roundtrip_resume_workspace
   client: eino_multi_role
   timeout: 2m
   rpc:

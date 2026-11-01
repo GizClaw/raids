@@ -41,6 +41,19 @@ for package in sorted(p for p in glob.glob('workflows/*') if os.path.isdir(p)):
         nodes = spec['graph']['nodes']
         node_id = data.get('eino', {}).get('node', 'select-speaker')
         node = next((n for n in nodes if n.get('id') == node_id), None)
+        if variant and node is None:
+            # Prompt-led narration has different deterministic components from
+            # the historical chapter controller. Keep the old fixtures and run
+            # explicit cases against the shipped prompt or memory component.
+            context_fixture = f'{package}/context-cases.json'
+            if os.path.exists(context_fixture):
+                fixture = context_fixture
+                data = load_json(fixture)
+                if not (data.get('version') == 1 and not isinstance(data.get('version'), bool)
+                        and isinstance(data.get('cases'), list) and data['cases']):
+                    sys.exit(f'{fixture}: unsupported version or empty cases')
+                node_id = data['eino']['node']
+                node = next((n for n in nodes if n.get('id') == node_id), None)
         if not variant and node is None:
             # Original stories have their own chapter controller; do not use the
             # multi-role scene cases against a different output contract.
@@ -70,5 +83,6 @@ for package in sorted(p for p in glob.glob('workflows/*') if os.path.isdir(p)):
                 checks = c.get('expect', {}).get('eino', {}).get('direction', {}).get('includes_all')
                 if checks is not None:
                     checks[:] = [check for check in checks if check != '同一回复自然进入紧邻下一章']
-        suites.append({'raid': package + variant, 'data': data, 'sources': {'eino': node['source']}})
+        suites.append({'raid': package + variant, 'data': data, 'sources': {'eino': node['source']},
+                       'steps': node.get('limits', {}).get('max_execution_steps', 100000)})
 print(json.dumps(suites, ensure_ascii=False, separators=(',', ':')))

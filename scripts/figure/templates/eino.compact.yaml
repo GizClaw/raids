@@ -1,0 +1,208 @@
+apiVersion: gizclaw.admin/v1alpha1
+kind: Workflow
+metadata:
+  id: eino-@@RAID@@-multi-role
+spec:
+  driver: eino
+  toolkit:
+    tool_ids: []
+  memory: story-teller
+  eino:
+    audio_input: model
+    voice_adapter:
+      default_voice: eino-@@RAID@@-mr.storyteller
+      speaker_voices:
+        旁白: eino-@@RAID@@-mr.storyteller
+        Narrator: eino-@@RAID@@-mr.storyteller
+        @@FIGURE@@: eino-@@RAID@@-mr.@@FIGURE_KEY@@
+        @@FIGURE_EN@@: eino-@@RAID@@-mr.@@FIGURE_KEY@@
+    graph:
+      name: @@RAID@@-eino
+      compile:
+        node_trigger_mode: any_predecessor
+        primary_output_mode: first_output
+        max_run_steps: 12
+      state:
+        fields:
+        - {name: memory-query, type: string, merge: replace}
+        - {name: memory-route, type: string, merge: replace}
+        - {name: recalled, type: string, merge: replace}
+        - {name: answer-messages, type: messages, merge: replace}
+        - {name: answer, type: string, merge: replace}
+      nodes:
+      # Only the selected answer node publishes; control JSON stays internal.
+      # Existing answer/answer-messages fields are overwritten before narration.
+      - id: prepare-turn-intent
+        type: prompt
+        inputs:
+          safety_fence: {from: input.safety_fence}
+          conversation: {from: input.messages}
+        outputs:
+          messages: answer-messages
+        format: go_template
+        messages:
+        - role: system
+          template: |-
+            {{.safety_fence}}
+            [internal-turn-intent]
+            只判断最后一条原音或文字的任务，不回答；历史是背景。
+            plot：续讲亲历、感受、行动选择、重连/重开。
+            research：核验史实、精确先后、文献出处、传说或他人后续经历。
+            只讲可确定史实、无考须说明的限制优先research，不因亲历问法选plot；明确搁下考据续故事才plot。
+            language依本轮指定，否则取本轮主要语种，勿沿用引文或历史语种。
+        - placeholder: conversation
+      - id: turn-intent-model
+        type: chat_model
+        inputs:
+          messages: {from: answer-messages}
+        outputs:
+          text: answer
+        model: eino-@@RAID@@-mr.intent-model
+        temperature: 0
+        # Internal two-field control object, not a user-facing response limit.
+        max_tokens: 64
+        structured_output:
+          name: turn_intent
+          schema:
+            type: object
+            additionalProperties: false
+            required: [mode, language]
+            properties:
+              mode: {type: string, enum: [plot, research]}
+              language: {type: string, minLength: 1, maxLength: 32}
+      - id: prepare-memory-query
+        type: script
+        inputs:
+          text: {from: input.text}
+        outputs:
+          query: memory-query
+          route: memory-route
+          memory: recalled
+        language: starlark
+        entrypoint: run
+        source: |
+          def run(input):
+              text = input["text"].strip()
+              cues = ["重连", "恢复", "回忆", "还记得", "代号", "更正", "改成", "上次", "continue where", "left off"]
+              recall = any([cue in text for cue in cues])
+              return {"query": "@@TITLE@@故事状态、角色、选择、更正和未解决线索；当前请求：" + text,
+                      "route": "recall" if recall else "reply", "memory": ""}
+        limits: {max_execution_steps: 10000, timeout: 250ms, max_input_bytes: 65536, max_output_bytes: 65536}
+      - id: recall-memory
+        type: memory_recall
+        query_from: memory-query
+        output: recalled
+        top_k: 16
+      - id: build-prompt
+        type: script
+        inputs:
+          intent: {from: answer}
+          safety_fence: {from: input.safety_fence}
+          history: {from: input.messages}
+          text: {from: input.text}
+          memory: {from: recalled}
+        outputs:
+          messages: answer-messages
+          route: memory-route
+        language: starlark
+        entrypoint: run
+        source: |
+@@PROMPT_SCRIPT@@        limits: {max_execution_steps: 200000, timeout: 250ms, max_input_bytes: 4194304, max_output_bytes: 4194304}
+      - id: attach-original-audio
+        type: prompt
+        inputs:
+          turn_context: {from: answer-messages}
+          conversation: {from: input.messages}
+        outputs:
+          messages: answer-messages
+        format: go_template
+        messages:
+        - role: system
+          template: '{{(index .turn_context 0).Content}}'
+        - role: user
+          template: '{{(index .turn_context 1).Content}}'
+        - placeholder: conversation
+      - id: attach-research-input
+        type: prompt
+        inputs:
+          turn_context: {from: answer-messages}
+          conversation: {from: input.messages}
+        outputs:
+          messages: answer-messages
+        format: go_template
+        messages:
+        - role: system
+          template: '{{(index .turn_context 0).Content}}'
+        - placeholder: conversation
+        - role: user
+          template: '{{(index .turn_context 1).Content}}'
+      - id: narrator-model
+        type: chat_model
+        inputs:
+          messages: {from: answer-messages}
+        outputs:
+          text: answer
+        model: eino-@@RAID@@-mr.model
+        temperature: 0.2
+      - id: research-model
+        type: chat_model
+        inputs:
+          messages: {from: answer-messages}
+        outputs:
+          text: answer
+        model: eino-@@RAID@@-mr.research-model
+        temperature: 0.2
+      - id: capture-observation
+        type: script
+        inputs:
+          text: {from: input.text}
+          answer: {from: answer}
+        outputs:
+          fact: memory-query
+        language: starlark
+        entrypoint: run
+        source: |
+          def run(input):
+              return {"fact": "story_contract_v1；剧情记录（非史料，未选选项不是已发生动作）；用户本轮输入：" + input["text"].strip() + "；角色本轮叙事：\n" + input["answer"]}
+        limits: {max_execution_steps: 10000, timeout: 250ms, max_input_bytes: 4194304, max_output_bytes: 4194304}
+      - id: observe-memory
+        type: memory_observe
+        facts:
+        - text_from: memory-query
+        wait_for_completion: true
+      edges:
+      - {from: start, to: prepare-turn-intent}
+      - {from: prepare-turn-intent, to: turn-intent-model}
+      - {from: turn-intent-model, to: prepare-memory-query}
+      - {from: recall-memory, to: build-prompt}
+      - {from: attach-original-audio, to: narrator-model}
+      - {from: attach-research-input, to: research-model}
+      - {from: narrator-model, to: capture-observation}
+      - {from: research-model, to: capture-observation}
+      - {from: capture-observation, to: observe-memory}
+      - {from: observe-memory, to: end}
+      branches:
+      - from: build-prompt
+        mode: first_match
+        routes:
+        - when: {field: memory-route, op: eq, value: research}
+          to: attach-research-input
+        default: attach-original-audio
+      - from: prepare-memory-query
+        mode: first_match
+        routes:
+        - when: {field: memory-route, op: eq, value: recall}
+          to: recall-memory
+        default: build-prompt
+      outputs:
+      - node: narrator-model
+        field: answer
+        name: plot
+        mime_type: text/plain
+        primary: true
+      - node: research-model
+        field: answer
+        name: research
+        mime_type: text/plain
+    limits:
+      max_output_bytes: 4194304

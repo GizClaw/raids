@@ -128,6 +128,21 @@ func profileSearchToolkit(t *testing.T, f *fixture, profile *apitypes.RuntimePro
 	if _, err := server.CreateTool(t.Context(), tool); err != nil {
 		t.Fatal(err)
 	}
+	if profile.Spec.Resources.Tools != nil {
+		if _, bound := (*profile.Spec.Resources.Tools)["reference.search"]; bound {
+			reference := document(t, "tools/volc-reference-search.yaml")
+			var referenceSpec apitypes.ToolSpec
+			decode(t, reference["spec"], &referenceSpec)
+			referenceTool, err := toolkit.FromSpec(reference["metadata"].(map[string]any)["id"].(string), referenceSpec)
+			if err != nil {
+				t.Fatal(err)
+			}
+			referenceTool.HTTP.Auth = toolkit.HTTPAuth{Method: "none"}
+			if _, err := server.CreateTool(t.Context(), referenceTool); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
 	executor := giztools.HTTPExecutor{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
 		f.requests++
 		if request.Method != "POST" || request.URL.String() != "https://open.feedcoopapi.com/search_api/web_search" {
@@ -556,6 +571,10 @@ func TestProfileSearchInjectionAndOptOut(t *testing.T) {
 			for _, tool := range catalog {
 				if tool.Alias == "web.search" {
 					foundSearch = tool.HTTP != nil && tool.HTTP.ID == "volc-web-search" && tool.Available
+				} else if tool.Alias == "reference.search" {
+					if tool.HTTP == nil || tool.HTTP.ID != "volc-reference-search" || !tool.Available {
+						t.Fatalf("bound reference tool missing from catalog: %+v", tool)
+					}
 				} else if tool.Available || tool.Reason != "capability_unknown" {
 					t.Fatalf("unobserved device tool became available: %+v", tool)
 				}
@@ -568,12 +587,19 @@ func TestProfileSearchInjectionAndOptOut(t *testing.T) {
 					continue
 				}
 				names, err := toolcatalog.Selection(profile, alias, binding.ResourceId, nil)
-				if err != nil || len(names) != 0 {
+				referenceOnly := binding.ResourceId == "eino-figure-li-bai-multi-role" &&
+					len(names) == 1 && names[0] == "reference.search"
+				if err != nil || (!referenceOnly && len(names) != 0) ||
+					(binding.ResourceId == "eino-figure-li-bai-multi-role" && !referenceOnly) {
 					t.Fatalf("non-Chat Workflow %s gained tools: %v, %v", alias, names, err)
 				}
 			}
 			args := json.RawMessage(`{"query":"天气","search_type":"web","count":3}`)
-			result, err := invoker.InvokeTool(t.Context(), "fixture_private_search", args)
+			result, err := invoker.InvokeTool(t.Context(), "reference_search", args)
+			if err != nil || !bytes.Contains(result, []byte(`"unavailable"`)) || f.requests != 0 {
+				t.Fatalf("reference tool crossed into Chat scope: %s, %v, requests=%d", result, err, f.requests)
+			}
+			result, err = invoker.InvokeTool(t.Context(), "fixture_private_search", args)
 			if err != nil || !bytes.Contains(result, []byte(`"unavailable"`)) || f.requests != 0 {
 				t.Fatalf("private resource name bypassed alias policy: %s, %v", result, err)
 			}

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 import shared
+import compact_science
 
 
 MARKDOWN = ["###", "```", "- ", "* "]
@@ -221,25 +222,45 @@ def render_readme(
     prompt_chars: int,
 ) -> str:
     name = grade_name(grade)
+    implementation = shared.implementation_table(raid)
+    knowledge_intro = f"""This raid is one of six grade-scoped `learn-science-grade*` packages. Its prompt
+embeds the units, safe home experiments, checked facts, common misconceptions,
+and scientist facts for 教科版小学科学{name}, plus a title-only unit index for
+every other grade, about {prompt_chars} characters in total. Every experiment
+includes its safety rule. The tutor asks for a prediction before revealing an
+observation, corrects misconceptions gently, labels scientist stories, and does
+not invent missing details."""
+    if grade == 1:
+        implementation = implementation.partition("\n\n")[0] + """
+
+The prompt builder selects up to two complete knowledge units for the current
+topic, then passes the original conversation and recalled memory unchanged to
+the streaming tutor. Each node's expanded static context stays within 1000
+Unicode characters, including selected references, the Workspace fence and
+the service's Tool availability message. The builder reserves that metadata
+and keeps its own system text within 620 characters;
+conversation and recalled memory are measured separately. No Graph State
+fields or model calls are added."""
+        knowledge_intro = """The source card retains the complete grade-one units, experiments, checked
+facts, misconceptions and scientist notes. Only relevant complete units enter
+each model request; every selected experiment keeps its full safety note.
+Follow-ups reuse the latest user topic when needed, and English search terms
+help select the same source facts without rewriting the user's utterance.
+The tutor asks for a prediction, responds to the child's actual observation,
+and gives natural explanations without a response-length rule."""
     lines = [
         f"# {manifest['title']['en']} (`{raid}`) — {manifest['title']['zh-CN']}\n",
         manifest["summary"]["en"] + "\n",
         "- Category: `learn`; rating: `child`; tags: " + ", ".join(f"`{tag}`" for tag in manifest["tags"]) + "\n",
         f"""## Implementations
 
-{shared.implementation_table(raid)}
+{implementation}
 
 Install the Workflow resource and add a flat `spec.workflows` binding to its Workflow ID. Bind the slots above under `spec.resources.models` and `spec.resources.voices`; use `category:*` tags for discovery.
 
 ## Knowledge card
 
-This raid is one of six grade-scoped `learn-science-grade*` packages. Its prompt
-embeds the units, safe home experiments, checked facts, common misconceptions,
-and scientist facts for 教科版小学科学{name}, plus a title-only unit index for
-every other grade, about {prompt_chars} characters in total. Every experiment
-includes its safety rule. The tutor asks for a prediction before revealing an
-observation, corrects misconceptions gently, labels scientist stories, and does
-not invent missing details.
+{knowledge_intro}
 
 [`knowledge.json`](knowledge.json) is the source of truth. It retains source,
 lesson, edition, cross-check, and research-note fields that are deliberately
@@ -345,10 +366,10 @@ def generate(repo: Path, out: Path, raids: Sequence[str]) -> list[str]:
             voice_description="Science tutor voice",
         )
         workflow_dir = out / "workflows" / raid
-        shared.write_text(
-            workflow_dir / "eino.yaml",
-            shared.render_eino(repo, raid, eino_prompt, "孩子的年级、已经学过的科学主题、实验观察、误解更正和明确要求记住的信息"),
-        )
+        workflow = shared.render_eino(repo, raid, eino_prompt, "孩子的年级、已经学过的科学主题、实验观察、误解更正和明确要求记住的信息")
+        if grade == 1:
+            workflow = compact_science.render(repo, workflow, card, opening(grade))
+        shared.write_text(workflow_dir / "eino.yaml", workflow)
         shared.write_text(workflow_dir / "test.yaml", shared.render_tester(repo, raid, route, tester_rules(grade, raid, card), body))
         shared.write_json(workflow_dir / "raid.json", manifest)
         shared.write_json(workflow_dir / "knowledge.json", card)
@@ -357,5 +378,6 @@ def generate(repo: Path, out: Path, raids: Sequence[str]) -> list[str]:
             repo, raid, len(route), ROUTES[grade]["next"], f"我{name}，给我讲一个有趣的科学知识吧。", opening(grade)
         ).items():
             shared.write_text(out / "tests" / "giztest" / filename, text)
-        generated.append(f"{raid}: {sum(len(volume['units']) for volume in card['volumes'])} units, prompt chars {len(eino_prompt)}")
+        context = "expanded static context <=1000 chars including service metadata; complete selected knowledge units" if grade == 1 else f"prompt chars {len(eino_prompt)}"
+        generated.append(f"{raid}: {sum(len(volume['units']) for volume in card['volumes'])} units, {context}")
     return generated

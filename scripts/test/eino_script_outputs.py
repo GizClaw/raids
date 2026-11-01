@@ -1,3 +1,4 @@
+import ast
 import glob
 import json
 import re
@@ -46,12 +47,36 @@ def return_keys(source):
     return list(dict.fromkeys(keys))
 
 
+def graph_return_source(node):
+    """An explicit port wrapper may keep richer dictionaries internal."""
+    if node.get('language') != 'starlark':
+        return node['source']
+    try:
+        module = ast.parse(node['source'])
+    except SyntaxError:
+        return node['source']
+    entry = node.get('entrypoint', 'run')
+    function = next((part for part in module.body
+                     if isinstance(part, ast.FunctionDef) and part.name == entry), None)
+    if function is None:
+        return node['source']
+    returns = [part for part in ast.walk(function) if isinstance(part, ast.Return)]
+    if not returns or not all(
+        isinstance(part.value, ast.Dict) and all(
+            isinstance(key, ast.Constant) and isinstance(key.value, str)
+            for key in part.value.keys)
+        for part in returns
+    ):
+        return node['source']
+    return ast.get_source_segment(node['source'], function)
+
+
 def errors(document, file):
     found = []
     for node in document['spec']['eino']['graph']['nodes']:
         if node.get('type') != 'script':
             continue
-        keys = return_keys(node['source'])
+        keys = return_keys(graph_return_source(node))
         declared = node.get('outputs', {}).keys()
         for key in keys:
             if key not in declared:

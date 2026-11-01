@@ -21,6 +21,32 @@ Tester Workflows do not receive the variable. See the root
 
 Install the Workflow resource and add a flat `spec.workflows` binding to its Workflow ID. Bind the slots above under `spec.resources.models` and `spec.resources.voices`; use `category:*` tags for discovery.
 
+### Single-host continuation
+
+`eino.yaml` keeps the original exact Chinese and English openings for a new
+adventure or an explicit restart. Changing languages during an adventure only
+changes the narration language: it does not replay the opening or discard the
+chosen route. The narrator carries out an already selected action before
+offering the next step, and “continue” resumes the current scene.
+
+Clues must supply solvable conditions and remain consistent with discovered
+facts, held objects, and completed actions. Established clue wording and map
+markings do not change to match a chosen path. Guesses stay identified as
+unverified, and a correction explains its evidence. Relative left/right uses
+the player's facing direction; map comparisons use the established orientation.
+At the same time, a tree's shadow points away from the Sun; walking does not
+change its compass direction. Fictional narration preserves those physical
+relationships.
+
+Different solutions that satisfy the conditions are allowed; neither the prompt
+nor a function supplies a fixed sequence of story answers. Characters are
+conveyed through the single narrator without extra speaker labels. There is no
+reply character or sentence quota and no requirement to repeat a menu after
+every answer.
+
+The graph still has six state fields and one model call. Its narrator remains
+the direct primary output, so this change does not add a buffering or rewrite
+stage. Memory recall and observation follow the existing routes.
 
 ## Testing
 
@@ -29,6 +55,11 @@ Tester: `test.yaml` (`adventure-treasure-test`, eino), shared by every implement
 - `tests/giztest/soak/adventure-treasure.eino.giztest.yaml` (relay, with reload, timeout 35m)
 
 The route has 7 target responses:
+
+The table below describes the existing tester, including its historical length
+checks. Those checks do not impose a reply quota in the player-facing prompt;
+content review should distinguish a substantive contradiction or blocked game
+from harmless wording or length differences.
 
 | # | Checkpoint | Player message | Contract |
 | --- | --- | --- | --- |
@@ -48,6 +79,7 @@ make test-e2e RAID=adventure-treasure PARALLEL=2
 
 ## Multi-role implementations
 
-Continuous multi-character narration is available separately; original implementations remain unchanged.
+Continuous multi-character narration is available separately. Its workflow and
+voice bindings are independent of the single-host continuation changes above.
 
 - `eino.multi-role.yaml`: `eino-adventure-treasure-multi-role`; Voice aliases: `eino-adventure-treasure-mr.adventure-guide`, `eino-adventure-treasure-mr.cartographer`, `eino-adventure-treasure-mr.codebreaker`, `eino-adventure-treasure-mr.old-sailor`.

@@ -38,6 +38,21 @@ class EinoScriptOutputsTest(unittest.TestCase):
         ''').lstrip('\n')
         self.assertEqual(['direction', 'extra'], eino_script_outputs.return_keys(source))
 
+    def test_explicit_entrypoint_ports_do_not_export_helper_diagnostics(self):
+        node = {
+            'id': 'control', 'type': 'script', 'language': 'starlark',
+            'entrypoint': 'run_graph', 'outputs': {'cursor': 'state'},
+            'source': 'def run(input):\n    return {"route": "play", "cursor": "saved"}\n'
+                      'def run_graph(input):\n    result = run(input)\n'
+                      '    return {"cursor": result["cursor"]}\n',
+        }
+        doc = {'spec': {'eino': {'graph': {'nodes': [node]}}}}
+        self.assertEqual([], eino_script_outputs.errors(doc, 'fixture'))
+        node['source'] = node['source'].replace(
+            'return {"cursor": result["cursor"]}',
+            'return {"cursor": result["cursor"], "route": result["route"]}')
+        self.assertEqual(1, len(eino_script_outputs.errors(doc, 'fixture')))
+
 
 if __name__ == '__main__':
     unittest.main()

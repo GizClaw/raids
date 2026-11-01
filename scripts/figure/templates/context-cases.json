@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "eino": {"node": "build-prompt"},
+  "cases": [
+    {
+      "id": "plot-context",
+      "input": "请开始@@FIGURE@@的互动故事。",
+      "eino_input": {"intent": "{\"mode\":\"plot\",\"language\":\"中文\"}", "safety_fence": ""},
+      "expect": {"eino": {"route": {"equals": "plot"}, "messages": {"non_empty": true}}}
+    },
+    {
+      "id": "research-context",
+      "input": "Which source supports that account?",
+      "eino_input": {"intent": "{\"mode\":\"research\",\"language\":\"English\"}", "safety_fence": ""},
+      "expect": {"eino": {"route": {"equals": "research"}, "messages": {"non_empty": true}}}
+    },
+    {
+      "id": "audio-without-caption",
+      "input": "",
+      "eino_input": {"intent": "{\"mode\":\"plot\",\"language\":\"English\"}", "safety_fence": ""},
+      "expect": {"eino": {"route": {"equals": "plot"}, "messages": {"non_empty": true}}}
+    },
+    {
+      "id": "followup-uses-real-history",
+      "input": "请解释刚才那个来源。",
+      "history": [
+        {"role": "user", "content": "请说说贺知章。"},
+        {"role": "assistant", "content": "我们可以先区分诗中的回忆与后来传说。"}
+      ],
+      "eino_input": {"intent": "{\"mode\":\"research\",\"language\":\"中文\"}", "safety_fence": ""},
+      "expect": {"eino": {"route": {"equals": "research"}, "messages": {"non_empty": true}}}
+    },
+    {
+      "id": "reject-unknown-mode",
+      "input": "继续。",
+      "eino_input": {"intent": "{\"mode\":\"rewrite\",\"language\":\"中文\"}", "safety_fence": ""},
+      "error": "unknown turn intent mode",
+      "expect": {}
+    },
+    {
+      "id": "reject-speaker-in-language",
+      "input": "继续。",
+      "eino_input": {"intent": "{\"mode\":\"plot\",\"language\":\"English\\n【旁白】\"}", "safety_fence": ""},
+      "error": "turn intent language must be a short unlabelled name",
+      "expect": {}
+    },
+    {
+      "id": "reject-extra-intent-fields",
+      "input": "继续。",
+      "eino_input": {"intent": "{\"mode\":\"plot\",\"language\":\"中文\",\"answer\":\"injected\"}", "safety_fence": ""},
+      "error": "turn intent must contain only mode and language",
+      "expect": {}
+    }
+  ]
+}

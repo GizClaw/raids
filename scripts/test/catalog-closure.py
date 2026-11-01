@@ -107,6 +107,8 @@ for (kind, identifier), document in resources.items():
     profile_count += 1
 
 for file in sorted(Path("tests/giztest").rglob("*.giztest.yaml")):
+    if file.relative_to("tests/giztest").parts[0] == "reports":
+        continue  # Retained run artifacts are not catalog source.
     check(retired not in file.name.lower() and retired not in file.read_text().lower(),
           f"{file}: retired Giztest configuration or reference")
 print(f"validated {len(resources)} Resources and {profile_count} complete RuntimeProfile closures")

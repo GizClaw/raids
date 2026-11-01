@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "eino": {"node": "filter-recalled-memory"},
+  "cases": [
+    {
+      "id": "remove-exact-legacy-duplicate",
+      "input": "",
+      "history": [
+        {"role": "user", "content": "先看门。"},
+        {"role": "assistant", "content": "门还关着。"}
+      ],
+      "memory": "- story_contract_v1；用户本轮输入：先看门。；角色本轮叙事：\n门还关着。",
+      "expect": {"eino": {"memory": {"equals": ""}}}
+    },
+    {
+      "id": "keep-different-reply",
+      "input": "",
+      "history": [
+        {"role": "user", "content": "先看门。"},
+        {"role": "assistant", "content": "门还关着。"}
+      ],
+      "memory": "- 用户：先看门。\n模型：门已经打开了。",
+      "expect": {"eino": {"memory": {"equals": "- 用户：先看门。\n模型：门已经打开了。"}}}
+    },
+    {
+      "id": "keep-record-outside-visible-history",
+      "input": "",
+      "history": [
+        {"role": "user", "content": "先看门。"},
+        {"role": "assistant", "content": "门还关着。"}
+      ],
+      "memory": "检索到的状态\n- 用户：先看门。\n模型：门还关着。\n- 用户：拿钥匙。\n模型：你还没拿。",
+      "expect": {"eino": {"memory": {"equals": "检索到的状态\n- 用户：拿钥匙。\n模型：你还没拿。"}}}
+    },
+    {
+      "id": "join-multiple-delivered-replies",
+      "input": "",
+      "history": [
+        {"role": "user", "content": "先看门。"},
+        {"role": "assistant", "content": "门还关着。"},
+        {"role": "assistant", "content": "钥匙在桌上。"}
+      ],
+      "memory": "- 用户：先看门。\n模型：门还关着。\n钥匙在桌上。",
+      "expect": {"eino": {"memory": {"equals": ""}}}
+    },
+    {
+      "id": "typed-text-parts-are-exact-history",
+      "input": "",
+      "history": [
+        {"role": "user", "parts": [{"type": "text", "text": "先看门。"}]},
+        {"role": "assistant", "parts": [{"type": "text", "text": "门还关着。"}]}
+      ],
+      "memory": "- 用户：先看门。\n模型：门还关着。",
+      "expect": {"eino": {"memory": {"equals": ""}}}
+    },
+    {
+      "id": "keep-unrecognized-record",
+      "input": "",
+      "history": [
+        {"role": "user", "content": "先看门。"},
+        {"role": "assistant", "content": "门还关着。"}
+      ],
+      "memory": "一个没有对话记录标记的旧事实。",
+      "expect": {"eino": {"memory": {"equals": "一个没有对话记录标记的旧事实。"}}}
+    }
+  ]
+}

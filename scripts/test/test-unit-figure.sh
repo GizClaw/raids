@@ -14,3 +14,4 @@ trap 'rm -rf -- "$tmp"' EXIT HUP INT TERM
 cd "$root"
 python3 scripts/figure/generate.py --out "$tmp"
 python3 scripts/figure/check.py "$root" "$tmp"
+python3 scripts/figure/test_evidence.py

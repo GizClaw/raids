@@ -4,7 +4,7 @@ const assert = require('assert/strict');
 const cp = require('child_process');
 const suites = JSON.parse(fs.readFileSync(0, 'utf8'));
 assert(suites.length > 0, 'no native routing suites');
-for (const {raid, data, sources} of suites) {
+for (const {raid, data, sources, steps} of suites) {
   assert(sources.eino, `${raid}: no native controller source`);
   const ids = new Set();
   const cases = data.cases.map(c => {
@@ -13,9 +13,9 @@ for (const {raid, data, sources} of suites) {
     ids.add(c.id);
     assert.equal(typeof c.input, 'string');
     if (c.expect.speaker !== undefined) assert.equal(typeof c.expect.speaker, 'string');
-    return {ID: `${raid}/${c.id}`, Input: {text: c.input, history: c.history || [], memory: c.memory || '', ...(c.eino_input || {})}, Speaker: c.expect.speaker, Expect: c.expect.eino || {}};
+    return {ID: `${raid}/${c.id}`, Input: {text: c.input, history: c.history || [], memory: c.memory || '', ...(c.eino_input || {})}, Speaker: c.expect.speaker, Error: c.error || '', Expect: c.expect.eino || {}};
   });
   cp.execFileSync('sh', ['scripts/test/test-starlark-routing.sh'], {
-    input: JSON.stringify({Source: sources.eino, Cases: cases}), stdio: ['pipe', 'inherit', 'inherit']});
+    input: JSON.stringify({Source: sources.eino, Steps: steps, Cases: cases}), stdio: ['pipe', 'inherit', 'inherit']});
   console.log(`validated ${raid} native routing: ${cases.length} cases`);
 }
