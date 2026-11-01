@@ -496,6 +496,9 @@ spec:
               if word in STOP_EXACT or word in DECLINE_EXACT or matches_any(word, STOP_CONTAINS):
                   return checkpoint(farewell(lang, state, state["phase"] == "p"), state, lang)
               if matches_any(word, RESUME_CUES):
+                  if state["phase"] != "p":
+                      level = min(state["level"] + (1 if state["phase"] == "w" else 0), len(DATA["levels"]))
+                      return new_puzzle(lang, level, state["puzzle"] + 1, False)
                   return checkpoint(recap(lang, state), state, lang)
               next_words = ["下一题", "下一个谜题", "换一题", "再来一题", "nextpuzzle", "anotherpuzzle", "newpuzzle", "nextone"]
               wants_next = matches_any(word, next_words) or (state["phase"] != "p" and (word in NEXT_EXACT or word in START_WORDS or word in NEXT_CUES))

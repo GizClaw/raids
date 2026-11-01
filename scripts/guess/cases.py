@@ -230,6 +230,8 @@ def compact_cases(data: dict[str, Any]) -> list[dict[str, Any]]:
             "node": {"equals": node(data, 2, 2)}, "cursor": {"equals": advanced}}),
         persistent("compact-resume-keeps-answer", "继续上次的内容", plain_cursor, [], {
             "node": {"equals": "read-announcement"}, "cursor": {"equals": plain_cursor}}),
+        persistent("compact-resume-after-automatic-win-keeps-new-puzzle", "继续上次的内容", advanced, won_and_opened, {
+            "node": {"equals": "read-announcement"}, "cursor": {"equals": advanced}}),
         persistent("compact-wrong-guess-keeps-answer", data["tests"]["first"]["wrong_guess"], plain_cursor, [], {
             "route": {"equals": "play"}, "node": {"equals": node(data, 1, 1)}, "cursor": {"equals": plain_cursor}}),
         persistent("compact-answer-request-keeps-answer", data["tests"]["first"]["ask"], plain_cursor, [], {
@@ -241,6 +243,10 @@ def compact_cases(data: dict[str, Any]) -> list[dict[str, Any]]:
             "direction": {"includes_all": [f"The answer is {second['en']}!"]}}),
         persistent("compact-next-after-giveup-stays-level", "下一题", "v1|2|2|g|3|zh", [], {
             "cursor": {"equals": "v1|2|3|p|0|zh"}}),
+        persistent("compact-resume-after-giveup-opens-next-same-level", "继续上次的内容", "v1|2|2|g|3|zh", [], {
+            "route": {"equals": "open"}, "cursor": {"equals": "v1|2|3|p|0|zh"}}),
+        persistent("compact-english-resume-after-giveup", "Continue where we left off", "v1|2|2|g|3|en", [], {
+            "route": {"equals": "open"}, "cursor": {"equals": "v1|2|3|p|0|en"}}),
         persistent("compact-explicit-next-before-win", "下一题", plain_cursor, [], {
             "route": {"equals": "open"}, "cursor": {"equals": "v1|1|2|p|0|zh"}}),
         persistent("compact-legacy-win-next", "Next puzzle", "v1|1|1|w|7|en", [], {
