@@ -538,6 +538,21 @@ def render_workflow(data: dict[str, Any], slots: dict[str, str]) -> str:
 
 def outputs(raid: str, data: dict[str, Any]) -> dict[str, str]:
     slots = values(raid, data)
+    compact = data.get("narration", {}).get("mode") == "compact"
+    device_slots = {
+        "DEVICE_USER_STORY": (
+            "# As a child entering a prompt-led story or adventure on the H106 device,\n"
+            "# I want an opening choice, follow-ups that answer my request, and resume/restart cues that preserve or reset progress correctly.\n"
+            "# So that replies preserve continuity and text/audio completion without an extra question after every action."
+        ) if compact else (
+            "# As a child entering a story or adventure on the H106 device,\n"
+            "# I want every reply to end with a question, \"继续\" to carry the story on, and \"继续上次的内容\" / \"开始\" to resume or restart,\n"
+            "# So that the story never stops in silence after a chapter ends."
+        ),
+        "DEVICE_FOLLOWUP": "      non_empty: true" if compact else (
+            "      min_length: 20\n      pattern: \"[？?][^？?]{0,40}$\""
+        ),
+    }
     files = {
         f"workflows/{raid}/raid.json": raid_manifest(raid, data),
         f"workflows/{raid}/README.md": render_readme(raid, data, slots),
@@ -545,11 +560,11 @@ def outputs(raid: str, data: dict[str, Any]) -> dict[str, str]:
         f"workflows/{raid}/test.multi-role.yaml": fill(template("test.multi-role.yaml"), slots),
         f"workflows/{raid}/{VARIANT}.yaml": render_workflow(data, slots),
     }
-    if data.get("narration", {}).get("mode") == "compact":
+    if compact:
         files[f"workflows/{raid}/context-cases.json"] = fill(template("context-cases.json"), slots)
     for tier in TIERS:
-        document = fill(template(f"{tier}.{VARIANT}.giztest.yaml"), slots)
-        if data.get("narration", {}).get("mode") == "compact":
+        document = fill(template(f"{tier}.{VARIANT}.giztest.yaml"), {**slots, **device_slots})
+        if compact:
             document = (document.replace("WORKSPACE_INPUT_MODE_REALTIME", "WORKSPACE_INPUT_MODE_PUSH_TO_TALK")
                         .replace("mode: realtime", "mode: push-to-talk")
                         .replace("_realtime", "_ptt")

@@ -151,6 +151,7 @@ printf 'validated %s story transition Giztests\n' "$transition_count"
 
 # The H106 device entry contract (开始 / 继续 / 继续上次的内容) is generated for
 # every story, adventure and Journey implementation; stale files fail here.
+python3 scripts/test/test_device_flow.py
 python3 scripts/test/device-flow.py --check
 
 # Every raid.json rates ages with raids-age-v2 life stages, and raids.txt
