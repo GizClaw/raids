@@ -162,6 +162,9 @@ def document(case, profile_name, repeat, workflow_name="general-assistant"):
         current = {"id": f"turn_{index}", "client": "peer", "timeout": "90s",
                    "peer_stream": {"mode": "text", "input": item["text"], "require_text": True, "require_audio": False},
                    "expect": {"/text_eos": {"equals": True}}}
+        if workflow_name == "function-assistant":
+            current["peer_stream"]["wait_for_history"] = True
+            current["expect"]["/response_count"] = {"equals": 1}
         if item.get("ask"):
             current["expect"]["/text"] = {"pattern": item["ask"]}
         if item.get("contains"):
@@ -198,7 +201,13 @@ def document(case, profile_name, repeat, workflow_name="general-assistant"):
         steps.append(check)
     if case.get("isolation"):
         steps.append(observer("other_received_no_write", "client.mhs.v0.write", mhs, client="other"))
-    finally_steps = [rpc("stop", "server.run.stop", {}),
+    final_observers = []
+    if workflow_name == "function-assistant":
+        final_observers.append({"id": "final_actual_mhs_writes", "client": "peer", "client_rpc": {"method": "client.mhs.v0.write", "observe_only": True}})
+        for procedure in ["audioplayer.play", "audioplayer.stop", "run.workspace.set"]:
+            final_observers.append({"id": "final_actual_" + procedure.replace(".", "_"), "client": "peer",
+                                    "client_rpc": {"method": "client.tool.v0.invoke", "tool": procedure, "observe_only": True}})
+    finally_steps = final_observers + [rpc("stop", "server.run.stop", {}),
                      rpc("delete_chat", "server.workspace.delete", {"name": "${workspace}"}),
                      rpc("delete_story", "server.workspace.delete", {"name": "${story}"}),
                      rpc("delete_peer", "server.peer.delete", {})]
@@ -223,6 +232,11 @@ def generate(directory, repeat=3, case_filter="", workflow_name="general-assista
             configured = copy.deepcopy(case)
             if workflow_name == "function-assistant":
                 configured.setdefault("tool_names", [name for name in ALIASES if name != "web.search"])
+                # Function-workflow control probes use typed native receipts as
+                # the action oracle. A natural-language acknowledgement or
+                # clarification phrase is not proof of a device operation.
+                for item in configured["turns"]:
+                    item.pop("ask", None)
             doc = document(configured, profile, repeat, workflow_name)
             if workflow_name == "function-assistant":
                 doc["name"] = doc["name"].replace("chat-assistant.tools", "chat-assistant.function-tools", 1)

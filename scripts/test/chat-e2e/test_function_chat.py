@@ -26,6 +26,31 @@ class FunctionChatTests(unittest.TestCase):
                         self.assertEqual(9, len(names))
                         self.assertNotIn("web.search", names)
 
+    def test_function_scope_uses_native_calls_not_acknowledgement_words(self):
+        for workflow in ("general-assistant", "function-assistant"):
+            with tempfile.TemporaryDirectory(prefix="function-scope-") as directory:
+                self.assertEqual(2, generate.generate(directory, repeat=1, case_filter="workspace-narrowing", workflow_name=workflow))
+                for path in Path(directory).glob("*.yaml"):
+                    doc = yaml.safe_load(path.read_text())
+                    steps = {step["id"]: step for step in doc["steps"]}
+                    create = steps["create"]["rpc"]["request"]
+                    self.assertEqual(["music.stop"], create["toolkit"]["tool_names"]["value"])
+                    self.assertEqual({"count": 1}, steps["catalog"]["expect"]["/items"])
+                    self.assertEqual({"equals": "music.stop"}, steps["catalog"]["expect"]["/items/0/name"])
+                    for group in ("mhs", "audioplayer_play", "audioplayer_stop", "run_workspace_set"):
+                        probe = steps[group + "_0"]
+                        self.assertEqual(0, probe["client_rpc"]["expect_calls"])
+                        self.assertEqual({"equals": 0}, probe["expect"]["/calls"])
+                    if workflow == "function-assistant":
+                        self.assertNotIn("pattern", steps["turn_0"]["expect"].get("/text", {}))
+                        self.assertEqual({"equals": 1}, steps["turn_0"]["expect"]["/response_count"])
+                        snapshots = [s for s in doc["finally"] if s["id"].startswith("final_actual")]
+                        self.assertEqual(4, len(snapshots))
+                        self.assertTrue(all(s["client_rpc"]["observe_only"] for s in snapshots))
+                    else:
+                        self.assertIn("pattern", steps["turn_0"]["expect"]["/text"])
+                        self.assertFalse(any(s["id"].startswith("final_actual") for s in doc["finally"]))
+
     def test_dedicated_suite_asserts_one_history_reply_per_turn(self):
         for profile in ("default", "testing"):
             doc = function_chat.function_document(profile)

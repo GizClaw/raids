@@ -39,7 +39,7 @@ func TestFunctionChatProfileModelIsolation(t *testing.T) {
 			}
 			binding := profile.Spec.Workflows["function-assistant"]
 			if binding.ResourceId != "eino-function-chat" || binding.Toolkit == nil || binding.Toolkit.VerificationModel != nil {
-				t.Fatal("The workflow-wide single-controller verifier cannot be shared by both agents")
+				t.Fatal("Function Chat must retain its declared toolkit and model-capability isolation")
 			}
 			names, err := toolcatalog.Selection(profile, "function-assistant", "eino-function-chat", nil)
 			if err != nil || len(names) != 9 || slices.Contains(names, "web.search") {
@@ -478,6 +478,17 @@ func TestFunctionChatStickyIntentAndSharedContext(t *testing.T) {
 	f.memory.mu.Unlock()
 	if recalls != len(turns) {
 		t.Fatalf("shared recall calls=%d, want one per turn", recalls)
+	}
+}
+
+func TestFunctionChatChatTextIsNotADeviceReceipt(t *testing.T) {
+	f := newFunctionFixture(t)
+	f.run(t, functionTurn{input: "history " + f.historyNonce, route: "CHAT", chat: "已记住。", want: "已记住。", wantChat: true})
+	// A chat-model statement is text, not native execution. Preserve the selected
+	// chat reply and evaluate tool execution using actual dispatch receipts.
+	f.run(t, functionTurn{input: "把屏幕亮度设为30%。", route: "CHAT", chat: "已调整成功。", want: "已调整成功。", wantChat: true})
+	if f.device.count("screen.brightness") != 0 || f.device.count("music.play") != 0 {
+		t.Fatal("chat text was incorrectly treated as a tool execution")
 	}
 }
 

@@ -297,6 +297,8 @@ steps:
   expect:
     /text_eos:
       equals: true
+    /response_count:
+      equals: 1
     /text:
       contains: 已记住
       not_contains:
@@ -306,8 +308,6 @@ steps:
       not_contains:
       - NO_DEVICE_ACTION
       pattern: ^已记住[。.!！]?$
-    /response_count:
-      equals: 1
   capture:
     selected_reply_0: /reply
 - id: single_history_reply_0
@@ -389,6 +389,8 @@ steps:
   expect:
     /text_eos:
       equals: true
+    /response_count:
+      equals: 1
     /text:
       pattern: 自己|练|播放|音乐|唱
       not_contains:
@@ -397,8 +399,6 @@ steps:
       non_empty: true
       not_contains:
       - NO_DEVICE_ACTION
-    /response_count:
-      equals: 1
   capture:
     selected_reply_1: /reply
 - id: single_history_reply_1
@@ -480,6 +480,8 @@ steps:
   expect:
     /text_eos:
       equals: true
+    /response_count:
+      equals: 1
     /text:
       pattern: 小星星|卡农|虫儿飞
       not_contains:
@@ -488,8 +490,6 @@ steps:
       non_empty: true
       not_contains:
       - NO_DEVICE_ACTION
-    /response_count:
-      equals: 1
   capture:
     selected_reply_2: /reply
 - id: single_history_reply_2
@@ -571,6 +571,8 @@ steps:
   expect:
     /text_eos:
       equals: true
+    /response_count:
+      equals: 1
     /text:
       pattern: 选择|卡农|轻松|舒缓|哪|播放
       not_contains:
@@ -579,8 +581,6 @@ steps:
       non_empty: true
       not_contains:
       - NO_DEVICE_ACTION
-    /response_count:
-      equals: 1
   capture:
     selected_reply_3: /reply
 - id: single_history_reply_3
@@ -667,6 +667,8 @@ steps:
   expect:
     /text_eos:
       equals: true
+    /response_count:
+      equals: 1
     /text:
       pattern: 4|四
       not_contains:
@@ -675,8 +677,6 @@ steps:
       non_empty: true
       not_contains:
       - NO_DEVICE_ACTION
-    /response_count:
-      equals: 1
   capture:
     selected_reply_4: /reply
 - id: single_history_reply_4
@@ -758,6 +758,8 @@ steps:
   expect:
     /text_eos:
       equals: true
+    /response_count:
+      equals: 1
     /text:
       pattern: 卡农|第二首|播放
       not_contains:
@@ -766,8 +768,6 @@ steps:
       non_empty: true
       not_contains:
       - NO_DEVICE_ACTION
-    /response_count:
-      equals: 1
   capture:
     selected_reply_5: /reply
 - id: single_history_reply_5
@@ -853,12 +853,12 @@ steps:
   expect:
     /text_eos:
       equals: true
+    /response_count:
+      equals: 1
     /reply:
       non_empty: true
       not_contains:
       - NO_DEVICE_ACTION
-    /response_count:
-      equals: 1
     /text:
       not_contains:
       - NO_DEVICE_ACTION
@@ -949,6 +949,8 @@ steps:
   expect:
     /text_eos:
       equals: true
+    /response_count:
+      equals: 1
     /text:
       pattern: 哪|选|音乐|曲|歌
       not_contains:
@@ -957,8 +959,6 @@ steps:
       non_empty: true
       not_contains:
       - NO_DEVICE_ACTION
-    /response_count:
-      equals: 1
   capture:
     selected_reply_7: /reply
 - id: single_history_reply_7
@@ -1046,12 +1046,12 @@ steps:
   expect:
     /text_eos:
       equals: true
+    /response_count:
+      equals: 1
     /reply:
       non_empty: true
       not_contains:
       - NO_DEVICE_ACTION
-    /response_count:
-      equals: 1
     /text:
       not_contains:
       - NO_DEVICE_ACTION
@@ -1142,6 +1142,8 @@ steps:
   expect:
     /text_eos:
       equals: true
+    /response_count:
+      equals: 1
     /text:
       pattern: 想|确认|选择|播放|哪|什么
       not_contains:
@@ -1151,8 +1153,6 @@ steps:
       non_empty: true
       not_contains:
       - NO_DEVICE_ACTION
-    /response_count:
-      equals: 1
   capture:
     selected_reply_9: /reply
 - id: single_history_reply_9
@@ -1240,12 +1240,12 @@ steps:
   expect:
     /text_eos:
       equals: true
+    /response_count:
+      equals: 1
     /reply:
       non_empty: true
       not_contains:
       - NO_DEVICE_ACTION
-    /response_count:
-      equals: 1
     /text:
       not_contains:
       - NO_DEVICE_ACTION
@@ -1343,6 +1343,8 @@ steps:
   expect:
     /text_eos:
       equals: true
+    /response_count:
+      equals: 1
     /text:
       contains: 轻音乐
       not_contains:
@@ -1351,8 +1353,6 @@ steps:
       non_empty: true
       not_contains:
       - NO_DEVICE_ACTION
-    /response_count:
-      equals: 1
   capture:
     selected_reply_11: /reply
 - id: single_history_reply_11
@@ -1435,6 +1435,29 @@ steps:
     /calls:
       equals: 0
 finally:
+- id: final_actual_mhs_writes
+  client: peer
+  client_rpc:
+    method: client.mhs.v0.write
+    observe_only: true
+- id: final_actual_audioplayer_play
+  client: peer
+  client_rpc:
+    method: client.tool.v0.invoke
+    tool: audioplayer.play
+    observe_only: true
+- id: final_actual_audioplayer_stop
+  client: peer
+  client_rpc:
+    method: client.tool.v0.invoke
+    tool: audioplayer.stop
+    observe_only: true
+- id: final_actual_run_workspace_set
+  client: peer
+  client_rpc:
+    method: client.tool.v0.invoke
+    tool: run.workspace.set
+    observe_only: true
 - id: stop
   client: peer
   rpc:
