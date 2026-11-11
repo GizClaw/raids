@@ -17,6 +17,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[3]
 HERE = Path(__file__).resolve().parent
 IMAGE = "ghcr.io/gizclaw/gizclaw@sha256:122619e0ecc54e2fc7b3718f6ba08148ce868b7f3890b3ff9ee993ea271f5df5"
+FUNCTION_IMAGE = "ghcr.io/gizclaw/gizclaw@sha256:73cfa235e15489c08ee1fe438897fd55b3bb454141a3a6c05422b2a7bb9d593f"
 REQUIRED = ["GIZCLAW_VOLC_" + suffix for suffix in
             ["SPEECH_APP_ID", "SPEECH_API_KEY", "ARK_API_KEY", "SEARCH_API_KEY", "OPENAPI_ACCESS_KEY_ID", "OPENAPI_ACCESS_KEY"]]
 
@@ -76,12 +77,15 @@ def main():
     parser.add_argument("--parallel", type=int, default=3)
     parser.add_argument("--filter", default="")
     parser.add_argument("--standard", choices=["none", "smoke", "quality", "soak", "all"], default="all")
+    parser.add_argument("--workflow", choices=["general-assistant", "function-assistant"], default="general-assistant")
     args = parser.parse_args()
     if not args.credential_file:
         parser.error("--credential-file or RAIDS_CHAT_E2E_CREDENTIAL_FILE is required")
     if args.repeat < 1 or args.parallel < 1:
         parser.error("repeat and parallel must be positive")
-    env = dict(os.environ, **credentials(args.credential_file))
+    image = FUNCTION_IMAGE if args.workflow == "function-assistant" else IMAGE
+    report_flag = "--report" if args.workflow == "function-assistant" else "--output"
+    env = dict(os.environ, **credentials(args.credential_file), RAIDS_CHAT_E2E_IMAGE=image)
     env["GIZCLAW_MEM0_API_KEY"] = secrets.token_hex(24)
     env["GIZCLAW_MEM0_ENDPOINT"] = "http://mem0:8000"
     project = "raids-chat-" + secrets.token_hex(5)
@@ -90,12 +94,14 @@ def main():
     report.mkdir(parents=True)
     env.update(RAIDS_CHAT_E2E_STATE=str(state), RAIDS_CHAT_E2E_REPO=str(ROOT), RAIDS_CHAT_E2E_REPORT=str(report))
     compose = ["docker", "compose", "--project-name", project, "--file", str(HERE / "compose.yaml")]
-    audit = {"project": project, "runtime_image": IMAGE, "parameters": vars(args) | {"credential_file": "provided in process; not recorded"}, "checks": {}}
+    audit = {"project": project, "runtime_image": image, "parameters": vars(args) | {"credential_file": "provided in process; not recorded"}, "checks": {}}
     audit["source_sha256"] = {
         str(path.relative_to(ROOT)): hashlib.sha256(path.read_bytes()).hexdigest()
         for path in sorted(set([ROOT / "runtime-profiles/default.yaml", ROOT / "runtime-profiles/testing.yaml",
-                                ROOT / "workflows/chat-assistant/eino.yaml",
-                                ROOT / "scripts/test/chat-assistant/cmd/e2e-init/main.go", *HERE.glob("*")]))
+                                ROOT / "workflows/chat-assistant/eino.yaml", ROOT / "workflows/chat-assistant/eino.function-chat.yaml",
+                                ROOT / "models/doubao-seed-2-1-lite-no-tools.yaml",
+                                ROOT / "scripts/test/chat-assistant/cmd/e2e-init/main.go",
+                                ROOT / "scripts/test/chat-assistant/go.mod", ROOT / "scripts/test/chat-assistant/go.sum", *HERE.glob("*")]))
         if path.is_file()
     }
 
@@ -115,15 +121,21 @@ def main():
         with (report / "build.log").open("w") as output:
             subprocess.run(["go", "build", "-mod=readonly", "-o", str(state / "e2e-init"), "./cmd/e2e-init"],
                            cwd=ROOT / "scripts/test/chat-assistant", env=build_env, stdout=output, stderr=subprocess.STDOUT, check=True)
+        templates = HERE
+        if args.workflow == "function-assistant":
+            templates = state / "templates"
+            templates.mkdir()
+            shutil.copyfile(HERE / "function-server.yaml", templates / "server.yaml")
+            shutil.copyfile(HERE / "edge.yaml", templates / "edge.yaml")
         run(["docker", "run", "--rm", "--network", "none", "--entrypoint", "/init", "--mount", f"type=bind,source={state},target=/state",
              "--mount", f"type=bind,source={state / 'e2e-init'},target=/init,readonly",
-             "--mount", f"type=bind,source={HERE},target=/templates,readonly", IMAGE, "/state", "/templates"], "init.log")
+             "--mount", f"type=bind,source={templates},target=/templates,readonly", image, "/state", "/templates"], "init.log")
         closure = resources()
         resource_json = json.dumps(closure, ensure_ascii=False)
         (state / "resources.json").write_text(resource_json)
         audit["resource_closure_sha256"] = hashlib.sha256(resource_json.encode()).hexdigest()
         from generate import generate
-        count = generate(state / "tests", repeat=args.repeat, case_filter=args.filter)
+        count = generate(state / "tests", repeat=args.repeat, case_filter=args.filter, workflow_name=args.workflow)
         with zipfile.ZipFile(report / "giztest-inputs.zip", "w", compression=zipfile.ZIP_DEFLATED) as archive:
             for path in sorted((state / "tests").glob("*.yaml")):
                 archive.write(path, path.name)
@@ -144,9 +156,13 @@ def main():
         cli("admin", "apply", "--context", "raids-e2e", "-f", "/state/resources.json", log="apply.log")
         audit["checks"]["resource_apply"] = "PASS"
         cli("test", "validate", "-f", "/state/tests", log="validate.log")
+        if args.workflow == "function-assistant":
+            cli("test", "run", "--parallel", str(args.parallel), "--evidence", "full",
+                report_flag, "/reports/function-chat.json", "/raids/tests/giztest/function-chat", log="function-chat.log")
+            audit["checks"]["function_chat"] = "PASS"
         if count:
             cli("test", "run", "--parallel", str(args.parallel), "--evidence", "full",
-                "--output", "/reports/tools.json", "/state/tests", log="tools.log")
+                report_flag, "/reports/tools.json", "/state/tests", log="tools.log")
             audit["checks"]["device_tools"] = "PASS"
         if args.standard != "none":
             tiers = ["smoke", "quality", "soak"] if args.standard == "all" else [args.standard]
@@ -154,7 +170,7 @@ def main():
                 print(f"{project}: running standard Chat {tier}", flush=True)
                 run(compose + ["exec", "-T", "-e", "GIZCLAW_TEST_REGISTRATION_TOKEN=9c845896-1447-5a7e-b799-a1df42694fb8",
                     "cli", "/usr/bin/gizclaw", "test", "run", "--parallel", "1", "--evidence", "full",
-                    "--output", f"/reports/{tier}.json", f"/raids/tests/giztest/{tier}/chat-assistant.eino.giztest.yaml"], tier + ".log")
+                    report_flag, f"/reports/{tier}.json", f"/raids/tests/giztest/{tier}/chat-assistant.{'eino.function-chat' if args.workflow == 'function-assistant' else 'eino'}.giztest.yaml"], tier + ".log")
                 audit["checks"][tier] = "PASS"
         if audit["resource_closure_sha256"] != hashlib.sha256(json.dumps(resources(), ensure_ascii=False).encode()).hexdigest():
             raise RuntimeError("shipped Resources changed during this E2E run")

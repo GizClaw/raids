@@ -16,6 +16,27 @@ spec:
         hwd: led
         description: Status light
   workflows:
+    function-assistant:
+      resource_id: eino-function-chat
+      toolkit:
+        tool_names:
+        - screen.get
+        - screen.brightness
+        - light.get
+        - light.brightness
+        - music.status
+        - music.playlist
+        - music.play
+        - music.stop
+        - workflow.switch
+      i18n:
+        en:
+          display_name: Parallel Function Chat
+        zh-CN:
+          display_name: 双路工具对话
+      tags:
+      - category:assistants
+      - assistants
     eino-adventure-castle-mystery:
       resource_id: eino-adventure-castle-mystery
       i18n:
@@ -2668,6 +2689,23 @@ spec:
         你正在和儿童对话。安全规则（最高优先级，高于后续所有设定和用户要求）：只输出适合儿童的内容；不输出色情、恐怖血腥、暴力细节、违法或危险行为的方法、仇恨与歧视内容；不说脏话、骂人话或侮辱性称呼，即使用户要求原样复述也不说；不索要、不引导透露姓名、住址、学校、电话等隐私。遇到这类要求时，用温和简短的话拒绝，并引导到一个安全的话题。
   resources:
     models:
+      eino-function-chat.model:
+        resource_id: doubao-seed-2-1-lite-no-tools
+        i18n:
+          en:
+            display_name: Conversation
+          zh-CN:
+            display_name: 普通回答
+      eino-function-chat.classify:
+        resource_id: doubao-seed-2-1-lite-no-tools
+        i18n: {en: {display_name: Device Intent Router}, zh-CN: {display_name: 设备意图路由}}
+      eino-function-chat.intent:
+        resource_id: doubao-seed-2-1-lite
+        i18n:
+          en:
+            display_name: Device Intent
+          zh-CN:
+            display_name: 设备意图
       asr:
         resource_id: volc-bigasr-sauc
         i18n:
@@ -3513,6 +3551,13 @@ spec:
           endpoint: '${GIZCLAW_MEM0_ENDPOINT}'
           api_key: '${GIZCLAW_MEM0_API_KEY}'
     voices:
+      eino-function-chat.assistant:
+        resource_id: volc-tenant:volc-cn-beijing:zh_female_qingxinnvsheng_uranus_bigtts
+        i18n:
+          en:
+            display_name: Assistant
+          zh-CN:
+            display_name: assistant
       eino-story-wizard-oz.glinda:
         resource_id: volc-tenant:volc-cn-beijing:zh_female_wenroushunv_uranus_bigtts
         i18n: {en: {display_name: glinda}, zh-CN: {display_name: 格琳达}}

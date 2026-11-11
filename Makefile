@@ -41,3 +41,7 @@ test-e2e:
 
 test-e2e-chat-assistant:
 	@sh scripts/test/test-e2e-chat-assistant.sh
+
+.PHONY: test-e2e-function-chat
+test-e2e-function-chat:
+	@RAIDS_CHAT_E2E_WORKFLOW=function-assistant sh scripts/test/test-e2e-chat-assistant.sh

@@ -104,7 +104,7 @@ func profileSearchToolkit(t *testing.T, f *fixture, profile *apitypes.RuntimePro
 		t.Fatal(err)
 	}
 	// Provider credentials are replaced locally; the binding and HTTP executor
-	// still pass through the actual v0.27.0 catalog and AgentHost invoker.
+	// still pass through the actual released catalog and AgentHost invoker.
 	tool.HTTP.Auth = toolkit.HTTPAuth{Method: "none"}
 	// The model name must come from web.search, never this private resource name.
 	tool.InvokeName = "fixture_private_search"
@@ -568,6 +568,12 @@ func TestProfileSearchInjectionAndOptOut(t *testing.T) {
 					continue
 				}
 				names, err := toolcatalog.Selection(profile, alias, binding.ResourceId, nil)
+				if binding.ResourceId == "eino-function-chat" {
+					if err != nil || len(names) != 9 || slices.Contains(names, "web.search") {
+						t.Fatal("Function Chat must opt into native device controls without web search")
+					}
+					continue
+				}
 				if err != nil || len(names) != 0 {
 					t.Fatalf("non-Chat Workflow %s gained tools: %v, %v", alias, names, err)
 				}

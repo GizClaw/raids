@@ -25,6 +25,27 @@ spec:
         hwd: led
         description: Status light
   workflows:
+    function-assistant:
+      resource_id: eino-function-chat
+      toolkit:
+        tool_names:
+        - screen.get
+        - screen.brightness
+        - light.get
+        - light.brightness
+        - music.status
+        - music.playlist
+        - music.play
+        - music.stop
+        - workflow.switch
+      i18n:
+        en:
+          display_name: Parallel Function Chat
+        zh-CN:
+          display_name: 双路工具对话
+      tags:
+      - category:assistants
+      - assistants
     general-assistant:
       resource_id: eino-chat-assistant
       toolkit:
@@ -50,6 +71,23 @@ spec:
       - assistants
   resources:
     models:
+      eino-function-chat.model:
+        resource_id: doubao-seed-2-1-lite-no-tools
+        i18n:
+          en:
+            display_name: Conversation
+          zh-CN:
+            display_name: 普通回答
+      eino-function-chat.classify:
+        resource_id: doubao-seed-2-1-lite-no-tools
+        i18n: {en: {display_name: Device Intent Router}, zh-CN: {display_name: 设备意图路由}}
+      eino-function-chat.intent:
+        resource_id: doubao-seed-2-1-lite
+        i18n:
+          en:
+            display_name: Device Intent
+          zh-CN:
+            display_name: 设备意图
       asr:
         resource_id: volc-bigasr-sauc
         i18n:
@@ -65,6 +103,13 @@ spec:
           zh-CN:
             display_name: narrator
     voices:
+      eino-function-chat.assistant:
+        resource_id: volc-tenant:volc-cn-beijing:zh_female_qingxinnvsheng_uranus_bigtts
+        i18n:
+          en:
+            display_name: Assistant
+          zh-CN:
+            display_name: assistant
       eino-chat-assistant.assistant:
         resource_id: volc-tenant:volc-cn-beijing:zh_female_qingxinnvsheng_uranus_bigtts
         i18n:

@@ -1,0 +1,1458 @@
+# User Story:
+# As a function-chat user,
+# I want parallel Seed answer/control lanes,
+# So that exact native receipts prove control while one selected reply enters History.
+version: gizclaw.test/v1alpha1
+name: chat-assistant.function-chat.default
+clients:
+  peer:
+    identity: ephemeral
+    connection: webrtc
+    access_point: ${endpoint}
+variables:
+  workspace:
+    direction: input
+    type: string
+    generate: token
+  story:
+    direction: input
+    type: string
+    generate: token
+  oracle:
+    direction: input
+    type: string
+    generate: token
+  other_workspace:
+    direction: input
+    type: string
+    generate: token
+  endpoint:
+    direction: input
+    type: string
+    env: GIZCLAW_TEST_ENDPOINT
+  selected_reply_0:
+    direction: output
+    type: string
+  selected_reply_1:
+    direction: output
+    type: string
+  selected_reply_2:
+    direction: output
+    type: string
+  selected_reply_3:
+    direction: output
+    type: string
+  selected_reply_4:
+    direction: output
+    type: string
+  selected_reply_5:
+    direction: output
+    type: string
+  selected_reply_6:
+    direction: output
+    type: string
+  selected_reply_7:
+    direction: output
+    type: string
+  selected_reply_8:
+    direction: output
+    type: string
+  selected_reply_9:
+    direction: output
+    type: string
+  selected_reply_10:
+    direction: output
+    type: string
+  selected_reply_11:
+    direction: output
+    type: string
+repeat: 1
+timeout: 12m
+steps:
+- id: register
+  client: peer
+  rpc:
+    method: server.register
+    request:
+      token: 28c4e4e9-a05f-5a7e-815e-9cf9afb6878f
+- id: install_read
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.mhs.v0.read
+    response: &id001
+      instances:
+        display.main:
+          hwd: display
+          value:
+            brightness_percent: 50
+          write_fields:
+          - brightness_percent
+        led.status:
+          hwd: led
+          value:
+            brightness_percent: 50
+          write_fields:
+          - brightness_percent
+    expect_calls: 0
+  expect:
+    /calls:
+      equals: 0
+- id: install_write
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.mhs.v0.write
+    response: *id001
+    expect_calls: 0
+  expect:
+    /calls:
+      equals: 0
+- id: install_audioplayer_get
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response: &id002
+      audio_player:
+        items:
+        - url: https://media.example.com/0.mp3
+          title: 小星星
+          source_ref: ${oracle}
+        - url: https://media.example.com/1.mp3
+          title: 卡农
+          source_ref: ${oracle}
+        - url: https://media.example.com/2.mp3
+          title: 虫儿飞
+          source_ref: ${oracle}
+        current_index: 0
+    expect_calls: 0
+    tool: audioplayer.get
+  expect:
+    /calls:
+      equals: 0
+- id: install_audioplayer_playlist_get
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response: *id002
+    expect_calls: 0
+    tool: audioplayer.playlist.get
+  expect:
+    /calls:
+      equals: 0
+- id: install_audioplayer_play
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response: *id002
+    expect_calls: 0
+    tool: audioplayer.play
+  expect:
+    /calls:
+      equals: 0
+- id: install_audioplayer_stop
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response: *id002
+    expect_calls: 0
+    tool: audioplayer.stop
+  expect:
+    /calls:
+      equals: 0
+- id: install_run_workspace_set
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response:
+      run_workspace: true
+    expect_calls: 0
+    tool: run.workspace.set
+  expect:
+    /calls:
+      equals: 0
+- id: create
+  client: peer
+  rpc:
+    method: server.workspace.create
+    request:
+      name: ${workspace}
+      workflow_name: function-assistant
+      parameters: &id003
+        eino_workspace_parameters:
+          agent_type: EINO_WORKSPACE_PARAMETERS_AGENT_TYPE_EINO
+          input: WORKSPACE_INPUT_MODE_PUSH_TO_TALK
+      toolkit:
+        tool_names:
+          value:
+          - light.brightness
+          - light.get
+          - music.play
+          - music.playlist
+          - music.status
+          - music.stop
+          - screen.brightness
+          - screen.get
+          - workflow.switch
+- id: create_story
+  client: peer
+  rpc:
+    method: server.workspace.create
+    request:
+      name: ${story}
+      workflow_name: eino-story-aesop
+      parameters: *id003
+- id: select
+  client: peer
+  rpc:
+    method: server.run.workspace.set
+    request:
+      workspace_name: ${workspace}
+- id: reload
+  client: peer
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+- id: catalog
+  client: peer
+  rpc:
+    method: server.tool.list
+    request:
+      workspace_name: ${workspace}
+      limit: 100
+  expect:
+    /items:
+      count: 9
+    /has_next:
+      equals: false
+    /items/0/name:
+      equals: light.brightness
+    /items/0/source:
+      equals: mhs
+    /items/0/available:
+      equals: true
+    /items/1/name:
+      equals: light.get
+    /items/1/source:
+      equals: mhs
+    /items/1/available:
+      equals: true
+    /items/2/name:
+      equals: music.play
+    /items/2/source:
+      equals: client_tool
+    /items/2/available:
+      equals: true
+    /items/3/name:
+      equals: music.playlist
+    /items/3/source:
+      equals: client_tool
+    /items/3/available:
+      equals: true
+    /items/4/name:
+      equals: music.status
+    /items/4/source:
+      equals: client_tool
+    /items/4/available:
+      equals: true
+    /items/5/name:
+      equals: music.stop
+    /items/5/source:
+      equals: client_tool
+    /items/5/available:
+      equals: true
+    /items/6/name:
+      equals: screen.brightness
+    /items/6/source:
+      equals: mhs
+    /items/6/available:
+      equals: true
+    /items/7/name:
+      equals: screen.get
+    /items/7/source:
+      equals: mhs
+    /items/7/available:
+      equals: true
+    /items/8/name:
+      equals: workflow.switch
+    /items/8/source:
+      equals: client_tool
+    /items/8/available:
+      equals: true
+- id: turn_0
+  client: peer
+  timeout: 90s
+  peer_stream:
+    mode: text
+    input: 请记住我喜欢轻音乐，暗号是${oracle}。现在不播放，只回复“已记住”。
+    require_text: true
+    require_audio: false
+    wait_for_history: true
+  expect:
+    /text_eos:
+      equals: true
+    /text:
+      contains: 已记住
+      not_contains:
+      - NO_DEVICE_ACTION
+    /reply:
+      non_empty: true
+      not_contains:
+      - NO_DEVICE_ACTION
+      pattern: ^已记住[。.!！]?$
+    /response_count:
+      equals: 1
+  capture:
+    selected_reply_0: /reply
+- id: single_history_reply_0
+  client: peer
+  rpc:
+    method: server.workspace.history.list
+    request:
+      workspace_name: ${workspace}
+      order: WORKSPACE_HISTORY_LIST_REQUEST_ORDER_ASC
+      limit: 100
+  expect:
+    /available:
+      equals: true
+    /has_next:
+      equals: false
+    /items:
+      count: 2
+    /items/0/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_GEAR
+    /items/0/text:
+      equals: 请记住我喜欢轻音乐，暗号是${oracle}。现在不播放，只回复“已记住”。
+    /items/1/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_AGENT
+    /items/1/text:
+      equals: ${selected_reply_0}
+- id: mhs_0
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.mhs.v0.write
+    response: *id001
+    expect_calls: 0
+  expect:
+    /calls:
+      equals: 0
+- id: audioplayer_play_0
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response: *id002
+    expect_calls: 0
+    tool: audioplayer.play
+  expect:
+    /calls:
+      equals: 0
+- id: audioplayer_stop_0
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response: *id002
+    expect_calls: 0
+    tool: audioplayer.stop
+  expect:
+    /calls:
+      equals: 0
+- id: run_workspace_set_0
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response:
+      run_workspace: true
+    expect_calls: 0
+    tool: run.workspace.set
+  expect:
+    /calls:
+      equals: 0
+- id: turn_1
+  client: peer
+  timeout: 90s
+  peer_stream:
+    mode: text
+    input: 我要唱歌，但先别播放，先帮我确认需求。
+    require_text: true
+    require_audio: false
+    wait_for_history: true
+  expect:
+    /text_eos:
+      equals: true
+    /text:
+      pattern: 自己|练|播放|音乐|唱
+      not_contains:
+      - NO_DEVICE_ACTION
+    /reply:
+      non_empty: true
+      not_contains:
+      - NO_DEVICE_ACTION
+    /response_count:
+      equals: 1
+  capture:
+    selected_reply_1: /reply
+- id: single_history_reply_1
+  client: peer
+  rpc:
+    method: server.workspace.history.list
+    request:
+      workspace_name: ${workspace}
+      order: WORKSPACE_HISTORY_LIST_REQUEST_ORDER_ASC
+      limit: 100
+  expect:
+    /available:
+      equals: true
+    /has_next:
+      equals: false
+    /items:
+      count: 4
+    /items/2/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_GEAR
+    /items/2/text:
+      equals: 我要唱歌，但先别播放，先帮我确认需求。
+    /items/3/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_AGENT
+    /items/3/text:
+      equals: ${selected_reply_1}
+- id: mhs_1
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.mhs.v0.write
+    response: *id001
+    expect_calls: 0
+  expect:
+    /calls:
+      equals: 0
+- id: audioplayer_play_1
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response: *id002
+    expect_calls: 0
+    tool: audioplayer.play
+  expect:
+    /calls:
+      equals: 0
+- id: audioplayer_stop_1
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response: *id002
+    expect_calls: 0
+    tool: audioplayer.stop
+  expect:
+    /calls:
+      equals: 0
+- id: run_workspace_set_1
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response:
+      run_workspace: true
+    expect_calls: 0
+    tool: run.workspace.set
+  expect:
+    /calls:
+      equals: 0
+- id: turn_2
+  client: peer
+  timeout: 90s
+  peer_stream:
+    mode: text
+    input: 我想从设备现有歌单里选，先列出选项让我挑，暂时不要播放。
+    require_text: true
+    require_audio: false
+    wait_for_history: true
+  expect:
+    /text_eos:
+      equals: true
+    /text:
+      pattern: 小星星|卡农|虫儿飞
+      not_contains:
+      - NO_DEVICE_ACTION
+    /reply:
+      non_empty: true
+      not_contains:
+      - NO_DEVICE_ACTION
+    /response_count:
+      equals: 1
+  capture:
+    selected_reply_2: /reply
+- id: single_history_reply_2
+  client: peer
+  rpc:
+    method: server.workspace.history.list
+    request:
+      workspace_name: ${workspace}
+      order: WORKSPACE_HISTORY_LIST_REQUEST_ORDER_ASC
+      limit: 100
+  expect:
+    /available:
+      equals: true
+    /has_next:
+      equals: false
+    /items:
+      count: 6
+    /items/4/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_GEAR
+    /items/4/text:
+      equals: 我想从设备现有歌单里选，先列出选项让我挑，暂时不要播放。
+    /items/5/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_AGENT
+    /items/5/text:
+      equals: ${selected_reply_2}
+- id: mhs_2
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.mhs.v0.write
+    response: *id001
+    expect_calls: 0
+  expect:
+    /calls:
+      equals: 0
+- id: audioplayer_play_2
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response: *id002
+    expect_calls: 0
+    tool: audioplayer.play
+  expect:
+    /calls:
+      equals: 0
+- id: audioplayer_stop_2
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response: *id002
+    expect_calls: 0
+    tool: audioplayer.stop
+  expect:
+    /calls:
+      equals: 0
+- id: run_workspace_set_2
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response:
+      run_workspace: true
+    expect_calls: 0
+    tool: run.workspace.set
+  expect:
+    /calls:
+      equals: 0
+- id: turn_3
+  client: peer
+  timeout: 90s
+  peer_stream:
+    mode: text
+    input: 我喜欢轻松一点的风格，但先别播放，也别筛选或重排；继续保留完整三首的原顺序和编号，让我选。
+    require_text: true
+    require_audio: false
+    wait_for_history: true
+  expect:
+    /text_eos:
+      equals: true
+    /text:
+      pattern: 选择|卡农|轻松|舒缓|哪|播放
+      not_contains:
+      - NO_DEVICE_ACTION
+    /reply:
+      non_empty: true
+      not_contains:
+      - NO_DEVICE_ACTION
+    /response_count:
+      equals: 1
+  capture:
+    selected_reply_3: /reply
+- id: single_history_reply_3
+  client: peer
+  rpc:
+    method: server.workspace.history.list
+    request:
+      workspace_name: ${workspace}
+      order: WORKSPACE_HISTORY_LIST_REQUEST_ORDER_ASC
+      limit: 100
+  expect:
+    /available:
+      equals: true
+    /has_next:
+      equals: false
+    /items:
+      count: 8
+    /items/6/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_GEAR
+    /items/6/text:
+      equals: 我喜欢轻松一点的风格，但先别播放，也别筛选或重排；继续保留完整三首的原顺序和编号，让我选。
+    /items/7/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_AGENT
+    /items/7/text:
+      equals: ${selected_reply_3}
+- id: reload_pending_intent
+  client: peer
+  rpc:
+    method: server.run.workspace.reload
+    request: {}
+- id: mhs_3
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.mhs.v0.write
+    response: *id001
+    expect_calls: 0
+  expect:
+    /calls:
+      equals: 0
+- id: audioplayer_play_3
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response: *id002
+    expect_calls: 0
+    tool: audioplayer.play
+  expect:
+    /calls:
+      equals: 0
+- id: audioplayer_stop_3
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response: *id002
+    expect_calls: 0
+    tool: audioplayer.stop
+  expect:
+    /calls:
+      equals: 0
+- id: run_workspace_set_3
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response:
+      run_workspace: true
+    expect_calls: 0
+    tool: run.workspace.set
+  expect:
+    /calls:
+      equals: 0
+- id: turn_4
+  client: peer
+  timeout: 90s
+  peer_stream:
+    mode: text
+    input: 先聊个纯知识问题：二加二等于几？不要播放。
+    require_text: true
+    require_audio: false
+    wait_for_history: true
+  expect:
+    /text_eos:
+      equals: true
+    /text:
+      pattern: 4|四
+      not_contains:
+      - NO_DEVICE_ACTION
+    /reply:
+      non_empty: true
+      not_contains:
+      - NO_DEVICE_ACTION
+    /response_count:
+      equals: 1
+  capture:
+    selected_reply_4: /reply
+- id: single_history_reply_4
+  client: peer
+  rpc:
+    method: server.workspace.history.list
+    request:
+      workspace_name: ${workspace}
+      order: WORKSPACE_HISTORY_LIST_REQUEST_ORDER_ASC
+      limit: 100
+  expect:
+    /available:
+      equals: true
+    /has_next:
+      equals: false
+    /items:
+      count: 10
+    /items/8/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_GEAR
+    /items/8/text:
+      equals: 先聊个纯知识问题：二加二等于几？不要播放。
+    /items/9/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_AGENT
+    /items/9/text:
+      equals: ${selected_reply_4}
+- id: mhs_4
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.mhs.v0.write
+    response: *id001
+    expect_calls: 0
+  expect:
+    /calls:
+      equals: 0
+- id: audioplayer_play_4
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response: *id002
+    expect_calls: 0
+    tool: audioplayer.play
+  expect:
+    /calls:
+      equals: 0
+- id: audioplayer_stop_4
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response: *id002
+    expect_calls: 0
+    tool: audioplayer.stop
+  expect:
+    /calls:
+      equals: 0
+- id: run_workspace_set_4
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response:
+      run_workspace: true
+    expect_calls: 0
+    tool: run.workspace.set
+  expect:
+    /calls:
+      equals: 0
+- id: turn_5
+  client: peer
+  timeout: 90s
+  peer_stream:
+    mode: text
+    input: 第二首，开始播放。
+    require_text: true
+    require_audio: false
+    wait_for_history: true
+  expect:
+    /text_eos:
+      equals: true
+    /text:
+      pattern: 卡农|第二首|播放
+      not_contains:
+      - NO_DEVICE_ACTION
+    /reply:
+      non_empty: true
+      not_contains:
+      - NO_DEVICE_ACTION
+    /response_count:
+      equals: 1
+  capture:
+    selected_reply_5: /reply
+- id: single_history_reply_5
+  client: peer
+  rpc:
+    method: server.workspace.history.list
+    request:
+      workspace_name: ${workspace}
+      order: WORKSPACE_HISTORY_LIST_REQUEST_ORDER_ASC
+      limit: 100
+  expect:
+    /available:
+      equals: true
+    /has_next:
+      equals: false
+    /items:
+      count: 12
+    /items/10/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_GEAR
+    /items/10/text:
+      equals: 第二首，开始播放。
+    /items/11/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_AGENT
+    /items/11/text:
+      equals: ${selected_reply_5}
+- id: mhs_5
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.mhs.v0.write
+    response: *id001
+    expect_calls: 0
+  expect:
+    /calls:
+      equals: 0
+- id: audioplayer_play_5
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response: *id002
+    expect_calls: 1
+    tool: audioplayer.play
+  expect:
+    /calls:
+      equals: 1
+    /requests/0/effective_index:
+      equals: 1
+    /requests/0/args/index:
+      equals: 1
+- id: audioplayer_stop_5
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response: *id002
+    expect_calls: 0
+    tool: audioplayer.stop
+  expect:
+    /calls:
+      equals: 0
+- id: run_workspace_set_5
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response:
+      run_workspace: true
+    expect_calls: 0
+    tool: run.workspace.set
+  expect:
+    /calls:
+      equals: 0
+- id: turn_6
+  client: peer
+  timeout: 90s
+  peer_stream:
+    mode: text
+    input: 现在停止音乐。
+    require_text: true
+    require_audio: false
+    wait_for_history: true
+  expect:
+    /text_eos:
+      equals: true
+    /reply:
+      non_empty: true
+      not_contains:
+      - NO_DEVICE_ACTION
+    /response_count:
+      equals: 1
+    /text:
+      not_contains:
+      - NO_DEVICE_ACTION
+  capture:
+    selected_reply_6: /reply
+- id: single_history_reply_6
+  client: peer
+  rpc:
+    method: server.workspace.history.list
+    request:
+      workspace_name: ${workspace}
+      order: WORKSPACE_HISTORY_LIST_REQUEST_ORDER_ASC
+      limit: 100
+  expect:
+    /available:
+      equals: true
+    /has_next:
+      equals: false
+    /items:
+      count: 14
+    /items/12/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_GEAR
+    /items/12/text:
+      equals: 现在停止音乐。
+    /items/13/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_AGENT
+    /items/13/text:
+      equals: ${selected_reply_6}
+- id: mhs_6
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.mhs.v0.write
+    response: *id001
+    expect_calls: 0
+  expect:
+    /calls:
+      equals: 0
+- id: audioplayer_play_6
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response: *id002
+    expect_calls: 1
+    tool: audioplayer.play
+  expect:
+    /calls:
+      equals: 1
+    /requests/0/effective_index:
+      equals: 1
+    /requests/0/args/index:
+      equals: 1
+- id: audioplayer_stop_6
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response: *id002
+    expect_calls: 1
+    tool: audioplayer.stop
+  expect:
+    /calls:
+      equals: 1
+    /requests/0/args:
+      equals: &id004 {}
+- id: run_workspace_set_6
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response:
+      run_workspace: true
+    expect_calls: 0
+    tool: run.workspace.set
+  expect:
+    /calls:
+      equals: 0
+- id: turn_7
+  client: peer
+  timeout: 90s
+  peer_stream:
+    mode: text
+    input: 再帮我选一首，先别播放。
+    require_text: true
+    require_audio: false
+    wait_for_history: true
+  expect:
+    /text_eos:
+      equals: true
+    /text:
+      pattern: 哪|选|音乐|曲|歌
+      not_contains:
+      - NO_DEVICE_ACTION
+    /reply:
+      non_empty: true
+      not_contains:
+      - NO_DEVICE_ACTION
+    /response_count:
+      equals: 1
+  capture:
+    selected_reply_7: /reply
+- id: single_history_reply_7
+  client: peer
+  rpc:
+    method: server.workspace.history.list
+    request:
+      workspace_name: ${workspace}
+      order: WORKSPACE_HISTORY_LIST_REQUEST_ORDER_ASC
+      limit: 100
+  expect:
+    /available:
+      equals: true
+    /has_next:
+      equals: false
+    /items:
+      count: 16
+    /items/14/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_GEAR
+    /items/14/text:
+      equals: 再帮我选一首，先别播放。
+    /items/15/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_AGENT
+    /items/15/text:
+      equals: ${selected_reply_7}
+- id: mhs_7
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.mhs.v0.write
+    response: *id001
+    expect_calls: 0
+  expect:
+    /calls:
+      equals: 0
+- id: audioplayer_play_7
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response: *id002
+    expect_calls: 1
+    tool: audioplayer.play
+  expect:
+    /calls:
+      equals: 1
+    /requests/0/effective_index:
+      equals: 1
+    /requests/0/args/index:
+      equals: 1
+- id: audioplayer_stop_7
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response: *id002
+    expect_calls: 1
+    tool: audioplayer.stop
+  expect:
+    /calls:
+      equals: 1
+    /requests/0/args:
+      equals: *id004
+- id: run_workspace_set_7
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response:
+      run_workspace: true
+    expect_calls: 0
+    tool: run.workspace.set
+  expect:
+    /calls:
+      equals: 0
+- id: turn_8
+  client: peer
+  timeout: 90s
+  peer_stream:
+    mode: text
+    input: 取消这次选歌，不选了。
+    require_text: true
+    require_audio: false
+    wait_for_history: true
+  expect:
+    /text_eos:
+      equals: true
+    /reply:
+      non_empty: true
+      not_contains:
+      - NO_DEVICE_ACTION
+    /response_count:
+      equals: 1
+    /text:
+      not_contains:
+      - NO_DEVICE_ACTION
+  capture:
+    selected_reply_8: /reply
+- id: single_history_reply_8
+  client: peer
+  rpc:
+    method: server.workspace.history.list
+    request:
+      workspace_name: ${workspace}
+      order: WORKSPACE_HISTORY_LIST_REQUEST_ORDER_ASC
+      limit: 100
+  expect:
+    /available:
+      equals: true
+    /has_next:
+      equals: false
+    /items:
+      count: 18
+    /items/16/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_GEAR
+    /items/16/text:
+      equals: 取消这次选歌，不选了。
+    /items/17/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_AGENT
+    /items/17/text:
+      equals: ${selected_reply_8}
+- id: mhs_8
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.mhs.v0.write
+    response: *id001
+    expect_calls: 0
+  expect:
+    /calls:
+      equals: 0
+- id: audioplayer_play_8
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response: *id002
+    expect_calls: 1
+    tool: audioplayer.play
+  expect:
+    /calls:
+      equals: 1
+    /requests/0/effective_index:
+      equals: 1
+    /requests/0/args/index:
+      equals: 1
+- id: audioplayer_stop_8
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response: *id002
+    expect_calls: 1
+    tool: audioplayer.stop
+  expect:
+    /calls:
+      equals: 1
+    /requests/0/args:
+      equals: *id004
+- id: run_workspace_set_8
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response:
+      run_workspace: true
+    expect_calls: 0
+    tool: run.workspace.set
+  expect:
+    /calls:
+      equals: 0
+- id: turn_9
+  client: peer
+  timeout: 90s
+  peer_stream:
+    mode: text
+    input: 第一首。
+    require_text: true
+    require_audio: false
+    wait_for_history: true
+  expect:
+    /text_eos:
+      equals: true
+    /text:
+      pattern: 想|确认|选择|播放|哪|什么
+      not_contains:
+      - 已播放
+      - NO_DEVICE_ACTION
+    /reply:
+      non_empty: true
+      not_contains:
+      - NO_DEVICE_ACTION
+    /response_count:
+      equals: 1
+  capture:
+    selected_reply_9: /reply
+- id: single_history_reply_9
+  client: peer
+  rpc:
+    method: server.workspace.history.list
+    request:
+      workspace_name: ${workspace}
+      order: WORKSPACE_HISTORY_LIST_REQUEST_ORDER_ASC
+      limit: 100
+  expect:
+    /available:
+      equals: true
+    /has_next:
+      equals: false
+    /items:
+      count: 20
+    /items/18/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_GEAR
+    /items/18/text:
+      equals: 第一首。
+    /items/19/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_AGENT
+    /items/19/text:
+      equals: ${selected_reply_9}
+- id: mhs_9
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.mhs.v0.write
+    response: *id001
+    expect_calls: 0
+  expect:
+    /calls:
+      equals: 0
+- id: audioplayer_play_9
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response: *id002
+    expect_calls: 1
+    tool: audioplayer.play
+  expect:
+    /calls:
+      equals: 1
+    /requests/0/effective_index:
+      equals: 1
+    /requests/0/args/index:
+      equals: 1
+- id: audioplayer_stop_9
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response: *id002
+    expect_calls: 1
+    tool: audioplayer.stop
+  expect:
+    /calls:
+      equals: 1
+    /requests/0/args:
+      equals: *id004
+- id: run_workspace_set_9
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response:
+      run_workspace: true
+    expect_calls: 0
+    tool: run.workspace.set
+  expect:
+    /calls:
+      equals: 0
+- id: turn_10
+  client: peer
+  timeout: 90s
+  peer_stream:
+    mode: text
+    input: 现在新请求：把本机屏幕亮度设为30%。
+    require_text: true
+    require_audio: false
+    wait_for_history: true
+  expect:
+    /text_eos:
+      equals: true
+    /reply:
+      non_empty: true
+      not_contains:
+      - NO_DEVICE_ACTION
+    /response_count:
+      equals: 1
+    /text:
+      not_contains:
+      - NO_DEVICE_ACTION
+  capture:
+    selected_reply_10: /reply
+- id: single_history_reply_10
+  client: peer
+  rpc:
+    method: server.workspace.history.list
+    request:
+      workspace_name: ${workspace}
+      order: WORKSPACE_HISTORY_LIST_REQUEST_ORDER_ASC
+      limit: 100
+  expect:
+    /available:
+      equals: true
+    /has_next:
+      equals: false
+    /items:
+      count: 22
+    /items/20/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_GEAR
+    /items/20/text:
+      equals: 现在新请求：把本机屏幕亮度设为30%。
+    /items/21/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_AGENT
+    /items/21/text:
+      equals: ${selected_reply_10}
+- id: mhs_10
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.mhs.v0.write
+    response: *id001
+    expect_calls: 1
+  expect:
+    /calls:
+      equals: 1
+    /requests/0/id:
+      equals: display.main
+    /requests/0/hwd:
+      equals: display
+    /requests/0/args:
+      equals: &id005
+        brightness_percent: 30
+- id: audioplayer_play_10
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response: *id002
+    expect_calls: 1
+    tool: audioplayer.play
+  expect:
+    /calls:
+      equals: 1
+    /requests/0/effective_index:
+      equals: 1
+    /requests/0/args/index:
+      equals: 1
+- id: audioplayer_stop_10
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response: *id002
+    expect_calls: 1
+    tool: audioplayer.stop
+  expect:
+    /calls:
+      equals: 1
+    /requests/0/args:
+      equals: *id004
+- id: run_workspace_set_10
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response:
+      run_workspace: true
+    expect_calls: 0
+    tool: run.workspace.set
+  expect:
+    /calls:
+      equals: 0
+- id: turn_11
+  client: peer
+  timeout: 90s
+  peer_stream:
+    mode: text
+    input: 我刚才喜欢哪种音乐？请只回答音乐类型，不操作任何设备。
+    require_text: true
+    require_audio: false
+    wait_for_history: true
+  expect:
+    /text_eos:
+      equals: true
+    /text:
+      contains: 轻音乐
+      not_contains:
+      - NO_DEVICE_ACTION
+    /reply:
+      non_empty: true
+      not_contains:
+      - NO_DEVICE_ACTION
+    /response_count:
+      equals: 1
+  capture:
+    selected_reply_11: /reply
+- id: single_history_reply_11
+  client: peer
+  rpc:
+    method: server.workspace.history.list
+    request:
+      workspace_name: ${workspace}
+      order: WORKSPACE_HISTORY_LIST_REQUEST_ORDER_ASC
+      limit: 100
+  expect:
+    /available:
+      equals: true
+    /has_next:
+      equals: false
+    /items:
+      count: 24
+    /items/22/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_GEAR
+    /items/22/text:
+      equals: 我刚才喜欢哪种音乐？请只回答音乐类型，不操作任何设备。
+    /items/23/type:
+      equals: PEER_RUN_HISTORY_ENTRY_TYPE_AGENT
+    /items/23/text:
+      equals: ${selected_reply_11}
+- id: mhs_11
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.mhs.v0.write
+    response: *id001
+    expect_calls: 1
+  expect:
+    /calls:
+      equals: 1
+    /requests/0/id:
+      equals: display.main
+    /requests/0/hwd:
+      equals: display
+    /requests/0/args:
+      equals: *id005
+- id: audioplayer_play_11
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response: *id002
+    expect_calls: 1
+    tool: audioplayer.play
+  expect:
+    /calls:
+      equals: 1
+    /requests/0/effective_index:
+      equals: 1
+    /requests/0/args/index:
+      equals: 1
+- id: audioplayer_stop_11
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response: *id002
+    expect_calls: 1
+    tool: audioplayer.stop
+  expect:
+    /calls:
+      equals: 1
+    /requests/0/args:
+      equals: *id004
+- id: run_workspace_set_11
+  client: peer
+  timeout: 5s
+  client_rpc:
+    method: client.tool.v0.invoke
+    response:
+      run_workspace: true
+    expect_calls: 0
+    tool: run.workspace.set
+  expect:
+    /calls:
+      equals: 0
+finally:
+- id: stop
+  client: peer
+  rpc:
+    method: server.run.stop
+    request: {}
+- id: delete_chat
+  client: peer
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: ${workspace}
+- id: delete_story
+  client: peer
+  rpc:
+    method: server.workspace.delete
+    request:
+      name: ${story}
+- id: delete_peer
+  client: peer
+  rpc:
+    method: server.peer.delete
+    request: {}

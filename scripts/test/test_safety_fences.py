@@ -66,6 +66,24 @@ class SafetyFencesTest(unittest.TestCase):
             self.nodes(driver).append(extra)
             self.assertRegex(''.join(self.errors(driver)), 'another-player-path')
 
+    def test_joined_parallel_model_outputs_require_both_fences(self):
+        graph = self.fixtures['eino']['spec']['eino']['graph']
+        prompt = copy.deepcopy(self.nodes('eino')[0])
+        model = next(node for node in self.nodes('eino') if node.get('type') == 'chat_model')
+        model['outputs'] = {'text': 'main-answer'}
+        prompt.update(id='intent-prompt', outputs={'messages': 'intent-messages'})
+        control = copy.deepcopy(model)
+        control.update(id='intent-model', inputs={'messages': {'from': 'intent-messages'}}, outputs={'text': 'control-answer'})
+        self.nodes('eino').extend([prompt, control, {'id': 'join', 'type': 'script',
+            'inputs': {'main': {'from': 'main-answer'}, 'control': {'from': 'control-answer'}}, 'outputs': {'text': 'reply'}}])
+        graph['outputs'] = [{'node': 'join', 'field': 'reply', 'mime_type': 'text/plain'}]
+        self.assertEqual([], self.errors('eino'))
+        prompt['messages'][0]['template'] = 'No fence.'
+        self.assertRegex(''.join(self.errors('eino')), 'intent-prompt')
+        prompt['messages'][0]['template'] = '{safety_fence}\n\nControl.'
+        control['inputs']['messages']['from'] = 'unknown-messages'
+        self.assertRegex(''.join(self.errors('eino')), 'unresolved prompt')
+
     def test_discovery_includes_variants_but_excludes_testers_and_giztests(self):
         with tempfile.TemporaryDirectory(prefix='safety-fence-fixture') as root:
             os.makedirs(f'{root}/raid')

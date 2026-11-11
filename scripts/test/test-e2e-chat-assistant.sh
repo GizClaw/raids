@@ -8,5 +8,6 @@ require_python_yaml
 : "${PARALLEL:=3}"
 : "${RAIDS_CHAT_E2E_STANDARD:=all}"
 exec python3 scripts/test/chat-e2e/run.py \
+  --workflow "${RAIDS_CHAT_E2E_WORKFLOW:-general-assistant}" \
   --repeat "$RAIDS_CHAT_E2E_REPEAT" --parallel "$PARALLEL" \
   --standard "$RAIDS_CHAT_E2E_STANDARD" --filter "${RAIDS_CHAT_E2E_FILTER:-}"
