@@ -1,5 +1,9 @@
 # Giztest 测试
 
+## Parallel Function Chat
+
+The `eino.function-chat` implementation uses two `doubao-seed-2-1-lite-260915` lanes: one enables native ToolCall and the answer lane disables it. Its standard smoke/quality/soak files sit beside the original Chat files. Dedicated documents under [`function-chat/`](function-chat/) cover both public Profiles with exact MHS/ClientTool receipts, call counts and one user/assistant History pair per turn. They can be run directly with `gizclaw test run tests/giztest/function-chat` against an environment containing the shipped bindings. [`FUNCTION-CHAT.md`](../../workflows/chat-assistant/FUNCTION-CHAT.md) describes the configuration and isolated Docker runner; `make test-e2e-function-chat` prepares that local environment, runs real Seed requests with simulated devices, archives evidence and cleans up. Local native tests separately prove concurrent model execution and tool-definition omission on the answer lane's HTTP request.
+
 0.23.2 使用 Profile 自定义的安全围栏字符串 ID；testing Profile 的普通测试显式选择 `off`，儿童围栏测试选择 `child`，不再发送 `SAFETY_FENCE_LEVEL_*` 枚举。`off` 只要求遵循 Workflow 自身规则，既有 `general`、`child` 的安全策略原文保留。H106 使用 deploy 管理的 Profile，测试使用 Eino Workspace 参数，围栏选择仍由设备环境决定。
 
 Chat/Journey 不把回复字数作为通过或失败标准，重载后的回复同样按内容验收。数字提示只表达用户希望简短的意图，Tester 不做精确计数；原样回答仍按文本匹配。事实、更正、记忆、响应时延和音频完成检查继续执行。`scripts/test/test_reply_lengths.py` 用原生 Starlark 验证完整回复不会只因长短失败，错误事实、空回复和原样回答中添加的内容仍会被拒绝。
@@ -10,7 +14,7 @@ Chat/Journey 不把回复字数作为通过或失败标准，重载后的回复�
 
 Chat 的天气、日期 live 探针只检查语音回复可用性，关键词本身不证明搜索已执行。
 `make test-unit-chat-assistant` 另用仓库真实 Workflow、Tool、profile 与这两个输入，
-在 GizClaw v0.27.0 Eino 引擎、Profile alias 目录、AgentHost ToolInvoker 和 HTTP Tool 执行器中验证请求映射、真实调用计数、随机受控结果传入回答，
+在 GizClaw v0.35.18 SDK 的 Eino 引擎、Profile alias 目录、AgentHost ToolInvoker 和 HTTP Tool 执行器中验证请求映射、真实调用计数、随机受控结果传入回答，
 并拒绝没有调用搜索的虚构天气/日期回答。它同时检查用户与助手都进入异步记忆观察、闲聊不调用搜索。
 default、testing 与示例 Profile 现为 Chat 配置 10 个 Tool alias：联网搜索、屏幕/状态灯读取及亮度写入、播放状态/列表/播放/停止，以及切换 Workflow；同时启用 `verification_model`，会增加模型请求和最终回复等待时间。
 受控设备 transport 测试覆盖真实目录生成的参数 schema、固定实例/程序、结果回传、缺值/越界/换目标/不支持字段拒绝、能力未知/离线过滤及撤权。它不运行真实模型的语义检查，也不代表 Docker E2E 或 H106 真机验收；H106 产品 Profile 仍由 deploy 管理。
@@ -23,13 +27,13 @@ default、testing 与示例 Profile 现为 Chat 配置 10 个 Tool alias：联�
 
 10 个 `guess-*` 的标准 quality 文件都包含固定谜底回归：确定的正反属性、自然说法与同音转写猜中、猜错后认输揭晓同一答案，以及全英语文字和中英语音输入。语音通过 `server.speech.synthesize` 和 push-to-talk ASR 执行；属性与揭晓断言只检查助手的 `/reply`，另外保存并输出 `/transcript`，避免把孩子的转写混入回答判断。每组使用独立 Workspace，结束后读回最新历史；这些步骤随 `make test-e2e TIER=quality RAID=<guess-raid>` 和 `RAID=all` 执行。服务端回归结果与 H106 真机验收分别记录。
 
-测试布局为 `tests/giztest/{smoke,quality,soak}/<raid>.<implementation>.giztest.yaml`，每个文件只运行一个实现，共 340 个三档文件。implementation 与 workflow 文件名一致，例如 `eino`、`eino.multi-role` 和 Journey 的 `eino-history`。文档名为 `<raid>.<tier>.<implementation>`。另有 `device/` 的 75 个设备流程测试、`h106/` 的 2 个外部设备测试和 `safety-fence/` 的 1 个安全围栏测试，合计 418 个 `.giztest.yaml`；`reports/` 仅存运行产物，不计入用例。
+测试布局为 `tests/giztest/{smoke,quality,soak}/<raid>.<implementation>.giztest.yaml`，每个文件只运行一个实现，共 343 个三档文件。implementation 与 workflow 文件名一致，例如 `eino`、`eino.multi-role` 和 Journey 的 `eino-history`。文档名为 `<raid>.<tier>.<implementation>`。另有 `device/` 的 75 个设备流程测试、`h106/` 的 2 个外部设备测试和 `safety-fence/` 的 1 个安全围栏测试，加上 `function-chat/` 的 2 个双路设备测试，合计 423 个 `.giztest.yaml`；`reports/` 仅存运行产物，不计入用例。
 
 | 档位 | 文件数 | 定义 |
 | --- | ---: | --- |
-| smoke | 116 | 速度、延迟、响应度：开场、角色探针、RealTime，完整音频与独立首响应 |
-| quality | 116 | 质量控制与安全围栏：剧情、转场、更正、语言、角色边界；只保留确定性断言 |
-| soak | 108 | Tester 与被测 workflow 长回合对跑，检查记忆、重载及长程一致性 |
+| smoke | 117 | 速度、延迟、响应度：开场、角色探针、RealTime，完整音频与独立首响应 |
+| quality | 117 | 质量控制与安全围栏：剧情、转场、更正、语言、角色边界；只保留确定性断言 |
+| soak | 109 | Tester 与被测 workflow 长回合对跑，检查记忆、重载及长程一致性 |
 | device | 75 | H106 进入流程：`开始` → `我选第一个` → `继续` → 退出重进 → `继续上次的内容` → `开始`，每轮必须以问孩子的问题结尾 |
 
 `device/` 覆盖 19 个 story、11 个 adventure 的两个 Eino 实现、12 个 figure 的 Eino 多角色实现和 Journey 的三个 Eino 实现。H106 在孩子确认进入时只提交一次 `开始` 或 `继续上次的内容`，之后只有孩子按键说话才有输入，所以每轮回复都必须以问题结尾，文字匹配 `[？?][”"’」』）)]*\s*$`，并要求 text/audio EOS。原版 story 另外要求：两次 `开始` 都输出 `第 1 章` 与第一章标题，章节结束轮提到 `继续`，`继续` 后输出 `第 2 章` 与第二章标题，重进后的 `继续上次的内容` 含第二章标题且不含 `第 1 章` 或玩法说明；multi-role 不得残留 `【】`；Journey 的 `开始` 必须从石猴开场且不出现 Tester 路线里的 `明月`、`清禾`、`青铜铃`。文件由 `python3 scripts/test/device-flow.py` 生成，`make test-unit-resources` 用 `--check` 校验文件未过期、目标 workflow 含对应契约；不登记在 `raid.json`，用 `make test-e2e TIER=device` 运行。

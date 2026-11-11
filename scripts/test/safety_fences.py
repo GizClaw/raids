@@ -66,11 +66,30 @@ def fenced_prompt(node):
 
 def eino_nodes(graph):
     nodes = graph['nodes']
-    published = [output.get('node') for output in graph.get('outputs', []) if output.get('mime_type') == 'text/plain']
-    message_fields = [dig(node, 'inputs', 'messages', 'from') for node in nodes
-                      if node.get('type') == 'chat_model' and node.get('id') in published]
-    message_fields = [field for field in message_fields if field is not None]
-    return [node for node in nodes if node.get('type') == 'prompt' and dig(node, 'outputs', 'messages') in message_fields]
+    by_id = {node['id']: node for node in nodes}
+    producers = {}
+    for node in nodes:
+        for field in node.get('outputs', {}).values():
+            producers.setdefault(field, []).append(node)
+    pending = [output.get('node') for output in graph.get('outputs', []) if output.get('mime_type') == 'text/plain']
+    seen, prompts = set(), []
+    while pending:
+        identifier = pending.pop()
+        if identifier in seen or identifier not in by_id:
+            continue
+        seen.add(identifier)
+        node = by_id[identifier]
+        if node.get('type') == 'chat_model':
+            field = dig(node, 'inputs', 'messages', 'from')
+            sources = [source for source in nodes if source.get('type') == 'prompt' and
+                       dig(source, 'outputs', 'messages') == field and field is not None]
+            # A valid sibling prompt must not conceal an uncovered model lane.
+            prompts.extend(sources or [{'id': identifier + ' (unresolved prompt)'}])
+        elif node.get('type') in ('script', 'transform', 'passthrough'):
+            # A deterministic join still publishes every model value it consumes.
+            for binding in node.get('inputs', {}).values():
+                pending.extend(source['id'] for source in producers.get(binding.get('from'), []))
+    return prompts
 
 
 def errors(document, file):

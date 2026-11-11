@@ -23,7 +23,7 @@ services:
       retries: 90
   server:
     user: "0:0"
-    image: ghcr.io/gizclaw/gizclaw@sha256:122619e0ecc54e2fc7b3718f6ba08148ce868b7f3890b3ff9ee993ea271f5df5
+    image: "${RAIDS_CHAT_E2E_IMAGE:-ghcr.io/gizclaw/gizclaw@sha256:122619e0ecc54e2fc7b3718f6ba08148ce868b7f3890b3ff9ee993ea271f5df5}"
     entrypoint: [/usr/bin/gizclaw, serve, --force, /workspace]
     volumes:
       - "${RAIDS_CHAT_E2E_STATE}/server/config.yaml:/workspace/config.yaml:ro"
@@ -36,7 +36,7 @@ services:
       retries: 90
   edge:
     user: "0:0"
-    image: ghcr.io/gizclaw/gizclaw@sha256:122619e0ecc54e2fc7b3718f6ba08148ce868b7f3890b3ff9ee993ea271f5df5
+    image: "${RAIDS_CHAT_E2E_IMAGE:-ghcr.io/gizclaw/gizclaw@sha256:122619e0ecc54e2fc7b3718f6ba08148ce868b7f3890b3ff9ee993ea271f5df5}"
     entrypoint: [/usr/bin/gizclaw, edge, serve, /workspace]
     volumes: ["${RAIDS_CHAT_E2E_STATE}/edge/config.yaml:/workspace/config.yaml:ro"]
     depends_on: {server: {condition: service_healthy}}
@@ -46,7 +46,7 @@ services:
       timeout: 3s
       retries: 90
   cli:
-    image: ghcr.io/gizclaw/gizclaw@sha256:122619e0ecc54e2fc7b3718f6ba08148ce868b7f3890b3ff9ee993ea271f5df5
+    image: "${RAIDS_CHAT_E2E_IMAGE:-ghcr.io/gizclaw/gizclaw@sha256:122619e0ecc54e2fc7b3718f6ba08148ce868b7f3890b3ff9ee993ea271f5df5}"
     entrypoint: [/bin/sh, -c, "sleep 21600"]
     working_dir: /raids
     environment:

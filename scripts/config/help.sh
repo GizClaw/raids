@@ -21,6 +21,7 @@ printf '%s\n' \
   'Integration test (live deployment):' \
   '  test-e2e               run the Giztest corpus against a provisioned deployment' \
   '  test-e2e-chat-assistant  run isolated released Docker runtime, real providers and device receipts' \
+  '  test-e2e-function-chat  run parallel Seed answer/control Giztests with native device receipts' \
   '' \
   'Variables:' \
   '  GIZCLAW=gizclaw        GizClaw CLI used for validation and Admin apply' \

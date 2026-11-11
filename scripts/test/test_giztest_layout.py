@@ -38,6 +38,18 @@ class GiztestCapabilityTest(unittest.TestCase):
         with self.assertRaises(SystemExit):
             check(*args)
 
+    def test_literal_registration_selects_its_actual_profile(self):
+        default, testing = {'policy': 'default'}, {'policy': 'testing'}
+        registrations = {'default-token': default, 'testing-token': testing}
+        def registered(token):
+            return {'id': 'register', 'rpc': {'method': 'server.register', 'request': {'token': token}}}
+        self.assertIs(default, layout.profile_for_literal_registration(
+            {'steps': [registered('default-token')]}, testing, registrations))
+        self.assertIs(testing, layout.profile_for_literal_registration(
+            {'steps': [registered('${registration_token}')]}, testing, registrations))
+        self.rejected(layout.profile_for_literal_registration,
+                      {'steps': [registered('default-token'), registered('testing-token')]}, testing, registrations)
+
     def test_split_references_include_finally_parallel_captures_and_relays(self):
         doc = {'clients': {'a': {}}, 'variables': {'answer': {'direction': 'output'}},
                'steps': [{'id': 'batch', 'parallel': [response('a')], 'capture': {'answer': '/a_response/text'}}],
@@ -52,6 +64,16 @@ class GiztestCapabilityTest(unittest.TestCase):
         bad = copy.deepcopy(doc); bad['steps'][0]['parallel'][0]['peer_stream']['input'] = '${foreign}'
         self.rejected(layout.check_local_references, bad, 'fixture')
         bad = copy.deepcopy(doc); bad['finally'].append({'id': 'relay', 'workspace_relay': {'first_client': 'a', 'second_client': 'missing'}})
+        self.rejected(layout.check_local_references, bad, 'fixture')
+
+    def test_relay_turn_selectors_follow_renamed_clients(self):
+        doc = {'clients': {'candidate_v2': {}, 'tester_v2': {}, 'candidate': {}},
+               'steps': [{'id': 'relay', 'workspace_relay': {'first_client': 'tester_v2', 'second_client': 'candidate_v2'},
+                          'expect': {'/turns/candidate_v2/count': {'equals': 9},
+                                     '/turns/tester_v2/count': {'equals': 9}}}]}
+        layout.check_local_references(doc, 'fixture')
+        bad = copy.deepcopy(doc)
+        bad['steps'][0]['expect']['/turns/candidate/count'] = {'equals': 9}
         self.rejected(layout.check_local_references, bad, 'fixture')
 
     def test_speech_requires_registration_on_its_own_client(self):

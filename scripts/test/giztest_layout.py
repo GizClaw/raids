@@ -213,6 +213,11 @@ def check_local_references(doc, file):
     for step in all_steps:
         for client in participants(step):
             check(client in clients, f"{file}: {step.get('id')} undeclared client {client}")
+        if step.get('workspace_relay') is not None:
+            for pointer in [*step.get('expect', {}), *step.get('capture', {}).values()]:
+                match = re.match(r'/turns/([^/]+)(?:/|$)', pointer) if isinstance(pointer, str) else None
+                check(match is None or match[1] in participants(step),
+                      f"{file}: {step.get('id')} relay selector {pointer} references a non-participating client")
         output = (step.get('output') or {}).get('variable')
         for name in [*step.get('capture', {}), step.get('save_as'), output]:
             check(name is None or name in variables, f"{file}: {step.get('id')} undeclared variable {name}")
@@ -583,19 +588,36 @@ def check_realtime(file, manifest, raid):
     return len(keys)
 
 
+def profile_for_literal_registration(doc, fallback, registrations):
+    selected = [registrations[request['token']] for step in steps(doc)
+                if rpc(step).get('method') == 'server.register'
+                for request in [rpc(step).get('request', {})]
+                if isinstance(request.get('token'), str) and request['token'] in registrations]
+    if not selected:
+        return fallback
+    check(all(profile == selected[0] for profile in selected),
+          'Mixed literal registration Profiles need per-client contract validation')
+    return selected[0]
+
+
 def validate():
     profile = load_yaml('runtime-profiles/testing.yaml')['spec']
     workflow_aliases = profile['workflows']
+    registrations = {load_yaml(f'registration-tokens/{name}.yaml')['spec']['token']:
+                     load_yaml(f'runtime-profiles/{name}.yaml')['spec'] for name in ('default', 'testing')}
     for file in sorted(glob.glob('tests/giztest/*/*.giztest.yaml')):
+        # Literal public tokens identify their actual Profile, including Default
+        # without Testing's fence definitions. Environment-selected suites keep Testing.
         # H106 uses a deploy-owned Profile, whose fence selections belong to it.
         if file.split('/')[2] != 'h106':
-            check_workspace_contract(load_yaml(file), file, profile)
+            doc = load_yaml(file)
+            check_workspace_contract(doc, file, profile_for_literal_registration(doc, profile, registrations))
     raids = sorted(os.path.basename(os.path.dirname(f)) for f in glob.glob('workflows/*/raid.json'))
     for tier in TIERS:
         tier_raids = [raid for raid in raids if tier in raid_tiers(raid)]
         expected_files = sorted(f'{raid}.{impl}' for raid in tier_raids for impl in inventory(raid))
         files = sorted(glob.glob(f'tests/giztest/{tier}/*.giztest.yaml'))
-        check([stem(f, '.giztest.yaml') for f in files] == expected_files, f'{tier}: raid inventory mismatch')
+        check(sorted(stem(f, '.giztest.yaml') for f in files) == expected_files, f'{tier}: raid inventory mismatch')
         for file in files:
             check_file(file, tier, workflow_aliases)
         if 'journey-guide' in tier_raids:
@@ -633,7 +655,7 @@ def validate():
         source = read(f'workflows/adventure-history/{engine}.multi-role.yaml')
         check('情境重现声明不替代角色自述' in source, f'history {engine}: reenactment boundary missing')
         check('正文第一句必须逐字' not in source, f'history {engine}: rigid scene opening')
-    kept = TIERS + ['device', 'h106', 'safety-fence', 'reports']
+    kept = TIERS + ['device', 'h106', 'safety-fence', 'function-chat', 'reports']
     old = [f for f in sorted(glob.glob('tests/giztest/*/*.giztest.yaml')) if f.split('/')[2] not in kept]
     check(not old, f"legacy Giztest files remain: {', '.join(old)}")
 

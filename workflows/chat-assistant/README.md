@@ -14,6 +14,9 @@ Tester Workflows do not receive the variable. See the root
 | File | Workflow ID | Engine | Memory layout | Model slots | Voice slots |
 | --- | --- | --- | --- | --- | --- |
 | `eino.yaml` | `eino-chat-assistant` | eino | user-chat-with-assistant | `eino-chat-assistant.model` | `eino-chat-assistant.assistant` |
+| `eino.function-chat.yaml` | `eino-function-chat` | eino | user-chat-with-assistant | `eino-function-chat.model`, `eino-function-chat.classify`, `eino-function-chat.intent` | `eino-function-chat.assistant` |
+
+[Parallel Function Chat](FUNCTION-CHAT.md) documents the two-Seed implementation, its no-tools answer lane, native control lane and dedicated Giztests.
 
 Install the Workflow resource and add a flat `spec.workflows` binding to its Workflow ID. Bind the slots above under `spec.resources.models` and `spec.resources.voices`; use `category:*` tags for discovery.
 
@@ -21,7 +24,7 @@ Both public profiles bind it as `spec.workflows.general-assistant`
 (聊天助手), tagged `category:assistants`. Consumers that override that public
 alias must resolve it to `eino-chat-assistant`.
 
-It is a plain ASR → LLM → TTS pipeline: the shared `asr` Model transcribes
+The original implementation is a plain ASR → LLM → TTS pipeline: the shared `asr` Model transcribes
 speech, `eino-chat-assistant.model` answers, and the Voice adapter speaks the
 reply. It recalls and observes `user-chat-with-assistant` memory, searches the
 web, and uses the current device's available control Tools.
